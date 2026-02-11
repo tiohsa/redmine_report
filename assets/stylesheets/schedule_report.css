@@ -1,0 +1,32 @@
+.schedule-report-page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-report-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #ffffff;
+  border-bottom: 1px solid #d1d5db;
+  padding: 8px 12px;
+  font-weight: 600;
+}
+
+.schedule-report-filter-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.schedule-report-warnings {
+  color: #b91c1c;
+  padding: 8px 12px;
+}
+
+.schedule-report-main {
+  overflow: auto;
+  border: 1px solid #d1d5db;
+}

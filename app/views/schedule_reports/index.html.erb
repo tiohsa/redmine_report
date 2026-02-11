@@ -1,0 +1,15 @@
+<div id="schedule-report-root" data-project-id="<%= @project.identifier || @project.id %>"></div>
+<%
+  plugin_root = Rails.root.join('plugins', 'redmine_report')
+  built_css = plugin_root.join('assets', 'build', 'main.css')
+  built_js = plugin_root.join('assets', 'build', 'main.js')
+  fallback_css = plugin_root.join('assets', 'stylesheets', 'schedule_report.css')
+  fallback_js = plugin_root.join('assets', 'javascripts', 'schedule_report.js')
+
+  css_path = File.file?(built_css) ? built_css : fallback_css
+  js_path = File.file?(built_js) ? built_js : fallback_js
+%>
+<%= tag.style(raw(File.read(css_path)), nonce: content_security_policy_nonce) %>
+<%= javascript_tag type: 'module', nonce: content_security_policy_nonce do %>
+<%= raw(File.read(js_path)) %>
+<% end %>

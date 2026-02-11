@@ -1,3 +1,8 @@
 # English strings go here for Rails i18n
 en:
-  # my_label: "My label"
+  label_schedule_report: "Schedule Report"
+  label_schedule_report_filters: "Filters"
+  label_schedule_report_empty: "No data available for selected filters."
+  label_schedule_report_limit_warning: "Display limit exceeded."
+  label_schedule_report_permission_denied: "You are not allowed to view schedule report."
+  label_schedule_report_unavailable: "Schedule report is temporarily unavailable."
