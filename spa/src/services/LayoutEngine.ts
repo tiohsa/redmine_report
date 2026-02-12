@@ -1,140 +1,128 @@
 import { CategoryBar, ProjectRow } from './scheduleReportApi';
+import { differenceInCalendarDays, endOfMonth, startOfDay, startOfMonth } from './dateUtils';
 
 export type CalculatedBar = {
-    data: CategoryBar;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    rowY: number; // Y position relative to the row start
+  data: CategoryBar;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rowY: number;
 };
 
 export type CalculatedRow = {
-    data: ProjectRow;
-    y: number;
-    height: number;
-    bars: CalculatedBar[];
+  data: ProjectRow;
+  y: number;
+  height: number;
+  bars: CalculatedBar[];
 };
 
+const ROW_PADDING = 10;
+const BAR_HEIGHT = 32;
+const BAR_MARGIN = 8;
+const MIN_ROW_HEIGHT = 60;
+const LANE_GAP = 10;
+
+const safeDate = (value: string) => startOfDay(new Date(value));
+
 export class LayoutEngine {
-    private readonly ROW_PADDING = 10;
-    private readonly BAR_HEIGHT = 32;
-    private readonly BAR_MARGIN = 8;
-    private readonly HEADER_HEIGHT = 40;
+  calculateLayout(
+    rows: ProjectRow[],
+    bars: CategoryBar[],
+    months: number,
+    totalWidth: number,
+    viewStartDate: Date
+  ): { rows: CalculatedRow[]; totalHeight: number } {
+    const barsByProject = this.groupBarsByProject(bars);
+    let currentY = 0;
+    const calculatedRows: CalculatedRow[] = [];
 
-    calculateLayout(
-        rows: ProjectRow[],
-        bars: CategoryBar[],
-        months: number,
-        totalWidth: number,
-        viewStartDate: Date
-    ): { rows: CalculatedRow[]; totalHeight: number } {
-        const barsByProject = this.groupBarsByProject(bars);
-        let currentY = 0;
-        const calculatedRows: CalculatedRow[] = [];
+    rows.forEach((row) => {
+      const projectBars = barsByProject.get(row.project_id) || [];
+      const { rowHeight, calculatedBars } = this.layoutRow(projectBars, months, totalWidth, viewStartDate);
 
-        rows.forEach((row) => {
-            if (!row.expanded) {
-                // If collapsed, we might skip or show summary. For now, let's assume standard behavior.
-                // Current spec says "Project (and subproject)".
-            }
+      calculatedRows.push({
+        data: row,
+        y: currentY,
+        height: rowHeight,
+        bars: calculatedBars.map((bar) => ({ ...bar, y: currentY + bar.rowY }))
+      });
 
-            const projectBars = barsByProject.get(row.project_id) || [];
-            const { rowHeight, calculatedBars } = this.layoutRow(projectBars, months, totalWidth, viewStartDate);
+      currentY += rowHeight;
+    });
 
-            calculatedRows.push({
-                data: row,
-                y: currentY,
-                height: rowHeight,
-                bars: calculatedBars.map(b => ({ ...b, y: currentY + b.rowY })),
-            });
+    return { rows: calculatedRows, totalHeight: currentY };
+  }
 
-            currentY += rowHeight;
-        });
+  private groupBarsByProject(bars: CategoryBar[]): Map<number, CategoryBar[]> {
+    return bars.reduce((map, bar) => {
+      const existing = map.get(bar.project_id) || [];
+      existing.push(bar);
+      map.set(bar.project_id, existing);
+      return map;
+    }, new Map<number, CategoryBar[]>());
+  }
 
-        return { rows: calculatedRows, totalHeight: currentY };
+  private layoutRow(
+    bars: CategoryBar[],
+    months: number,
+    totalWidth: number,
+    viewStartDate: Date
+  ): { rowHeight: number; calculatedBars: CalculatedBar[] } {
+    if (bars.length === 0) {
+      return { rowHeight: MIN_ROW_HEIGHT, calculatedBars: [] };
     }
 
-    private groupBarsByProject(bars: CategoryBar[]): Map<number, CategoryBar[]> {
-        const map = new Map<number, CategoryBar[]>();
-        bars.forEach((bar) => {
-            const existing = map.get(bar.project_id) || [];
-            existing.push(bar);
-            map.set(bar.project_id, existing);
-        });
-        return map;
-    }
+    const sortedBars = [...bars].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    const lanes: number[] = [];
+    const calculatedBars: CalculatedBar[] = [];
 
-    private layoutRow(
-        bars: CategoryBar[],
-        months: number,
-        totalWidth: number,
-        viewStartDate: Date
-    ): { rowHeight: number; calculatedBars: CalculatedBar[] } {
-        if (bars.length === 0) {
-            return { rowHeight: 60, calculatedBars: [] }; // Minimum height
-        }
+    sortedBars.forEach((bar) => {
+      const { startX, width } = this.calculateBarX(bar, months, totalWidth, viewStartDate);
 
-        // Sort bars by start date
-        const sortedBars = [...bars].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+      let laneIndex = lanes.findIndex((lastBarRight) => lastBarRight + LANE_GAP < startX);
+      if (laneIndex === -1) {
+        laneIndex = lanes.length;
+        lanes.push(0);
+      }
 
-        // Simple lane packing algorithm
-        const lanes: number[] = []; // End X position of the last bar in each lane
-        const calculatedBars: CalculatedBar[] = [];
+      lanes[laneIndex] = startX + width;
 
-        sortedBars.forEach((bar) => {
-            const { startX, width } = this.calculateBarX(bar, months, totalWidth, viewStartDate);
+      calculatedBars.push({
+        data: bar,
+        x: startX,
+        y: 0,
+        width,
+        height: BAR_HEIGHT,
+        rowY: ROW_PADDING + laneIndex * (BAR_HEIGHT + BAR_MARGIN)
+      });
+    });
 
-            let laneIndex = -1;
-            for (let i = 0; i < lanes.length; i++) {
-                if (lanes[i] + 10 < startX) { // 10px gap
-                    laneIndex = i;
-                    break;
-                }
-            }
+    const rowHeight = ROW_PADDING * 2 + lanes.length * (BAR_HEIGHT + BAR_MARGIN);
+    return { rowHeight: Math.max(rowHeight, MIN_ROW_HEIGHT), calculatedBars };
+  }
 
-            if (laneIndex === -1) {
-                laneIndex = lanes.length;
-                lanes.push(0);
-            }
+  private calculateBarX(
+    bar: CategoryBar,
+    months: number,
+    totalWidth: number,
+    viewStartDate: Date
+  ): { startX: number; width: number } {
+    const startDate = safeDate(bar.start_date);
+    const endDate = safeDate(bar.end_date);
+    const timelineStart = startOfMonth(viewStartDate);
+    const timelineEnd = endOfMonth(new Date(viewStartDate.getFullYear(), viewStartDate.getMonth() + months - 1, 1));
 
-            lanes[laneIndex] = startX + width;
+    const clampedEnd = endDate > timelineEnd ? timelineEnd : endDate;
+    const totalDays = Math.max(1, differenceInCalendarDays(timelineEnd, timelineStart) + 1);
+    const pixelsPerDay = totalWidth / totalDays;
 
-            const rowY = this.ROW_PADDING + laneIndex * (this.BAR_HEIGHT + this.BAR_MARGIN);
+    const diffDaysStart = differenceInCalendarDays(startDate, timelineStart);
+    const durationDays = Math.max(1, differenceInCalendarDays(clampedEnd, startDate) + 1);
 
-            calculatedBars.push({
-                data: bar,
-                x: startX,
-                y: 0, // Absolute Y will be set by parent
-                width,
-                height: this.BAR_HEIGHT,
-                rowY,
-            });
-        });
-
-        const rowHeight = this.ROW_PADDING * 2 + lanes.length * (this.BAR_HEIGHT + this.BAR_MARGIN);
-        return { rowHeight: Math.max(rowHeight, 60), calculatedBars };
-    }
-
-    private calculateBarX(
-        bar: CategoryBar,
-        months: number,
-        totalWidth: number,
-        viewStartDate: Date
-    ): { startX: number; width: number } {
-        const startDate = new Date(bar.start_date);
-        const endDate = new Date(bar.end_date);
-
-        const msPerDay = 1000 * 60 * 60 * 24;
-        const totalDays = months * 30; // Approx
-        const pixelsPerDay = totalWidth / totalDays;
-
-        const diffDaysStart = (startDate.getTime() - viewStartDate.getTime()) / msPerDay;
-        const durationDays = (endDate.getTime() - startDate.getTime()) / msPerDay;
-
-        const startX = Math.max(0, diffDaysStart * pixelsPerDay);
-        const w = Math.max(10, durationDays * pixelsPerDay); // Min width 10px
-
-        return { startX, width: w };
-    }
+    return {
+      startX: Math.max(0, diffDaysStart * pixelsPerDay),
+      width: Math.max(10, durationDays * pixelsPerDay)
+    };
+  }
 }

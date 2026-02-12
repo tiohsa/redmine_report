@@ -7,6 +7,16 @@
   overflow: hidden;
 }
 
+.schedule-report-filter-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
 .schedule-report-header {
   height: 40px;
   background: #f9fafb;
@@ -17,7 +27,7 @@
 }
 
 .header-sidebar-spacer {
-  width: 250px; /* Match sidebar width */
+  width: 250px;
   flex-shrink: 0;
   padding: 0 16px;
   font-weight: bold;
@@ -30,13 +40,12 @@
 }
 
 .header-months {
-  flex-grow: 1;
   display: flex;
-  overflow: hidden; /* Synced scroll if needed */
+  overflow: hidden;
 }
 
 .header-month-item {
-  flex: 1; /* Or fixed width */
+  flex: 1;
   text-align: center;
   font-weight: 500;
   color: #6b7280;
@@ -50,7 +59,7 @@
 .schedule-report-body {
   flex-grow: 1;
   display: flex;
-  overflow-y: auto;
+  overflow: auto;
   position: relative;
 }
 
@@ -60,10 +69,6 @@
   border-right: 1px solid #e5e7eb;
   background: #ffffff;
   z-index: 10;
-}
-
-.project-list-header {
-  display: none; /* Already in top header */
 }
 
 .project-row {
@@ -82,13 +87,61 @@
   padding-right: 8px;
 }
 
-.schedule-report-canvas-wrapper {
-  flex-grow: 1;
-  overflow-x: auto;
-  /* overflow-y: hidden; Scroll is handled by body */
+.schedule-report-timeline-wrapper {
+  overflow: auto;
   position: relative;
 }
 
-.schedule-report-canvas-wrapper canvas {
-  display: block;
+.schedule-report-timeline {
+  position: relative;
+  background-image: repeating-linear-gradient(to right, #e5e7eb, #e5e7eb 1px, transparent 1px, transparent 100%);
+}
+
+.timeline-row {
+  position: relative;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.timeline-bar {
+  position: absolute;
+  border: 1px solid #2563eb;
+  background: #dbeafe;
+  color: #1e3a8a;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.timeline-bar:hover {
+  background: #bfdbfe;
+}
+
+.timeline-bar.is-delayed {
+  border-color: #dc2626;
+  background: #fee2e2;
+  color: #7f1d1d;
+}
+
+.timeline-bar-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timeline-bar-count {
+  font-weight: 700;
+}
+
+.schedule-report-warnings {
+  margin: 0;
+  padding: 8px 20px;
+  border-top: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #92400e;
 }
