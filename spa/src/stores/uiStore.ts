@@ -3,8 +3,9 @@ import { create } from 'zustand';
 type FilterState = {
   include_subprojects: boolean;
   months: number;
+
   start_month: string;
-  status_scope: 'open';
+  status_scope: 'open' | 'all';
 };
 
 type UIStore = {
@@ -25,7 +26,7 @@ export const useUiStore = create<UIStore>((set) => ({
     include_subprojects: true,
     months: 4,
     start_month: currentMonth,
-    status_scope: 'open'
+    status_scope: 'all'
   },
   zoomLevel: 1,
   selectedBarKey: null,

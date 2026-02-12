@@ -2,7 +2,7 @@ export type ReportFilterSet = {
   include_subprojects: boolean;
   months: number;
   start_month: string;
-  status_scope: 'open';
+  status_scope: 'open' | 'all';
 };
 
 export type ProjectRow = {

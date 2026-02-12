@@ -13,7 +13,7 @@ export function ScheduleReportPage() {
   const setSnapshot = useTaskStore((s) => s.setSnapshot);
   const snapshot = useTaskStore((s) => ({ rows: s.rows, bars: s.bars }));
   const filters = useUiStore((s) => s.filters);
-  const months = filters.months;
+
 
   const [layout, setLayout] = useState<TimelineLayout | null>(null);
 
@@ -31,15 +31,10 @@ export function ScheduleReportPage() {
     });
   }, [setSnapshot, filters]);
 
-  // Helper to determine view start date
-  const viewStartDate = useMemo(() => {
-    if (filters.start_month) {
-      return new Date(`${filters.start_month}-01`);
-    }
-    const d = new Date();
-    d.setDate(1);
-    return d;
-  }, [filters.start_month]);
+  // Helper to determine view start date and duration
+  const { startDate: viewStartDate, months } = useMemo(() => {
+    return timelineService.getTimelineRange(snapshot.bars);
+  }, [timelineService, snapshot.bars]);
 
   // Calculate Layout
   useEffect(() => {

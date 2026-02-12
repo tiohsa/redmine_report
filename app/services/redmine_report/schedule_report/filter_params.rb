@@ -54,7 +54,7 @@ module RedmineReport
 
       def normalize_status_scope(value)
         scope = value.to_s.strip
-        scope = 'open' if scope.empty?
+        return scope if %w[open all].include?(scope)
         'open'
       end
     end

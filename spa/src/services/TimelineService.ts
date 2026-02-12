@@ -65,6 +65,39 @@ export class TimelineService {
         };
     }
 
+    getTimelineRange(bars: CategoryBar[]): { startDate: Date; months: number } {
+        if (bars.length === 0) {
+            const now = new Date();
+            return {
+                startDate: new Date(now.getFullYear(), now.getMonth(), 1),
+                months: 1
+            };
+        }
+
+        let minDate = new Date(bars[0].start_date);
+        let maxDate = new Date(bars[0].end_date);
+
+        bars.forEach(bar => {
+            const start = new Date(bar.start_date);
+            const end = new Date(bar.end_date);
+            if (start < minDate) minDate = start;
+            if (end > maxDate) maxDate = end;
+        });
+
+        const startDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+        const endDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0); // End of max month
+
+        // Calculate months difference
+        // (YearDiff * 12) + (MonthDiff) + 1 (to include the last month)
+        // Actually, we want the number of months to display.
+        // If start is Jan 1 and end is Jan 31, months = 1.
+        // If start is Jan 1 and end is Feb 1, months = 2.
+
+        let months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1;
+
+        return { startDate, months };
+    }
+
     private layoutRow(
         bars: CategoryBar[],
         viewStartDate: Date,

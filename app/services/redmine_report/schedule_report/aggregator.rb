@@ -46,7 +46,7 @@ module RedmineReport
       end
 
       def apply_status_scope(scope)
-        return scope.open unless @filters.status_scope == 'open'
+        return scope if @filters.status_scope == 'all'
         scope.open
       end
 
