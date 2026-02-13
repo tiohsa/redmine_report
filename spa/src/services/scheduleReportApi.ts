@@ -24,6 +24,7 @@ export type CategoryBar = {
   delayed_issue_count: number;
   progress_rate: number;
   is_delayed: boolean;
+  dependencies: string[];
 };
 
 export type ReportSnapshot = {

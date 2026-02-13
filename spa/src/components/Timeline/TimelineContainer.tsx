@@ -80,7 +80,7 @@ export const TimelineContainer = ({ layout, projectIdentifier }: TimelineContain
         {/* Timeline Body */}
         <div className={clsx("flex-1 relative bg-white", MIN_WIDTH)}>
           <TimelineGrid startDate={layout.startDate} endDate={layout.endDate} viewMode={layout.viewMode} />
-          <TimelineArrows />
+          <TimelineArrows layout={layout} />
           <TodayMarker startDate={layout.startDate} endDate={layout.endDate} totalDays={layout.totalDays} />
 
           <div className="relative z-10">

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { fetchScheduleReport } from '../services/scheduleReportApi';
 import { mapCategoryBars } from '../services/mappers/categoryBarMapper';
 import { mapProjectRows } from '../services/mappers/projectRowMapper';
-import { TimelineService, TimelineLayout } from '../services/TimelineService';
-import { TimelineContainer } from './Timeline/TimelineContainer';
+import { ProjectStatusReport } from './ProjectStatusReport';
 import { FilterToolbar } from './FilterToolbar';
 import { useTaskStore } from '../stores/taskStore';
 import { useUiStore } from '../stores/uiStore';
@@ -16,9 +15,9 @@ export function ScheduleReportPage() {
   const filters = useUiStore((s) => s.filters);
 
 
-  const [layout, setLayout] = useState<TimelineLayout | null>(null);
+  // const [layout, setLayout] = useState<TimelineLayout | null>(null);
 
-  const timelineService = useMemo(() => new TimelineService(), []);
+  //   const timelineService = useMemo(() => new TimelineService(), []);
 
   // Fetch Data
   useEffect(() => {
@@ -32,22 +31,11 @@ export function ScheduleReportPage() {
     });
   }, [setSnapshot, filters]);
 
-  // Helper to determine view start date and duration
-  const { startDate, endDate } = useMemo(() => {
-    return timelineService.getTimelineRange(snapshot.bars, filters.viewMode, filters.months);
-  }, [timelineService, snapshot.bars, filters.viewMode, filters.months]);
-
-  // Calculate Layout
-  useEffect(() => {
-    const newLayout = timelineService.calculateLayout(snapshot.rows, snapshot.bars, startDate, endDate, filters.viewMode);
-    setLayout(newLayout);
-  }, [timelineService, snapshot.rows, snapshot.bars, startDate, endDate, filters.viewMode]);
-
   return (
     <div className="schedule-report-page bg-white h-screen flex flex-col overflow-hidden">
       <FilterToolbar />
-      {layout ? (
-        <TimelineContainer layout={layout} projectIdentifier={projectIdentifier} />
+      {snapshot.bars ? (
+        <ProjectStatusReport bars={snapshot.bars} />
       ) : (
         <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
       )}

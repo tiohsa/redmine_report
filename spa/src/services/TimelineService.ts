@@ -179,7 +179,8 @@ export class TimelineService {
                 ...bar,
                 leftPct,
                 widthPct,
-                laneIndex
+                laneIndex,
+                dependencies: bar.dependencies || []
             });
         });
 

@@ -6,7 +6,7 @@ export type FilterState = {
 
   start_month: string;
   status_scope: 'open' | 'all';
-  viewMode: 'month' | 'week' | 'day';
+  viewMode: 'month' | 'week' | 'day' | 'report';
 };
 
 type UIStore = {

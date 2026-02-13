@@ -68,7 +68,33 @@ module RedmineReport
       end
 
       def build_bars(scope)
+        # 1. Group issues
         groups = scope.where.not(category_id: nil).includes(:category).group_by { |i| [i.project_id, i.category_id, i.category&.name] }
+
+        # 2. Build map of issue_id -> bar_key
+        issue_to_bar_key = {}
+        groups.each do |(project_id, category_id, _), issues|
+          key = "#{project_id}:#{category_id}"
+          issues.each { |i| issue_to_bar_key[i.id] = key }
+        end
+
+        # 3. Fetch relations (follows/precedes)
+        # We only care about relations between issues in our scope
+        issue_ids = issue_to_bar_key.keys
+        relations = IssueRelation.where(issue_from_id: issue_ids, issue_to_id: issue_ids, relation_type: IssueRelation::TYPE_PRECEDES)
+
+        # 4. Aggregate dependencies (bar_key -> Set of predecessor bar_keys)
+        # relation: from (predecessor) -> to (successor)
+        dependencies = Hash.new { |h, k| h[k] = Set.new }
+        relations.each do |rel|
+          from_key = issue_to_bar_key[rel.issue_from_id]
+          to_key = issue_to_bar_key[rel.issue_to_id]
+
+          # If issues are in different bars, record the dependency
+          if from_key && to_key && from_key != to_key
+            dependencies[to_key] << from_key
+          end
+        end
 
         groups.map do |(project_id, category_id, category_name), issues|
           date_pairs = issues.map { |issue| [issue.start_date || issue.due_date, issue.due_date || issue.start_date] }
@@ -82,8 +108,10 @@ module RedmineReport
           progress_avg = issues.map(&:done_ratio).compact
           progress_rate = progress_avg.empty? ? 0 : (progress_avg.sum.to_f / progress_avg.size).round(2)
 
+          key = "#{project_id}:#{category_id}"
+
           {
-            bar_key: "#{project_id}:#{category_id}",
+            bar_key: key,
             project_id: project_id,
             category_id: category_id,
             category_name: category_name,
@@ -92,7 +120,8 @@ module RedmineReport
             issue_count: issues.size,
             delayed_issue_count: delayed_count,
             progress_rate: progress_rate,
-            is_delayed: delayed_count.positive?
+            is_delayed: delayed_count.positive?,
+            dependencies: dependencies[key].to_a
           }
         end.compact
       end
