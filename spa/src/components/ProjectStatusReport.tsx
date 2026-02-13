@@ -107,9 +107,9 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
     }, [projectIdentifier]);
 
     // カテゴリデータをタイムライン用に変換
-    const { timelinePhases, totalDurationText } = useMemo(() => {
+    const { timelinePhases, totalDurationText, todayPosition } = useMemo(() => {
         if (bars.length === 0) {
-            return { timelinePhases: [], totalDurationText: "データなし" };
+            return { timelinePhases: [], totalDurationText: "データなし", todayPosition: null };
         }
 
         // 開始日でソート
@@ -162,7 +162,45 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
             });
         }
 
-        return { timelinePhases: phases, totalDurationText };
+        // Today位置を計算 (SVG座標系)
+        const today = new Date();
+        const todayDays = differenceInDays(today, parseISO(minDate));
+        let todayPos: number | null = null;
+        if (todayDays >= 0 && todayDays <= totalDays) {
+            // SVGのシェブロンは totalRatio に基づいてスケーリングされている
+            // totalRatio = steps の width の合計
+            const totalRatio = steps.reduce((acc, s) => acc + s.width, 0);
+            const gap = 3;
+            const svgWidth = 980;
+            const scale = svgWidth / totalRatio;
+
+            // 日付からSVG x座標への変換
+            // 各ステップの累積幅と日付範囲をマッピング
+            let cumulativeX = 0;
+            let cumulativeDays = 0;
+            for (let i = 0; i < steps.length; i++) {
+                const stepDays = differenceInDays(parseISO(steps[i].endDate), parseISO(steps[i].startDate));
+                const stepWidth = steps[i].width * scale;
+                // フェーズ間のギャップを考慮
+                const phaseGap = (i > 0 && i % chunkSize === 0) ? 10 : 0;
+                cumulativeX += phaseGap;
+
+                if (todayDays <= cumulativeDays + stepDays) {
+                    // Today はこのステップの中にある
+                    const ratio = stepDays > 0 ? (todayDays - cumulativeDays) / stepDays : 0;
+                    todayPos = cumulativeX + ratio * (stepWidth - gap) + 15; // pointDepth offset
+                    break;
+                }
+                cumulativeDays += stepDays;
+                cumulativeX += stepWidth - gap + gap; // stepWidth includes gap subtraction, add gap back
+            }
+            // ステップの範囲外（最後のステップを超えた場合）
+            if (todayPos === null && todayDays <= totalDays) {
+                todayPos = cumulativeX;
+            }
+        }
+
+        return { timelinePhases: phases, totalDurationText, todayPosition: todayPos };
     }, [bars]);
 
     const handleGenerate = async () => {
@@ -236,7 +274,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                         {/* SVGでプロセス全体を描画 */}
                         <div className={`w-full ${timelinePhases.length > 0 ? 'aspect-[20/3]' : 'h-32'}`}>
                             {timelinePhases.length > 0 ? (
-                                <svg viewBox="0 0 1000 130" className="w-full h-full">
+                                <svg viewBox="0 -25 1000 155" className="w-full h-full">
                                     {(() => {
                                         let currentX = 0;
                                         // @ts-ignore
@@ -275,6 +313,39 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                                             return phaseNodes;
                                         });
                                     })()}
+
+                                    {/* Today マーカー */}
+                                    {todayPosition !== null && (
+                                        <g>
+                                            <line
+                                                x1={todayPosition}
+                                                y1={-10}
+                                                x2={todayPosition}
+                                                y2={100}
+                                                stroke="#ef4444"
+                                                strokeWidth="2"
+                                                strokeDasharray="4 3"
+                                            />
+                                            <rect
+                                                x={todayPosition - 22}
+                                                y={-18}
+                                                width="44"
+                                                height="18"
+                                                rx="3"
+                                                fill="#ef4444"
+                                            />
+                                            <text
+                                                x={todayPosition}
+                                                y={-6}
+                                                textAnchor="middle"
+                                                fontSize="10"
+                                                fontWeight="bold"
+                                                fill="white"
+                                            >
+                                                Today
+                                            </text>
+                                        </g>
+                                    )}
 
                                     {/* 期間線 (矢印の下) の描画レイヤー */}
                                     {(() => {

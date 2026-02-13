@@ -52,6 +52,7 @@ export const TimelineContainer = ({ layout, projectIdentifier }: TimelineContain
         >
           <div className={clsx("relative h-full flex-1", MIN_WIDTH)}>
             <TimelineHeader startDate={layout.startDate} endDate={layout.endDate} viewMode={layout.viewMode} />
+            <TodayMarker startDate={layout.startDate} endDate={layout.endDate} totalDays={layout.totalDays} variant="header" />
           </div>
         </div>
       </div>
@@ -81,7 +82,7 @@ export const TimelineContainer = ({ layout, projectIdentifier }: TimelineContain
         <div className={clsx("flex-1 relative bg-white", MIN_WIDTH)}>
           <TimelineGrid startDate={layout.startDate} endDate={layout.endDate} viewMode={layout.viewMode} />
           <TimelineArrows layout={layout} />
-          <TodayMarker startDate={layout.startDate} endDate={layout.endDate} totalDays={layout.totalDays} />
+          <TodayMarker startDate={layout.startDate} endDate={layout.endDate} totalDays={layout.totalDays} variant="body" />
 
           <div className="relative z-10">
             {layout.rows.map((row) => (
