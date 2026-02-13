@@ -35,7 +35,7 @@ module RedmineReport
       private
 
       def normalize_include_subprojects(value)
-        return true if value.nil?
+        return false if value.nil?
         value.to_s == '1' || value == true
       end
 

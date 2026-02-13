@@ -30,7 +30,7 @@ const initialProjectIdentifier =
 
 export const useUiStore = create<UIStore>((set) => ({
   filters: {
-    include_subprojects: true,
+    include_subprojects: false,
     months: 4,
     start_month: currentMonth,
     status_scope: 'all',

@@ -31,7 +31,7 @@ describe('Schedule report interactions', () => {
       rootProjectIdentifier: 'ecookbook',
       currentProjectIdentifier: 'ecookbook',
       filters: {
-        include_subprojects: true,
+        include_subprojects: false,
         months: 4,
         start_month: '2026-02',
         status_scope: 'all',

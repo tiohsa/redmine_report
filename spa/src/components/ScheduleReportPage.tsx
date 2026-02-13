@@ -27,7 +27,10 @@ export function ScheduleReportPage() {
     requestSequenceRef.current = requestId;
     setLoading(true);
 
-    void fetchScheduleReport(rootProjectIdentifier, currentProjectIdentifier, filters)
+    void fetchScheduleReport(rootProjectIdentifier, currentProjectIdentifier, {
+      ...filters,
+      include_subprojects: false
+    })
       .then((data) => {
         if (requestId !== requestSequenceRef.current) return;
         setSnapshot({
