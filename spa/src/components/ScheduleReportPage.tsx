@@ -4,6 +4,7 @@ import { mapCategoryBars } from '../services/mappers/categoryBarMapper';
 import { mapProjectRows } from '../services/mappers/projectRowMapper';
 import { TimelineService, TimelineLayout } from '../services/TimelineService';
 import { TimelineContainer } from './Timeline/TimelineContainer';
+import { FilterToolbar } from './FilterToolbar';
 import { useTaskStore } from '../stores/taskStore';
 import { useUiStore } from '../stores/uiStore';
 
@@ -32,20 +33,21 @@ export function ScheduleReportPage() {
   }, [setSnapshot, filters]);
 
   // Helper to determine view start date and duration
-  const { startDate: viewStartDate, months } = useMemo(() => {
-    return timelineService.getTimelineRange(snapshot.bars);
-  }, [timelineService, snapshot.bars]);
+  const { startDate, endDate } = useMemo(() => {
+    return timelineService.getTimelineRange(snapshot.bars, filters.viewMode, filters.months);
+  }, [timelineService, snapshot.bars, filters.viewMode, filters.months]);
 
   // Calculate Layout
   useEffect(() => {
-    const newLayout = timelineService.calculateLayout(snapshot.rows, snapshot.bars, months, viewStartDate);
+    const newLayout = timelineService.calculateLayout(snapshot.rows, snapshot.bars, startDate, endDate, filters.viewMode);
     setLayout(newLayout);
-  }, [timelineService, snapshot.rows, snapshot.bars, months, viewStartDate]);
+  }, [timelineService, snapshot.rows, snapshot.bars, startDate, endDate, filters.viewMode]);
 
   return (
     <div className="schedule-report-page bg-white h-screen flex flex-col overflow-hidden">
+      <FilterToolbar />
       {layout ? (
-        <TimelineContainer layout={layout} months={months} projectIdentifier={projectIdentifier} />
+        <TimelineContainer layout={layout} projectIdentifier={projectIdentifier} />
       ) : (
         <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
       )}

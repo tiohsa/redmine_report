@@ -1,13 +1,13 @@
-import { addMonths } from 'date-fns';
+
 
 interface TodayMarkerProps {
   startDate: Date;
-  months: number;
+  endDate: Date;
+  totalDays: number; // Optional optimization
 }
 
-export const TodayMarker = ({ startDate, months }: TodayMarkerProps) => {
+export const TodayMarker = ({ startDate, endDate }: TodayMarkerProps) => {
   const today = new Date();
-  const endDate = addMonths(startDate, months);
 
   // More precise calculation
   const totalMs = endDate.getTime() - startDate.getTime();

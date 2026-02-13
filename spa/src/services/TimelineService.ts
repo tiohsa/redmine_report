@@ -1,5 +1,6 @@
-import { addMonths, differenceInDays } from 'date-fns';
+import { addMonths, addWeeks, addDays, differenceInDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { CategoryBar, ProjectRow } from './scheduleReportApi';
+import { FilterState } from '../stores/uiStore';
 
 export type TimelineBar = CategoryBar & {
     leftPct: number;
@@ -17,17 +18,18 @@ export type TimelineLayout = {
     totalDays: number;
     startDate: Date;
     endDate: Date;
+    viewMode: FilterState['viewMode'];
 };
 
 export class TimelineService {
     calculateLayout(
         rows: ProjectRow[],
         bars: CategoryBar[],
-        months: number,
-        viewStartDate: Date
+        startDate: Date,
+        endDate: Date,
+        viewMode: FilterState['viewMode']
     ): TimelineLayout {
-        const endDate = addMonths(viewStartDate, months);
-        const totalDays = differenceInDays(endDate, viewStartDate);
+        const totalDays = differenceInDays(endDate, startDate) + 1; // Include end date
 
         // Group bars by project
         const barsByProject = new Map<number, CategoryBar[]>();
@@ -39,11 +41,9 @@ export class TimelineService {
 
         const timelineRows: TimelineRow[] = rows.map(row => {
             const projectBars = barsByProject.get(row.project_id) || [];
-            const { bars: laidOutBars, laneCount } = this.layoutRow(projectBars, viewStartDate, totalDays);
+            const { bars: laidOutBars, laneCount } = this.layoutRow(projectBars, startDate, totalDays);
 
             // Calculate row height based on lanes.
-            // Base height + (laneCount * laneHeight)
-            // Let's say each bar is 32px high with 8px margin.
             const BAR_HEIGHT = 32;
             const BAR_MARGIN = 8;
             const PADDING = 20;
@@ -60,18 +60,16 @@ export class TimelineService {
         return {
             rows: timelineRows,
             totalDays,
-            startDate: viewStartDate,
-            endDate
+            startDate,
+            endDate,
+            viewMode
         };
     }
 
-    getTimelineRange(bars: CategoryBar[]): { startDate: Date; months: number } {
+    getTimelineRange(bars: CategoryBar[], viewMode: FilterState['viewMode'] = 'month', configuredMonths: number = 4): { startDate: Date; endDate: Date } {
         if (bars.length === 0) {
             const now = new Date();
-            return {
-                startDate: new Date(now.getFullYear(), now.getMonth(), 1),
-                months: 1
-            };
+            return this.getDefaultRange(now, viewMode, configuredMonths);
         }
 
         let minDate = new Date(bars[0].start_date);
@@ -84,23 +82,61 @@ export class TimelineService {
             if (end > maxDate) maxDate = end;
         });
 
-        const startDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
-        const endDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0); // End of max month
+        return this.adjustRange(minDate, maxDate, viewMode, configuredMonths);
+    }
 
-        // Calculate months difference
-        // (YearDiff * 12) + (MonthDiff) + 1 (to include the last month)
-        // Actually, we want the number of months to display.
-        // If start is Jan 1 and end is Jan 31, months = 1.
-        // If start is Jan 1 and end is Feb 1, months = 2.
+    private getDefaultRange(date: Date, viewMode: FilterState['viewMode'], months: number): { startDate: Date; endDate: Date } {
+        const start = new Date(date);
+        if (viewMode === 'month') {
+            return {
+                startDate: startOfMonth(start),
+                endDate: endOfMonth(addMonths(start, months - 1))
+            };
+        } else if (viewMode === 'week') {
+            // Default 12 weeks?
+            const s = startOfWeek(start, { weekStartsOn: 1 });
+            return {
+                startDate: s,
+                endDate: addWeeks(s, 12)
+            };
+        } else {
+            // Day view: Default 30 days?
+            return {
+                startDate: start,
+                endDate: addDays(start, 30)
+            };
+        }
+    }
 
-        let months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1;
-
-        return { startDate, months };
+    private adjustRange(min: Date, max: Date, viewMode: FilterState['viewMode'], months: number): { startDate: Date; endDate: Date } {
+        if (viewMode === 'month') {
+            const startDate = startOfMonth(min);
+            // Ensure we show at least configured months or enough to cover max date
+            let endDate = endOfMonth(max);
+            const minEndDate = endOfMonth(addMonths(startDate, months - 1));
+            if (endDate < minEndDate) {
+                endDate = minEndDate;
+            }
+            return { startDate, endDate };
+        } else if (viewMode === 'week') {
+            const startDate = startOfWeek(min, { weekStartsOn: 1 });
+            let endDate = endOfWeek(max, { weekStartsOn: 1 });
+            // Ensure at least some weeks?
+            const minEndDate = addWeeks(startDate, 4);
+            if (endDate < minEndDate) endDate = minEndDate;
+            return { startDate, endDate };
+        } else {
+            const startDate = min;
+            let endDate = max;
+            const minEndDate = addDays(startDate, 14);
+            if (endDate < minEndDate) endDate = minEndDate;
+            return { startDate, endDate };
+        }
     }
 
     private layoutRow(
         bars: CategoryBar[],
-        viewStartDate: Date,
+        startDate: Date,
         totalDays: number
     ): { bars: TimelineBar[]; laneCount: number } {
         if (bars.length === 0) return { bars: [], laneCount: 0 };
@@ -116,7 +152,7 @@ export class TimelineService {
             const end = new Date(bar.end_date);
 
             // Calculate position in days relative to view start
-            const startOffset = differenceInDays(start, viewStartDate);
+            const startOffset = differenceInDays(start, startDate);
             const duration = differenceInDays(end, start);
 
             // Convert to percentage

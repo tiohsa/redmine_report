@@ -8,11 +8,10 @@ import { clsx } from 'clsx';
 
 interface TimelineContainerProps {
   layout: TimelineLayout;
-  months: number;
   projectIdentifier: string;
 }
 
-export const TimelineContainer = ({ layout, months, projectIdentifier }: TimelineContainerProps) => {
+export const TimelineContainer = ({ layout, projectIdentifier }: TimelineContainerProps) => {
   const headerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +50,7 @@ export const TimelineContainer = ({ layout, months, projectIdentifier }: Timelin
           className="flex-1 overflow-hidden flex"
         >
           <div className={clsx("relative h-full flex-1", MIN_WIDTH)}>
-             <TimelineHeader startDate={layout.startDate} months={months} />
+            <TimelineHeader startDate={layout.startDate} endDate={layout.endDate} viewMode={layout.viewMode} />
           </div>
         </div>
       </div>
@@ -63,30 +62,30 @@ export const TimelineContainer = ({ layout, months, projectIdentifier }: Timelin
       >
         {/* Sidebar Body */}
         <div className="w-64 flex-shrink-0 sticky left-0 z-30 bg-white border-r border-gray-200 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-           {layout.rows.map((row) => (
-             <div
-               key={row.project_id}
-               className="border-b border-gray-100 flex items-center pr-2 truncate hover:bg-gray-50/50 transition-colors box-border"
-               style={{ height: `${row.height}px`, paddingLeft: `${row.level * 16 + 16}px` }}
-               title={row.name}
-             >
-                <span className={clsx("truncate text-sm", row.level === 0 ? "font-bold text-gray-900" : "text-gray-600")}>
-                  {row.name}
-                </span>
-             </div>
-           ))}
+          {layout.rows.map((row) => (
+            <div
+              key={row.project_id}
+              className="border-b border-gray-100 flex items-center pr-2 truncate hover:bg-gray-50/50 transition-colors box-border"
+              style={{ height: `${row.height}px`, paddingLeft: `${row.level * 16 + 16}px` }}
+              title={row.name}
+            >
+              <span className={clsx("truncate text-sm", row.level === 0 ? "font-bold text-gray-900" : "text-gray-600")}>
+                {row.name}
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* Timeline Body */}
         <div className={clsx("flex-1 relative bg-white", MIN_WIDTH)}>
-           <TimelineGrid startDate={layout.startDate} months={months} />
-           <TodayMarker startDate={layout.startDate} months={months} />
+          <TimelineGrid startDate={layout.startDate} endDate={layout.endDate} viewMode={layout.viewMode} />
+          <TodayMarker startDate={layout.startDate} endDate={layout.endDate} totalDays={layout.totalDays} />
 
-           <div className="relative z-10">
-             {layout.rows.map((row) => (
-               <TimelineRow key={row.project_id} row={row} projectIdentifier={projectIdentifier} />
-             ))}
-           </div>
+          <div className="relative z-10">
+            {layout.rows.map((row) => (
+              <TimelineRow key={row.project_id} row={row} projectIdentifier={projectIdentifier} />
+            ))}
+          </div>
         </div>
       </div>
     </div>
