@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { CategoryBar } from '../services/scheduleReportApi';
+import React, { useMemo, useState } from 'react';
+import { CategoryBar, generateScheduleReport, ReportContent, ReportItem } from '../services/scheduleReportApi';
 import { format, parseISO, differenceInDays } from 'date-fns';
 
 // --- データ定義: プロジェクト進捗報告書 ---
@@ -11,18 +11,9 @@ const STATUS = {
     PENDING: { color: "#9ca3af", label: "未着手" } // グレー
 };
 
-// 共通アイテム型定義
-type ReportItem = {
-    text: string;
-    type?: "normal" | "highlight";
-    subText?: string;
-    badge?: string;
-    badgeColor?: string;
-};
-
-// 下段: 報告セクションデータ
-const reportSections: {
-    id: string;
+// 下段: 報告セクションデータ (初期表示用ダミー)
+const initialReportSections: {
+    id: keyof ReportContent;
     title: string;
     headerColor: string;
     items: ReportItem[];
@@ -99,9 +90,14 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color }: Chevro
 
 interface ProjectStatusReportProps {
     bars?: CategoryBar[];
+    projectIdentifier: string;
 }
 
-export const ProjectStatusReport = ({ bars = [] }: ProjectStatusReportProps) => {
+export const ProjectStatusReport = ({ bars = [], projectIdentifier }: ProjectStatusReportProps) => {
+
+    const [generatedContent, setGeneratedContent] = useState<ReportContent | null>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // カテゴリデータをタイムライン用に変換
     const { timelinePhases, totalDurationText } = useMemo(() => {
@@ -164,6 +160,29 @@ export const ProjectStatusReport = ({ bars = [] }: ProjectStatusReportProps) => 
         return { timelinePhases: phases, totalDurationText };
     }, [bars]);
 
+    const handleGenerate = async () => {
+        setIsGenerating(true);
+        setError(null);
+        try {
+            const content = await generateScheduleReport(projectIdentifier);
+            setGeneratedContent(content);
+        } catch (e: any) {
+            setError(e.message || "Failed to generate report");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const displaySections = useMemo(() => {
+        if (generatedContent) {
+            return initialReportSections.map(section => ({
+                ...section,
+                items: generatedContent[section.id] || []
+            }));
+        }
+        return initialReportSections;
+    }, [generatedContent]);
+
     return (
         <div className="bg-gray-50 flex-1 overflow-auto p-4 md:p-8 font-sans text-gray-800">
             <div className="max-w-7xl mx-auto bg-white p-6 shadow-md rounded-lg">
@@ -174,12 +193,35 @@ export const ProjectStatusReport = ({ bars = [] }: ProjectStatusReportProps) => 
                         <h1 className="text-2xl font-bold text-gray-800">プロジェクト週次報告書</h1>
                         <p className="text-sm text-gray-500 mt-1">報告日: {format(new Date(), 'yyyy年M月d日')} | 作成者: プロジェクトマネージャー</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex items-center gap-4">
+                        <button
+                            onClick={handleGenerate}
+                            disabled={isGenerating}
+                            className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    AI生成中...
+                                </>
+                            ) : (
+                                "AIレポート生成"
+                            )}
+                        </button>
                         <span className="inline-block bg-green-100 text-green-800 text-sm font-bold px-3 py-1 rounded-full">
                             Status: On Track (順調)
                         </span>
                     </div>
                 </div>
+
+                {error && (
+                    <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                        <span className="block sm:inline">{error}</span>
+                    </div>
+                )}
 
                 {/* PC/タブレット用レイアウト */}
                 <div className="flex flex-col gap-8">
@@ -301,7 +343,7 @@ export const ProjectStatusReport = ({ bars = [] }: ProjectStatusReportProps) => 
 
                     {/* 下段: 詳細報告ボックス (Grid Layout) */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        {reportSections.map((section) => (
+                        {displaySections.map((section) => (
                             <div key={section.id}
                                 className="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col h-full">
 

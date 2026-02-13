@@ -1,3 +1,14 @@
+# Load .env.local if it exists
+env_path = File.join(File.dirname(__FILE__), '.env.local')
+if File.exist?(env_path)
+  File.readlines(env_path).each do |line|
+    line = line.strip
+    next if line.empty? || line.start_with?('#')
+    key, value = line.split('=', 2)
+    ENV[key.strip] = value.strip if key && value
+  end
+end
+
 Redmine::Plugin.register :redmine_report do
   name 'Redmine Report plugin'
   author 'Author name'
@@ -7,7 +18,7 @@ Redmine::Plugin.register :redmine_report do
   author_url 'http://example.com/about'
 
   project_module :schedule_report do
-    permission :view_schedule_report, schedule_reports: %i[index data bundle_js bundle_css]
+    permission :view_schedule_report, schedule_reports: %i[index data generate bundle_js bundle_css]
   end
 
   menu :project_menu, :schedule_report,

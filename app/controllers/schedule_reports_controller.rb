@@ -35,6 +35,19 @@ class ScheduleReportsController < ApplicationController
     render json: { error: l(:label_schedule_report_unavailable) }, status: :service_unavailable
   end
 
+  def generate
+    filters = RedmineReport::ScheduleReport::FilterParams.new(params)
+    generator = RedmineReport::Llm::ReportGenerator.new(
+      project: @project,
+      filters: filters
+    )
+    report = generator.call
+    render json: report
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] generate failed: #{e.message}")
+    render json: { error: e.message }, status: :internal_server_error
+  end
+
   def bundle_js
     serve_bundle(
       filename: 'main.js',

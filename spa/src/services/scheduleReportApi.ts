@@ -50,6 +50,20 @@ const toQuery = (filters: Partial<ReportFilterSet>) => {
   return query.toString();
 };
 
+export type ReportContent = {
+  progress: ReportItem[];
+  next_steps: ReportItem[];
+  risks: ReportItem[];
+};
+
+export type ReportItem = {
+  text: string;
+  type?: "normal" | "highlight";
+  subText?: string;
+  badge?: string;
+  badgeColor?: string;
+};
+
 export const fetchScheduleReport = async (
   projectIdentifier: string,
   filters: Partial<ReportFilterSet> = {}
@@ -61,4 +75,28 @@ export const fetchScheduleReport = async (
     throw new Error(`Failed to fetch schedule report: ${res.status}`);
   }
   return (await res.json()) as ReportSnapshot;
+};
+
+export const generateScheduleReport = async (
+  projectIdentifier: string,
+  filters: Partial<ReportFilterSet> = {}
+): Promise<ReportContent> => {
+  const qs = toQuery(filters);
+  // Using POST for generation
+  const path = `/projects/${projectIdentifier}/schedule_report/generate${qs ? `?${qs}` : ''}`;
+  const res = await fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      // Start CSRF token if needed by Rails
+      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+    }
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Failed to generate report: ${res.status}`);
+  }
+  return (await res.json()) as ReportContent;
 };

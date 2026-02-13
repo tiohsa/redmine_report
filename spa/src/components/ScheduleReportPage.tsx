@@ -35,7 +35,7 @@ export function ScheduleReportPage() {
     <div className="schedule-report-page bg-white h-screen flex flex-col overflow-hidden">
       <FilterToolbar />
       {snapshot.bars ? (
-        <ProjectStatusReport bars={snapshot.bars} />
+        <ProjectStatusReport bars={snapshot.bars} projectIdentifier={projectIdentifier} />
       ) : (
         <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
       )}
