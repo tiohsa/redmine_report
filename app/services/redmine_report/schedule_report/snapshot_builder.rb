@@ -7,9 +7,10 @@ module RedmineReport
       MAX_BARS = 2000
       STALE_AFTER_SECONDS = 300
 
-      def initialize(rows:, bars:, filters:)
+      def initialize(rows:, bars:, available_projects:, filters:)
         @rows = rows
         @bars = bars
+        @available_projects = available_projects
         @filters = filters
       end
 
@@ -42,7 +43,8 @@ module RedmineReport
             applied_filters: @filters.to_h
           },
           rows: rows,
-          bars: bars
+          bars: bars,
+          available_projects: @available_projects
         }
       end
     end

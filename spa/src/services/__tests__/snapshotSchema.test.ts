@@ -17,7 +17,8 @@ describe('ReportSnapshot shape', () => {
         }
       },
       rows: [],
-      bars: []
+      bars: [],
+      available_projects: []
     } as ReportSnapshot;
 
     expect(snapshot.meta.stale_after_seconds).toBe(300);

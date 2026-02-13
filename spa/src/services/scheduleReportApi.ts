@@ -7,6 +7,7 @@ export type ReportFilterSet = {
 
 export type ProjectRow = {
   project_id: number;
+  identifier: string;
   name: string;
   parent_project_id: number | null;
   level: number;
@@ -28,6 +29,9 @@ export type CategoryBar = {
 };
 
 export type ReportSnapshot = {
+  rows: ProjectRow[];
+  bars: CategoryBar[];
+  available_projects: ProjectInfo[];
   meta: {
     generated_at: string;
     stale_after_seconds: number;
@@ -35,8 +39,15 @@ export type ReportSnapshot = {
     warnings: string[];
     applied_filters: ReportFilterSet;
   };
-  rows: ProjectRow[];
-  bars: CategoryBar[];
+};
+
+export type ProjectInfo = {
+  project_id: number;
+  identifier: string;
+  name: string;
+  level: number;
+  parent_project_id?: number | null;
+  selectable?: boolean;
 };
 
 const toQuery = (filters: Partial<ReportFilterSet>) => {
@@ -65,14 +76,20 @@ export type ReportItem = {
 };
 
 export const fetchScheduleReport = async (
-  projectIdentifier: string,
+  rootProjectIdentifier: string,
+  selectedProjectIdentifier: string,
   filters: Partial<ReportFilterSet> = {}
 ): Promise<ReportSnapshot> => {
   const qs = toQuery(filters);
-  const path = `/projects/${projectIdentifier}/schedule_report/data${qs ? `?${qs}` : ''}`;
+  const query = new URLSearchParams(qs);
+  if (selectedProjectIdentifier) {
+    query.set('selected_project_identifier', selectedProjectIdentifier);
+  }
+  const path = `/projects/${rootProjectIdentifier}/schedule_report/data${query.toString() ? `?${query.toString()}` : ''}`;
   const res = await fetch(path, { credentials: 'same-origin' });
   if (!res.ok) {
-    throw new Error(`Failed to fetch schedule report: ${res.status}`);
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Failed to fetch schedule report: ${res.status}`);
   }
   return (await res.json()) as ReportSnapshot;
 };

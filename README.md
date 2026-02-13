@@ -20,7 +20,7 @@ This plugin provides structured project status reports for Redmine.
 
 ### AI Report Generation
 
-To use the AI report generation feature, configure the environment variables for your preferred provider:
+To use the AI report generation feature, configure the environment variables for your preferred provider. You can create a `.env.local` file in the plugin root directory to store these variables locally:
 
 #### Common Configuration
 - `LLM_PROVIDER`: `openai` (default), `gemini`, or `azure`.
@@ -44,6 +44,18 @@ To use the AI report generation feature, configure the environment variables for
 1. Navigate to the "Schedule Report" menu in your project.
 2. Click the **"AI Generate Report"** button in the header.
 3. The AI will analyze the project's task data and automatically generate the "Weekly Highlights", "Next Steps", and "Risks/Issues" sections.
+
+## Development Principles
+
+Development and review MUST follow the project constitution:
+`.specify/memory/constitution.md`
+
+Key requirements:
+- Redmine integration changes must define explicit REST API contracts.
+- Code must follow clean code principles (DRY, KISS, YAGNI, single responsibility).
+- Refactoring must preserve behavior and be separated from feature behavior changes.
+- Changes to logic or API integration must include automated tests.
+- Secrets must never be hardcoded or logged.
 
 ## License
 

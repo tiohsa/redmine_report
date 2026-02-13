@@ -91,13 +91,20 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color }: Chevro
 interface ProjectStatusReportProps {
     bars?: CategoryBar[];
     projectIdentifier: string;
+    fetchError?: string | null;
 }
 
-export const ProjectStatusReport = ({ bars = [], projectIdentifier }: ProjectStatusReportProps) => {
+export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError = null }: ProjectStatusReportProps) => {
 
     const [generatedContent, setGeneratedContent] = useState<ReportContent | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Reset generated content when project changes
+    React.useEffect(() => {
+        setGeneratedContent(null);
+        setError(null);
+    }, [projectIdentifier]);
 
     // カテゴリデータをタイムライン用に変換
     const { timelinePhases, totalDurationText } = useMemo(() => {
@@ -148,12 +155,10 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier }: ProjectSta
             phases.push({
                 id: phases.length + 1,
                 steps: chunk,
-                durations: [
-                    {
-                        label: `${format(parseISO(chunkStart), 'M/d')} - ${format(parseISO(chunkEnd), 'M/d')}`,
-                        span: chunk.reduce((acc, s) => acc + s.width, 0)
-                    }
-                ]
+                durations: chunk.map(s => ({
+                    label: `${format(parseISO(s.startDate), 'M/d')} - ${format(parseISO(s.endDate), 'M/d')}`,
+                    span: s.width
+                }))
             });
         }
 
@@ -217,9 +222,9 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier }: ProjectSta
                     </div>
                 </div>
 
-                {error && (
+                {(error || fetchError) && (
                     <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                        <span className="block sm:inline">{error}</span>
+                        <span className="block sm:inline">{error || fetchError}</span>
                     </div>
                 )}
 

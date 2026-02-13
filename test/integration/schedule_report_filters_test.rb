@@ -9,4 +9,16 @@ class ScheduleReportFiltersTest < Redmine::IntegrationTest
       '/projects/ecookbook/schedule_report/data'
     )
   end
+
+  def test_filter_params_normalizes_include_subprojects_and_status_scope
+    filters = RedmineReport::ScheduleReport::FilterParams.new(
+      include_subprojects: '1',
+      status_scope: 'all',
+      months: '3'
+    )
+
+    assert_equal true, filters.include_subprojects
+    assert_equal 'all', filters.status_scope
+    assert_equal 3, filters.months
+  end
 end

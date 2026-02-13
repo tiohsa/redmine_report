@@ -43,6 +43,7 @@ module RedmineReport
         projects.map do |p|
           {
             project_id: p.id,
+            identifier: p.identifier,
             name: p.name,
             parent_project_id: p.parent_id,
             level: hierarchy_level(p),

@@ -18,9 +18,15 @@ type UIStore = {
   setZoomLevel: (value: number) => void;
   setSelectedBarKey: (value: string | null) => void;
   setHoveredBarKey: (value: string | null) => void;
+  rootProjectIdentifier: string;
+  currentProjectIdentifier: string;
+  setRootProjectIdentifier: (value: string) => void;
+  setCurrentProjectIdentifier: (value: string) => void;
 };
 
 const currentMonth = new Date().toISOString().slice(0, 7);
+const initialProjectIdentifier =
+  (document.getElementById('schedule-report-root') as HTMLElement | null)?.dataset.projectId || '';
 
 export const useUiStore = create<UIStore>((set) => ({
   filters: {
@@ -36,5 +42,9 @@ export const useUiStore = create<UIStore>((set) => ({
   setFilters: (filters) => set((state) => ({ filters: { ...state.filters, ...filters } })),
   setZoomLevel: (value) => set({ zoomLevel: value }),
   setSelectedBarKey: (value) => set({ selectedBarKey: value }),
-  setHoveredBarKey: (value) => set({ hoveredBarKey: value })
+  setHoveredBarKey: (value) => set({ hoveredBarKey: value }),
+  rootProjectIdentifier: initialProjectIdentifier,
+  currentProjectIdentifier: initialProjectIdentifier,
+  setRootProjectIdentifier: (value) => set({ rootProjectIdentifier: value }),
+  setCurrentProjectIdentifier: (value) => set({ currentProjectIdentifier: value })
 }));

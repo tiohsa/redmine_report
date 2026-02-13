@@ -10,22 +10,29 @@ class ScheduleReportsController < ApplicationController
   end
 
   def data
+    selected_project = resolve_selected_project
     filters = RedmineReport::ScheduleReport::FilterParams.new(params)
     scope = RedmineReport::ScheduleReport::VisibilityScope.new(
       user: User.current,
-      project: @project,
+      project: selected_project,
       include_subprojects: filters.include_subprojects
     )
 
     aggregation = RedmineReport::ScheduleReport::Aggregator.new(
       issues: scope.issues,
-      project: @project,
+      project: selected_project,
       filters: filters
+    ).call
+
+    available_projects = RedmineReport::ScheduleReport::ProjectOptionsBuilder.new(
+      user: User.current,
+      root_project: @project
     ).call
 
     snapshot = RedmineReport::ScheduleReport::SnapshotBuilder.new(
       rows: aggregation[:rows],
       bars: aggregation[:bars],
+      available_projects: available_projects,
       filters: filters
     ).call
 
@@ -97,5 +104,19 @@ class ScheduleReportsController < ApplicationController
     identifier = params[:project_id].to_s
     @project = Project.find_by(identifier: identifier) || Project.find_by(id: identifier)
     render_404 unless @project
+  end
+
+  def resolve_selected_project
+    selected_identifier = params[:selected_project_identifier].to_s.strip
+    return @project if selected_identifier.empty?
+
+    selected = Project.find_by(identifier: selected_identifier) || Project.find_by(id: selected_identifier)
+    return @project unless selected
+
+    in_scope = (selected.id == @project.id) || @project.descendants.where(id: selected.id).exists?
+    return @project unless in_scope
+    return @project unless selected.visible?(User.current)
+
+    selected
   end
 end
