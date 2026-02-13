@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'date'
+require 'set'
 
 module RedmineReport
   module ScheduleReport
@@ -13,9 +14,25 @@ module RedmineReport
 
       def call
         scoped = apply_status_scope(@issues)
+        bars = build_bars(scoped)
+        all_rows = build_rows
+
+        active_project_ids = bars.map { |b| b[:project_id] }.uniq
+        rows_to_keep = Set.new
+        active_project_ids.each do |pid|
+          row = all_rows.find { |r| r[:project_id] == pid }
+          while row
+            rows_to_keep << row[:project_id]
+            parent_id = row[:parent_project_id]
+            row = parent_id ? all_rows.find { |r| r[:project_id] == parent_id } : nil
+          end
+        end
+
+        filtered_rows = all_rows.select { |r| rows_to_keep.include?(r[:project_id]) }
+
         {
-          rows: build_rows,
-          bars: build_bars(scoped)
+          rows: filtered_rows,
+          bars: bars
         }
       end
 
@@ -51,7 +68,7 @@ module RedmineReport
       end
 
       def build_bars(scope)
-        groups = scope.includes(:category).group_by { |i| [i.project_id, i.category_id || 0, i.category&.name || 'Uncategorized'] }
+        groups = scope.where.not(category_id: nil).includes(:category).group_by { |i| [i.project_id, i.category_id, i.category&.name] }
 
         groups.map do |(project_id, category_id, category_name), issues|
           date_pairs = issues.map { |issue| [issue.start_date || issue.due_date, issue.due_date || issue.start_date] }
