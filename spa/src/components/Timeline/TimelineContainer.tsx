@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { TimelineLayout } from '../../services/TimelineService';
 import { TimelineHeader } from './TimelineHeader';
 import { TimelineGrid } from './TimelineGrid';
+import { TimelineArrows } from './TimelineArrows';
 import { TodayMarker } from './TodayMarker';
 import { TimelineRow } from './TimelineRow';
 import { clsx } from 'clsx';
@@ -79,6 +80,7 @@ export const TimelineContainer = ({ layout, projectIdentifier }: TimelineContain
         {/* Timeline Body */}
         <div className={clsx("flex-1 relative bg-white", MIN_WIDTH)}>
           <TimelineGrid startDate={layout.startDate} endDate={layout.endDate} viewMode={layout.viewMode} />
+          <TimelineArrows />
           <TodayMarker startDate={layout.startDate} endDate={layout.endDate} totalDays={layout.totalDays} />
 
           <div className="relative z-10">
