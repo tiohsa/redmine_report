@@ -35,7 +35,7 @@ module RedmineReport
       private
 
       def normalize_include_subprojects(value)
-        return true if value.nil?
+        return false if value.nil?
         value.to_s == '1' || value == true
       end
 
@@ -54,7 +54,7 @@ module RedmineReport
 
       def normalize_status_scope(value)
         scope = value.to_s.strip
-        scope = 'open' if scope.empty?
+        return scope if %w[open all].include?(scope)
         'open'
       end
     end

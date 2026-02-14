@@ -2,11 +2,12 @@ export type ReportFilterSet = {
   include_subprojects: boolean;
   months: number;
   start_month: string;
-  status_scope: 'open';
+  status_scope: 'open' | 'all';
 };
 
 export type ProjectRow = {
   project_id: number;
+  identifier: string;
   name: string;
   parent_project_id: number | null;
   level: number;
@@ -24,9 +25,13 @@ export type CategoryBar = {
   delayed_issue_count: number;
   progress_rate: number;
   is_delayed: boolean;
+  dependencies: string[];
 };
 
 export type ReportSnapshot = {
+  rows: ProjectRow[];
+  bars: CategoryBar[];
+  available_projects: ProjectInfo[];
   meta: {
     generated_at: string;
     stale_after_seconds: number;
@@ -34,8 +39,15 @@ export type ReportSnapshot = {
     warnings: string[];
     applied_filters: ReportFilterSet;
   };
-  rows: ProjectRow[];
-  bars: CategoryBar[];
+};
+
+export type ProjectInfo = {
+  project_id: number;
+  identifier: string;
+  name: string;
+  level: number;
+  parent_project_id?: number | null;
+  selectable?: boolean;
 };
 
 const toQuery = (filters: Partial<ReportFilterSet>) => {
@@ -49,15 +61,59 @@ const toQuery = (filters: Partial<ReportFilterSet>) => {
   return query.toString();
 };
 
+export type ReportContent = {
+  progress: ReportItem[];
+  next_steps: ReportItem[];
+  risks: ReportItem[];
+};
+
+export type ReportItem = {
+  text: string;
+  type?: "normal" | "highlight";
+  subText?: string;
+  badge?: string;
+  badgeColor?: string;
+};
+
 export const fetchScheduleReport = async (
-  projectIdentifier: string,
+  rootProjectIdentifier: string,
+  selectedProjectIdentifier: string,
   filters: Partial<ReportFilterSet> = {}
 ): Promise<ReportSnapshot> => {
   const qs = toQuery(filters);
-  const path = `/projects/${projectIdentifier}/schedule_report/data${qs ? `?${qs}` : ''}`;
+  const query = new URLSearchParams(qs);
+  if (selectedProjectIdentifier) {
+    query.set('selected_project_identifier', selectedProjectIdentifier);
+  }
+  const path = `/projects/${rootProjectIdentifier}/schedule_report/data${query.toString() ? `?${query.toString()}` : ''}`;
   const res = await fetch(path, { credentials: 'same-origin' });
   if (!res.ok) {
-    throw new Error(`Failed to fetch schedule report: ${res.status}`);
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Failed to fetch schedule report: ${res.status}`);
   }
   return (await res.json()) as ReportSnapshot;
+};
+
+export const generateScheduleReport = async (
+  projectIdentifier: string,
+  filters: Partial<ReportFilterSet> = {}
+): Promise<ReportContent> => {
+  const qs = toQuery(filters);
+  // Using POST for generation
+  const path = `/projects/${projectIdentifier}/schedule_report/generate${qs ? `?${qs}` : ''}`;
+  const res = await fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      // Start CSRF token if needed by Rails
+      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+    }
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || `Failed to generate report: ${res.status}`);
+  }
+  return (await res.json()) as ReportContent;
 };

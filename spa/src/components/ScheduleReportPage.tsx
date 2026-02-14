@@ -1,149 +1,121 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { fetchScheduleReport } from '../services/scheduleReportApi';
 import { mapCategoryBars } from '../services/mappers/categoryBarMapper';
 import { mapProjectRows } from '../services/mappers/projectRowMapper';
-import { BackgroundRenderer } from '../renderers/BackgroundRenderer';
-import { TaskRenderer } from '../renderers/TaskRenderer';
-import { OverlayRenderer } from '../renderers/OverlayRenderer';
-import { TodayLineRenderer } from '../renderers/TodayLineRenderer';
-import { LayoutEngine, CalculatedRow, CalculatedBar } from '../services/LayoutEngine';
+import { ProjectStatusReport } from './ProjectStatusReport';
 import { FilterToolbar } from './FilterToolbar';
-import { ProjectList } from './ProjectList';
-import { wireBarClickNavigation, wireBarHover } from '../app/bootstrapInteractions';
 import { useTaskStore } from '../stores/taskStore';
 import { useUiStore } from '../stores/uiStore';
+import { mapProjectInfo } from '../services/mappers/projectInfoMapper';
 
-const projectIdentifier = (document.getElementById('schedule-report-root') as HTMLElement | null)?.dataset.projectId || '';
+
 
 export function ScheduleReportPage() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const setSnapshot = useTaskStore((s) => s.setSnapshot);
-  const snapshot = useTaskStore((s) => ({ rows: s.rows, bars: s.bars }));
-  const warnings = useTaskStore((s) => s.warnings);
+  const setLoading = useTaskStore((s) => s.setLoading);
+  const setError = useTaskStore((s) => s.setError);
+  const snapshot = useTaskStore((s) => ({ rows: s.rows, bars: s.bars, isLoading: s.isLoading, errorMessage: s.errorMessage, available_projects: s.availableProjects }));
   const filters = useUiStore((s) => s.filters);
-  const months = filters.months;
+  const rootProjectIdentifier = useUiStore((s) => s.rootProjectIdentifier);
+  const currentProjectIdentifier = useUiStore((s) => s.currentProjectIdentifier);
+  const selectedProjectIdentifiers = useUiStore((s) => s.selectedProjectIdentifiers);
+  const requestSequenceRef = useRef(0);
 
-  const [layout, setLayout] = useState<{ rows: CalculatedRow[]; totalHeight: number }>({
-    rows: [],
-    totalHeight: 600,
-  });
-
-  const bg = useMemo(() => new BackgroundRenderer(), []);
-  const tasks = useMemo(() => new TaskRenderer(), []);
-  const overlay = useMemo(() => new OverlayRenderer(), []);
-  const today = useMemo(() => new TodayLineRenderer(), []);
-  const layoutEngine = useMemo(() => new LayoutEngine(), []);
-
-  // Fetch Data
   useEffect(() => {
-    if (!projectIdentifier) return;
-    void fetchScheduleReport(projectIdentifier, filters).then((data) => {
-      setSnapshot({
-        ...data,
-        rows: mapProjectRows(data.rows),
-        bars: mapCategoryBars(data.bars)
+    if (!rootProjectIdentifier) return;
+
+    // Determine which projects to fetch
+    const targets = (selectedProjectIdentifiers && selectedProjectIdentifiers.length > 0)
+      ? selectedProjectIdentifiers
+      : (currentProjectIdentifier ? [currentProjectIdentifier] : []);
+
+    if (targets.length === 0) return;
+
+    const requestId = requestSequenceRef.current + 1;
+    requestSequenceRef.current = requestId;
+    setLoading(true);
+
+    Promise.all(
+      targets.map((pid) =>
+        fetchScheduleReport(rootProjectIdentifier, pid, {
+          ...filters,
+          include_subprojects: false
+        }).catch((err) => {
+          console.error(`Failed to fetch for ${pid}`, err);
+          return null;
+        })
+      )
+    )
+      .then((results) => {
+        if (requestId !== requestSequenceRef.current) return;
+
+        const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
+        if (validResults.length === 0) {
+          setError('Failed to fetch schedule report for selected projects.');
+          return;
+        }
+
+        // Merge results
+        const rawRows = validResults.flatMap((r) => r.rows);
+        const rawBars = validResults.flatMap((r) => r.bars);
+
+        // Merge available projects from all responses to ensure we have info for all
+        const allAvailableProjects = validResults.flatMap((r) => r.available_projects || []);
+        const uniqueAvailableProjects = Array.from(
+          new Map(allAvailableProjects.map((p) => [p.identifier, p])).values()
+        );
+
+        // Use the first result's meta for now, or merge warnings
+        const baseMeta = validResults[0].meta;
+
+        setSnapshot({
+          rows: mapProjectRows(rawRows),
+          bars: mapCategoryBars(rawBars),
+          available_projects: mapProjectInfo(uniqueAvailableProjects),
+          meta: {
+            ...baseMeta,
+            warnings: validResults.flatMap(r => r.meta.warnings)
+          }
+        });
+      })
+      .catch((error) => {
+        if (requestId !== requestSequenceRef.current) return;
+        setError(error instanceof Error ? error.message : 'Failed to fetch schedule report.');
+      })
+      .finally(() => {
+        if (requestId !== requestSequenceRef.current) return;
+        setLoading(false);
       });
-    });
-  }, [setSnapshot, filters]);
+  }, [setSnapshot, setLoading, setError, filters, rootProjectIdentifier, currentProjectIdentifier, selectedProjectIdentifiers]);
 
-  // Helper to determine view start date
-  const viewStartDate = useMemo(() => {
-    if (filters.start_month) {
-      return new Date(`${filters.start_month}-01`);
-    }
-    const d = new Date();
-    d.setDate(1);
-    return d;
-  }, [filters.start_month]);
 
-  // Calculate Layout
-  useEffect(() => {
-    // Assuming 1000px width for now, or we can use dynamic width if we observe resize
-    // Let's use a fixed width for the canvas content for now, or match container
-    const width = 1200; // Fixed canvas width for scrolling
-    const { rows, totalHeight } = layoutEngine.calculateLayout(snapshot.rows, snapshot.bars, months, width, viewStartDate);
-    setLayout({ rows, totalHeight: Math.max(totalHeight, 600) });
-  }, [layoutEngine, snapshot.rows, snapshot.bars, months, viewStartDate]);
-
-  // Render Canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Set Canvas Size
-    canvas.width = 1200; // Must match layout width
-    canvas.height = layout.totalHeight;
-
-    bg.render(ctx, layout.rows, months, canvas.width, canvas.height);
-
-    // Flatten bars for rendering
-    const allBars: CalculatedBar[] = layout.rows.flatMap(r => r.bars);
-    tasks.render(ctx, allBars);
-
-    today.render(ctx, canvas.height, canvas.width, months, viewStartDate);
-
-  }, [bg, tasks, today, layout, months]);
-
-  // Interactions (Updated to work with new layout)
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const getBarAt = (y: number) => {
-      // We need to implement a spatial search or simple loop
-      // Since overlay renderer was generic, we might need to update it or find logic here.
-      // For now, let's just loop locally
-      const allBars = layout.rows.flatMap(r => r.bars);
-      return allBars.find(b =>
-        y >= b.y && y <= b.y + b.height // Check Y
-        // && x >= b.x && x <= b.x + b.width // Check X (but we need event X)
-      );
-    };
-
-    // Note: The previous interaction logic relied on OverlayRenderer finding bars.
-    // OverlayRenderer likely needs update or we skip it for this iteration
-    // to focus on rendering first.
-    // ... skipping interaction updates for this exact step to keep size manageable.
-
-  }, [layout]);
-
-  // Sync Scrolling
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    // If we had separate scrolls for header/sidebar, we'd sync them here.
-    // For now, simpler shared scroll container or separate areas.
-    // The sidebar and canvas should vertical scroll together.
-  };
-
-  // Helper to get month label
-  const getMonthLabel = (offset: number) => {
-    const d = new Date(viewStartDate);
-    d.setMonth(d.getMonth() + offset);
-    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); // "Jan 2024"
-  };
 
   return (
-    <div className="schedule-report-page">
-      <header className="schedule-report-header">
-        {/* Month Labels should go here or be part of component */}
-        <div className="header-sidebar-spacer">CATEGORY</div>
-        <div className="header-months">
-          {Array.from({ length: months }).map((_, i) => (
-            <div key={i} className="header-month-item">
-              {getMonthLabel(i).toUpperCase()}
-            </div>
-          ))}
+    <div className="schedule-report-page bg-white h-screen flex flex-col overflow-hidden">
+      <FilterToolbar />
+      {snapshot.isLoading && snapshot.rows.length === 0 && snapshot.bars.length === 0 ? (
+        <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
+      ) : (
+        <ProjectStatusReport
+          bars={snapshot.bars}
+          projectIdentifier={currentProjectIdentifier}
+          availableProjects={snapshot.available_projects}
+          fetchError={snapshot.rows.length === 0 && snapshot.bars.length === 0 ? snapshot.errorMessage : null}
+        />
+      )}
+      {snapshot.isLoading && snapshot.rows.length > 0 && (
+        <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">Updating report…</div>
+      )}
+      {snapshot.errorMessage && snapshot.rows.length === 0 && snapshot.bars.length === 0 && (
+        <div className="px-4 py-2 text-sm text-red-600 border-t border-red-100" role="alert">
+          {snapshot.errorMessage}
         </div>
-      </header>
-
-      <div className="schedule-report-body" ref={scrollContainerRef}>
-        <ProjectList rows={layout.rows} />
-        <div className="schedule-report-canvas-wrapper">
-          <canvas ref={canvasRef} />
+      )}
+      {snapshot.errorMessage && snapshot.rows.length > 0 && (
+        <div className="px-4 py-2 text-sm text-amber-700 border-t border-amber-100" role="alert">
+          Failed to refresh report. Showing last successful data.
         </div>
-      </div>
+      )}
     </div>
   );
 }

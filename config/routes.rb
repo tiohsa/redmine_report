@@ -3,6 +3,7 @@
 
 get '/projects/:project_id/schedule_report', to: 'schedule_reports#index', as: 'project_schedule_report'
 get '/projects/:project_id/schedule_report/data', to: 'schedule_reports#data', as: 'project_schedule_report_data'
+post '/projects/:project_id/schedule_report/generate', to: 'schedule_reports#generate', as: 'project_schedule_report_generate'
 get '/projects/:project_id/schedule_report/bundle/main.js',
     to: 'schedule_reports#bundle_js',
     as: 'project_schedule_report_bundle_js',
