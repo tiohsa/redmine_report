@@ -92,9 +92,19 @@ export function TimelineChart({ timelineData, timelineWidth, headerMonths, heade
             <div className="text-sm font-bold text-gray-800" title={project.versionName}>
               {project.versionName}
             </div>
-            <div className="text-xs text-gray-500 mt-1" title={project.projectName}>
-              {project.projectName}
-            </div>
+            {project.projectIdentifier ? (
+              <a
+                href={`/projects/${project.projectIdentifier}`}
+                className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                title={project.projectName}
+              >
+                {project.projectName}
+              </a>
+            ) : (
+              <div className="text-xs text-gray-500 mt-1" title={project.projectName}>
+                {project.projectName}
+              </div>
+            )}
           </div>
         ))}
         {timelineData.length === 0 && <div className="h-32"></div>}

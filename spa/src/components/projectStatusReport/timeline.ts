@@ -29,6 +29,7 @@ export type TimelineStep = {
 export type TimelineLane = {
   laneKey: string;
   projectId: number;
+  projectIdentifier: string;
   projectName: string;
   versionName: string;
   steps: TimelineStep[];
@@ -239,7 +240,9 @@ function buildTimelineData({
   const timelineData: TimelineLane[] = [];
 
   Array.from(groupedByProject.entries()).forEach(([projectId, versionMap]) => {
-    const projectName = projectMap.get(projectId)?.name || `Project ${projectId}`;
+    const project = projectMap.get(projectId);
+    const projectName = project?.name || `Project ${projectId}`;
+    const projectIdentifier = project?.identifier || '';
 
     Array.from(versionMap.entries()).forEach(([versionKey, versionBars]) => {
       const sortedBars = [...versionBars].sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
@@ -247,6 +250,7 @@ function buildTimelineData({
       timelineData.push({
         laneKey: `${projectId}:${versionKey}`,
         projectId,
+        projectIdentifier,
         projectName,
         versionName: versionKey,
         steps: sortedBars.map((bar, idx) => {
