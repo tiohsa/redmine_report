@@ -68,9 +68,11 @@ interface ChevronPathProps {
     pointDepth: number;
     isFirst: boolean;
     color: string;
+    progress?: number; // 0-100
+    id?: string; // unique id for gradient
 }
 
-const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color }: ChevronPathProps) => {
+const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color, progress, id }: ChevronPathProps) => {
     const p = pointDepth;
     const w = width;
     const h = height;
@@ -80,9 +82,25 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color }: Chevro
         : `M ${x} ${y} L ${x + p} ${y + h / 2} L ${x} ${y + h}`;
 
     const rightShape = `L ${x + w} ${y + h} L ${x + w + p} ${y + h / 2} L ${x + w} ${y}`;
+    const d = `${leftShape} ${rightShape} Z`;
+
+    if (progress !== undefined && progress >= 0 && progress < 100 && id) {
+        const gradientId = `grad-${id}`;
+        return (
+            <g>
+                <defs>
+                    <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset={`${progress}%`} stopColor={color} />
+                        <stop offset={`${progress}%`} stopColor={STATUS.PENDING.color} />
+                    </linearGradient>
+                </defs>
+                <path d={d} fill={`url(#${gradientId})`} stroke="white" strokeWidth="1" />
+            </g>
+        );
+    }
 
     return (
-        <path d={`${leftShape} ${rightShape} Z`} fill={color} stroke="white" strokeWidth="1" />
+        <path d={d} fill={color} stroke="white" strokeWidth="1" />
     );
 };
 
@@ -169,8 +187,14 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
             // ステップ変換
             const steps = sortedBars.map(bar => {
                 let status = STATUS.PENDING;
-                if (bar.progress_rate === 100) status = STATUS.COMPLETED;
-                else if (bar.progress_rate > 0) status = STATUS.IN_PROGRESS;
+                let progress = undefined;
+
+                if (bar.progress_rate === 100) {
+                    status = STATUS.COMPLETED;
+                } else if (bar.progress_rate > 0) {
+                    status = STATUS.IN_PROGRESS;
+                    progress = bar.progress_rate;
+                }
 
                 const sDate = parseISO(bar.start_date);
                 const eDate = parseISO(bar.end_date);
@@ -186,7 +210,9 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                     width: width, // 実際の描画幅（絶対座標ベース）
                     status: status,
                     startDate: bar.start_date,
-                    endDate: bar.end_date
+                    endDate: bar.end_date,
+                    progress: progress,
+                    id: `step-${bar.project_id}-${bar.category_name}` // Unique ID for gradient
                 };
             });
 
@@ -396,6 +422,8 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                                         pointDepth={pointDepth}
                                                                         isFirst={isFirst} // 形状的にはFirstだが、日付配置なので左端が垂直になるだけ
                                                                         color={step.status.color}
+                                                                        progress={step.progress}
+                                                                        id={step.id}
                                                                     />
                                                                     {step.width > 30 && (
                                                                         <text
