@@ -453,24 +453,27 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                                             markerStart="url(#arrow-start)"
                                                                             markerEnd="url(#arrow-end)"
                                                                         />
-                                                                        {/* テキスト背景 (線の上に見やすくするため) */}
-                                                                        <rect
-                                                                            x={step.x + step.width / 2 - 30}
-                                                                            y={-2}
-                                                                            width={60}
-                                                                            height={14}
-                                                                            fill="white"
-                                                                            fillOpacity={0.8}
-                                                                        />
-                                                                        {/* 日付テキスト */}
+
+                                                                        {/* 開始日テキスト (左端) */}
                                                                         <text
-                                                                            x={step.x + step.width / 2}
-                                                                            y={9}
+                                                                            x={step.x}
+                                                                            y={18}
                                                                             fill="#4b5563"
                                                                             fontSize="10"
-                                                                            textAnchor="middle"
+                                                                            textAnchor="start"
                                                                         >
-                                                                            {dateText}
+                                                                            {startDateStr}
+                                                                        </text>
+
+                                                                        {/* 終了日テキスト (右端) */}
+                                                                        <text
+                                                                            x={step.x + step.width}
+                                                                            y={18}
+                                                                            fill="#4b5563"
+                                                                            fontSize="10"
+                                                                            textAnchor="end"
+                                                                        >
+                                                                            {endDateStr}
                                                                         </text>
                                                                     </g>
                                                                 </g>
