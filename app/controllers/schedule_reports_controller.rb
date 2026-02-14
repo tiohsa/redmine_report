@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class ScheduleReportsController < ApplicationController
+  menu_item :schedule_report
   before_action :find_project, except: %i[bundle_js bundle_css]
   before_action :authorize, except: %i[bundle_js bundle_css]
   skip_after_action :verify_same_origin_request, only: [:bundle_js], raise: false

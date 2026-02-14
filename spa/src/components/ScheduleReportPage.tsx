@@ -3,7 +3,6 @@ import { fetchScheduleReport } from '../services/scheduleReportApi';
 import { mapCategoryBars } from '../services/mappers/categoryBarMapper';
 import { mapProjectRows } from '../services/mappers/projectRowMapper';
 import { ProjectStatusReport } from './ProjectStatusReport';
-import { FilterToolbar } from './FilterToolbar';
 import { useTaskStore } from '../stores/taskStore';
 import { useUiStore } from '../stores/uiStore';
 import { mapProjectInfo } from '../services/mappers/projectInfoMapper';
@@ -128,11 +127,6 @@ export function ScheduleReportPage() {
 
   return (
     <div className="schedule-report-page bg-white h-screen flex flex-col overflow-hidden">
-      <FilterToolbar
-        allVersions={allVersions}
-        selectedVersions={selectedVersions}
-        onVersionChange={setSelectedVersions}
-      />
       {snapshot.isLoading && snapshot.rows.length === 0 && snapshot.bars.length === 0 ? (
         <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
       ) : (
@@ -141,6 +135,7 @@ export function ScheduleReportPage() {
           projectIdentifier={currentProjectIdentifier}
           availableProjects={snapshot.available_projects}
           selectedVersions={selectedVersions}
+          onVersionChange={setSelectedVersions}
           fetchError={snapshot.rows.length === 0 && snapshot.bars.length === 0 ? snapshot.errorMessage : null}
         />
       )}
