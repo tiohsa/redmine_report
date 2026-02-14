@@ -506,11 +506,6 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                         {/* プロジェクトごとのレーン */}
                                         {timelineData.map((project, pIdx) => {
                                             const yOffset = headerHeight + (pIdx * laneHeight);
-                                            // 矢羽根の深さ
-                                            const pointDepth = 20;
-                                            const barHeight = 50;
-                                            const barY = 20;
-
                                             return (
                                                 <g key={project.projectId} transform={`translate(0, ${yOffset})`}>
                                                     {/* 区切り線 (下部) */}
@@ -532,9 +527,12 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
 
                                                         const pointDepth = 15;
                                                         const barHeight = 40;
+                                                        const dateSectionHeight = 25;
+                                                        // 垂直方向の中央寄せ計算: (レーン高さ - (矢羽根高さ + 日付表示領域)) / 2
+                                                        const verticalOffset = (laneHeight - (barHeight + dateSectionHeight)) / 2;
 
                                                         return (
-                                                            <g key={sIdx}>
+                                                            <g key={sIdx} transform={`translate(0, ${verticalOffset})`}>
                                                                 <ChevronPath
                                                                     x={step.x}
                                                                     y={0}
