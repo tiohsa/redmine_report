@@ -487,9 +487,11 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                             {/* Todayライン (ヘッダー部分) */}
                                             {todayX >= 0 && todayX <= timelineWidth && (
                                                 <g transform={`translate(${todayX}, 0)`}>
-                                                    <line x1={0} y1={0} x2={0} y2={headerHeight} stroke="#ef4444" strokeWidth="2" strokeDasharray="4 2" />
-                                                    <rect x={-20} y={headerHeight - 20} width={40} height={20} fill="white" opacity="0.8" />
-                                                    <text x={0} y={headerHeight - 8} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ef4444">Today</text>
+                                                    <line x1={0} y1={0} x2={0} y2={headerHeight} stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4 2" />
+                                                    <rect x={-20} y={headerHeight} width={40} height={16} fill="white" opacity="0.9" />
+                                                    <text x={0} y={headerHeight + 12} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ef4444">
+                                                        {format(new Date(), 'M/d')}
+                                                    </text>
                                                 </g>
                                             )}
                                         </g>
@@ -517,12 +519,6 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                             strokeDasharray="4 2"
                                                         />
                                                     ))}
-
-                                                    {/* Todayライン (レーン部分) */}
-                                                    {todayX >= 0 && todayX <= timelineWidth && (
-                                                        <line x1={todayX} y1={0} x2={todayX} y2={laneHeight} stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4 2" />
-                                                    )}
-
                                                     {/* 矢羽根列 */}
                                                     <g transform={`translate(0, 30)`}>
                                                         {project.steps.map((step, sIdx) => {
@@ -602,6 +598,11 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                             );
                                                         })}
                                                     </g>
+
+                                                    {/* Todayライン (レーン部分) - 矢羽根の上に表示するため後に配置 */}
+                                                    {todayX >= 0 && todayX <= timelineWidth && (
+                                                        <line x1={todayX} y1={0} x2={todayX} y2={laneHeight} stroke="#ef4444" strokeWidth="1" strokeDasharray="4 2" />
+                                                    )}
                                                 </g>
                                             );
                                         })}
@@ -610,7 +611,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                     <div className="flex items-center justify-center h-32 text-gray-400">
                                         データがありません
                                     </div>
-                                );
+                                )
                             })()}
                         </div>
                     </div>
