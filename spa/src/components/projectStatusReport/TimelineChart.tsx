@@ -70,6 +70,7 @@ type TimelineChartProps = {
   headerYears: HeaderYear[];
   todayX: number;
   containerRef: RefObject<HTMLDivElement>;
+  onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
 };
 
 const laneHeight = 130;
@@ -77,7 +78,15 @@ const yearRowHeight = 25;
 const monthRowHeight = 25;
 const headerHeight = yearRowHeight + monthRowHeight;
 
-export function TimelineChart({ timelineData, timelineWidth, headerMonths, headerYears, todayX, containerRef }: TimelineChartProps) {
+export function TimelineChart({
+  timelineData,
+  timelineWidth,
+  headerMonths,
+  headerYears,
+  todayX,
+  containerRef,
+  onVersionAiClick
+}: TimelineChartProps) {
   const [activeIssue, setActiveIssue] = useState<{ id: number; title: string } | null>(null);
 
   const handleStepClick = (issueId?: number, title?: string) => {
@@ -112,13 +121,30 @@ export function TimelineChart({ timelineData, timelineWidth, headerMonths, heade
               style={{ height: laneHeight }}
             >
               {project.versionId ? (
-                <a
-                  href={`/versions/${project.versionId}`}
-                  className="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline"
-                  title={project.versionName}
-                >
-                  {project.versionName}
-                </a>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/versions/${project.versionId}`}
+                    className="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline"
+                    title={project.versionName}
+                  >
+                    {project.versionName}
+                  </a>
+                  <button
+                    type="button"
+                    aria-label={`AI分析を開始 ${project.versionName}`}
+                    className="h-6 w-6 rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                    onClick={() =>
+                      onVersionAiClick?.({
+                        versionId: project.versionId as number,
+                        versionName: project.versionName,
+                        projectId: project.projectId,
+                        projectName: project.projectName
+                      })
+                    }
+                  >
+                    AI
+                  </button>
+                </div>
               ) : (
                 <div className="text-sm font-bold text-gray-800" title={project.versionName}>
                   {project.versionName}

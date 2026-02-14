@@ -59,6 +59,73 @@ class ScheduleReportsController < ApplicationController
     render json: { error: e.message }, status: :internal_server_error
   end
 
+  def weekly_versions
+    versions = @project.versions
+                       .select(:id, :name, :status)
+                       .order(:name)
+                       .map do |version|
+      {
+        id: version.id,
+        name: version.name,
+        status: version.status,
+        ai_action_enabled: true
+      }
+    end
+
+    render json: { versions: versions }
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] weekly_versions failed: #{e.class}: #{e.message}")
+    render json: { code: 'UNAVAILABLE', message: l(:label_schedule_report_unavailable) }, status: :service_unavailable
+  end
+
+  def weekly_validate_destination
+    validator = RedmineReport::WeeklyReport::DestinationValidator.new(
+      project: @project,
+      user: User.current
+    )
+    result = validator.call(destination_issue_id: weekly_payload[:destination_issue_id])
+    render json: {
+      valid: result[:valid],
+      reason_code: result[:reason_code],
+      reason_message: result[:reason_message]
+    }, status: result[:status]
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] weekly_validate_destination failed: #{e.class}: #{e.message}")
+    render json: { code: 'UNAVAILABLE', message: l(:label_schedule_report_unavailable) }, status: :service_unavailable
+  end
+
+  def weekly_generate
+    service = RedmineReport::WeeklyReport::GenerateService.new(
+      project: @project,
+      user: User.current
+    )
+    result = service.call(weekly_payload)
+    render json: result
+  rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
+    render json: { code: 'INVALID_INPUT', message: e.message }, status: :unprocessable_entity
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] weekly_generate failed: #{e.class}: #{e.message}")
+    render json: { code: 'UPSTREAM_FAILURE', message: e.message, retryable: true }, status: :service_unavailable
+  end
+
+  def weekly_save
+    service = RedmineReport::WeeklyReport::SaveService.new(
+      project: @project,
+      user: User.current
+    )
+    result = service.call(weekly_payload)
+    render json: result
+  rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
+    render json: { code: 'INVALID_INPUT', message: e.message }, status: :unprocessable_entity
+  rescue RedmineReport::WeeklyReport::SaveService::DestinationInvalidError => e
+    render json: { code: e.code, message: e.message }, status: e.status
+  rescue RedmineReport::WeeklyReport::SaveService::RevisionConflictError => e
+    render json: { code: 'REVISION_CONFLICT', message: e.message, retryable: true }, status: :conflict
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] weekly_save failed: #{e.class}: #{e.message}")
+    render json: { code: 'UPSTREAM_FAILURE', message: e.message, retryable: true }, status: :service_unavailable
+  end
+
   def bundle_js
     serve_bundle(
       filename: 'main.js',
@@ -122,5 +189,13 @@ class ScheduleReportsController < ApplicationController
     return @project unless selected.visible?(User.current)
 
     selected
+  end
+
+  def weekly_payload
+    @weekly_payload ||= begin
+      raw = request.request_parameters.presence || {}
+      # Prefer JSON body values over query values while preserving fallback.
+      params.to_unsafe_h.merge(raw.to_h).symbolize_keys
+    end
   end
 end

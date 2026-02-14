@@ -6,6 +6,7 @@ import { buildTimelineViewModel } from './projectStatusReport/timeline';
 import { TimelineChart } from './projectStatusReport/TimelineChart';
 import { ReportSections } from './projectStatusReport/ReportSections';
 import { useUiStore } from '../stores/uiStore';
+import { VersionAiDialog } from './projectStatusReport/VersionAiDialog';
 
 interface ProjectStatusReportProps {
     bars?: CategoryBar[];
@@ -27,6 +28,19 @@ export const ProjectStatusReport = ({
     const [generatedContent, setGeneratedContent] = useState<ReportContent | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [weeklyDialog, setWeeklyDialog] = useState<{
+        open: boolean;
+        projectId: number;
+        projectName: string;
+        versionId: number;
+        versionName: string;
+    }>({
+        open: false,
+        projectId: 0,
+        projectName: '',
+        versionId: 0,
+        versionName: ''
+    });
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
 
@@ -333,10 +347,28 @@ export const ProjectStatusReport = ({
                         headerYears={headerYears}
                         todayX={todayX}
                         containerRef={containerRef}
+                        onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
+                            setWeeklyDialog({
+                                open: true,
+                                versionId,
+                                versionName,
+                                projectId,
+                                projectName
+                            })
+                        }
                     />
 
                     <ReportSections projectTitle={projectTitle} sections={displaySections} />
                 </div>
+
+                <VersionAiDialog
+                    open={weeklyDialog.open}
+                    projectIdentifier={projectIdentifier}
+                    projectId={weeklyDialog.projectId}
+                    versionId={weeklyDialog.versionId}
+                    versionName={weeklyDialog.versionName}
+                    onClose={() => setWeeklyDialog((prev) => ({ ...prev, open: false }))}
+                />
             </div>
         </div>
     );

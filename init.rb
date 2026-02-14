@@ -18,7 +18,18 @@ Redmine::Plugin.register :redmine_report do
   author_url 'http://example.com/about'
 
   project_module :schedule_report do
-    permission :view_schedule_report, schedule_reports: %i[index data generate bundle_js bundle_css]
+    permission :view_schedule_report,
+               schedule_reports: %i[
+                 index
+                 data
+                 generate
+                 weekly_versions
+                 weekly_validate_destination
+                 weekly_generate
+                 weekly_save
+                 bundle_js
+                 bundle_css
+               ]
   end
 
   menu :project_menu, :schedule_report,
