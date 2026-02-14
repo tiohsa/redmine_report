@@ -16,6 +16,7 @@ import { CategoryBar, ProjectInfo } from '../../services/scheduleReportApi';
 import { STATUS, StatusStyle } from './constants';
 
 export type TimelineStep = {
+  issueId?: number;
   name: string;
   x: number;
   width: number;
@@ -260,6 +261,7 @@ function buildTimelineData({
           const { status, progress } = resolveStatus(bar.progress_rate);
 
           return {
+            issueId: bar.category_id,
             name: bar.ticket_subject || bar.category_name,
             x: getX(bar.start_date),
             width: getWidth(bar.start_date, bar.end_date),

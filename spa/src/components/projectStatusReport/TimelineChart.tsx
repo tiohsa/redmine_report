@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 import { HeaderMonth, HeaderYear, TimelineLane } from './timeline';
 
@@ -77,53 +78,112 @@ const monthRowHeight = 25;
 const headerHeight = yearRowHeight + monthRowHeight;
 
 export function TimelineChart({ timelineData, timelineWidth, headerMonths, headerYears, todayX, containerRef }: TimelineChartProps) {
+  const [activeIssue, setActiveIssue] = useState<{ id: number; title: string } | null>(null);
+
+  const handleStepClick = (issueId?: number, title?: string) => {
+    if (!issueId) return;
+    setActiveIssue({ id: issueId, title: title || '' });
+  };
+
+  useEffect(() => {
+    if (!activeIssue) return;
+
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveIssue(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [activeIssue]);
+
   return (
-    <div className="flex border border-gray-200 rounded-lg overflow-hidden">
-      <div className="flex-none min-w-max bg-white border-r border-gray-200 flex flex-col">
-        <div className="flex items-center px-6 font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
-          バージョン / プロジェクト
-        </div>
-        {timelineData.map((project) => (
-          <div
-            key={project.laneKey}
-            className="flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap"
-            style={{ height: laneHeight }}
-          >
-            {project.versionId ? (
-              <a
-                href={`/versions/${project.versionId}`}
-                className="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline"
-                title={project.versionName}
-              >
-                {project.versionName}
-              </a>
-            ) : (
-              <div className="text-sm font-bold text-gray-800" title={project.versionName}>
-                {project.versionName}
-              </div>
-            )}
-            {project.projectIdentifier ? (
-              <a
-                href={`/projects/${project.projectIdentifier}`}
-                className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
-                title={project.projectName}
-              >
-                {project.projectName}
-              </a>
-            ) : (
-              <div className="text-xs text-gray-500 mt-1" title={project.projectName}>
-                {project.projectName}
-              </div>
-            )}
+    <>
+      <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+        <div className="flex-none min-w-max bg-white border-r border-gray-200 flex flex-col">
+          <div className="flex items-center px-6 font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
+            バージョン / プロジェクト
           </div>
-        ))}
-        {timelineData.length === 0 && <div className="h-32"></div>}
+          {timelineData.map((project) => (
+            <div
+              key={project.laneKey}
+              className="flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap"
+              style={{ height: laneHeight }}
+            >
+              {project.versionId ? (
+                <a
+                  href={`/versions/${project.versionId}`}
+                  className="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline"
+                  title={project.versionName}
+                >
+                  {project.versionName}
+                </a>
+              ) : (
+                <div className="text-sm font-bold text-gray-800" title={project.versionName}>
+                  {project.versionName}
+                </div>
+              )}
+              {project.projectIdentifier ? (
+                <a
+                  href={`/projects/${project.projectIdentifier}`}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                  title={project.projectName}
+                >
+                  {project.projectName}
+                </a>
+              ) : (
+                <div className="text-xs text-gray-500 mt-1" title={project.projectName}>
+                  {project.projectName}
+                </div>
+              )}
+            </div>
+          ))}
+          {timelineData.length === 0 && <div className="h-32"></div>}
+        </div>
+
+        <div className="flex-1 overflow-x-auto bg-white relative" ref={containerRef}>
+          <TimelineSvg
+            timelineData={timelineData}
+            timelineWidth={timelineWidth}
+            headerMonths={headerMonths}
+            headerYears={headerYears}
+            todayX={todayX}
+            onStepClick={handleStepClick}
+          />
+        </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto bg-white relative" ref={containerRef}>
-        <TimelineSvg timelineData={timelineData} timelineWidth={timelineWidth} headerMonths={headerMonths} headerYears={headerYears} todayX={todayX} />
-      </div>
-    </div>
+      {activeIssue && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/50"
+          onClick={() => setActiveIssue(null)}
+        >
+          <div
+            className="bg-white w-full h-full flex flex-col overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="h-12 px-4 border-b border-slate-200 flex items-center justify-between">
+              <span className="text-sm font-semibold text-slate-700 truncate">
+                チケット #{activeIssue.id}{activeIssue.title ? `: ${activeIssue.title}` : ''}
+              </span>
+              <button
+                aria-label="ダイアログを閉じる"
+                className="text-slate-500 hover:text-slate-700 text-xl leading-none px-2 cursor-pointer"
+                onClick={() => setActiveIssue(null)}
+              >
+                ×
+              </button>
+            </div>
+            <iframe
+              title={`issue-${activeIssue.id}`}
+              src={`/issues/${activeIssue.id}`}
+              className="w-full flex-1 border-0"
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -132,8 +192,9 @@ function TimelineSvg({
   timelineWidth,
   headerMonths,
   headerYears,
-  todayX
-}: Omit<TimelineChartProps, 'containerRef'>) {
+  todayX,
+  onStepClick
+}: Omit<TimelineChartProps, 'containerRef'> & { onStepClick: (issueId?: number, title?: string) => void }) {
   const svgHeight = headerHeight + timelineData.length * laneHeight + 30;
 
   if (timelineData.length === 0) {
@@ -252,20 +313,25 @@ function TimelineSvg({
                   zIndex: isInProgress ? 1 : 0,
                   element: (
                     <g key={step.id} transform={`translate(0, ${verticalOffset})`}>
-                      <ChevronPath
-                        x={step.x}
-                        y={0}
-                        width={step.width}
-                        height={barHeight}
-                        pointDepth={pointDepth}
-                        isFirst={isFirst}
-                        fill={fill}
-                        stroke={step.status.stroke}
-                        progress={step.progress}
-                        id={step.id}
-                        filter="url(#dropShadow)"
-                        separatorColor={isPending ? 'transparent' : 'white'}
-                      />
+                      <g
+                        style={{ cursor: step.issueId ? 'pointer' : 'default' }}
+                        onClick={() => onStepClick(step.issueId, step.name)}
+                      >
+                        <ChevronPath
+                          x={step.x}
+                          y={0}
+                          width={step.width}
+                          height={barHeight}
+                          pointDepth={pointDepth}
+                          isFirst={isFirst}
+                          fill={fill}
+                          stroke={step.status.stroke}
+                          progress={step.progress}
+                          id={step.id}
+                          filter="url(#dropShadow)"
+                          separatorColor={isPending ? 'transparent' : 'white'}
+                        />
+                      </g>
 
                       {step.width > 30 && (
                         <text
