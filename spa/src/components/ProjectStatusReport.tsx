@@ -306,7 +306,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                     <div className="flex border border-gray-200 rounded-lg overflow-hidden">
                         {/* 左側: プロジェクト名カラム */}
                         {(() => {
-                            const laneHeight = 80;
+                            const laneHeight = 100;
                             const headerHeight = 30;
 
                             return (
@@ -338,12 +338,21 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                         {/* 右側: SVGタイムライン */}
                         <div className="flex-1 overflow-x-auto bg-white relative">
                             {(() => {
-                                const laneHeight = 80;
+                                const laneHeight = 100;
                                 const headerHeight = 30;
                                 const svgHeight = headerHeight + (timelineData.length * laneHeight) + 30;
 
                                 return timelineData.length > 0 ? (
                                     <svg viewBox={`0 0 1000 ${svgHeight}`} className="w-full" style={{ minHeight: svgHeight, minWidth: '800px' }}>
+                                        <defs>
+                                            <marker id="arrow-start" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto">
+                                                <path d="M6,0 L0,3 L6,6" fill="#6b7280" />
+                                            </marker>
+                                            <marker id="arrow-end" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+                                                <path d="M0,0 L6,3 L0,6" fill="#6b7280" />
+                                            </marker>
+                                        </defs>
+
                                         {/* 月ヘッダー (最上部) */}
                                         <g transform="translate(0, 0)">
                                             {monthSegments.map((seg, i) => (
@@ -361,7 +370,8 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                             const yOffset = headerHeight + (pIdx * laneHeight); // 基準位置
                                             const pointDepth = 15;
                                             const barHeight = 40;
-                                            const barY = 20; // レーン内のバーのY位置 (中央配置: (80-40)/2 = 20)
+                                            const barY = 15; // レーン内のバーのY位置 (少し上に配置して下にスペース確保)
+                                            const dateY = barY + barHeight + 18; // 日付表示のベースY位置
 
                                             return (
                                                 <g key={project.projectId} transform={`translate(0, ${yOffset})`}>
@@ -372,6 +382,10 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                     <g transform={`translate(0, ${barY})`}>
                                                         {project.steps.map((step, sIdx) => {
                                                             const isFirst = sIdx === 0;
+                                                            const startDateStr = format(parseISO(step.startDate), 'M/d');
+                                                            const endDateStr = format(parseISO(step.endDate), 'M/d');
+                                                            const dateText = `${startDateStr} - ${endDateStr}`;
+
                                                             return (
                                                                 <g key={sIdx}>
                                                                     <ChevronPath
@@ -397,6 +411,40 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                                             {step.name}
                                                                         </text>
                                                                     )}
+
+                                                                    {/* 期間表示 (矢印とテキスト) */}
+                                                                    <g transform={`translate(0, ${barHeight + 10})`}>
+                                                                        {/* 寸法線 */}
+                                                                        <line
+                                                                            x1={step.x + 2}
+                                                                            y1={5}
+                                                                            x2={step.x + step.width - 2}
+                                                                            y2={5}
+                                                                            stroke="#6b7280"
+                                                                            strokeWidth="1"
+                                                                            markerStart="url(#arrow-start)"
+                                                                            markerEnd="url(#arrow-end)"
+                                                                        />
+                                                                        {/* テキスト背景 (線の上に見やすくするため) */}
+                                                                        <rect
+                                                                            x={step.x + step.width / 2 - 30}
+                                                                            y={-2}
+                                                                            width={60}
+                                                                            height={14}
+                                                                            fill="white"
+                                                                            fillOpacity={0.8}
+                                                                        />
+                                                                        {/* 日付テキスト */}
+                                                                        <text
+                                                                            x={step.x + step.width / 2}
+                                                                            y={9}
+                                                                            fill="#4b5563"
+                                                                            fontSize="10"
+                                                                            textAnchor="middle"
+                                                                        >
+                                                                            {dateText}
+                                                                        </text>
+                                                                    </g>
                                                                 </g>
                                                             );
                                                         })}
@@ -410,12 +458,21 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                             <g>
                                                 <line
                                                     x1={timelineScale.todayX}
-                                                    y1={headerHeight}
+                                                    y1={0}
                                                     x2={timelineScale.todayX}
                                                     y2={svgHeight}
                                                     stroke="#ef4444"
                                                     strokeWidth="2"
                                                     strokeDasharray="4 3"
+                                                />
+                                                <rect
+                                                    x={timelineScale.todayX - 18}
+                                                    y={2}
+                                                    width={36}
+                                                    height={16}
+                                                    rx={2}
+                                                    fill="white"
+                                                    fillOpacity={0.8}
                                                 />
                                                 <text x={timelineScale.todayX} y={12} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ef4444">
                                                     Today
