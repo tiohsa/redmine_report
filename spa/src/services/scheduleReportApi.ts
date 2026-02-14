@@ -3,6 +3,7 @@ export type ReportFilterSet = {
   months: number;
   start_month: string;
   status_scope: 'open' | 'all';
+  filter_rule?: 'open_version_top_parent';
 };
 
 export type ProjectRow = {
@@ -19,6 +20,9 @@ export type CategoryBar = {
   project_id: number;
   category_id: number;
   category_name: string;
+  version_id?: number;
+  version_name?: string;
+  ticket_subject?: string;
   start_date: string;
   end_date: string;
   issue_count: number;
@@ -32,6 +36,12 @@ export type ReportSnapshot = {
   rows: ProjectRow[];
   bars: CategoryBar[];
   available_projects: ProjectInfo[];
+  selection_summary: {
+    total_candidates: number;
+    excluded_not_visible: number;
+    excluded_invalid_hierarchy: number;
+    displayed_top_parent_count: number;
+  };
   meta: {
     generated_at: string;
     stale_after_seconds: number;

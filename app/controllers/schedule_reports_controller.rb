@@ -21,7 +21,8 @@ class ScheduleReportsController < ApplicationController
     aggregation = RedmineReport::ScheduleReport::Aggregator.new(
       issues: scope.issues,
       project: selected_project,
-      filters: filters
+      filters: filters,
+      visibility_scope: scope
     ).call
 
     available_projects = RedmineReport::ScheduleReport::ProjectOptionsBuilder.new(
@@ -33,7 +34,9 @@ class ScheduleReportsController < ApplicationController
       rows: aggregation[:rows],
       bars: aggregation[:bars],
       available_projects: available_projects,
-      filters: filters
+      filters: filters,
+      selection_summary: aggregation[:selection_summary],
+      filter_rule: aggregation[:filter_rule]
     ).call
 
     render json: snapshot

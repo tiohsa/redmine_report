@@ -72,6 +72,7 @@ export function ScheduleReportPage() {
           rows: mapProjectRows(rawRows),
           bars: mapCategoryBars(rawBars),
           available_projects: mapProjectInfo(uniqueAvailableProjects),
+          selection_summary: validResults[0].selection_summary,
           meta: {
             ...baseMeta,
             warnings: validResults.flatMap(r => r.meta.warnings)

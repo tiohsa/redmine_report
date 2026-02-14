@@ -11,9 +11,20 @@ class ScheduleReportContractTest < ActiveSupport::TestCase
     doc = YAML.load_file(schedule_report_contract_path)
 
     assert doc['paths'].key?('/data')
-    assert_equal 'Get report snapshot for selected project', doc['paths']['/data']['get']['summary']
+    assert_equal 'Get schedule report snapshot with ticket display decisions', doc['paths']['/data']['get']['summary']
     assert doc.dig('components', 'schemas', 'ReportSnapshot')
-    assert doc.dig('components', 'schemas', 'ProjectOption')
+    assert doc.dig('components', 'schemas', 'SelectionSummary')
+    required_meta_filters = doc.dig(
+      'components',
+      'schemas',
+      'ReportSnapshot',
+      'properties',
+      'meta',
+      'properties',
+      'applied_filters',
+      'required'
+    )
+    assert_includes required_meta_filters, 'filter_rule'
   end
 
   def test_project_option_helper_shape

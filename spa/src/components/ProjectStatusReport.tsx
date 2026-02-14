@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { CategoryBar, generateScheduleReport, ReportContent, ReportItem, ProjectInfo } from '../services/scheduleReportApi';
-import { format, parseISO, differenceInDays, eachMonthOfInterval, startOfMonth, endOfMonth, isSameDay, addDays, addMonths } from 'date-fns';
+import { format, differenceInDays, startOfMonth, endOfMonth, addMonths, isBefore, isAfter, parseISO } from 'date-fns';
+import { ja } from 'date-fns/locale';
 
 // --- データ定義: プロジェクト進捗報告書 ---
 
@@ -77,6 +78,10 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color, progress
     const w = width;
     const h = height;
 
+    // 画像の形状に合わせる:
+    // 最初の要素でも左側を凹ませるデザインにする（画像の中段「要件定義」のスタイル）
+    // 垂直にするのは、タイムラインの左端に密着している場合などのみとするか、
+    // あるいは常に凹ませるスタイルにする。ここでは画像に合わせて調整。
     const leftShape = isFirst
         ? `M ${x} ${y} L ${x} ${y + h}`
         : `M ${x} ${y} L ${x + p} ${y + h / 2} L ${x} ${y + h}`;
@@ -91,16 +96,16 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color, progress
                 <defs>
                     <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset={`${progress}%`} stopColor={color} />
-                        <stop offset={`${progress}%`} stopColor={STATUS.PENDING.color} />
+                        <stop offset={`${progress}%`} stopColor="#e5e7eb" /> {/* 未着手部分は薄いグレー */}
                     </linearGradient>
                 </defs>
-                <path d={d} fill={`url(#${gradientId})`} stroke="white" strokeWidth="1" />
+                <path d={d} fill={`url(#${gradientId})`} stroke="white" strokeWidth="1.5" />
             </g>
         );
     }
 
     return (
-        <path d={d} fill={color} stroke="white" strokeWidth="1" />
+        <path d={d} fill={color} stroke="white" strokeWidth="1.5" />
     );
 };
 
@@ -132,137 +137,210 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
         return map;
     }, [availableProjects]);
 
-    // 全体の期間とタイムラインデータの構築
-    const { timelineData, totalDurationText, monthSegments, timelineScale } = useMemo(() => {
-        if (bars.length === 0) {
-            return { timelineData: [], totalDurationText: "データなし", monthSegments: [], timelineScale: null };
-        }
+    // コンテナの参照と幅の管理
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    const [containerWidth, setContainerWidth] = useState<number>(0);
 
-        // 1. 全体の期間を決定 (全プロジェクトの最小・最大)
-        const allStartDates = bars.map(b => b.start_date).filter(Boolean);
-        const allEndDates = bars.map(b => b.end_date).filter(Boolean);
-        if (allStartDates.length === 0 || allEndDates.length === 0) {
-            return { timelineData: [], totalDurationText: "期間データなし", monthSegments: [], timelineScale: null };
-        }
+    React.useLayoutEffect(() => {
+        if (!containerRef.current) return;
 
-        // ソートして最小・最大を取得
-        allStartDates.sort();
-        allEndDates.sort();
-        const minDateStr = allStartDates[0];
-        const maxDateStr = allEndDates[allEndDates.length - 1];
-
-        const minDate = parseISO(minDateStr);
-        const maxDate = parseISO(maxDateStr);
-
-        // 軸の終了日（期間は閉区間なので、表示上の軸は+1日して「翌日の0:00」までとする）
-        const axisMaxDate = addDays(maxDate, 1);
-
-        const totalDurationText = `期間: ${minDateStr} - ${maxDateStr}`;
-        const totalDays = Math.max(1, differenceInDays(axisMaxDate, minDate));
-        const svgWidth = 980;
-
-        // 線形スケール変換関数
-        const getDateX = (date: Date): number => {
-            const days = differenceInDays(date, minDate);
-            // 範囲外でも計算して返す（クリッピングはSVG側で）
-            return (days / totalDays) * svgWidth;
+        const updateWidth = () => {
+            if (containerRef.current) {
+                setContainerWidth(containerRef.current.clientWidth);
+            }
         };
 
-        // 2. プロジェクトごとにグルーピング
-        const groupedBars = new Map<number, CategoryBar[]>();
-        bars.forEach(bar => {
-            const pid = bar.project_id;
-            if (!groupedBars.has(pid)) groupedBars.set(pid, []);
-            groupedBars.get(pid)?.push(bar);
+        const observer = new ResizeObserver(() => {
+            updateWidth();
         });
 
-        // 3. 各プロジェクトのフェーズデータ構築
-        const timelineData = Array.from(groupedBars.entries()).map(([projectId, projectBars]) => {
-            const projectInfo = projectMap.get(projectId);
-            const projectName = projectInfo ? projectInfo.name : `Project ${projectId}`;
+        observer.observe(containerRef.current);
+        updateWidth(); // 初期値設定
 
-            // 開始日でソート
-            const sortedBars = [...projectBars].sort((a, b) => a.start_date.localeCompare(b.start_date));
+        return () => observer.disconnect();
+    }, []);
 
-            // ステップ変換
-            const steps = sortedBars.map(bar => {
-                let status = STATUS.PENDING;
-                let progress = undefined;
+    // タイムライン構築: 日付ベースの計算
+    const { timelineData, timelineWidth, headerMonths, totalDurationText, todayX } = useMemo(() => {
+        if (bars.length === 0) {
+            return { timelineData: [], timelineWidth: 1000, headerMonths: [], totalDurationText: "データなし", todayX: -1 };
+        }
 
-                if (bar.progress_rate === 100) {
-                    status = STATUS.COMPLETED;
-                } else if (bar.progress_rate > 0) {
-                    status = STATUS.IN_PROGRESS;
-                    progress = bar.progress_rate;
-                }
+        // 1. 全体の期間を決定
+        let minDateValue = new Date();
+        let maxDateValue = new Date();
+        let hasDates = false;
 
-                const sDate = parseISO(bar.start_date);
-                const eDate = parseISO(bar.end_date);
+        bars.forEach(bar => {
+            if (bar.start_date) {
+                const d = parseISO(bar.start_date);
+                if (!hasDates || isBefore(d, minDateValue)) minDateValue = d;
+                hasDates = true;
+            }
+            if (bar.end_date) {
+                const d = parseISO(bar.end_date);
+                if (!hasDates || isAfter(d, maxDateValue)) maxDateValue = d;
+                hasDates = true;
+            }
+        });
 
-                const x1 = getDateX(sDate);
-                // 終了日はinclusiveなので、バーの右端は「終了日の翌日0:00」とする
-                const x2 = getDateX(addDays(eDate, 1));
-                const width = Math.max(10, x2 - x1); // 最低幅
+        if (!hasDates) {
+            // 日付がない場合のデフォルト
+            minDateValue = startOfMonth(new Date());
+            maxDateValue = endOfMonth(addMonths(new Date(), 2));
+        } else {
+            // チケットの範囲に厳密に合わせる (前後2日のバッファを持たせる)
+            const dMin = new Date(minDateValue);
+            dMin.setDate(dMin.getDate() - 2);
+            minDateValue = dMin;
 
-                return {
-                    name: bar.category_name,
-                    x: x1,
-                    width: width, // 実際の描画幅（絶対座標ベース）
-                    status: status,
-                    startDate: bar.start_date,
-                    endDate: bar.end_date,
-                    progress: progress,
-                    id: `step-${bar.project_id}-${bar.category_name}` // Unique ID for gradient
-                };
+            const dMax = new Date(maxDateValue);
+            dMax.setDate(dMax.getDate() + 2);
+            maxDateValue = dMax;
+        }
+
+        const totalDays = differenceInDays(maxDateValue, minDateValue) + 1;
+
+        // スケール計算: 表示幅に合わせて PIXELS_PER_DAY を決定
+        // containerWidth が有効な値になるまではデフォルト値を使用
+        const currentContainerWidth = containerWidth > 0 ? containerWidth : 1000;
+        const PIXELS_PER_DAY = currentContainerWidth / totalDays;
+
+        const timelineWidth = currentContainerWidth; // SVGの幅はコンテナ幅に合わせる
+
+        // 座標計算ヘルパー
+        const getX = (dateStr?: string) => {
+            if (!dateStr) return 0;
+            const date = parseISO(dateStr);
+            const days = differenceInDays(date, minDateValue);
+            return Math.max(0, days * PIXELS_PER_DAY);
+        };
+
+        const getWidth = (startStr?: string, endStr?: string) => {
+            if (!startStr || !endStr) return 0;
+            const start = parseISO(startStr);
+            const end = parseISO(endStr);
+            const days = differenceInDays(end, start); // 終了日も含めるなら +1 だが、期間としての幅ならそのままでよいか？
+            // ガントチャートでは通常、終了日の終わりまでを含むので、differenceInDays + 1 日分の幅とするか、
+            // 時間軸の概念による。ここでは単純に差分日数 * ピクセル数とする。
+            // ただし、1日だけのタスクが見えなくなるのを防ぐために最小幅を設けるか検討が必要だが、
+            // 「最新、最古が最大幅になるように」という要望なので、厳密にスケールさせる。
+            // 視認性確保のため、daysが0でも最低限の幅を持たせるロジックを入れる
+            const width = Math.max(days, 0.5) * PIXELS_PER_DAY;
+            return width;
+        };
+
+        // 2. ヘッダー情報の生成 (月ごと)
+        const headerMonths = [];
+        let currentMonth = minDateValue;
+        while (isBefore(currentMonth, maxDateValue) || currentMonth.getTime() === maxDateValue.getTime()) {
+            const monthStart = startOfMonth(currentMonth);
+            const monthEnd = endOfMonth(currentMonth);
+
+            // 表示範囲内での開始・終了を計算
+            const visibleStart = isBefore(monthStart, minDateValue) ? minDateValue : monthStart;
+            const visibleEnd = isAfter(monthEnd, maxDateValue) ? maxDateValue : monthEnd;
+
+            // 月の期間（日数）
+            const monthDays = differenceInDays(visibleEnd, visibleStart) + 1;
+
+            const x = differenceInDays(visibleStart, minDateValue) * PIXELS_PER_DAY;
+            const width = monthDays * PIXELS_PER_DAY;
+
+            headerMonths.push({
+                label: format(currentMonth, 'yyyy年 MMMM', { locale: ja }),
+                x,
+                width
             });
 
-            // フェーズ分け（重なりや長さを考慮して分割表示等は今回はせず、1行で表示するが、
-            // 今までのロジック（4つずつ分割）を踏襲するか？
-            // 縦に並べるなら、プロジェクトごとに1行（または複数行）の矢羽根フローにするのが自然。
-            // ここではシンプルにするため、プロジェクト内のカテゴリは「連続したフロー」として1行に並べることを試みる。
-            // ただし日付ベースの配置なので、重なると潰れる。
-            // 元のロジックは「Chevronフロー」として隙間なく並べていたが、今回は「ガントチャート的」な絶対日付配置にするため、
-            // Chevron形状を維持しつつ日付位置に置くのは難しい（Chevronは連続していることが前提のデザイン）。
+            currentMonth = addMonths(currentMonth, 1);
+        }
 
-            // 方針変更: 
-            // ユーザー要望「矢羽根を縦に並べる」 -> プロジェクトAの矢羽根列、プロジェクトBの矢羽根列...
-            // 矢羽根のデザインを維持するには、やはり「順序」が重要であり、絶対日付配置よりも「シーケンス」としての表現が適しているかも？
-            // しかし、プロジェクト間の期間比較をしたいなら絶対日付配置（ガント）が良い。
-            // 元のコードは `getDateX_v2` で無理やり補間して矢羽根上の位置を決めていた。
-            // ここでは「絶対日付配置のChevron」を採用する。
-            // 各ステップは x, width を持ち、隣接していなくても描画される。
-            // 隙間がある場合は線でつなぐ等の処理が必要だが、まずは配置のみ。
-
-            return {
-                projectId,
-                projectName,
-                steps
-            };
+        // 3. データグルーピング
+        const groupedByProject = new Map<number, Map<string, CategoryBar[]>>();
+        bars.forEach((bar) => {
+            if (!groupedByProject.has(bar.project_id)) groupedByProject.set(bar.project_id, new Map());
+            const byVersion = groupedByProject.get(bar.project_id)!;
+            const versionKey = bar.version_name || 'No Version';
+            if (!byVersion.has(versionKey)) byVersion.set(versionKey, []);
+            byVersion.get(versionKey)!.push(bar);
         });
 
-        // 4. 月セグメント (連続した帯にするために、終了を次の月の開始とする)
-        const months = eachMonthOfInterval({ start: minDate, end: maxDate });
-        const monthSegments = months.map(m => {
-            const mStart = startOfMonth(m) < minDate ? minDate : startOfMonth(m);
-            // その月の終わり＝「次の月の始まり」または「全体の終了」
-            const nextMonthStart = startOfMonth(addMonths(m, 1));
-            const mEnd = nextMonthStart > axisMaxDate ? axisMaxDate : nextMonthStart;
+        const timelineData: Array<{
+            laneKey: string;
+            projectId: number;
+            projectName: string;
+            versionName: string;
+            steps: Array<{
+                name: string;
+                x: number;
+                width: number;
+                status: { color: string; label: string };
+                progress?: number;
+                id: string;
+                startDate?: string;
+                endDate?: string;
+            }>;
+        }> = [];
 
-            const x1 = getDateX(mStart);
-            const x2 = getDateX(mEnd);
-            return {
-                label: format(m, 'M月'),
-                endLabel: format(addDays(mEnd, -1), 'M/d'), // 表示用ラベルは-1日（月内）にする
-                x: x1,
-                width: Math.max(0, x2 - x1)
-            };
+        Array.from(groupedByProject.entries()).forEach(([projectId, versionMap]) => {
+            const projectInfo = projectMap.get(projectId);
+            const projectName = projectInfo ? projectInfo.name : `Project ${projectId}`;
+            Array.from(versionMap.entries()).forEach(([versionKey, versionBars]) => {
+                const sortedBars = [...versionBars].sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+
+                if (!timelineData.find((lane) => lane.laneKey === `${projectId}:${versionKey}`)) {
+                    timelineData.push({
+                        laneKey: `${projectId}:${versionKey}`,
+                        projectId,
+                        projectName,
+                        versionName: versionKey,
+                        steps: sortedBars.map((bar, idx) => {
+                            let status = STATUS.PENDING;
+                            let progress = undefined;
+                            if (bar.progress_rate === 100) {
+                                status = STATUS.COMPLETED;
+                            } else if (bar.progress_rate > 0) {
+                                status = STATUS.IN_PROGRESS;
+                                progress = bar.progress_rate;
+                            }
+
+                            const formatDate = (dateStr?: string) => {
+                                if (!dateStr) return '';
+                                try {
+                                    const date = new Date(dateStr);
+                                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                                } catch (e) {
+                                    return '';
+                                }
+                            };
+
+                            const x = getX(bar.start_date);
+                            const width = getWidth(bar.start_date, bar.end_date);
+
+                            return {
+                                name: bar.ticket_subject || bar.category_name,
+                                x,
+                                width,
+                                status,
+                                progress,
+                                id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`,
+                                startDate: formatDate(bar.start_date),
+                                endDate: formatDate(bar.end_date)
+                            };
+                        })
+                    });
+                }
+            });
         });
 
-        // Today位置
-        const todayX = getDateX(new Date());
+        const totalDurationText = `表示期間: ${format(minDateValue, 'yyyy/MM/dd')} - ${format(maxDateValue, 'yyyy/MM/dd')}`;
 
-        return { timelineData, totalDurationText, monthSegments, timelineScale: { getDateX, todayX } };
-    }, [bars, projectMap]);
+        // TodayのX座標を計算
+        const todayX = getX(new Date().toISOString());
+
+        return { timelineData, timelineWidth, headerMonths, totalDurationText, todayX };
+    }, [bars, projectMap, containerWidth]);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
@@ -295,7 +373,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                 <div className="flex justify-between items-end mb-6 border-b border-gray-200 pb-4">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800">プロジェクト進捗比較</h1>
-                        <p className="text-sm text-gray-500 mt-1">報告日: {format(new Date(), 'yyyy年M月d日')} | 複数プロジェクト表示中</p>
+                        <p className="text-sm text-gray-500 mt-1">報告日: {format(new Date(), 'yyyy年M月d日')} | {totalDurationText}</p>
                     </div>
                     <div className="text-right flex items-center gap-4">
                         <button
@@ -328,32 +406,33 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                 {/* PC/タブレット用レイアウト */}
                 <div className="flex flex-col gap-8">
 
-                    {/* 上段: プロセスフローと期間線 */}
+                    {/* 上段: プロジェクト/バージョン別チケットフロー */}
                     <div className="flex border border-gray-200 rounded-lg overflow-hidden">
-                        {/* 左側: プロジェクト名カラム */}
+                        {/* 左側: プロジェクト列 + バージョン列 */}
+                        {/* 左側: プロジェクト列 + バージョン列 (統合) */}
                         {(() => {
-                            const laneHeight = 100;
-                            const headerHeight = 30;
+                            const laneHeight = 130;
+                            const headerHeight = 40;
 
                             return (
-                                <div className="flex-none w-48 bg-white border-r border-gray-200 flex flex-col">
-                                    {/* ヘッダー高さ合わせ */}
-                                    <div className="bg-gray-50 border-b border-gray-200 flex items-center justify-center font-bold text-gray-600 text-xs" style={{ height: headerHeight }}>
-                                        プロジェクト名
+                                <div className="flex-none w-[300px] bg-white border-r border-gray-200 flex flex-col">
+                                    <div className="flex items-center justify-center font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
+                                        プロジェクト / バージョン
                                     </div>
-                                    {/* プロジェクト名リスト */}
                                     {timelineData.map((project) => (
                                         <div
-                                            key={project.projectId}
-                                            className="flex items-center px-4 border-b border-gray-100 box-border"
+                                            key={project.laneKey}
+                                            className="flex flex-col justify-center px-4 border-b border-gray-100 box-border"
                                             style={{ height: laneHeight }}
                                         >
-                                            <span className="text-sm font-bold text-gray-800 line-clamp-2" title={project.projectName}>
+                                            <div className="text-sm font-bold text-gray-800 line-clamp-2" title={project.projectName}>
                                                 {project.projectName}
-                                            </span>
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1 line-clamp-1" title={project.versionName}>
+                                                {project.versionName}
+                                            </div>
                                         </div>
                                     ))}
-                                    {/* データがない場合のプレースホルダー */}
                                     {timelineData.length === 0 && (
                                         <div className="h-32"></div>
                                     )}
@@ -361,56 +440,104 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                             );
                         })()}
 
-                        {/* 右側: SVGタイムライン */}
-                        <div className="flex-1 overflow-x-auto bg-white relative">
+                        {/* 右側: チケット矢羽根タイムライン */}
+                        <div className="flex-1 overflow-x-auto bg-white relative" ref={containerRef}>
                             {(() => {
-                                const laneHeight = 100;
-                                const headerHeight = 30;
+                                const laneHeight = 130;
+                                const headerHeight = 40;
                                 const svgHeight = headerHeight + (timelineData.length * laneHeight) + 30;
 
                                 return timelineData.length > 0 ? (
-                                    <svg viewBox={`0 0 1000 ${svgHeight}`} className="w-full" style={{ minHeight: svgHeight, minWidth: '800px' }}>
+                                    <svg viewBox={`0 0 ${timelineWidth} ${svgHeight}`} className="w-full" style={{ minHeight: svgHeight, minWidth: `${timelineWidth}px` }}>
                                         <defs>
+                                            <pattern id="gridPattern" width="100" height="100" patternUnits="userSpaceOnUse">
+                                                <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#f3f4f6" strokeWidth="1" />
+                                            </pattern>
+                                            {/* 矢印マーカー定義 */}
                                             <marker id="arrow-start" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto">
-                                                <path d="M6,0 L0,3 L6,6" fill="#6b7280" />
+                                                <path d="M6,0 L0,3 L6,6" fill="none" stroke="#9ca3af" strokeWidth="1" />
                                             </marker>
                                             <marker id="arrow-end" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
-                                                <path d="M0,0 L6,3 L0,6" fill="#6b7280" />
+                                                <path d="M0,0 L6,3 L0,6" fill="none" stroke="#9ca3af" strokeWidth="1" />
                                             </marker>
                                         </defs>
 
-                                        {/* 月ヘッダー (最上部) */}
+                                        {/* ヘッダー背景 */}
                                         <g transform="translate(0, 0)">
-                                            {monthSegments.map((seg, i) => (
-                                                <g key={i}>
-                                                    <rect x={seg.x} y={0} width={seg.width} height={headerHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
-                                                    <text x={seg.x + seg.width / 2} y={20} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#374151">
-                                                        {seg.label}
+                                            <rect x={0} y={0} width={timelineWidth} height={headerHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
+
+                                            {/* ヘッダー: 月ごとの表示 */}
+                                            {headerMonths.map((month, idx) => (
+                                                <g key={idx} transform={`translate(${month.x}, 0)`}>
+                                                    <rect x={0} y={0} width={month.width} height={headerHeight} fill="none" stroke="#e5e7eb" strokeWidth="1" />
+                                                    <text
+                                                        x={month.width / 2}
+                                                        y={headerHeight / 2}
+                                                        textAnchor="middle"
+                                                        dominantBaseline="middle"
+                                                        fontSize="13"
+                                                        fontWeight="bold"
+                                                        fill="#374151"
+                                                    >
+                                                        {month.label}
                                                     </text>
                                                 </g>
                                             ))}
+
+                                            {/* Todayライン (ヘッダー部分) */}
+                                            {todayX >= 0 && todayX <= timelineWidth && (
+                                                <g transform={`translate(${todayX}, 0)`}>
+                                                    <line x1={0} y1={0} x2={0} y2={headerHeight} stroke="#ef4444" strokeWidth="2" strokeDasharray="4 2" />
+                                                    <rect x={-20} y={headerHeight - 20} width={40} height={20} fill="white" opacity="0.8" />
+                                                    <text x={0} y={headerHeight - 8} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ef4444">Today</text>
+                                                </g>
+                                            )}
                                         </g>
 
                                         {/* プロジェクトごとのレーン */}
                                         {timelineData.map((project, pIdx) => {
-                                            const yOffset = headerHeight + (pIdx * laneHeight); // 基準位置
-                                            const pointDepth = 15;
-                                            const barHeight = 40;
-                                            const barY = 15; // レーン内のバーのY位置 (少し上に配置して下にスペース確保)
-                                            const dateY = barY + barHeight + 18; // 日付表示のベースY位置
+                                            const yOffset = headerHeight + (pIdx * laneHeight);
+                                            // 矢羽根の深さ
+                                            const pointDepth = 20;
+                                            const barHeight = 50;
+                                            const barY = 20;
 
                                             return (
                                                 <g key={project.projectId} transform={`translate(0, ${yOffset})`}>
                                                     {/* 区切り線 (下部) */}
-                                                    <line x1={0} y1={laneHeight} x2={1000} y2={laneHeight} stroke="#f3f4f6" strokeWidth="1" />
+                                                    <line x1={0} y1={laneHeight} x2={timelineWidth} y2={laneHeight} stroke="#f3f4f6" strokeWidth="1" />
+
+                                                    {/* 縦グリッド線 (月区切り) - 薄く表示 */}
+                                                    {headerMonths.map((month, mIdx) => (
+                                                        <line
+                                                            key={mIdx}
+                                                            x1={month.x} y1={0}
+                                                            x2={month.x} y2={laneHeight}
+                                                            stroke="#f3f4f6"
+                                                            strokeDasharray="4 2"
+                                                        />
+                                                    ))}
+
+                                                    {/* Todayライン (レーン部分) */}
+                                                    {todayX >= 0 && todayX <= timelineWidth && (
+                                                        <line x1={todayX} y1={0} x2={todayX} y2={laneHeight} stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4 2" />
+                                                    )}
 
                                                     {/* 矢羽根列 */}
-                                                    <g transform={`translate(0, ${barY})`}>
+                                                    <g transform={`translate(0, 30)`}>
                                                         {project.steps.map((step, sIdx) => {
-                                                            const isFirst = sIdx === 0;
-                                                            const startDateStr = format(parseISO(step.startDate), 'M/d');
-                                                            const endDateStr = format(parseISO(step.endDate), 'M/d');
-                                                            const dateText = `${startDateStr} - ${endDateStr}`;
+                                                            // 直前のタスクとのギャップを確認
+                                                            let isFirst = sIdx === 0;
+                                                            if (sIdx > 0) {
+                                                                const prevStep = project.steps[sIdx - 1];
+                                                                const gap = step.x - (prevStep.x + prevStep.width);
+                                                                if (gap > 5) {
+                                                                    isFirst = true;
+                                                                }
+                                                            }
+
+                                                            const pointDepth = 15;
+                                                            const barHeight = 40;
 
                                                             return (
                                                                 <g key={sIdx}>
@@ -420,14 +547,16 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                                         width={step.width}
                                                                         height={barHeight}
                                                                         pointDepth={pointDepth}
-                                                                        isFirst={isFirst} // 形状的にはFirstだが、日付配置なので左端が垂直になるだけ
+                                                                        isFirst={isFirst}
                                                                         color={step.status.color}
                                                                         progress={step.progress}
                                                                         id={step.id}
                                                                     />
+
+                                                                    {/* テキスト表示: 幅が十分ある場合のみ */}
                                                                     {step.width > 30 && (
                                                                         <text
-                                                                            x={step.x + step.width / 2}
+                                                                            x={step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2)}
                                                                             y={barHeight / 2}
                                                                             fill="white"
                                                                             fontSize="12"
@@ -440,42 +569,35 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                                         </text>
                                                                     )}
 
-                                                                    {/* 期間表示 (矢印とテキスト) */}
-                                                                    <g transform={`translate(0, ${barHeight + 10})`}>
-                                                                        {/* 寸法線 */}
-                                                                        <line
-                                                                            x1={step.x + 2}
-                                                                            y1={5}
-                                                                            x2={step.x + step.width - 2}
-                                                                            y2={5}
-                                                                            stroke="#6b7280"
-                                                                            strokeWidth="1"
-                                                                            markerStart="url(#arrow-start)"
-                                                                            markerEnd="url(#arrow-end)"
-                                                                        />
-
-                                                                        {/* 開始日テキスト (左端) */}
-                                                                        <text
-                                                                            x={step.x}
-                                                                            y={18}
-                                                                            fill="#4b5563"
-                                                                            fontSize="10"
-                                                                            textAnchor="start"
-                                                                        >
-                                                                            {startDateStr}
-                                                                        </text>
-
-                                                                        {/* 終了日テキスト (右端) */}
-                                                                        <text
-                                                                            x={step.x + step.width}
-                                                                            y={18}
-                                                                            fill="#4b5563"
-                                                                            fontSize="10"
-                                                                            textAnchor="end"
-                                                                        >
-                                                                            {endDateStr}
-                                                                        </text>
-                                                                    </g>
+                                                                    {/* 日付表示 (矢羽の下) */}
+                                                                    {(step.startDate || step.endDate) && (
+                                                                        <g transform={`translate(${step.x + (isFirst ? 0 : pointDepth / 2)}, ${barHeight + 15})`}>
+                                                                            {/* 矢印線 */}
+                                                                            <line
+                                                                                x1={2} y1={5}
+                                                                                x2={step.width - 2} y2={5}
+                                                                                stroke="#9ca3af"
+                                                                                strokeWidth="0.8"
+                                                                                markerStart="url(#arrow-start)"
+                                                                                markerEnd="url(#arrow-end)"
+                                                                            />
+                                                                            {/* 日付テキストの背景 (矢印線を隠すため) */}
+                                                                            <text
+                                                                                x={step.width / 2}
+                                                                                y={8}
+                                                                                fontSize="10"
+                                                                                fill="#6b7280"
+                                                                                textAnchor="middle"
+                                                                                paintOrder="stroke"
+                                                                                stroke="white"
+                                                                                strokeWidth="4"
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                            >
+                                                                                {step.startDate} - {step.endDate}
+                                                                            </text>
+                                                                        </g>
+                                                                    )}
                                                                 </g>
                                                             );
                                                         })}
@@ -483,33 +605,6 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                 </g>
                                             );
                                         })}
-
-                                        {/* Today マーカー */}
-                                        {timelineScale && (
-                                            <g>
-                                                <line
-                                                    x1={timelineScale.todayX}
-                                                    y1={0}
-                                                    x2={timelineScale.todayX}
-                                                    y2={svgHeight}
-                                                    stroke="#ef4444"
-                                                    strokeWidth="2"
-                                                    strokeDasharray="4 3"
-                                                />
-                                                <rect
-                                                    x={timelineScale.todayX - 33}
-                                                    y={2}
-                                                    width={66}
-                                                    height={16}
-                                                    rx={2}
-                                                    fill="white"
-                                                    fillOpacity={0.8}
-                                                />
-                                                <text x={timelineScale.todayX} y={12} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ef4444">
-                                                    {format(new Date(), 'M/d')}
-                                                </text>
-                                            </g>
-                                        )}
                                     </svg>
                                 ) : (
                                     <div className="flex items-center justify-center h-32 text-gray-400">
@@ -564,6 +659,6 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
 
                 </div>
             </div>
-        </div>
+        </div >
     );
 };

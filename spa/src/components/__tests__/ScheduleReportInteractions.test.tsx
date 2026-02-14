@@ -30,6 +30,7 @@ describe('Schedule report interactions', () => {
     useUiStore.setState({
       rootProjectIdentifier: 'ecookbook',
       currentProjectIdentifier: 'ecookbook',
+      selectedProjectIdentifiers: ['ecookbook'],
       filters: {
         include_subprojects: false,
         months: 4,
@@ -54,15 +55,12 @@ describe('Schedule report interactions', () => {
 
   it('renders project selector and changes current selection without navigation', () => {
     render(<FilterToolbar />);
-    const select = screen.getByLabelText('Project') as HTMLSelectElement;
     const beforePath = window.location.pathname;
 
-    expect(select.value).toBe('ecookbook');
-    expect(screen.getByRole('option', { name: 'eCookbook' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: /Child/ })).toBeTruthy();
-    fireEvent.change(select, { target: { value: 'child' } });
+    fireEvent.click(screen.getByRole('button', { name: /eCookbook/i }));
+    fireEvent.click(screen.getByText('Child'));
 
-    expect(useUiStore.getState().currentProjectIdentifier).toBe('child');
+    expect(useUiStore.getState().selectedProjectIdentifiers).toContain('child');
     expect(window.location.pathname).toBe(beforePath);
   });
 
@@ -83,12 +81,11 @@ describe('Schedule report interactions', () => {
     render(<ScheduleReportPage />);
     await waitFor(() => expect(fetchScheduleReportMock).toHaveBeenCalledTimes(1));
 
-    const select = screen.getByLabelText('Project');
     await act(async () => {
-      fireEvent.change(select, { target: { value: 'child' } });
+      useUiStore.getState().setSelectedProjectIdentifiers(['child']);
     });
     await act(async () => {
-      fireEvent.change(select, { target: { value: 'ecookbook' } });
+      useUiStore.getState().setSelectedProjectIdentifiers(['ecookbook']);
     });
 
     resolveLatest(buildSnapshotFixture({
@@ -134,7 +131,29 @@ describe('Schedule report interactions', () => {
 
     await waitFor(() => {
       expect(useTaskStore.getState().bars[0]?.bar_key).toBe('ok');
-      expect(useTaskStore.getState().errorMessage).toContain('503');
+      expect(useTaskStore.getState().errorMessage).toContain('Failed to fetch');
+    });
+  });
+
+  it('shows empty result without error when API returns no rows and bars', async () => {
+    fetchScheduleReportMock.mockResolvedValueOnce(buildSnapshotFixture({
+      rows: [],
+      bars: [],
+      selection_summary: {
+        total_candidates: 0,
+        excluded_not_visible: 0,
+        excluded_invalid_hierarchy: 0,
+        displayed_top_parent_count: 0
+      }
+    }));
+
+    render(<ScheduleReportPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(useTaskStore.getState().errorMessage).toBeNull();
+      expect(useTaskStore.getState().rows).toHaveLength(0);
+      expect(useTaskStore.getState().bars).toHaveLength(0);
     });
   });
 });

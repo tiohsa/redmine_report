@@ -7,11 +7,13 @@ module RedmineReport
       MAX_BARS = 2000
       STALE_AFTER_SECONDS = 300
 
-      def initialize(rows:, bars:, available_projects:, filters:)
+      def initialize(rows:, bars:, available_projects: [], filters:, selection_summary:, filter_rule:)
         @rows = rows
         @bars = bars
         @available_projects = available_projects
         @filters = filters
+        @selection_summary = selection_summary
+        @filter_rule = filter_rule
       end
 
       def call
@@ -30,6 +32,7 @@ module RedmineReport
         end
 
         warnings << 'No data available for selected filters.' if rows.empty? || bars.empty?
+        applied_filters = @filters.to_h.merge(filter_rule: @filter_rule)
 
         {
           meta: {
@@ -40,11 +43,12 @@ module RedmineReport
               max_bars: MAX_BARS
             },
             warnings: warnings,
-            applied_filters: @filters.to_h
+            applied_filters: applied_filters
           },
           rows: rows,
           bars: bars,
-          available_projects: @available_projects
+          available_projects: @available_projects,
+          selection_summary: @selection_summary
         }
       end
     end
