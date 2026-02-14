@@ -78,12 +78,13 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color, progress
     const w = width;
     const h = height;
 
-    // 画像の形状に合わせる:
-    // 最初の要素でも左側を若干凹ませるデザインに調整
+    // 形状計算:
+    // 左端: 最初の要素(Start)なら直線、それ以外(Connection)なら凹み
     const leftShape = isFirst
         ? `M ${x} ${y} L ${x} ${y + h}`
         : `M ${x} ${y} L ${x + p} ${y + h / 2} L ${x} ${y + h}`;
 
+    // 右端: 常に凸型(Direction)
     const rightShape = `L ${x + w} ${y + h} L ${x + w + p} ${y + h / 2} L ${x + w} ${y}`;
     const d = `${leftShape} ${rightShape} Z`;
 
@@ -224,7 +225,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
             // ただし、1日だけのタスクが見えなくなるのを防ぐために最小幅を設けるか検討が必要だが、
             // 「最新、最古が最大幅になるように」という要望なので、厳密にスケールさせる。
             // 視認性確保のため、daysが0でも最低限の幅を持たせるロジックを入れる
-            const width = Math.max(days, 0.5) * PIXELS_PER_DAY;
+            const width = Math.max(days + 1, 0.5) * PIXELS_PER_DAY;
             return width;
         };
 
@@ -445,7 +446,15 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                 const headerHeight = 40;
                                 const svgHeight = headerHeight + (timelineData.length * laneHeight) + 30;
 
-                                return timelineData.length > 0 ? (
+                                if (timelineData.length === 0) {
+                                    return (
+                                        <div className="flex items-center justify-center h-32 text-gray-400">
+                                            データがありません
+                                        </div>
+                                    );
+                                }
+
+                                return (
                                     <svg viewBox={`0 0 ${timelineWidth} ${svgHeight}`} className="w-full" style={{ minHeight: svgHeight, minWidth: `${timelineWidth}px` }}>
                                         <defs>
                                             <pattern id="gridPattern" width="100" height="100" patternUnits="userSpaceOnUse">
@@ -518,89 +527,79 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                         />
                                                     ))}
                                                     {/* 矢羽根列 */}
-                                                    <g transform={`translate(0, 30)`}>
-                                                        {project.steps.map((step, sIdx) => {
-                                                            // 直前のタスクとのギャップを確認
-                                                            let isFirst = sIdx === 0;
-                                                            if (sIdx > 0) {
-                                                                const prevStep = project.steps[sIdx - 1];
-                                                                const gap = step.x - (prevStep.x + prevStep.width);
-                                                                if (gap > 5) {
-                                                                    isFirst = true;
-                                                                }
-                                                            }
+                                                    {project.steps.map((step, sIdx) => {
+                                                        const isFirst = sIdx === 0;
 
-                                                            const pointDepth = 15;
-                                                            const barHeight = 40;
+                                                        const pointDepth = 15;
+                                                        const barHeight = 40;
 
-                                                            return (
-                                                                <g key={sIdx}>
-                                                                    <ChevronPath
-                                                                        x={step.x}
-                                                                        y={0}
-                                                                        width={step.width}
-                                                                        height={barHeight}
-                                                                        pointDepth={pointDepth}
-                                                                        isFirst={isFirst}
-                                                                        color={step.status.color}
-                                                                        progress={step.progress}
-                                                                        id={step.id}
-                                                                    />
+                                                        return (
+                                                            <g key={sIdx}>
+                                                                <ChevronPath
+                                                                    x={step.x}
+                                                                    y={0}
+                                                                    width={step.width}
+                                                                    height={barHeight}
+                                                                    pointDepth={pointDepth}
+                                                                    isFirst={isFirst}
+                                                                    color={step.status.color}
+                                                                    progress={step.progress}
+                                                                    id={step.id}
+                                                                />
 
-                                                                    {/* テキスト表示: 幅が十分ある場合のみ */}
-                                                                    {step.width > 30 && (
+                                                                {/* テキスト表示: 幅が十分ある場合のみ */}
+                                                                {step.width > 30 && (
+                                                                    <text
+                                                                        x={step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2)}
+                                                                        y={barHeight / 2}
+                                                                        fill="white"
+                                                                        fontSize="12"
+                                                                        fontWeight="bold"
+                                                                        textAnchor="middle"
+                                                                        dominantBaseline="middle"
+                                                                        style={{ pointerEvents: 'none' }}
+                                                                    >
+                                                                        {step.name}
+                                                                    </text>
+                                                                )}
+
+                                                                {/* 日付表示 (矢羽の下) */}
+                                                                {(step.startDate || step.endDate) && (
+                                                                    <g transform={`translate(${step.x + (isFirst ? 0 : pointDepth / 2)}, ${barHeight + 10})`}>
+                                                                        {/* 矢印線 (中心を繋ぐ) */}
+                                                                        <line
+                                                                            x1={25} y1={5}
+                                                                            x2={step.width - 25} y2={5}
+                                                                            stroke="#94a3b8"
+                                                                            strokeWidth="0.5"
+                                                                            markerStart="url(#arrow-start)"
+                                                                            markerEnd="url(#arrow-end)"
+                                                                        />
+                                                                        {/* 開始日 (左端) */}
                                                                         <text
-                                                                            x={step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2)}
-                                                                            y={barHeight / 2}
-                                                                            fill="white"
-                                                                            fontSize="12"
-                                                                            fontWeight="bold"
-                                                                            textAnchor="middle"
-                                                                            dominantBaseline="middle"
-                                                                            style={{ pointerEvents: 'none' }}
+                                                                            x={0}
+                                                                            y={8}
+                                                                            fontSize="9"
+                                                                            fill="#94a3b8"
+                                                                            textAnchor="start"
                                                                         >
-                                                                            {step.name}
+                                                                            {step.startDate}
                                                                         </text>
-                                                                    )}
-
-                                                                    {/* 日付表示 (矢羽の下) */}
-                                                                    {(step.startDate || step.endDate) && (
-                                                                        <g transform={`translate(${step.x + (isFirst ? 0 : pointDepth / 2)}, ${barHeight + 10})`}>
-                                                                            {/* 矢印線 (中心を繋ぐ) */}
-                                                                            <line
-                                                                                x1={25} y1={5}
-                                                                                x2={step.width - 25} y2={5}
-                                                                                stroke="#94a3b8"
-                                                                                strokeWidth="0.5"
-                                                                                markerStart="url(#arrow-start)"
-                                                                                markerEnd="url(#arrow-end)"
-                                                                            />
-                                                                            {/* 開始日 (左端) */}
-                                                                            <text
-                                                                                x={0}
-                                                                                y={8}
-                                                                                fontSize="9"
-                                                                                fill="#94a3b8"
-                                                                                textAnchor="start"
-                                                                            >
-                                                                                {step.startDate}
-                                                                            </text>
-                                                                            {/* 終了日 (右端) */}
-                                                                            <text
-                                                                                x={step.width}
-                                                                                y={8}
-                                                                                fontSize="9"
-                                                                                fill="#94a3b8"
-                                                                                textAnchor="end"
-                                                                            >
-                                                                                {step.endDate}
-                                                                            </text>
-                                                                        </g>
-                                                                    )}
-                                                                </g>
-                                                            );
-                                                        })}
-                                                    </g>
+                                                                        {/* 終了日 (右端) */}
+                                                                        <text
+                                                                            x={step.width}
+                                                                            y={8}
+                                                                            fontSize="9"
+                                                                            fill="#94a3b8"
+                                                                            textAnchor="end"
+                                                                        >
+                                                                            {step.endDate}
+                                                                        </text>
+                                                                    </g>
+                                                                )}
+                                                            </g>
+                                                        );
+                                                    })}
 
                                                     {/* Todayライン (レーン部分) - 矢羽根の上に表示するため後に配置 */}
                                                     {todayX >= 0 && todayX <= timelineWidth && (
@@ -610,11 +609,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                             );
                                         })}
                                     </svg>
-                                ) : (
-                                    <div className="flex items-center justify-center h-32 text-gray-400">
-                                        データがありません
-                                    </div>
-                                )
+                                );
                             })()}
                         </div>
                     </div>
@@ -663,6 +658,6 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
 
                 </div>
             </div>
-        </div >
+        </div>
     );
 };
