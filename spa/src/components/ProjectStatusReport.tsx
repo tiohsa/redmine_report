@@ -7,9 +7,9 @@ import { ja } from 'date-fns/locale';
 
 // 現在のステータス定義
 const STATUS = {
-    COMPLETED: { color: "#1e3a8a", label: "完了" }, // 濃い紺
-    IN_PROGRESS: { color: "#3b82f6", label: "進行中" }, // 明るい青
-    PENDING: { color: "#9ca3af", label: "未着手" } // グレー
+    COMPLETED: { color: "#1a367c", label: "完了" }, // 紺色
+    IN_PROGRESS: { color: "#3b82f6", label: "進行中" }, // 青
+    PENDING: { color: "#94a3b8", label: "未着手" } // 灰色
 };
 
 // 下段: 報告セクションデータ (初期表示用ダミー)
@@ -79,9 +79,7 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color, progress
     const h = height;
 
     // 画像の形状に合わせる:
-    // 最初の要素でも左側を凹ませるデザインにする（画像の中段「要件定義」のスタイル）
-    // 垂直にするのは、タイムラインの左端に密着している場合などのみとするか、
-    // あるいは常に凹ませるスタイルにする。ここでは画像に合わせて調整。
+    // 最初の要素でも左側を若干凹ませるデザインに調整
     const leftShape = isFirst
         ? `M ${x} ${y} L ${x} ${y + h}`
         : `M ${x} ${y} L ${x + p} ${y + h / 2} L ${x} ${y + h}`;
@@ -96,16 +94,16 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color, progress
                 <defs>
                     <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset={`${progress}%`} stopColor={color} />
-                        <stop offset={`${progress}%`} stopColor="#e5e7eb" /> {/* 未着手部分は薄いグレー */}
+                        <stop offset={`${progress}%`} stopColor="#e2e8f0" /> {/* 未達成部分は薄い灰色 (Slate 200) */}
                     </linearGradient>
                 </defs>
-                <path d={d} fill={`url(#${gradientId})`} stroke="white" strokeWidth="1.5" />
+                <path d={d} fill={`url(#${gradientId})`} stroke="white" strokeWidth="1" />
             </g>
         );
     }
 
     return (
-        <path d={d} fill={color} stroke="white" strokeWidth="1.5" />
+        <path d={d} fill={color} stroke="white" strokeWidth="1" />
     );
 };
 
@@ -415,21 +413,21 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                             const headerHeight = 40;
 
                             return (
-                                <div className="flex-none w-[300px] bg-white border-r border-gray-200 flex flex-col">
-                                    <div className="flex items-center justify-center font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
-                                        プロジェクト / バージョン
+                                <div className="flex-none min-w-max bg-white border-r border-gray-200 flex flex-col">
+                                    <div className="flex items-center px-6 font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
+                                        バージョン / プロジェクト
                                     </div>
                                     {timelineData.map((project) => (
                                         <div
                                             key={project.laneKey}
-                                            className="flex flex-col justify-center px-4 border-b border-gray-100 box-border"
+                                            className="flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap"
                                             style={{ height: laneHeight }}
                                         >
-                                            <div className="text-sm font-bold text-gray-800 line-clamp-2" title={project.projectName}>
-                                                {project.projectName}
-                                            </div>
-                                            <div className="text-xs text-gray-500 mt-1 line-clamp-1" title={project.versionName}>
+                                            <div className="text-sm font-bold text-gray-800" title={project.versionName}>
                                                 {project.versionName}
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1" title={project.projectName}>
+                                                {project.projectName}
                                             </div>
                                         </div>
                                     ))}
@@ -454,11 +452,11 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                 <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#f3f4f6" strokeWidth="1" />
                                             </pattern>
                                             {/* 矢印マーカー定義 */}
-                                            <marker id="arrow-start" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto">
-                                                <path d="M6,0 L0,3 L6,6" fill="none" stroke="#9ca3af" strokeWidth="1" />
+                                            <marker id="arrow-start" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto">
+                                                <path d="M10,0 L0,5 L10,10" fill="none" stroke="#64748b" strokeWidth="1" />
                                             </marker>
-                                            <marker id="arrow-end" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
-                                                <path d="M0,0 L6,3 L0,6" fill="none" stroke="#9ca3af" strokeWidth="1" />
+                                            <marker id="arrow-end" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
+                                                <path d="M0,0 L10,5 L0,10" fill="none" stroke="#64748b" strokeWidth="1" />
                                             </marker>
                                         </defs>
 
@@ -567,30 +565,35 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
 
                                                                     {/* 日付表示 (矢羽の下) */}
                                                                     {(step.startDate || step.endDate) && (
-                                                                        <g transform={`translate(${step.x + (isFirst ? 0 : pointDepth / 2)}, ${barHeight + 15})`}>
-                                                                            {/* 矢印線 */}
+                                                                        <g transform={`translate(${step.x + (isFirst ? 0 : pointDepth / 2)}, ${barHeight + 10})`}>
+                                                                            {/* 矢印線 (中心を繋ぐ) */}
                                                                             <line
-                                                                                x1={2} y1={5}
-                                                                                x2={step.width - 2} y2={5}
-                                                                                stroke="#9ca3af"
-                                                                                strokeWidth="0.8"
+                                                                                x1={25} y1={5}
+                                                                                x2={step.width - 25} y2={5}
+                                                                                stroke="#94a3b8"
+                                                                                strokeWidth="0.5"
                                                                                 markerStart="url(#arrow-start)"
                                                                                 markerEnd="url(#arrow-end)"
                                                                             />
-                                                                            {/* 日付テキストの背景 (矢印線を隠すため) */}
+                                                                            {/* 開始日 (左端) */}
                                                                             <text
-                                                                                x={step.width / 2}
+                                                                                x={0}
                                                                                 y={8}
-                                                                                fontSize="10"
-                                                                                fill="#6b7280"
-                                                                                textAnchor="middle"
-                                                                                paintOrder="stroke"
-                                                                                stroke="white"
-                                                                                strokeWidth="4"
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
+                                                                                fontSize="9"
+                                                                                fill="#94a3b8"
+                                                                                textAnchor="start"
                                                                             >
-                                                                                {step.startDate} - {step.endDate}
+                                                                                {step.startDate}
+                                                                            </text>
+                                                                            {/* 終了日 (右端) */}
+                                                                            <text
+                                                                                x={step.width}
+                                                                                y={8}
+                                                                                fontSize="9"
+                                                                                fill="#94a3b8"
+                                                                                textAnchor="end"
+                                                                            >
+                                                                                {step.endDate}
                                                                             </text>
                                                                         </g>
                                                                     )}
