@@ -89,9 +89,19 @@ export function TimelineChart({ timelineData, timelineWidth, headerMonths, heade
             className="flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap"
             style={{ height: laneHeight }}
           >
-            <div className="text-sm font-bold text-gray-800" title={project.versionName}>
-              {project.versionName}
-            </div>
+            {project.versionId ? (
+              <a
+                href={`/versions/${project.versionId}`}
+                className="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline"
+                title={project.versionName}
+              >
+                {project.versionName}
+              </a>
+            ) : (
+              <div className="text-sm font-bold text-gray-800" title={project.versionName}>
+                {project.versionName}
+              </div>
+            )}
             {project.projectIdentifier ? (
               <a
                 href={`/projects/${project.projectIdentifier}`}
