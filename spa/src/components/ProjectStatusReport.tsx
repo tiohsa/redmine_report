@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { CategoryBar, generateScheduleReport, ReportContent, ReportItem, ProjectInfo } from '../services/scheduleReportApi';
 import { format, differenceInDays, startOfMonth, endOfMonth, addMonths, isBefore, isAfter, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
@@ -144,6 +144,38 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
         return map;
     }, [availableProjects]);
 
+    // バージョン選択機能
+    const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
+    const [isVersionDropdownOpen, setIsVersionDropdownOpen] = useState(false);
+    const versionDropdownRef = useRef<HTMLDivElement>(null);
+
+    // 利用可能な全バージョンを抽出
+    const allVersions = useMemo(() => {
+        const versions = new Set<string>();
+        bars.forEach(bar => {
+            versions.add(bar.version_name || 'No Version');
+        });
+        return Array.from(versions).sort();
+    }, [bars]);
+
+    // プロジェクト変更またはデータ更新時に全バージョンを選択状態にする
+    useEffect(() => {
+        setSelectedVersions(allVersions);
+    }, [JSON.stringify(allVersions)]);
+
+    // ドロップダウン外クリックで閉じる
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (versionDropdownRef.current && !versionDropdownRef.current.contains(event.target as Node)) {
+                setIsVersionDropdownOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
     // コンテナの参照と幅の管理
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -266,9 +298,12 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
         // 3. データグルーピング
         const groupedByProject = new Map<number, Map<string, CategoryBar[]>>();
         bars.forEach((bar) => {
+            const versionKey = bar.version_name || 'No Version';
+            if (!selectedVersions.includes(versionKey)) return;
+
             if (!groupedByProject.has(bar.project_id)) groupedByProject.set(bar.project_id, new Map());
             const byVersion = groupedByProject.get(bar.project_id)!;
-            const versionKey = bar.version_name || 'No Version';
+
             if (!byVersion.has(versionKey)) byVersion.set(versionKey, []);
             byVersion.get(versionKey)!.push(bar);
         });
@@ -347,7 +382,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
         const todayX = getX(new Date().toISOString());
 
         return { timelineData, timelineWidth, headerMonths, totalDurationText, todayX };
-    }, [bars, projectMap, containerWidth]);
+    }, [bars, projectMap, containerWidth, selectedVersions]);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
@@ -383,6 +418,64 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                         <p className="text-sm text-gray-500 mt-1">報告日: {format(new Date(), 'yyyy年M月d日')} | {totalDurationText}</p>
                     </div>
                     <div className="text-right flex items-center gap-4">
+                        {/* バージョン選択ドロップダウン */}
+                        <div className="relative" ref={versionDropdownRef}>
+                            <button
+                                onClick={() => setIsVersionDropdownOpen(!isVersionDropdownOpen)}
+                                className="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 flex items-center gap-2 text-sm"
+                                title="表示するバージョンを選択"
+                            >
+                                <span>バージョン: {selectedVersions.length === allVersions.length ? 'すべて' : `${selectedVersions.length} 件選択中`}</span>
+                                <svg className={`w-4 h-4 transition-transform ${isVersionDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            {isVersionDropdownOpen && (
+                                <div className="absolute top-full right-0 mt-1 w-64 max-h-80 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50">
+                                    <div className="p-2 border-b border-gray-100 flex justify-between bg-gray-50 sticky top-0 z-10">
+                                        <button
+                                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                            onClick={() => setSelectedVersions(allVersions)}
+                                        >
+                                            すべて選択
+                                        </button>
+                                        <button
+                                            className="text-xs text-gray-500 hover:text-gray-700"
+                                            onClick={() => setSelectedVersions([])}
+                                        >
+                                            解除
+                                        </button>
+                                    </div>
+                                    <div className="py-1">
+                                        {allVersions.map((version) => (
+                                            <div
+                                                key={version}
+                                                className="px-3 py-2 flex items-center gap-2 hover:bg-blue-50 cursor-pointer"
+                                                onClick={() => {
+                                                    if (selectedVersions.includes(version)) {
+                                                        setSelectedVersions(selectedVersions.filter(v => v !== version));
+                                                    } else {
+                                                        setSelectedVersions([...selectedVersions, version]);
+                                                    }
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedVersions.includes(version)}
+                                                    onChange={() => { }} // dummy
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                                                />
+                                                <span className="text-sm text-gray-700 truncate">{version}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {allVersions.length === 0 && (
+                                        <div className="px-3 py-2 text-sm text-gray-400">バージョンなし</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         <button
                             onClick={handleGenerate}
                             disabled={isGenerating}
