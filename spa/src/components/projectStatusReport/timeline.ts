@@ -146,9 +146,9 @@ function getDateRangeWithBuffer(bars: CategoryBar[]): { minDate: Date; maxDate: 
   }
 
   const bufferedMinDate = new Date(minDate);
-  bufferedMinDate.setDate(bufferedMinDate.getDate() - 2);
+  bufferedMinDate.setDate(bufferedMinDate.getDate() - 7);
   const bufferedMaxDate = new Date(maxDate);
-  bufferedMaxDate.setDate(bufferedMaxDate.getDate() + 2);
+  bufferedMaxDate.setDate(bufferedMaxDate.getDate() + 7);
 
   return { minDate: bufferedMinDate, maxDate: bufferedMaxDate };
 }
