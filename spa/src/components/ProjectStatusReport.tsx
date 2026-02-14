@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { CategoryBar, generateScheduleReport, ReportContent, ReportItem } from '../services/scheduleReportApi';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInDays, eachMonthOfInterval, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
 
 // --- データ定義: プロジェクト進捗報告書 ---
 
@@ -107,9 +107,9 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
     }, [projectIdentifier]);
 
     // カテゴリデータをタイムライン用に変換
-    const { timelinePhases, totalDurationText, todayPosition } = useMemo(() => {
+    const { timelinePhases, totalDurationText, todayPosition, monthSegments } = useMemo(() => {
         if (bars.length === 0) {
-            return { timelinePhases: [], totalDurationText: "データなし", todayPosition: null };
+            return { timelinePhases: [], totalDurationText: "データなし", todayPosition: null, monthSegments: [] };
         }
 
         // 開始日でソート
@@ -147,11 +147,6 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
         const phases = [];
         for (let i = 0; i < steps.length; i += chunkSize) {
             const chunk = steps.slice(i, i + chunkSize);
-
-            // チャンク内の期間範囲
-            const chunkStart = chunk[0].startDate;
-            const chunkEnd = chunk[chunk.length - 1].endDate;
-
             phases.push({
                 id: phases.length + 1,
                 steps: chunk,
@@ -162,45 +157,136 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
             });
         }
 
-        // Today位置を計算 (SVG座標系)
-        const today = new Date();
-        const todayDays = differenceInDays(today, parseISO(minDate));
-        let todayPos: number | null = null;
-        if (todayDays >= 0 && todayDays <= totalDays) {
-            // SVGのシェブロンは totalRatio に基づいてスケーリングされている
-            // totalRatio = steps の width の合計
-            const totalRatio = steps.reduce((acc, s) => acc + s.width, 0);
-            const gap = 3;
-            const svgWidth = 980;
-            const scale = svgWidth / totalRatio;
+        // スケール計算
+        const totalRatio = steps.reduce((acc, s) => acc + s.width, 0);
+        const gap = 3;
+        const svgWidth = 980;
+        const scale = totalRatio > 0 ? svgWidth / totalRatio : 0;
 
-            // 日付からSVG x座標への変換
-            // 各ステップの累積幅と日付範囲をマッピング
+        // 指定した日付のX座標を取得する関数 (SVG座標系)
+        const getDateX = (targetDate: Date): number | null => {
+            const targetDays = differenceInDays(targetDate, parseISO(minDate));
+            if (targetDays < 0) return 0; // 開始前は左端
+            // if (targetDays > totalDays) return svgWidth; // 終了後は右端 (ただしgap等のズレがあるため正確ではない)
+
             let cumulativeX = 0;
             let cumulativeDays = 0;
+
             for (let i = 0; i < steps.length; i++) {
-                const stepDays = differenceInDays(parseISO(steps[i].endDate), parseISO(steps[i].startDate));
+                const stepStart = parseISO(steps[i].startDate);
+                const stepEnd = parseISO(steps[i].endDate);
+                const stepDays = differenceInDays(stepEnd, stepStart);
                 const stepWidth = steps[i].width * scale;
-                // フェーズ間のギャップを考慮
+
+                // フェーズ間のギャップを考慮 (phases構築時のロジックと合わせる)
                 const phaseGap = (i > 0 && i % chunkSize === 0) ? 10 : 0;
                 cumulativeX += phaseGap;
 
-                if (todayDays <= cumulativeDays + stepDays) {
-                    // Today はこのステップの中にある
-                    const ratio = stepDays > 0 ? (todayDays - cumulativeDays) / stepDays : 0;
-                    todayPos = cumulativeX + ratio * (stepWidth - gap) + 15; // pointDepth offset
-                    break;
+                // ステップの期間内かチェック
+                // ここではステップ間の隙間期間がない前提（start = prev.end + 1 ではない場合もあるが、stepsはソート済み）
+                // あるいは、前のステップとこのステップの間（日付のギャップ）にあるか
+
+                // 単純化のため、targetDateがこのステップの開始日以降であれば計算を進める
+                const daysFromStart = differenceInDays(targetDate, stepStart);
+
+                if (daysFromStart >= 0 && daysFromStart <= stepDays) {
+                    // このステップ内
+                    const ratio = stepDays > 0 ? daysFromStart / stepDays : 0;
+                    return cumulativeX + ratio * (stepWidth - gap); // + gap は次のステップの開始位置調整用なので引く
+                } else if (daysFromStart > stepDays) {
+                    // このステップより後
+                    cumulativeX += stepWidth; // gapは次のループの冒頭で加算されない(phaseGapのみ)ので、ここではwidthだけ足すのが基本だが...
+                    // 待て、renderingロジックでは `currentX += width + gap` している
+                    // render loop: `width = step.width * scale - gap`
+                    // `currentX += width + gap` -> `currentX += step.width * scale`
+                    // つまり `currentX` は `step` の左端。
+                } else {
+                    // このステップより前（ありえない、sortedBars[0]がminDateなので）
+                    return cumulativeX;
                 }
-                cumulativeDays += stepDays;
-                cumulativeX += stepWidth - gap + gap; // stepWidth includes gap subtraction, add gap back
             }
-            // ステップの範囲外（最後のステップを超えた場合）
-            if (todayPos === null && todayDays <= totalDays) {
-                todayPos = cumulativeX;
+            // 全ステップループしても見つからない（totalDaysを超えている場合など）
+            return cumulativeX;
+        };
+
+        // 再実装: getDateX (より正確なロジック)
+        const getDateX_v2 = (targetDate: Date): number => {
+            let currentX = 0;
+            let lastDate = parseISO(minDate);
+
+            for (let i = 0; i < steps.length; i++) {
+                const stepStart = parseISO(steps[i].startDate);
+                const stepEnd = parseISO(steps[i].endDate);
+                const stepWidthRaw = steps[i].width * scale;
+                const stepVisualWidth = stepWidthRaw - gap;
+
+                // Phase Gap
+                if (i > 0 && i % chunkSize === 0) {
+                    currentX += 10;
+                }
+
+                // ターゲットがこのステップの範囲内にあるか？
+                // あるいは、前のステップとこのステップの間（日付のギャップ）にあるか？
+                // 簡易的に、各ステップ内での割合で計算する。
+                // 日付が飛んでいる場合は、前のステップの右端〜次のステップの左端の間になるべきだが、
+                // Yabaneフローは連続している前提（日付が連続しているとは限らないが図形は連続）
+                // したがって、targetDate が stepStart ~ stepEnd の間にある場合のみ、そのステップ内で補間する。
+
+                if (targetDate < stepStart) {
+                    // 範囲外（左側）：まだ到達していない
+                    // 前のステップの終了日とこのステップの開始日の間にある場合
+                    // ここでは単に currentX (このステップの左端) を返す
+                    return currentX;
+                }
+
+                if (targetDate >= stepStart && targetDate <= stepEnd) {
+                    const stepTotalDays = differenceInDays(stepEnd, stepStart);
+                    const daysIn = differenceInDays(targetDate, stepStart);
+                    const ratio = stepTotalDays > 0 ? daysIn / stepTotalDays : 0; // 0..1
+                    return currentX + (ratio * stepVisualWidth);
+                }
+
+                currentX += stepWidthRaw; // 次のステップの開始位置へ
             }
+            return currentX; // 右端
+        };
+
+
+        // Today位置
+        const todayPos = getDateX_v2(new Date());
+
+        // 月セグメント
+        const months = eachMonthOfInterval({ start: parseISO(minDate), end: parseISO(maxDate) });
+        const monthSegments = months.map(m => {
+            // その月の開始日（プロジェクト開始日より前ならプロジェクト開始日）
+            const mStart = startOfMonth(m) < parseISO(minDate) ? parseISO(minDate) : startOfMonth(m);
+            // その月の終了日（プロジェクト終了日より後ならプロジェクト終了日）
+            const mEnd = endOfMonth(m) > parseISO(maxDate) ? parseISO(maxDate) : endOfMonth(m);
+
+            const x1 = getDateX_v2(mStart);
+            const x2 = getDateX_v2(mEnd); // 月末の座標（ただしステップの右端座標は gap を引く前の raw width で計算した方が contiguous になるか？）
+            // getDateX_v2 はステップ内補間してるので、正確な位置を返すはず。
+            // 月の境界線を描く場合、x2 は次の月の x1 と一致すべき。
+
+            // 補正: 月末の23:59:59的な扱いにするため、mEndがステップの終了日と一致する場合、そのステップの右端(visual width)を返す
+            // あるいは、次の月の開始日(x1 of next month)を使うのが安全。
+            // しかし最後の月の場合は次の月がない。
+
+            return {
+                label: format(m, 'M月'),
+                endLabel: format(mEnd, 'M/d'),
+                x: x1,
+                width: Math.max(0, x2 - x1)
+            };
+        });
+
+        // 補正: widthのギャップを埋めるため、width = next.x - curr.x にした方が綺麗に繋がる
+        for (let i = 0; i < monthSegments.length - 1; i++) {
+            monthSegments[i].width = monthSegments[i + 1].x - monthSegments[i].x;
         }
 
-        return { timelinePhases: phases, totalDurationText, todayPosition: todayPos };
+
+        return { timelinePhases: phases, totalDurationText, todayPosition: todayPos, monthSegments };
     }, [bars]);
 
     const handleGenerate = async () => {
@@ -271,17 +357,73 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
 
                     {/* 上段: プロセスフローと期間線 */}
                     <div className="relative">
-                        {/* SVGでプロセス全体を描画 */}
-                        <div className={`w-full ${timelinePhases.length > 0 ? 'aspect-[20/3]' : 'h-32'}`}>
+                        {/* SVGでプロセス全体を描画 (viewBoxを上に拡張) */}
+                        <div className={`w-full ${timelinePhases.length > 0 ? 'aspect-[20/6]' : 'h-32'}`}>
                             {timelinePhases.length > 0 ? (
-                                <svg viewBox="0 -25 1000 155" className="w-full h-full">
+                                <svg viewBox="0 -85 1000 215" className="w-full h-full">
+
+                                    {/* 月ヘッダー (最上部) */}
+                                    <g>
+                                        {monthSegments.map((seg, i) => (
+                                            <g key={i}>
+                                                {/* 月枠 */}
+                                                <rect
+                                                    x={seg.x}
+                                                    y={-85}
+                                                    width={seg.width}
+                                                    height={30}
+                                                    fill="#f9fafb"
+                                                    stroke="#e5e7eb"
+                                                    strokeWidth="1"
+                                                />
+                                                {/* 月ラベル (中央) */}
+                                                <text
+                                                    x={seg.x + seg.width / 2}
+                                                    y={-65}
+                                                    textAnchor="middle"
+                                                    fontSize="14"
+                                                    fontWeight="bold"
+                                                    fill="#374151" /* gray-700 */
+                                                    dominantBaseline="middle"
+                                                >
+                                                    {seg.label}
+                                                </text>
+                                                {/* 月末日 (右下) - 枠の下、Y=-55あたり、ボーダーライン付き */}
+                                                <line x1={seg.x} y1={-55} x2={seg.x + seg.width} y2={-55} stroke="#e5e7eb" strokeWidth="1" />
+                                                <text
+                                                    x={seg.x + seg.width - 5}
+                                                    y={-40}
+                                                    textAnchor="end"
+                                                    fontSize="12"
+                                                    fill="#6b7280" /* gray-500 */
+                                                >
+                                                    {seg.endLabel}
+                                                </text>
+                                                {/* 月の区切り線 */}
+                                                <line x1={seg.x + seg.width} y1={-85} x2={seg.x + seg.width} y2={-35} stroke="#e5e7eb" strokeWidth="1" />
+                                            </g>
+                                        ))}
+                                    </g>
+
+                                    {/* プロジェクト期間テキスト */}
+                                    <text
+                                        x="500"
+                                        y={-15}
+                                        textAnchor="middle"
+                                        fontSize="12"
+                                        fill="#4b5563" /* gray-600 */
+                                        fontWeight="bold"
+                                    >
+                                        {totalDurationText}
+                                    </text>
+
                                     {(() => {
                                         let currentX = 0;
                                         // @ts-ignore
                                         const totalRatio = timelinePhases.reduce((acc, p) => acc + p.steps.reduce((a, s) => a + s.width, 0), 0);
                                         const gap = 3;
                                         const svgWidth = 980;
-                                        const scale = svgWidth / totalRatio;
+                                        const scale = totalRatio > 0 ? svgWidth / totalRatio : 0;
                                         const height = 60; // 高さを少し調整
                                         const pointDepth = 15;
 
@@ -314,21 +456,22 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                                         });
                                     })()}
 
-                                    {/* Today マーカー */}
+                                    {/* Today マーカー (z-index的に矢印の上に描画) */}
                                     {todayPosition !== null && (
                                         <g>
                                             <line
                                                 x1={todayPosition}
-                                                y1={-10}
+                                                y1={-10} // 月ヘッダーには被らないように調整
                                                 x2={todayPosition}
                                                 y2={100}
                                                 stroke="#ef4444"
                                                 strokeWidth="2"
                                                 strokeDasharray="4 3"
                                             />
+                                            {/* Todayラベル: 矢印の直上 */}
                                             <rect
                                                 x={todayPosition - 22}
-                                                y={-18}
+                                                y={-28}
                                                 width="44"
                                                 height="18"
                                                 rx="3"
@@ -336,7 +479,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                                             />
                                             <text
                                                 x={todayPosition}
-                                                y={-6}
+                                                y={-16}
                                                 textAnchor="middle"
                                                 fontSize="10"
                                                 fontWeight="bold"
@@ -354,7 +497,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                                         const totalRatio = timelinePhases.reduce((acc, p) => acc + p.steps.reduce((a, s) => a + s.width, 0), 0);
                                         const gap = 3;
                                         const svgWidth = 980;
-                                        const scale = svgWidth / totalRatio;
+                                        const scale = totalRatio > 0 ? svgWidth / totalRatio : 0;
                                         const startY = 80;
 
                                         return timelinePhases.map((phase, phaseIdx) => (
@@ -402,8 +545,8 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                             )}
                         </div>
 
-                        {/* 凡例 */}
-                        <div className="flex justify-center gap-6 mt-0 text-sm">
+                        {/* 凡例 (少し下げて配置) */}
+                        <div className="flex justify-center gap-6 mt-2 text-sm">
                             {Object.values(STATUS).map((status) => (
                                 <div key={status.label} className="flex items-center gap-2">
                                     <div className="w-4 h-4 rounded" style={{ backgroundColor: status.color }}></div>
@@ -411,10 +554,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                                 </div>
                             ))}
                         </div>
-
-                        <div className="text-center mt-4 text-sm font-bold text-gray-600 border-t pt-2 w-full">
-                            {totalDurationText}
-                        </div>
+                        {/* totalDurationText は SVG内に移動したため削除 */}
                     </div>
 
                     {/* 下段: 詳細報告ボックス (Grid Layout) */}
