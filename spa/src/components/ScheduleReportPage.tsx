@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { fetchScheduleReport } from '../services/scheduleReportApi';
 import { mapCategoryBars } from '../services/mappers/categoryBarMapper';
 import { mapProjectRows } from '../services/mappers/projectRowMapper';
@@ -20,6 +20,26 @@ export function ScheduleReportPage() {
   const currentProjectIdentifier = useUiStore((s) => s.currentProjectIdentifier);
   const selectedProjectIdentifiers = useUiStore((s) => s.selectedProjectIdentifiers);
   const requestSequenceRef = useRef(0);
+
+  // Version Selection State
+  const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
+
+  // Extract all available versions from the current snapshot
+  const allVersions = useMemo(() => {
+    const versions = new Set<string>();
+    snapshot.bars.forEach(bar => {
+      versions.add(bar.version_name || 'No Version');
+    });
+    return Array.from(versions).sort();
+  }, [snapshot.bars]);
+
+  // Reset selected versions when allVersions changes (new data loaded)
+  // But only if we have data now
+  useEffect(() => {
+    if (allVersions.length > 0) {
+      setSelectedVersions(allVersions);
+    }
+  }, [JSON.stringify(allVersions)]);
 
   useEffect(() => {
     if (!rootProjectIdentifier) return;
@@ -93,7 +113,11 @@ export function ScheduleReportPage() {
 
   return (
     <div className="schedule-report-page bg-white h-screen flex flex-col overflow-hidden">
-      <FilterToolbar />
+      <FilterToolbar
+        allVersions={allVersions}
+        selectedVersions={selectedVersions}
+        onVersionChange={setSelectedVersions}
+      />
       {snapshot.isLoading && snapshot.rows.length === 0 && snapshot.bars.length === 0 ? (
         <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
       ) : (
@@ -101,6 +125,7 @@ export function ScheduleReportPage() {
           bars={snapshot.bars}
           projectIdentifier={currentProjectIdentifier}
           availableProjects={snapshot.available_projects}
+          selectedVersions={selectedVersions}
           fetchError={snapshot.rows.length === 0 && snapshot.bars.length === 0 ? snapshot.errorMessage : null}
         />
       )}

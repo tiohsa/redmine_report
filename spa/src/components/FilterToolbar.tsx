@@ -2,22 +2,37 @@ import { useState, useRef, useEffect } from 'react';
 import { useUiStore } from '../stores/uiStore';
 import { useTaskStore } from '../stores/taskStore';
 
-export function FilterToolbar() {
-  const filters = useUiStore((s) => s.filters);
-  const setFilters = useUiStore((s) => s.setFilters);
+interface FilterToolbarProps {
+  allVersions?: string[];
+  selectedVersions?: string[];
+  onVersionChange?: (versions: string[]) => void;
+}
+
+export function FilterToolbar(props: FilterToolbarProps) {
   const availableProjects = useTaskStore((s) => s.availableProjects);
 
   const selectedProjectIdentifiers = useUiStore((s) => s.selectedProjectIdentifiers) || [];
   const setSelectedProjectIdentifiers = useUiStore((s) => s.setSelectedProjectIdentifiers);
 
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  // Project Dropdown State
+  const [isProjectOpen, setIsProjectOpen] = useState(false);
+  const projectDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Version Dropdown State
+  const [isVersionOpen, setIsVersionOpen] = useState(false);
+  const versionDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Props for version selection
+  const { allVersions = [], selectedVersions = [], onVersionChange } = props;
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target as Node)) {
+        setIsProjectOpen(false);
+      }
+      if (versionDropdownRef.current && !versionDropdownRef.current.contains(event.target as Node)) {
+        setIsVersionOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -34,11 +49,6 @@ export function FilterToolbar() {
     }
   };
 
-  const toggleStatus = () => {
-    const next = filters.status_scope === 'open' ? 'all' : 'open';
-    setFilters({ status_scope: next });
-  };
-
   const selectedCount = selectedProjectIdentifiers.length;
   const buttonLabel = selectedCount === 0
     ? "Select Projects"
@@ -48,34 +58,21 @@ export function FilterToolbar() {
 
   return (
     <div className="schedule-report-filter-toolbar flex items-center gap-4 p-2 bg-gray-50 border-b border-gray-200">
-      <div className="flex items-center gap-2">
-        <label className="text-sm text-gray-600 font-medium">Status:</label>
-        <button
-          onClick={toggleStatus}
-          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${filters.status_scope === 'all'
-            ? 'bg-blue-100 text-blue-700 border border-blue-200'
-            : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-            }`}
-        >
-          {filters.status_scope === 'all' ? 'All Tickets' : 'Open Only'}
-        </button>
-      </div>
 
-      <div className="h-6 w-px bg-gray-300 mx-2"></div>
-
-      <div className="flex items-center gap-2 relative" ref={dropdownRef}>
+      {/* Project Selection */}
+      <div className="flex items-center gap-2 relative" ref={projectDropdownRef}>
         <label className="text-sm text-gray-600 font-medium">Projects:</label>
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => setIsProjectOpen(!isProjectOpen)}
           className="bg-white border border-gray-300 text-gray-700 text-sm rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2 min-w-[200px] justify-between"
         >
           <span className="truncate max-w-[180px]">{buttonLabel}</span>
-          <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={`w-4 h-4 transition-transform ${isProjectOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
           </svg>
         </button>
 
-        {isOpen && (
+        {isProjectOpen && (
           <div className="absolute top-full left-0 mt-1 w-64 max-h-96 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50">
             {availableProjects.map((p) => {
               const isSelected = selectedProjectIdentifiers.includes(p.identifier);
@@ -106,7 +103,67 @@ export function FilterToolbar() {
         )}
       </div>
 
-    </div>
+      <div className="h-6 w-px bg-gray-300 mx-2"></div>
 
+      {/* Version Selection */}
+      <div className="flex items-center gap-2 relative" ref={versionDropdownRef}>
+        <label className="text-sm text-gray-600 font-medium">Versions:</label>
+        <button
+          onClick={() => setIsVersionOpen(!isVersionOpen)}
+          className="bg-white border border-gray-300 text-gray-700 text-sm rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2 min-w-[150px] justify-between"
+        >
+          <span className="truncate max-w-[130px]">
+            {selectedVersions.length === allVersions.length ? 'All Versions' : `${selectedVersions.length} Selected`}
+          </span>
+          <svg className={`w-4 h-4 transition-transform ${isVersionOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </button>
+
+        {isVersionOpen && onVersionChange && (
+          <div className="absolute top-full left-0 mt-1 w-64 max-h-96 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50">
+            <div className="p-2 border-b border-gray-100 flex justify-between bg-gray-50 sticky top-0 z-10">
+              <button
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                onClick={() => onVersionChange(allVersions)}
+              >
+                Select All
+              </button>
+              <button
+                className="text-xs text-gray-500 hover:text-gray-700"
+                onClick={() => onVersionChange([])}
+              >
+                Clear
+              </button>
+            </div>
+            {allVersions.map((version) => (
+              <div
+                key={version}
+                className="px-3 py-2 flex items-center gap-2 hover:bg-gray-50 cursor-pointer"
+                onClick={() => {
+                  if (selectedVersions.includes(version)) {
+                    onVersionChange(selectedVersions.filter(v => v !== version));
+                  } else {
+                    onVersionChange([...selectedVersions, version]);
+                  }
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedVersions.includes(version)}
+                  readOnly
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                />
+                <span className="text-sm text-gray-700 truncate">{version}</span>
+              </div>
+            ))}
+            {allVersions.length === 0 && (
+              <div className="px-3 py-2 text-sm text-gray-500">No versions available</div>
+            )}
+          </div>
+        )}
+      </div>
+
+    </div>
   );
 }
