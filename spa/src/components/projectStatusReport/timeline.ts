@@ -1,12 +1,15 @@
 import {
   addMonths,
+  addYears,
   differenceInDays,
   endOfMonth,
+  endOfYear,
   format,
   isAfter,
   isBefore,
   parseISO,
-  startOfMonth
+  startOfMonth,
+  startOfYear
 } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { CategoryBar, ProjectInfo } from '../../services/scheduleReportApi';
@@ -37,10 +40,17 @@ export type HeaderMonth = {
   width: number;
 };
 
+export type HeaderYear = {
+  year: string;
+  x: number;
+  width: number;
+};
+
 export type TimelineViewModel = {
   timelineData: TimelineLane[];
   timelineWidth: number;
   headerMonths: HeaderMonth[];
+  headerYears: HeaderYear[];
   totalDurationText: string;
   todayX: number;
 };
@@ -65,6 +75,7 @@ export function buildTimelineViewModel({
       timelineData: [],
       timelineWidth: DEFAULT_TIMELINE_WIDTH,
       headerMonths: [],
+      headerYears: [],
       totalDurationText: 'データなし',
       todayX: -1
     };
@@ -89,6 +100,7 @@ export function buildTimelineViewModel({
   };
 
   const headerMonths = buildHeaderMonths(minDate, maxDate, pixelsPerDay);
+  const headerYears = buildHeaderYears(minDate, maxDate, pixelsPerDay);
   const timelineData = buildTimelineData({
     bars,
     selectedVersions,
@@ -101,6 +113,7 @@ export function buildTimelineViewModel({
     timelineData,
     timelineWidth: effectiveContainerWidth,
     headerMonths,
+    headerYears,
     totalDurationText: `表示期間: ${format(minDate, 'yyyy/MM/dd')} - ${format(maxDate, 'yyyy/MM/dd')}`,
     todayX: getX(new Date().toISOString())
   };
@@ -154,7 +167,7 @@ function buildHeaderMonths(minDate: Date, maxDate: Date, pixelsPerDay: number): 
     const monthDays = differenceInDays(visibleEnd, visibleStart) + 1;
 
     headerMonths.push({
-      label: format(currentMonth, 'yyyy年 MMMM', { locale: ja }),
+      label: format(currentMonth, 'M月', { locale: ja }),
       x: differenceInDays(visibleStart, minDate) * pixelsPerDay,
       width: monthDays * pixelsPerDay
     });
@@ -163,6 +176,33 @@ function buildHeaderMonths(minDate: Date, maxDate: Date, pixelsPerDay: number): 
   }
 
   return headerMonths;
+}
+
+function buildHeaderYears(minDate: Date, maxDate: Date, pixelsPerDay: number): HeaderYear[] {
+  const headerYears: HeaderYear[] = [];
+  let currentYearDate = startOfYear(minDate);
+
+  while (isBefore(currentYearDate, maxDate) || currentYearDate.getTime() <= maxDate.getTime()) {
+    const yearStart = startOfYear(currentYearDate);
+    const yearEnd = endOfYear(currentYearDate);
+
+    const visibleStart = isBefore(yearStart, minDate) ? minDate : yearStart;
+    const visibleEnd = isAfter(yearEnd, maxDate) ? maxDate : yearEnd;
+
+    if (isBefore(visibleStart, visibleEnd) || visibleStart.getTime() === visibleEnd.getTime()) {
+      const yearDays = differenceInDays(visibleEnd, visibleStart) + 1;
+
+      headerYears.push({
+        year: format(currentYearDate, 'yyyy年', { locale: ja }),
+        x: differenceInDays(visibleStart, minDate) * pixelsPerDay,
+        width: yearDays * pixelsPerDay
+      });
+    }
+
+    currentYearDate = addYears(currentYearDate, 1);
+  }
+
+  return headerYears;
 }
 
 function buildTimelineData({

@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import type { RefObject } from 'react';
-import { HeaderMonth, TimelineLane } from './timeline';
+import { HeaderMonth, HeaderYear, TimelineLane } from './timeline';
 
 type ChevronPathProps = {
   x: number;
@@ -66,14 +66,17 @@ type TimelineChartProps = {
   timelineData: TimelineLane[];
   timelineWidth: number;
   headerMonths: HeaderMonth[];
+  headerYears: HeaderYear[];
   todayX: number;
-  containerRef: RefObject<HTMLDivElement | null>;
+  containerRef: RefObject<HTMLDivElement>;
 };
 
 const laneHeight = 130;
-const headerHeight = 40;
+const yearRowHeight = 25;
+const monthRowHeight = 25;
+const headerHeight = yearRowHeight + monthRowHeight;
 
-export function TimelineChart({ timelineData, timelineWidth, headerMonths, todayX, containerRef }: TimelineChartProps) {
+export function TimelineChart({ timelineData, timelineWidth, headerMonths, headerYears, todayX, containerRef }: TimelineChartProps) {
   return (
     <div className="flex border border-gray-200 rounded-lg overflow-hidden">
       <div className="flex-none min-w-max bg-white border-r border-gray-200 flex flex-col">
@@ -98,7 +101,7 @@ export function TimelineChart({ timelineData, timelineWidth, headerMonths, today
       </div>
 
       <div className="flex-1 overflow-x-auto bg-white relative" ref={containerRef}>
-        <TimelineSvg timelineData={timelineData} timelineWidth={timelineWidth} headerMonths={headerMonths} todayX={todayX} />
+        <TimelineSvg timelineData={timelineData} timelineWidth={timelineWidth} headerMonths={headerMonths} headerYears={headerYears} todayX={todayX} />
       </div>
     </div>
   );
@@ -108,6 +111,7 @@ function TimelineSvg({
   timelineData,
   timelineWidth,
   headerMonths,
+  headerYears,
   todayX
 }: Omit<TimelineChartProps, 'containerRef'>) {
   const svgHeight = headerHeight + timelineData.length * laneHeight + 30;
@@ -145,16 +149,36 @@ function TimelineSvg({
       </defs>
 
       <g transform="translate(0, 0)">
-        <rect x={0} y={0} width={timelineWidth} height={headerHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
-        {headerMonths.map((month, idx) => (
-          <g key={`${month.label}-${idx}`} transform={`translate(${month.x}, 0)`}>
-            <rect x={0} y={0} width={month.width} height={headerHeight} fill="none" stroke="#e5e7eb" strokeWidth="1" />
+        {/* Year Row Background */}
+        <rect x={0} y={0} width={timelineWidth} height={yearRowHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
+        {/* Month Row Background */}
+        <rect x={0} y={yearRowHeight} width={timelineWidth} height={monthRowHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
+        {headerYears.map((year, idx) => (
+          <g key={`year-${year.year}-${idx}`} transform={`translate(${year.x}, 0)`}>
+            <rect x={0} y={0} width={year.width} height={yearRowHeight} fill="none" stroke="#e5e7eb" strokeWidth="1" />
             <text
-              x={month.width / 2}
-              y={headerHeight / 2}
+              x={year.width / 2}
+              y={yearRowHeight / 2}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize="13"
+              fontSize="12"
+              fontWeight="bold"
+              fill="#374151"
+            >
+              {year.year}
+            </text>
+          </g>
+        ))}
+
+        {headerMonths.map((month, idx) => (
+          <g key={`month-${month.label}-${idx}`} transform={`translate(${month.x}, ${yearRowHeight})`}>
+            <rect x={0} y={0} width={month.width} height={monthRowHeight} fill="none" stroke="#e5e7eb" strokeWidth="1" />
+            <text
+              x={month.width / 2}
+              y={monthRowHeight / 2}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="12"
               fontWeight="bold"
               fill="#374151"
             >
