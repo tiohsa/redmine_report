@@ -6,10 +6,11 @@ import { ja } from 'date-fns/locale';
 // --- データ定義: プロジェクト進捗報告書 ---
 
 // 現在のステータス定義
+// 現在のステータス定義
 const STATUS = {
-    COMPLETED: { color: "#1a367c", label: "完了" }, // 紺色
-    IN_PROGRESS: { color: "#3b82f6", label: "進行中" }, // 青
-    PENDING: { color: "#94a3b8", label: "未着手" } // 灰色
+    COMPLETED: { fill: "#1e3a8a", text: "#ffffff", stroke: "#1e3a8a", label: "完了", textStroke: "transparent", textStrokeWidth: "0px" }, // Blue 900
+    IN_PROGRESS: { fill: "#2563eb", text: "#1e3a8a", stroke: "#2563eb", label: "進行中", textStroke: "#ffffff", textStrokeWidth: "3px" }, // Blue 600, Text: Dark Blue
+    PENDING: { fill: "#f1f5f9", text: "#475569", stroke: "#cbd5e1", label: "未着手", textStroke: "#ffffff", textStrokeWidth: "3px" } // Slate 100 background, Slate 600 text, Slate 300 border
 };
 
 // 下段: 報告セクションデータ (初期表示用ダミー)
@@ -68,12 +69,14 @@ interface ChevronPathProps {
     height: number;
     pointDepth: number;
     isFirst: boolean;
-    color: string;
+    fill: string;
+    stroke: string;
     progress?: number; // 0-100
     id?: string; // unique id for gradient
+    filter?: string;
 }
 
-const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color, progress, id }: ChevronPathProps) => {
+const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, fill, stroke, progress, id, filter }: ChevronPathProps) => {
     const p = pointDepth;
     const w = width;
     const h = height;
@@ -91,20 +94,24 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color, progress
     if (progress !== undefined && progress >= 0 && progress < 100 && id) {
         const gradientId = `grad-${id}`;
         return (
-            <g>
+            <g filter={filter}>
                 <defs>
                     <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset={`${progress}%`} stopColor={color} />
-                        <stop offset={`${progress}%`} stopColor="#e2e8f0" /> {/* 未達成部分は薄い灰色 (Slate 200) */}
+                        <stop offset={`${progress}%`} stopColor={fill} />
+                        <stop offset={`${progress}%`} stopColor="#cbd5e1" /> {/* 未達成部分は少し濃い灰色 (Slate 300) */}
                     </linearGradient>
                 </defs>
-                <path d={d} fill={`url(#${gradientId})`} stroke="white" strokeWidth="1" />
+                <path d={d} fill={`url(#${gradientId})`} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+                {!isFirst && <path d={leftShape} stroke="white" strokeWidth="2" fill="none" />}
             </g>
         );
     }
 
     return (
-        <path d={d} fill={color} stroke="white" strokeWidth="1" />
+        <g filter={filter}>
+            <path d={d} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+            {!isFirst && <path d={leftShape} stroke="white" strokeWidth="2" fill="none" />}
+        </g>
     );
 };
 
@@ -274,7 +281,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                 name: string;
                 x: number;
                 width: number;
-                status: { color: string; label: string };
+                status: { fill: string; text: string; stroke: string; label: string; textStroke?: string; textStrokeWidth?: string };
                 progress?: number;
                 id: string;
                 startDate?: string;
@@ -467,6 +474,36 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                             <marker id="arrow-end" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
                                                 <path d="M0,0 L10,5 L0,10" fill="none" stroke="#64748b" strokeWidth="1" />
                                             </marker>
+
+                                            {/* ドロップシャドウ (矢羽根用) */}
+                                            <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                                <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
+                                                <feOffset in="blur" dx="0" dy="1" result="offsetBlur" />
+                                                <feFlood floodColor="rgba(0,0,0,0.2)" result="colorBlur" />
+                                                <feComposite in="colorBlur" in2="offsetBlur" operator="in" result="shadow" />
+                                                <feMerge>
+                                                    <feMergeNode in="shadow" />
+                                                    <feMergeNode in="SourceGraphic" />
+                                                </feMerge>
+                                            </filter>
+
+                                            {/* テキストシャドウ (視認性向上) */}
+                                            <filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                                <feGaussianBlur in="SourceAlpha" stdDeviation="0.5" result="blur" />
+                                                <feOffset in="blur" dx="0" dy="1" result="offsetBlur" />
+                                                <feFlood floodColor="rgba(0,0,0,0.6)" result="colorBlur" />
+                                                <feComposite in="colorBlur" in2="offsetBlur" operator="in" result="shadow" />
+                                                <feMerge>
+                                                    <feMergeNode in="shadow" />
+                                                    <feMergeNode in="SourceGraphic" />
+                                                </feMerge>
+                                            </filter>
+
+                                            {/* ストライプパターン (未着手用) */}
+                                            <pattern id="stripePattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                                                <rect width="6" height="6" fill="#f8fafc" />
+                                                <line x1="0" y1="0" x2="0" y2="6" stroke="#e2e8f0" strokeWidth="2" />
+                                            </pattern>
                                         </defs>
 
                                         {/* ヘッダー背景 */}
@@ -531,6 +568,9 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                         // 垂直方向の中央寄せ計算: (レーン高さ - (矢羽根高さ + 日付表示領域)) / 2
                                                         const verticalOffset = (laneHeight - (barHeight + dateSectionHeight)) / 2;
 
+                                                        const isPending = step.status.label === "未着手";
+                                                        const fillUrl = isPending ? "url(#stripePattern)" : step.status.fill;
+
                                                         return (
                                                             <g key={sIdx} transform={`translate(0, ${verticalOffset})`}>
                                                                 <ChevronPath
@@ -540,9 +580,11 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                                     height={barHeight}
                                                                     pointDepth={pointDepth}
                                                                     isFirst={isFirst}
-                                                                    color={step.status.color}
+                                                                    fill={fillUrl}
+                                                                    stroke={step.status.stroke}
                                                                     progress={step.progress}
                                                                     id={step.id}
+                                                                    filter="url(#dropShadow)"
                                                                 />
 
                                                                 {/* テキスト表示: 幅が十分ある場合のみ */}
@@ -550,12 +592,20 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                                     <text
                                                                         x={step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2)}
                                                                         y={barHeight / 2}
-                                                                        fill="white"
+                                                                        fill={step.status.text}
                                                                         fontSize="12"
                                                                         fontWeight="bold"
                                                                         textAnchor="middle"
                                                                         dominantBaseline="middle"
-                                                                        style={{ pointerEvents: 'none' }}
+                                                                        // filter="url(#textShadow)" // テキストシャドウはハロー効果と重複するため一時的に無効化
+                                                                        style={{
+                                                                            pointerEvents: 'none',
+                                                                            paintOrder: 'stroke',
+                                                                            stroke: step.status.textStroke || '#ffffff',
+                                                                            strokeWidth: step.status.textStrokeWidth || '3px',
+                                                                            strokeLinecap: 'round',
+                                                                            strokeLinejoin: 'round'
+                                                                        }}
                                                                     >
                                                                         {step.name}
                                                                     </text>
@@ -616,7 +666,7 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                     <div className="flex justify-center gap-6 mt-2 text-sm">
                         {Object.values(STATUS).map((status) => (
                             <div key={status.label} className="flex items-center gap-2">
-                                <div className="w-4 h-4 rounded" style={{ backgroundColor: status.color }}></div>
+                                <div className="w-4 h-4 rounded border" style={{ backgroundColor: status.fill, borderColor: status.stroke }}></div>
                                 <span>{status.label}</span>
                             </div>
                         ))}
