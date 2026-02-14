@@ -140,8 +140,18 @@ export const ProjectStatusReport = ({
             ? availableProjects.find(p => p.identifier === selectedProjectIdentifiers[0])?.name || "1 Project"
             : `${selectedProjectIdentifiers.length} Projects`;
 
+    const fullScreenRef = useRef<HTMLDivElement>(null);
+
+    const toggleFullScreen = () => {
+        if (!document.fullscreenElement) {
+            fullScreenRef.current?.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
     return (
-        <div className="bg-white flex-1 overflow-auto font-sans text-[#1e293b]">
+        <div ref={fullScreenRef} className="bg-white flex-1 overflow-auto font-sans text-[#1e293b]">
             <div className="w-full bg-white p-6">
                 {/* 1st Row: Selectors and Buttons */}
                 <div className="flex justify-between items-start mb-6">
@@ -270,6 +280,16 @@ export const ProjectStatusReport = ({
 
                     <div className="flex items-center gap-3">
                         <button
+                            onClick={toggleFullScreen}
+                            aria-label="全画面表示"
+                            title="全画面表示"
+                            className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center shadow-sm cursor-pointer"
+                        >
+                            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                            </svg>
+                        </button>
+                        <button
                             aria-label="エクスポート"
                             title="エクスポート"
                             className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center shadow-sm cursor-pointer"
@@ -281,7 +301,9 @@ export const ProjectStatusReport = ({
                         <button
                             onClick={handleGenerate}
                             disabled={isGenerating}
-                            className="px-5 py-2.5 bg-[#4f46e5] text-white rounded-lg hover:bg-[#4338ca] transition-all flex items-center gap-2.5 font-bold text-sm shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            aria-label="AIレポート生成"
+                            title="AIレポート生成"
+                            className="p-2.5 bg-[#4f46e5] text-white rounded-lg hover:bg-[#4338ca] transition-all flex items-center justify-center shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                             {isGenerating ? (
                                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -290,10 +312,9 @@ export const ProjectStatusReport = ({
                                 </svg>
                             ) : (
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z"></path>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
                                 </svg>
                             )}
-                            AIレポート生成
                         </button>
                     </div>
                 </div>
