@@ -144,104 +144,139 @@ export const ProjectStatusReport = ({
         <div className="bg-white flex-1 overflow-auto font-sans text-[#1e293b]">
             <div className="w-full bg-white p-6">
                 {/* 1st Row: Selectors and Buttons */}
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-6">
-                        {/* Project Selection */}
-                        <div className="flex items-center gap-3 relative" ref={projectDropdownRef}>
-                            <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Project:</label>
-                            <div className="relative">
-                                <button
-                                    onClick={() => setIsProjectOpen(!isProjectOpen)}
-                                    className="bg-slate-50 hover:bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-lg px-4 py-2 flex items-center gap-2 min-w-[160px] cursor-pointer transition-colors"
-                                >
-                                    <span className="truncate max-w-[140px]">{selectedProjectLabel}</span>
-                                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${isProjectOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path>
-                                    </svg>
-                                </button>
-                                {isProjectOpen && (
-                                    <div className="absolute top-full left-0 mt-2 w-64 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
-                                        {availableProjects.map((p) => {
-                                            const isSelected = selectedProjectIdentifiers.includes(p.identifier);
-                                            const isDisabled = p.selectable === false;
-                                            return (
+                <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-8 flex-wrap">
+                        <div className="flex items-center gap-6">
+                            {/* Project Selection */}
+                            <div className="flex items-center gap-3 relative" ref={projectDropdownRef}>
+                                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Project:</label>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsProjectOpen(!isProjectOpen)}
+                                        className="bg-slate-50 hover:bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-lg px-4 py-2 flex items-center gap-2 min-w-[160px] cursor-pointer transition-colors"
+                                    >
+                                        <span className="truncate max-w-[140px]">{selectedProjectLabel}</span>
+                                        <svg className={`w-4 h-4 text-slate-400 transition-transform ${isProjectOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </button>
+                                    {isProjectOpen && (
+                                        <div className="absolute top-full left-0 mt-2 w-64 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
+                                            {availableProjects.map((p) => {
+                                                const isSelected = selectedProjectIdentifiers.includes(p.identifier);
+                                                const isDisabled = p.selectable === false;
+                                                return (
+                                                    <div
+                                                        key={p.project_id}
+                                                        className={`px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        onClick={() => !isDisabled && toggleProject(p.identifier)}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            readOnly
+                                                            disabled={isDisabled}
+                                                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
+                                                        />
+                                                        <span className={`text-sm ${isSelected ? 'font-semibold text-slate-900' : 'text-slate-600'}`} style={{ paddingLeft: `${p.level * 12}px` }}>
+                                                            {p.name}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Version Selection */}
+                            <div className="flex items-center gap-3 relative" ref={versionDropdownRef}>
+                                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Version:</label>
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setIsVersionOpen(!isVersionOpen)}
+                                        className="bg-slate-50 hover:bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-lg px-4 py-2 flex items-center gap-2 min-w-[140px] cursor-pointer transition-colors"
+                                    >
+                                        <span className="truncate max-w-[120px]">
+                                            {selectedVersions.length === allVersions.length ? 'All Versions' : `${selectedVersions.length} Selected`}
+                                        </span>
+                                        <svg className={`w-4 h-4 text-slate-400 transition-transform ${isVersionOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </button>
+                                    {isVersionOpen && onVersionChange && (
+                                        <div className="absolute top-full left-0 mt-2 w-64 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
+                                            <div className="p-2 border-b border-slate-50 flex justify-between bg-slate-50/50 sticky top-0 z-10">
+                                                <button className="text-xs text-blue-600 hover:text-blue-700 font-bold px-2 py-1" onClick={() => onVersionChange(allVersions)}>Select All</button>
+                                                <button className="text-xs text-slate-500 hover:text-slate-700 font-bold px-2 py-1" onClick={() => onVersionChange([])}>Clear</button>
+                                            </div>
+                                            {allVersions.map((version) => (
                                                 <div
-                                                    key={p.project_id}
-                                                    className={`px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                    onClick={() => !isDisabled && toggleProject(p.identifier)}
+                                                    key={version}
+                                                    className="px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer"
+                                                    onClick={() => {
+                                                        if (selectedVersions.includes(version)) {
+                                                            onVersionChange(selectedVersions.filter(v => v !== version));
+                                                        } else {
+                                                            onVersionChange([...selectedVersions, version]);
+                                                        }
+                                                    }}
                                                 >
                                                     <input
                                                         type="checkbox"
-                                                        checked={isSelected}
+                                                        checked={selectedVersions.includes(version)}
                                                         readOnly
-                                                        disabled={isDisabled}
                                                         className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
                                                     />
-                                                    <span className={`text-sm ${isSelected ? 'font-semibold text-slate-900' : 'text-slate-600'}`} style={{ paddingLeft: `${p.level * 12}px` }}>
-                                                        {p.name}
-                                                    </span>
+                                                    <span className="text-sm text-slate-600 truncate font-medium">{version}</span>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Version Selection */}
-                        <div className="flex items-center gap-3 relative" ref={versionDropdownRef}>
-                            <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Version:</label>
-                            <div className="relative">
-                                <button
-                                    onClick={() => setIsVersionOpen(!isVersionOpen)}
-                                    className="bg-slate-50 hover:bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-lg px-4 py-2 flex items-center gap-2 min-w-[140px] cursor-pointer transition-colors"
-                                >
-                                    <span className="truncate max-w-[120px]">
-                                        {selectedVersions.length === allVersions.length ? 'All Versions' : `${selectedVersions.length} Selected`}
-                                    </span>
-                                    <svg className={`w-4 h-4 text-slate-400 transition-transform ${isVersionOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path>
-                                    </svg>
-                                </button>
-                                {isVersionOpen && onVersionChange && (
-                                    <div className="absolute top-full left-0 mt-2 w-64 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
-                                        <div className="p-2 border-b border-slate-50 flex justify-between bg-slate-50/50 sticky top-0 z-10">
-                                            <button className="text-xs text-blue-600 hover:text-blue-700 font-bold px-2 py-1" onClick={() => onVersionChange(allVersions)}>Select All</button>
-                                            <button className="text-xs text-slate-500 hover:text-slate-700 font-bold px-2 py-1" onClick={() => onVersionChange([])}>Clear</button>
-                                        </div>
-                                        {allVersions.map((version) => (
-                                            <div
-                                                key={version}
-                                                className="px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer"
-                                                onClick={() => {
-                                                    if (selectedVersions.includes(version)) {
-                                                        onVersionChange(selectedVersions.filter(v => v !== version));
-                                                    } else {
-                                                        onVersionChange([...selectedVersions, version]);
-                                                    }
-                                                }}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedVersions.includes(version)}
-                                                    readOnly
-                                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
-                                                />
-                                                <span className="text-sm text-slate-600 truncate font-medium">{version}</span>
-                                            </div>
-                                        ))}
+                        <div className="flex items-center gap-6 flex-wrap">
+                            <div className="flex items-center gap-2.5 text-slate-500">
+                                <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                <span className="text-sm font-medium">報告日: <span className="text-slate-900 font-bold">{format(new Date(), 'yyyy年M月d日')}</span></span>
+                            </div>
+                            <div className="flex items-center gap-2.5 text-slate-500">
+                                <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span className="text-sm font-medium">表示期間: <span className="text-slate-900 font-bold">{totalDurationText}</span></span>
+                            </div>
+                            <div className="h-4 w-px bg-slate-200"></div>
+                            <div className="flex items-center gap-6">
+                                {Object.values(STATUS).map((status) => (
+                                    <div key={status.label} className="flex items-center gap-2 text-slate-500">
+                                        <div
+                                            className="w-3.5 h-3.5 rounded-sm border"
+                                            style={{
+                                                backgroundColor: status.fill,
+                                                borderColor: status.stroke
+                                            }}
+                                        ></div>
+                                        <span className="text-sm font-medium">{status.label}</span>
                                     </div>
-                                )}
+                                ))}
                             </div>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2.5 font-bold text-sm shadow-sm cursor-pointer">
+                        <button
+                            aria-label="エクスポート"
+                            title="エクスポート"
+                            className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center shadow-sm cursor-pointer"
+                        >
                             <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3"></path>
                             </svg>
-                            エクスポート
                         </button>
                         <button
                             onClick={handleGenerate}
@@ -260,41 +295,6 @@ export const ProjectStatusReport = ({
                             )}
                             AIレポート生成
                         </button>
-                    </div>
-                </div>
-
-                {/* 2nd Row: Info Line */}
-                <div className="flex items-center gap-8 mb-8 pb-5 border-b border-slate-100">
-                    <div className="flex items-center gap-2.5 text-slate-500">
-                        <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <span className="text-sm font-medium">報告日: <span className="text-slate-900 font-bold">{format(new Date(), 'yyyy年M月d日')}</span></span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-slate-500">
-                        <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span className="text-sm font-medium">表示期間: <span className="text-slate-900 font-bold">{totalDurationText}</span></span>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="h-4 w-px bg-slate-200 mx-2"></div>
-
-                    {/* Legend Row */}
-                    <div className="flex items-center gap-6">
-                        {Object.values(STATUS).map((status) => (
-                            <div key={status.label} className="flex items-center gap-2 text-slate-500">
-                                <div
-                                    className="w-3.5 h-3.5 rounded-sm border"
-                                    style={{
-                                        backgroundColor: status.fill,
-                                        borderColor: status.stroke
-                                    }}
-                                ></div>
-                                <span className="text-sm font-medium">{status.label}</span>
-                            </div>
-                        ))}
                     </div>
                 </div>
 
