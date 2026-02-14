@@ -14,28 +14,11 @@ module RedmineReport
       end
 
       def call
-        scoped = apply_status_scope(@issues)
-        candidates = open_version_candidates(scoped)
+        candidates = selectable_candidates
         selection = @visibility_scope.select_visible_top_level_parents(candidates)
-        visible_root_ids = selection.display_root_issue_ids.to_set
-        selected_candidates = candidates.select do |issue|
-          visible_root_ids.include?(issue_root_id(issue))
-        end
+        selected_candidates = filter_visible_candidates(candidates, selection.display_root_issue_ids)
         bars = build_bars(selected_candidates)
-        all_rows = build_rows
-
-        active_project_ids = bars.map { |b| b[:project_id] }.uniq
-        rows_to_keep = Set.new
-        active_project_ids.each do |pid|
-          row = all_rows.find { |r| r[:project_id] == pid }
-          while row
-            rows_to_keep << row[:project_id]
-            parent_id = row[:parent_project_id]
-            row = parent_id ? all_rows.find { |r| r[:project_id] == parent_id } : nil
-          end
-        end
-
-        filtered_rows = all_rows.select { |r| rows_to_keep.include?(r[:project_id]) }
+        filtered_rows = filter_rows_with_ancestors(build_rows, bars)
 
         {
           rows: filtered_rows,
@@ -51,6 +34,35 @@ module RedmineReport
       end
 
       private
+
+      def selectable_candidates
+        open_version_candidates(apply_status_scope(@issues))
+      end
+
+      def filter_visible_candidates(candidates, display_root_issue_ids)
+        visible_root_ids = display_root_issue_ids.to_set
+        candidates.select { |issue| visible_root_ids.include?(issue_root_id(issue)) }
+      end
+
+      def filter_rows_with_ancestors(rows, bars)
+        rows_by_project_id = rows.index_by { |row| row[:project_id] }
+        rows_to_keep = Set.new
+
+        bars.map { |bar| bar[:project_id] }.uniq.each do |project_id|
+          keep_row_ancestors(project_id, rows_by_project_id, rows_to_keep)
+        end
+
+        rows.select { |row| rows_to_keep.include?(row[:project_id]) }
+      end
+
+      def keep_row_ancestors(project_id, rows_by_project_id, rows_to_keep)
+        row = rows_by_project_id[project_id]
+        while row
+          rows_to_keep << row[:project_id]
+          parent_id = row[:parent_project_id]
+          row = parent_id ? rows_by_project_id[parent_id] : nil
+        end
+      end
 
       def build_rows
         projects = [@project] + (@filters.include_subprojects ? @project.descendants.to_a : [])
@@ -95,43 +107,11 @@ module RedmineReport
       end
 
       def build_bars(issues)
-        # One chevron bar per version-assigned ticket.
         groups = issues
                  .select { |issue| issue.fixed_version }
                  .group_by { |issue| [issue.project_id, issue.id, issue.subject] }
-
-        # 2. Build map of issue_id -> bar_key
-        issue_to_bar_key = {}
-        groups.each do |(project_id, issue_id, _), grouped_issues|
-          key = "#{project_id}:issue:#{issue_id}"
-          grouped_issues.each { |issue| issue_to_bar_key[issue.id] = key }
-        end
-
-        # 3. Fetch relations (follows/precedes)
-        # We only care about relations between issues in our scope
-        issue_ids = issue_to_bar_key.keys
-        relations = if issue_ids.empty?
-                      []
-                    else
-                      IssueRelation.where(
-                        issue_from_id: issue_ids,
-                        issue_to_id: issue_ids,
-                        relation_type: IssueRelation::TYPE_PRECEDES
-                      )
-                    end
-
-        # 4. Aggregate dependencies (bar_key -> Set of predecessor bar_keys)
-        # relation: from (predecessor) -> to (successor)
-        dependencies = Hash.new { |h, k| h[k] = Set.new }
-        relations.each do |rel|
-          from_key = issue_to_bar_key[rel.issue_from_id]
-          to_key = issue_to_bar_key[rel.issue_to_id]
-
-          # If issues are in different bars, record the dependency
-          if from_key && to_key && from_key != to_key
-            dependencies[to_key] << from_key
-          end
-        end
+        issue_to_bar_key = build_issue_to_bar_key_map(groups)
+        dependencies = build_dependencies(issue_to_bar_key)
 
         groups.map do |(project_id, issue_id, issue_subject), grouped_issues|
           date_pairs = grouped_issues.map { |issue| [issue.start_date || issue.due_date, issue.due_date || issue.start_date] }
@@ -166,6 +146,34 @@ module RedmineReport
             dependencies: dependencies[key].to_a
           }
         end.compact
+      end
+
+      def build_issue_to_bar_key_map(groups)
+        issue_to_bar_key = {}
+        groups.each do |(project_id, issue_id, _), grouped_issues|
+          bar_key = "#{project_id}:issue:#{issue_id}"
+          grouped_issues.each { |issue| issue_to_bar_key[issue.id] = bar_key }
+        end
+        issue_to_bar_key
+      end
+
+      def build_dependencies(issue_to_bar_key)
+        issue_ids = issue_to_bar_key.keys
+        return Hash.new { |h, k| h[k] = Set.new } if issue_ids.empty?
+
+        relations = IssueRelation.where(
+          issue_from_id: issue_ids,
+          issue_to_id: issue_ids,
+          relation_type: IssueRelation::TYPE_PRECEDES
+        )
+
+        dependencies = Hash.new { |h, k| h[k] = Set.new }
+        relations.each do |relation|
+          from_key = issue_to_bar_key[relation.issue_from_id]
+          to_key = issue_to_bar_key[relation.issue_to_id]
+          dependencies[to_key] << from_key if from_key && to_key && from_key != to_key
+        end
+        dependencies
       end
     end
   end

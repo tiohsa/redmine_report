@@ -8,7 +8,14 @@ import { useTaskStore } from '../stores/taskStore';
 import { useUiStore } from '../stores/uiStore';
 import { mapProjectInfo } from '../services/mappers/projectInfoMapper';
 
+const collectTargets = (selectedProjectIdentifiers: string[], currentProjectIdentifier: string): string[] => {
+  if (selectedProjectIdentifiers.length > 0) {
+    return selectedProjectIdentifiers;
+  }
+  return currentProjectIdentifier ? [currentProjectIdentifier] : [];
+};
 
+const mergeWarnings = (warningsBySnapshot: string[][]): string[] => warningsBySnapshot.flat();
 
 export function ScheduleReportPage() {
   const setSnapshot = useTaskStore((s) => s.setSnapshot);
@@ -36,18 +43,26 @@ export function ScheduleReportPage() {
   // Reset selected versions when allVersions changes (new data loaded)
   // But only if we have data now
   useEffect(() => {
-    if (allVersions.length > 0) {
-      setSelectedVersions(allVersions);
+    if (allVersions.length === 0) {
+      setSelectedVersions([]);
+      return;
     }
-  }, [JSON.stringify(allVersions)]);
+
+    setSelectedVersions((current) => {
+      if (
+        current.length === allVersions.length &&
+        current.every((version, index) => version === allVersions[index])
+      ) {
+        return current;
+      }
+      return allVersions;
+    });
+  }, [allVersions]);
 
   useEffect(() => {
     if (!rootProjectIdentifier) return;
 
-    // Determine which projects to fetch
-    const targets = (selectedProjectIdentifiers && selectedProjectIdentifiers.length > 0)
-      ? selectedProjectIdentifiers
-      : (currentProjectIdentifier ? [currentProjectIdentifier] : []);
+    const targets = collectTargets(selectedProjectIdentifiers || [], currentProjectIdentifier);
 
     if (targets.length === 0) return;
 
@@ -85,7 +100,7 @@ export function ScheduleReportPage() {
           new Map(allAvailableProjects.map((p) => [p.identifier, p])).values()
         );
 
-        // Use the first result's meta for now, or merge warnings
+        // Keep base metadata from first snapshot and merge warnings from every response.
         const baseMeta = validResults[0].meta;
 
         setSnapshot({
@@ -95,7 +110,7 @@ export function ScheduleReportPage() {
           selection_summary: validResults[0].selection_summary,
           meta: {
             ...baseMeta,
-            warnings: validResults.flatMap(r => r.meta.warnings)
+            warnings: mergeWarnings(validResults.map((result) => result.meta.warnings))
           }
         });
       })
