@@ -277,6 +277,25 @@ export const ProjectStatusReport = ({
                         </svg>
                         <span className="text-sm font-medium">表示期間: <span className="text-slate-900 font-bold">{totalDurationText}</span></span>
                     </div>
+
+                    {/* Divider */}
+                    <div className="h-4 w-px bg-slate-200 mx-2"></div>
+
+                    {/* Legend Row */}
+                    <div className="flex items-center gap-6">
+                        {Object.values(STATUS).map((status) => (
+                            <div key={status.label} className="flex items-center gap-2 text-slate-500">
+                                <div
+                                    className="w-3.5 h-3.5 rounded-sm border"
+                                    style={{
+                                        backgroundColor: status.fill,
+                                        borderColor: status.stroke
+                                    }}
+                                ></div>
+                                <span className="text-sm font-medium">{status.label}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 {(error || fetchError) && (
@@ -294,15 +313,6 @@ export const ProjectStatusReport = ({
                         todayX={todayX}
                         containerRef={containerRef}
                     />
-
-                    <div className="flex justify-center gap-6 mt-2 text-sm">
-                        {Object.values(STATUS).map((status) => (
-                            <div key={status.label} className="flex items-center gap-2">
-                                <div className="w-4 h-4 rounded border" style={{ backgroundColor: status.fill, borderColor: status.stroke }}></div>
-                                <span>{status.label}</span>
-                            </div>
-                        ))}
-                    </div>
 
                     <ReportSections projectTitle={projectTitle} sections={displaySections} />
                 </div>

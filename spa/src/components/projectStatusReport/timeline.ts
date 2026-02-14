@@ -114,7 +114,7 @@ export function buildTimelineViewModel({
     timelineWidth: effectiveContainerWidth,
     headerMonths,
     headerYears,
-    totalDurationText: `表示期間: ${format(minDate, 'yyyy/MM/dd')} - ${format(maxDate, 'yyyy/MM/dd')}`,
+    totalDurationText: `${format(minDate, 'yyyy/MM/dd')} - ${format(maxDate, 'yyyy/MM/dd')}`,
     todayX: getX(new Date().toISOString())
   };
 }
