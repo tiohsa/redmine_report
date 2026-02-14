@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { CategoryBar, generateScheduleReport, ReportContent, ReportItem } from '../services/scheduleReportApi';
-import { format, parseISO, differenceInDays, eachMonthOfInterval, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
+import { CategoryBar, generateScheduleReport, ReportContent, ReportItem, ProjectInfo } from '../services/scheduleReportApi';
+import { format, parseISO, differenceInDays, eachMonthOfInterval, startOfMonth, endOfMonth, isSameDay, addDays, addMonths } from 'date-fns';
 
 // --- データ定義: プロジェクト進捗報告書 ---
 
@@ -91,10 +91,11 @@ const ChevronPath = ({ x, y, width, height, pointDepth, isFirst, color }: Chevro
 interface ProjectStatusReportProps {
     bars?: CategoryBar[];
     projectIdentifier: string;
+    availableProjects?: ProjectInfo[];
     fetchError?: string | null;
 }
 
-export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError = null }: ProjectStatusReportProps) => {
+export const ProjectStatusReport = ({ bars = [], projectIdentifier, availableProjects = [], fetchError = null }: ProjectStatusReportProps) => {
 
     const [generatedContent, setGeneratedContent] = useState<ReportContent | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -106,188 +107,136 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
         setError(null);
     }, [projectIdentifier]);
 
-    // カテゴリデータをタイムライン用に変換
-    const { timelinePhases, totalDurationText, todayPosition, monthSegments } = useMemo(() => {
+    // プロジェクト情報のマップ
+    const projectMap = useMemo(() => {
+        const map = new Map<number, ProjectInfo>();
+        availableProjects.forEach(p => map.set(p.project_id, p));
+        return map;
+    }, [availableProjects]);
+
+    // 全体の期間とタイムラインデータの構築
+    const { timelineData, totalDurationText, monthSegments, timelineScale } = useMemo(() => {
         if (bars.length === 0) {
-            return { timelinePhases: [], totalDurationText: "データなし", todayPosition: null, monthSegments: [] };
+            return { timelineData: [], totalDurationText: "データなし", monthSegments: [], timelineScale: null };
         }
 
-        // 開始日でソート
-        const sortedBars = [...bars].sort((a, b) => a.start_date.localeCompare(b.start_date));
+        // 1. 全体の期間を決定 (全プロジェクトの最小・最大)
+        const allStartDates = bars.map(b => b.start_date).filter(Boolean);
+        const allEndDates = bars.map(b => b.end_date).filter(Boolean);
+        if (allStartDates.length === 0 || allEndDates.length === 0) {
+            return { timelineData: [], totalDurationText: "期間データなし", monthSegments: [], timelineScale: null };
+        }
 
-        // 全体の期間
-        const minDate = sortedBars[0].start_date;
-        const maxDate = sortedBars.reduce((max, b) => b.end_date > max ? b.end_date : max, sortedBars[0].end_date);
-        const totalDurationText = `プロジェクト期間: ${minDate} - ${maxDate}`;
+        // ソートして最小・最大を取得
+        allStartDates.sort();
+        allEndDates.sort();
+        const minDateStr = allStartDates[0];
+        const maxDateStr = allEndDates[allEndDates.length - 1];
 
-        // フェーズ構築 (ここでは全カテゴリを1つのフェーズとしてフラットに並べるが、将来的にグルーピングも可能)
-        // 期間から幅の比率を計算 (最低幅を設ける)
-        const totalDays = differenceInDays(parseISO(maxDate), parseISO(minDate)) || 1;
+        const minDate = parseISO(minDateStr);
+        const maxDate = parseISO(maxDateStr);
 
-        const steps = sortedBars.map(bar => {
-            let status = STATUS.PENDING;
-            if (bar.progress_rate === 100) status = STATUS.COMPLETED;
-            else if (bar.progress_rate > 0) status = STATUS.IN_PROGRESS;
+        // 軸の終了日（期間は閉区間なので、表示上の軸は+1日して「翌日の0:00」までとする）
+        const axisMaxDate = addDays(maxDate, 1);
 
-            const duration = differenceInDays(parseISO(bar.end_date), parseISO(bar.start_date));
-            // 幅は期間に比例させるが、最低でも0.5の重みを持たせる
-            const weight = Math.max(0.5, (duration / totalDays) * 5);
+        const totalDurationText = `期間: ${minDateStr} - ${maxDateStr}`;
+        const totalDays = Math.max(1, differenceInDays(axisMaxDate, minDate));
+        const svgWidth = 980;
+
+        // 線形スケール変換関数
+        const getDateX = (date: Date): number => {
+            const days = differenceInDays(date, minDate);
+            // 範囲外でも計算して返す（クリッピングはSVG側で）
+            return (days / totalDays) * svgWidth;
+        };
+
+        // 2. プロジェクトごとにグルーピング
+        const groupedBars = new Map<number, CategoryBar[]>();
+        bars.forEach(bar => {
+            const pid = bar.project_id;
+            if (!groupedBars.has(pid)) groupedBars.set(pid, []);
+            groupedBars.get(pid)?.push(bar);
+        });
+
+        // 3. 各プロジェクトのフェーズデータ構築
+        const timelineData = Array.from(groupedBars.entries()).map(([projectId, projectBars]) => {
+            const projectInfo = projectMap.get(projectId);
+            const projectName = projectInfo ? projectInfo.name : `Project ${projectId}`;
+
+            // 開始日でソート
+            const sortedBars = [...projectBars].sort((a, b) => a.start_date.localeCompare(b.start_date));
+
+            // ステップ変換
+            const steps = sortedBars.map(bar => {
+                let status = STATUS.PENDING;
+                if (bar.progress_rate === 100) status = STATUS.COMPLETED;
+                else if (bar.progress_rate > 0) status = STATUS.IN_PROGRESS;
+
+                const sDate = parseISO(bar.start_date);
+                const eDate = parseISO(bar.end_date);
+
+                const x1 = getDateX(sDate);
+                // 終了日はinclusiveなので、バーの右端は「終了日の翌日0:00」とする
+                const x2 = getDateX(addDays(eDate, 1));
+                const width = Math.max(10, x2 - x1); // 最低幅
+
+                return {
+                    name: bar.category_name,
+                    x: x1,
+                    width: width, // 実際の描画幅（絶対座標ベース）
+                    status: status,
+                    startDate: bar.start_date,
+                    endDate: bar.end_date
+                };
+            });
+
+            // フェーズ分け（重なりや長さを考慮して分割表示等は今回はせず、1行で表示するが、
+            // 今までのロジック（4つずつ分割）を踏襲するか？
+            // 縦に並べるなら、プロジェクトごとに1行（または複数行）の矢羽根フローにするのが自然。
+            // ここではシンプルにするため、プロジェクト内のカテゴリは「連続したフロー」として1行に並べることを試みる。
+            // ただし日付ベースの配置なので、重なると潰れる。
+            // 元のロジックは「Chevronフロー」として隙間なく並べていたが、今回は「ガントチャート的」な絶対日付配置にするため、
+            // Chevron形状を維持しつつ日付位置に置くのは難しい（Chevronは連続していることが前提のデザイン）。
+
+            // 方針変更: 
+            // ユーザー要望「矢羽根を縦に並べる」 -> プロジェクトAの矢羽根列、プロジェクトBの矢羽根列...
+            // 矢羽根のデザインを維持するには、やはり「順序」が重要であり、絶対日付配置よりも「シーケンス」としての表現が適しているかも？
+            // しかし、プロジェクト間の期間比較をしたいなら絶対日付配置（ガント）が良い。
+            // 元のコードは `getDateX_v2` で無理やり補間して矢羽根上の位置を決めていた。
+            // ここでは「絶対日付配置のChevron」を採用する。
+            // 各ステップは x, width を持ち、隣接していなくても描画される。
+            // 隙間がある場合は線でつなぐ等の処理が必要だが、まずは配置のみ。
 
             return {
-                name: bar.category_name,
-                width: weight,
-                status: status,
-                startDate: bar.start_date,
-                endDate: bar.end_date
+                projectId,
+                projectName,
+                steps
             };
         });
 
-        // 1行で表示するには多すぎる場合などを考慮すべきだが、まずはシンプルに3-4個ずつ分割してフェーズ化する
-        const chunkSize = 4;
-        const phases = [];
-        for (let i = 0; i < steps.length; i += chunkSize) {
-            const chunk = steps.slice(i, i + chunkSize);
-            phases.push({
-                id: phases.length + 1,
-                steps: chunk,
-                durations: chunk.map(s => ({
-                    label: `${format(parseISO(s.startDate), 'M/d')} - ${format(parseISO(s.endDate), 'M/d')}`,
-                    span: s.width
-                }))
-            });
-        }
-
-        // スケール計算
-        const totalRatio = steps.reduce((acc, s) => acc + s.width, 0);
-        const gap = 3;
-        const svgWidth = 980;
-        const scale = totalRatio > 0 ? svgWidth / totalRatio : 0;
-
-        // 指定した日付のX座標を取得する関数 (SVG座標系)
-        const getDateX = (targetDate: Date): number | null => {
-            const targetDays = differenceInDays(targetDate, parseISO(minDate));
-            if (targetDays < 0) return 0; // 開始前は左端
-            // if (targetDays > totalDays) return svgWidth; // 終了後は右端 (ただしgap等のズレがあるため正確ではない)
-
-            let cumulativeX = 0;
-            let cumulativeDays = 0;
-
-            for (let i = 0; i < steps.length; i++) {
-                const stepStart = parseISO(steps[i].startDate);
-                const stepEnd = parseISO(steps[i].endDate);
-                const stepDays = differenceInDays(stepEnd, stepStart);
-                const stepWidth = steps[i].width * scale;
-
-                // フェーズ間のギャップを考慮 (phases構築時のロジックと合わせる)
-                const phaseGap = (i > 0 && i % chunkSize === 0) ? 10 : 0;
-                cumulativeX += phaseGap;
-
-                // ステップの期間内かチェック
-                // ここではステップ間の隙間期間がない前提（start = prev.end + 1 ではない場合もあるが、stepsはソート済み）
-                // あるいは、前のステップとこのステップの間（日付のギャップ）にあるか
-
-                // 単純化のため、targetDateがこのステップの開始日以降であれば計算を進める
-                const daysFromStart = differenceInDays(targetDate, stepStart);
-
-                if (daysFromStart >= 0 && daysFromStart <= stepDays) {
-                    // このステップ内
-                    const ratio = stepDays > 0 ? daysFromStart / stepDays : 0;
-                    return cumulativeX + ratio * (stepWidth - gap); // + gap は次のステップの開始位置調整用なので引く
-                } else if (daysFromStart > stepDays) {
-                    // このステップより後
-                    cumulativeX += stepWidth; // gapは次のループの冒頭で加算されない(phaseGapのみ)ので、ここではwidthだけ足すのが基本だが...
-                    // 待て、renderingロジックでは `currentX += width + gap` している
-                    // render loop: `width = step.width * scale - gap`
-                    // `currentX += width + gap` -> `currentX += step.width * scale`
-                    // つまり `currentX` は `step` の左端。
-                } else {
-                    // このステップより前（ありえない、sortedBars[0]がminDateなので）
-                    return cumulativeX;
-                }
-            }
-            // 全ステップループしても見つからない（totalDaysを超えている場合など）
-            return cumulativeX;
-        };
-
-        // 再実装: getDateX (より正確なロジック)
-        const getDateX_v2 = (targetDate: Date): number => {
-            let currentX = 0;
-            let lastDate = parseISO(minDate);
-
-            for (let i = 0; i < steps.length; i++) {
-                const stepStart = parseISO(steps[i].startDate);
-                const stepEnd = parseISO(steps[i].endDate);
-                const stepWidthRaw = steps[i].width * scale;
-                const stepVisualWidth = stepWidthRaw - gap;
-
-                // Phase Gap
-                if (i > 0 && i % chunkSize === 0) {
-                    currentX += 10;
-                }
-
-                // ターゲットがこのステップの範囲内にあるか？
-                // あるいは、前のステップとこのステップの間（日付のギャップ）にあるか？
-                // 簡易的に、各ステップ内での割合で計算する。
-                // 日付が飛んでいる場合は、前のステップの右端〜次のステップの左端の間になるべきだが、
-                // Yabaneフローは連続している前提（日付が連続しているとは限らないが図形は連続）
-                // したがって、targetDate が stepStart ~ stepEnd の間にある場合のみ、そのステップ内で補間する。
-
-                if (targetDate < stepStart) {
-                    // 範囲外（左側）：まだ到達していない
-                    // 前のステップの終了日とこのステップの開始日の間にある場合
-                    // ここでは単に currentX (このステップの左端) を返す
-                    return currentX;
-                }
-
-                if (targetDate >= stepStart && targetDate <= stepEnd) {
-                    const stepTotalDays = differenceInDays(stepEnd, stepStart);
-                    const daysIn = differenceInDays(targetDate, stepStart);
-                    const ratio = stepTotalDays > 0 ? daysIn / stepTotalDays : 0; // 0..1
-                    return currentX + (ratio * stepVisualWidth);
-                }
-
-                currentX += stepWidthRaw; // 次のステップの開始位置へ
-            }
-            return currentX; // 右端
-        };
-
-
-        // Today位置
-        const todayPos = getDateX_v2(new Date());
-
-        // 月セグメント
-        const months = eachMonthOfInterval({ start: parseISO(minDate), end: parseISO(maxDate) });
+        // 4. 月セグメント (連続した帯にするために、終了を次の月の開始とする)
+        const months = eachMonthOfInterval({ start: minDate, end: maxDate });
         const monthSegments = months.map(m => {
-            // その月の開始日（プロジェクト開始日より前ならプロジェクト開始日）
-            const mStart = startOfMonth(m) < parseISO(minDate) ? parseISO(minDate) : startOfMonth(m);
-            // その月の終了日（プロジェクト終了日より後ならプロジェクト終了日）
-            const mEnd = endOfMonth(m) > parseISO(maxDate) ? parseISO(maxDate) : endOfMonth(m);
+            const mStart = startOfMonth(m) < minDate ? minDate : startOfMonth(m);
+            // その月の終わり＝「次の月の始まり」または「全体の終了」
+            const nextMonthStart = startOfMonth(addMonths(m, 1));
+            const mEnd = nextMonthStart > axisMaxDate ? axisMaxDate : nextMonthStart;
 
-            const x1 = getDateX_v2(mStart);
-            const x2 = getDateX_v2(mEnd); // 月末の座標（ただしステップの右端座標は gap を引く前の raw width で計算した方が contiguous になるか？）
-            // getDateX_v2 はステップ内補間してるので、正確な位置を返すはず。
-            // 月の境界線を描く場合、x2 は次の月の x1 と一致すべき。
-
-            // 補正: 月末の23:59:59的な扱いにするため、mEndがステップの終了日と一致する場合、そのステップの右端(visual width)を返す
-            // あるいは、次の月の開始日(x1 of next month)を使うのが安全。
-            // しかし最後の月の場合は次の月がない。
-
+            const x1 = getDateX(mStart);
+            const x2 = getDateX(mEnd);
             return {
                 label: format(m, 'M月'),
-                endLabel: format(mEnd, 'M/d'),
+                endLabel: format(addDays(mEnd, -1), 'M/d'), // 表示用ラベルは-1日（月内）にする
                 x: x1,
                 width: Math.max(0, x2 - x1)
             };
         });
 
-        // 補正: widthのギャップを埋めるため、width = next.x - curr.x にした方が綺麗に繋がる
-        for (let i = 0; i < monthSegments.length - 1; i++) {
-            monthSegments[i].width = monthSegments[i + 1].x - monthSegments[i].x;
-        }
+        // Today位置
+        const todayX = getDateX(new Date());
 
-
-        return { timelinePhases: phases, totalDurationText, todayPosition: todayPos, monthSegments };
-    }, [bars]);
+        return { timelineData, totalDurationText, monthSegments, timelineScale: { getDateX, todayX } };
+    }, [bars, projectMap]);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
@@ -319,14 +268,15 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                 {/* ヘッダー: プロジェクト基本情報 */}
                 <div className="flex justify-between items-end mb-6 border-b border-gray-200 pb-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">プロジェクト週次報告書</h1>
-                        <p className="text-sm text-gray-500 mt-1">報告日: {format(new Date(), 'yyyy年M月d日')} | 作成者: プロジェクトマネージャー</p>
+                        <h1 className="text-2xl font-bold text-gray-800">プロジェクト進捗比較</h1>
+                        <p className="text-sm text-gray-500 mt-1">報告日: {format(new Date(), 'yyyy年M月d日')} | 複数プロジェクト表示中</p>
                     </div>
                     <div className="text-right flex items-center gap-4">
                         <button
                             onClick={handleGenerate}
                             disabled={isGenerating}
                             className={`px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
+                            title="メインターゲットプロジェクトのレポートを生成します"
                         >
                             {isGenerating ? (
                                 <>
@@ -334,15 +284,12 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
-                                    AI生成中...
+                                    AIレポート生成
                                 </>
                             ) : (
                                 "AIレポート生成"
                             )}
                         </button>
-                        <span className="inline-block bg-green-100 text-green-800 text-sm font-bold px-3 py-1 rounded-full">
-                            Status: On Track (順調)
-                        </span>
                     </div>
                 </div>
 
@@ -356,245 +303,175 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, fetchError =
                 <div className="flex flex-col gap-8">
 
                     {/* 上段: プロセスフローと期間線 */}
-                    <div className="relative">
-                        {/* SVGでプロセス全体を描画 (viewBoxを上に拡張) */}
-                        <div className={`w-full ${timelinePhases.length > 0 ? 'aspect-[20/6]' : 'h-32'}`}>
-                            {timelinePhases.length > 0 ? (
-                                <svg viewBox="0 -85 1000 215" className="w-full h-full">
+                    <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+                        {/* 左側: プロジェクト名カラム */}
+                        {(() => {
+                            const laneHeight = 80;
+                            const headerHeight = 30;
 
-                                    {/* 月ヘッダー (最上部) */}
-                                    <g>
-                                        {monthSegments.map((seg, i) => (
-                                            <g key={i}>
-                                                {/* 月枠 */}
-                                                <rect
-                                                    x={seg.x}
-                                                    y={-85}
-                                                    width={seg.width}
-                                                    height={30}
-                                                    fill="#f9fafb"
-                                                    stroke="#e5e7eb"
-                                                    strokeWidth="1"
-                                                />
-                                                {/* 月ラベル (中央) */}
-                                                <text
-                                                    x={seg.x + seg.width / 2}
-                                                    y={-65}
-                                                    textAnchor="middle"
-                                                    fontSize="14"
-                                                    fontWeight="bold"
-                                                    fill="#374151" /* gray-700 */
-                                                    dominantBaseline="middle"
-                                                >
-                                                    {seg.label}
-                                                </text>
-                                                {/* 月末日 (右下) - 枠の下、Y=-55あたり、ボーダーライン付き */}
-                                                <line x1={seg.x} y1={-55} x2={seg.x + seg.width} y2={-55} stroke="#e5e7eb" strokeWidth="1" />
-                                                <text
-                                                    x={seg.x + seg.width - 5}
-                                                    y={-40}
-                                                    textAnchor="end"
-                                                    fontSize="12"
-                                                    fill="#6b7280" /* gray-500 */
-                                                >
-                                                    {seg.endLabel}
-                                                </text>
-                                                {/* 月の区切り線 */}
-                                                <line x1={seg.x + seg.width} y1={-85} x2={seg.x + seg.width} y2={-35} stroke="#e5e7eb" strokeWidth="1" />
-                                            </g>
-                                        ))}
-                                    </g>
-
-                                    {/* プロジェクト期間テキスト */}
-                                    <text
-                                        x="500"
-                                        y={-15}
-                                        textAnchor="middle"
-                                        fontSize="12"
-                                        fill="#4b5563" /* gray-600 */
-                                        fontWeight="bold"
-                                    >
-                                        {totalDurationText}
-                                    </text>
-
-                                    {(() => {
-                                        let currentX = 0;
-                                        // @ts-ignore
-                                        const totalRatio = timelinePhases.reduce((acc, p) => acc + p.steps.reduce((a, s) => a + s.width, 0), 0);
-                                        const gap = 3;
-                                        const svgWidth = 980;
-                                        const scale = totalRatio > 0 ? svgWidth / totalRatio : 0;
-                                        const height = 60; // 高さを少し調整
-                                        const pointDepth = 15;
-
-                                        return timelinePhases.map((phase, phaseIdx) => {
-                                            const phaseNodes: React.ReactNode[] = [];
-
-                                            // 1. プロセス矢印の描画
-                                            phase.steps.forEach((step, stepIdx) => {
-                                                const width = step.width * scale - gap;
-                                                const isFirst = phaseIdx === 0 && stepIdx === 0;
-
-                                                phaseNodes.push(
-                                                    <g key={`step-${phaseIdx}-${stepIdx}`}>
-                                                        <ChevronPath x={currentX} y={0} width={width} height={height} pointDepth={pointDepth}
-                                                            isFirst={isFirst} color={step.status.color} />
-                                                        {/* テキスト */}
-                                                        <text x={currentX + (width / 2) + (isFirst ? 0 : pointDepth / 2)} y={height / 2}
-                                                            fill="white" fontSize="14" fontWeight="bold" textAnchor="middle"
-                                                            dominantBaseline="middle" className="pointer-events-none">
-                                                            {step.name}
-                                                        </text>
-                                                    </g>
-                                                );
-                                                currentX += width + gap;
-                                            });
-
-                                            // フェーズ間の余白
-                                            currentX += 10;
-                                            return phaseNodes;
-                                        });
-                                    })()}
-
-                                    {/* Today マーカー (z-index的に矢印の上に描画) */}
-                                    {todayPosition !== null && (
-                                        <g>
-                                            <line
-                                                x1={todayPosition}
-                                                y1={-10} // 月ヘッダーには被らないように調整
-                                                x2={todayPosition}
-                                                y2={100}
-                                                stroke="#ef4444"
-                                                strokeWidth="2"
-                                                strokeDasharray="4 3"
-                                            />
-                                            {/* Todayラベル: 矢印の直上 */}
-                                            <rect
-                                                x={todayPosition - 22}
-                                                y={-28}
-                                                width="44"
-                                                height="18"
-                                                rx="3"
-                                                fill="#ef4444"
-                                            />
-                                            <text
-                                                x={todayPosition}
-                                                y={-16}
-                                                textAnchor="middle"
-                                                fontSize="10"
-                                                fontWeight="bold"
-                                                fill="white"
-                                            >
-                                                Today
-                                            </text>
-                                        </g>
+                            return (
+                                <div className="flex-none w-48 bg-white border-r border-gray-200 flex flex-col">
+                                    {/* ヘッダー高さ合わせ */}
+                                    <div className="bg-gray-50 border-b border-gray-200 flex items-center justify-center font-bold text-gray-600 text-xs" style={{ height: headerHeight }}>
+                                        プロジェクト名
+                                    </div>
+                                    {/* プロジェクト名リスト */}
+                                    {timelineData.map((project) => (
+                                        <div
+                                            key={project.projectId}
+                                            className="flex items-center px-4 border-b border-gray-100 box-border"
+                                            style={{ height: laneHeight }}
+                                        >
+                                            <span className="text-sm font-bold text-gray-800 line-clamp-2" title={project.projectName}>
+                                                {project.projectName}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    {/* データがない場合のプレースホルダー */}
+                                    {timelineData.length === 0 && (
+                                        <div className="h-32"></div>
                                     )}
-
-                                    {/* 期間線 (矢印の下) の描画レイヤー */}
-                                    {(() => {
-                                        let currentX = 0;
-                                        // @ts-ignore
-                                        const totalRatio = timelinePhases.reduce((acc, p) => acc + p.steps.reduce((a, s) => a + s.width, 0), 0);
-                                        const gap = 3;
-                                        const svgWidth = 980;
-                                        const scale = totalRatio > 0 ? svgWidth / totalRatio : 0;
-                                        const startY = 80;
-
-                                        return timelinePhases.map((phase, phaseIdx) => (
-                                            <g key={`duration-${phaseIdx}`}>
-                                                {phase.durations.map((d, i) => {
-                                                    const width = d.span * scale - (i < phase.durations.length - 1 ? gap : 0);
-                                                    const lineStart = currentX + 5;
-                                                    const lineEnd = currentX + width - 5;
-                                                    const el = (
-                                                        <g key={i}>
-                                                            <line x1={lineStart} y1={startY} x2={lineEnd} y2={startY} stroke="#333" strokeWidth="1"
-                                                                markerEnd="url(#arrowhead)" markerStart="url(#arrowhead-start)" />
-                                                            <text x={currentX + width / 2} y={startY + 15} textAnchor="middle" fontSize="12"
-                                                                fill="#333" fontWeight="500">
-                                                                {d.label}
-                                                            </text>
-                                                        </g>
-                                                    );
-                                                    currentX += width + (i < phase.durations.length - 1 ? gap : 0);
-                                                    return el;
-                                                })}
-                                                {(() => {
-                                                    currentX += 10;
-                                                    return null;
-                                                })()}
-                                            </g>
-                                        ));
-                                    })()}
-
-                                    <defs>
-                                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5"
-                                            orient="auto">
-                                            <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
-                                        </marker>
-                                        <marker id="arrowhead-start" markerWidth="10" markerHeight="7" refX="1" refY="3.5"
-                                            orient="auto">
-                                            <polygon points="10 0, 0 3.5, 10 7" fill="#333" />
-                                        </marker>
-                                    </defs>
-                                </svg>
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-gray-400 border border-dashed rounded">
-                                    カテゴリデータがありません
                                 </div>
-                            )}
-                        </div>
+                            );
+                        })()}
 
-                        {/* 凡例 (少し下げて配置) */}
-                        <div className="flex justify-center gap-6 mt-2 text-sm">
-                            {Object.values(STATUS).map((status) => (
-                                <div key={status.label} className="flex items-center gap-2">
-                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: status.color }}></div>
-                                    <span>{status.label}</span>
+                        {/* 右側: SVGタイムライン */}
+                        <div className="flex-1 overflow-x-auto bg-white relative">
+                            {(() => {
+                                const laneHeight = 80;
+                                const headerHeight = 30;
+                                const svgHeight = headerHeight + (timelineData.length * laneHeight) + 30;
+
+                                return timelineData.length > 0 ? (
+                                    <svg viewBox={`0 0 1000 ${svgHeight}`} className="w-full" style={{ minHeight: svgHeight, minWidth: '800px' }}>
+                                        {/* 月ヘッダー (最上部) */}
+                                        <g transform="translate(0, 0)">
+                                            {monthSegments.map((seg, i) => (
+                                                <g key={i}>
+                                                    <rect x={seg.x} y={0} width={seg.width} height={headerHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
+                                                    <text x={seg.x + seg.width / 2} y={20} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#374151">
+                                                        {seg.label}
+                                                    </text>
+                                                </g>
+                                            ))}
+                                        </g>
+
+                                        {/* プロジェクトごとのレーン */}
+                                        {timelineData.map((project, pIdx) => {
+                                            const yOffset = headerHeight + (pIdx * laneHeight); // 基準位置
+                                            const pointDepth = 15;
+                                            const barHeight = 40;
+                                            const barY = 20; // レーン内のバーのY位置 (中央配置: (80-40)/2 = 20)
+
+                                            return (
+                                                <g key={project.projectId} transform={`translate(0, ${yOffset})`}>
+                                                    {/* 区切り線 (下部) */}
+                                                    <line x1={0} y1={laneHeight} x2={1000} y2={laneHeight} stroke="#f3f4f6" strokeWidth="1" />
+
+                                                    {/* 矢羽根列 */}
+                                                    <g transform={`translate(0, ${barY})`}>
+                                                        {project.steps.map((step, sIdx) => {
+                                                            const isFirst = sIdx === 0;
+                                                            return (
+                                                                <g key={sIdx}>
+                                                                    <ChevronPath
+                                                                        x={step.x}
+                                                                        y={0}
+                                                                        width={step.width}
+                                                                        height={barHeight}
+                                                                        pointDepth={pointDepth}
+                                                                        isFirst={isFirst} // 形状的にはFirstだが、日付配置なので左端が垂直になるだけ
+                                                                        color={step.status.color}
+                                                                    />
+                                                                    {step.width > 30 && (
+                                                                        <text
+                                                                            x={step.x + step.width / 2}
+                                                                            y={barHeight / 2}
+                                                                            fill="white"
+                                                                            fontSize="12"
+                                                                            fontWeight="bold"
+                                                                            textAnchor="middle"
+                                                                            dominantBaseline="middle"
+                                                                            style={{ pointerEvents: 'none' }}
+                                                                        >
+                                                                            {step.name}
+                                                                        </text>
+                                                                    )}
+                                                                </g>
+                                                            );
+                                                        })}
+                                                    </g>
+                                                </g>
+                                            );
+                                        })}
+
+                                        {/* Today マーカー */}
+                                        {timelineScale && (
+                                            <g>
+                                                <line
+                                                    x1={timelineScale.todayX}
+                                                    y1={headerHeight}
+                                                    x2={timelineScale.todayX}
+                                                    y2={svgHeight}
+                                                    stroke="#ef4444"
+                                                    strokeWidth="2"
+                                                    strokeDasharray="4 3"
+                                                />
+                                                <text x={timelineScale.todayX} y={12} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ef4444">
+                                                    Today
+                                                </text>
+                                            </g>
+                                        )}
+                                    </svg>
+                                ) : (
+                                    <div className="flex items-center justify-center h-32 text-gray-400">
+                                        データがありません
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+
+                    {/* 凡例 */}
+                    <div className="flex justify-center gap-6 mt-2 text-sm">
+                        {Object.values(STATUS).map((status) => (
+                            <div key={status.label} className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded" style={{ backgroundColor: status.color }}></div>
+                                <span>{status.label}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* 下段: 詳細報告ボックス (Grid Layout) - メインプロジェクトのみ */}
+                    <div className="mt-8 border-t pt-8">
+                        <h2 className="text-xl font-bold mb-4">詳細レポート ({projectMap.get(Number(projectIdentifier) || 0)?.name || projectIdentifier})</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                            {displaySections.map((section) => (
+                                <div key={section.id} className="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col h-full">
+                                    <div className={`${section.headerColor} p-3 text-white text-md font-bold text-center flex items-center justify-center min-h-[50px]`}>
+                                        {section.title}
+                                    </div>
+                                    <div className="p-5 bg-white flex-1">
+                                        <ul className="space-y-4">
+                                            {section.items.map((item, i) => (
+                                                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                                    <span className="mt-1.5 w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>
+                                                    <div className="flex-1">
+                                                        <div className={item.type === 'highlight' ? "font-bold text-blue-800" : ""}>{item.text}</div>
+                                                        {item.subText && <div className="text-xs text-gray-500 mt-1 ml-1">{item.subText}</div>}
+                                                    </div>
+                                                    {item.badge && (
+                                                        <span className={`text-xs px-2 py-0.5 rounded border ${item.badgeColor} flex-shrink-0`}>
+                                                            {item.badge}
+                                                        </span>
+                                                    )}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
                                 </div>
                             ))}
                         </div>
-                        {/* totalDurationText は SVG内に移動したため削除 */}
-                    </div>
-
-                    {/* 下段: 詳細報告ボックス (Grid Layout) */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                        {displaySections.map((section) => (
-                            <div key={section.id}
-                                className="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col h-full">
-
-                                {/* ヘッダー */}
-                                <div className={`${section.headerColor} p-3 text-white text-md font-bold text-center flex items-center justify-center min-h-[50px]`}>
-                                    {section.title}
-                                </div>
-
-                                {/* 内容 */}
-                                <div className="p-5 bg-white flex-1">
-                                    <ul className="space-y-4">
-                                        {section.items.map((item, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                                                <span className="mt-1.5 w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>
-                                                <div className="flex-1">
-                                                    <div className={item.type === 'highlight' ? "font-bold text-blue-800" : ""}>
-                                                        {item.text}
-                                                    </div>
-                                                    {item.subText && (
-                                                        <div className="text-xs text-gray-500 mt-1 ml-1">
-                                                            {item.subText}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {item.badge && (
-                                                    <span className={`text-xs px-2 py-0.5 rounded border ${item.badgeColor} flex-shrink-0`}>
-                                                        {item.badge}
-                                                    </span>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        ))}
                     </div>
 
                 </div>

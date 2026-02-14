@@ -22,6 +22,8 @@ type UIStore = {
   currentProjectIdentifier: string;
   setRootProjectIdentifier: (value: string) => void;
   setCurrentProjectIdentifier: (value: string) => void;
+  selectedProjectIdentifiers: string[];
+  setSelectedProjectIdentifiers: (value: string[]) => void;
 };
 
 const currentMonth = new Date().toISOString().slice(0, 7);
@@ -45,6 +47,8 @@ export const useUiStore = create<UIStore>((set) => ({
   setHoveredBarKey: (value) => set({ hoveredBarKey: value }),
   rootProjectIdentifier: initialProjectIdentifier,
   currentProjectIdentifier: initialProjectIdentifier,
+  selectedProjectIdentifiers: initialProjectIdentifier ? [initialProjectIdentifier] : [],
   setRootProjectIdentifier: (value) => set({ rootProjectIdentifier: value }),
-  setCurrentProjectIdentifier: (value) => set({ currentProjectIdentifier: value })
+  setCurrentProjectIdentifier: (value) => set({ currentProjectIdentifier: value }),
+  setSelectedProjectIdentifiers: (value) => set({ selectedProjectIdentifiers: value })
 }));
