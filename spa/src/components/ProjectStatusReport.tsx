@@ -497,16 +497,16 @@ export const ProjectStatusReport = ({ bars = [], projectIdentifier, availablePro
                                                     strokeDasharray="4 3"
                                                 />
                                                 <rect
-                                                    x={timelineScale.todayX - 18}
+                                                    x={timelineScale.todayX - 33}
                                                     y={2}
-                                                    width={36}
+                                                    width={66}
                                                     height={16}
                                                     rx={2}
                                                     fill="white"
                                                     fillOpacity={0.8}
                                                 />
                                                 <text x={timelineScale.todayX} y={12} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ef4444">
-                                                    Today
+                                                    {format(new Date(), 'M/d')}
                                                 </text>
                                             </g>
                                         )}
