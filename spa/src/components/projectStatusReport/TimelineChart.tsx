@@ -244,7 +244,7 @@ function TimelineSvg({
   todayX,
   onStepClick
 }: Omit<TimelineChartProps, 'containerRef'> & { onStepClick: (issueId?: number, title?: string) => void }) {
-  const svgHeight = headerHeight + timelineData.length * laneHeight + 30;
+  const svgHeight = headerHeight + timelineData.length * laneHeight;
 
   if (timelineData.length === 0) {
     return <div className="flex items-center justify-center h-32 text-gray-400">データがありません</div>;
