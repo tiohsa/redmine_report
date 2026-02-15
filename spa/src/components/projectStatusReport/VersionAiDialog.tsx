@@ -36,6 +36,24 @@ const defaultWeek = () => {
   return { from: toDateInput(monday), to: toDateInput(sunday) };
 };
 
+const normalizeMarkdown = (markdown: string) =>
+  markdown
+    .split('\n')
+    .filter((line) => line.trim() !== '')
+    .join('\n')
+    .trim();
+
+const isoWeekKey = (dateInput: string) => {
+  const date = new Date(`${dateInput}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((utcDate.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${utcDate.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+};
+
 export const VersionAiDialog = ({
   open,
   projectIdentifier,
@@ -51,6 +69,7 @@ export const VersionAiDialog = ({
   const [prepared, setPrepared] = useState<WeeklyPrepareResponse | null>(null);
   const [promptText, setPromptText] = useState('');
   const [generated, setGenerated] = useState<WeeklyGenerateResponse | null>(null);
+  const [editableMarkdown, setEditableMarkdown] = useState('');
   const [loadingPrepare, setLoadingPrepare] = useState(false);
   const [loadingGenerate, setLoadingGenerate] = useState(false);
   const [loadingValidate, setLoadingValidate] = useState(false);
@@ -66,6 +85,7 @@ export const VersionAiDialog = ({
     setPrepared(null);
     setPromptText('');
     setGenerated(null);
+    setEditableMarkdown('');
     setError(null);
     setMessage(null);
     weeklyDestinationStorage.setLastVersionId(projectId, versionId);
@@ -76,12 +96,12 @@ export const VersionAiDialog = ({
 
   const saveEnabled = useMemo(() => {
     return (
-      !!generated?.markdown &&
+      !!editableMarkdown.trim() &&
       Number.isFinite(destinationIdNumber) &&
       destinationIdNumber > 0 &&
       destinationValid
     );
-  }, [generated?.markdown, destinationIdNumber, destinationValid]);
+  }, [editableMarkdown, destinationIdNumber, destinationValid]);
 
   const currentStep = useMemo(() => {
     if (generated) return 4;
@@ -89,15 +109,6 @@ export const VersionAiDialog = ({
     if (destinationValid) return 2;
     return 1;
   }, [destinationValid, prepared, generated]);
-
-  const previewMarkdown = useMemo(() => {
-    if (!generated?.markdown) return '';
-    return generated.markdown
-      .split('\n')
-      .filter((line) => line.trim() !== '')
-      .join('\n')
-      .trim();
-  }, [generated?.markdown]);
 
   if (!open) return null;
 
@@ -134,6 +145,7 @@ export const VersionAiDialog = ({
     setLoadingPrepare(true);
     setPrepared(null);
     setGenerated(null);
+    setEditableMarkdown('');
     setError(null);
     setMessage(null);
     try {
@@ -157,6 +169,7 @@ export const VersionAiDialog = ({
   const submitToLlm = async () => {
     setLoadingGenerate(true);
     setGenerated(null);
+    setEditableMarkdown('');
     setError(null);
     setMessage(null);
     try {
@@ -170,6 +183,7 @@ export const VersionAiDialog = ({
         prompt: promptText
       });
       setGenerated(result);
+      setEditableMarkdown(normalizeMarkdown(result.markdown));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -178,7 +192,12 @@ export const VersionAiDialog = ({
   };
 
   const saveReport = async () => {
-    if (!generated) return;
+    const week = generated?.header_preview.week || prepared?.header_preview.week || isoWeekKey(weekFrom);
+    const generatedAt = generated?.header_preview.generated_at || prepared?.header_preview.generated_at || new Date().toISOString();
+    if (!week) {
+      setError('週情報を計算できませんでした。開始日を確認してください。');
+      return;
+    }
     setLoadingSave(true);
     setError(null);
     setMessage(null);
@@ -188,10 +207,10 @@ export const VersionAiDialog = ({
         version_id: versionId,
         week_from: weekFrom,
         week_to: weekTo,
-        week: generated.header_preview.week,
+        week,
         destination_issue_id: destinationIdNumber,
-        markdown: generated.markdown,
-        generated_at: generated.header_preview.generated_at
+        markdown: editableMarkdown,
+        generated_at: generatedAt
       });
       setMessage(`レポートを保存しました (revision: ${saveResult.revision})`);
     } catch (e) {
@@ -407,22 +426,19 @@ export const VersionAiDialog = ({
               </button>
             </div>
             <div className="bg-slate-50 rounded-2xl p-6 min-h-[120px] relative animate-in slide-in-from-bottom-2 duration-500">
-              {generated ? (
-                <div className="prose prose-sm prose-slate max-w-none text-xs text-slate-700 leading-relaxed font-medium">
-                  <div className="mb-4 flex items-center gap-2 text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-2">
-                    <svg className="w-3h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    {generated.header_preview.week} {generated.header_preview.generated_at}
-                  </div>
-                  <pre className="whitespace-pre-wrap font-sans bg-transparent p-0 m-0 border-none">{previewMarkdown}</pre>
+              <div className="prose prose-sm prose-slate max-w-none text-xs text-slate-700 leading-relaxed font-medium">
+                <div className="mb-4 flex items-center gap-2 text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-2">
+                  {(generated?.header_preview.week || prepared?.header_preview.week || isoWeekKey(weekFrom) || '-')}{' '}
+                  {(generated?.header_preview.generated_at || prepared?.header_preview.generated_at || '-')}
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-24 text-slate-400 gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-slate-100 flex items-center justify-center">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                  </div>
-                  <span className="text-[10px] font-bold tracking-wider uppercase">レポート未生成</span>
-                </div>
-              )}
+                <textarea
+                  aria-label="生成プレビュー本文"
+                  placeholder="ここにレポート本文を直接入力できます（LLM未実行でも保存可能）"
+                  className="w-full min-h-[220px] whitespace-pre-wrap rounded-xl bg-white border border-slate-200 p-3 text-xs leading-relaxed font-sans focus:ring-2 focus:ring-violet-500/20"
+                  value={editableMarkdown}
+                  onChange={(e) => setEditableMarkdown(e.target.value)}
+                />
+              </div>
             </div>
           </section>
 

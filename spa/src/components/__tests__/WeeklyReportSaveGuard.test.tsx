@@ -27,19 +27,7 @@ describe('Weekly report save button guards', () => {
     window.localStorage.clear();
   });
 
-  it('keeps save button disabled until generation and validation succeed', async () => {
-    prepareWeeklyPromptMock.mockResolvedValue({
-      header_preview: { project_id: 1, version_id: 2, week: '2026-W07', generated_at: '2026-02-15T10:00:00+09:00' },
-      kpi: { completed: 1, wip: 2, overdue: 0, high_priority_open: 1 },
-      prompt: 'prompt text',
-      tickets: []
-    });
-    generateWeeklyReportMock.mockResolvedValue({
-      header_preview: { project_id: 1, version_id: 2, week: '2026-W07', generated_at: '2026-02-15T10:00:00+09:00' },
-      kpi: { completed: 1, wip: 2, overdue: 0, high_priority_open: 1 },
-      markdown: 'generated markdown',
-      tickets: []
-    });
+  it('enables save after destination validation and manual markdown input without LLM generation', async () => {
     validateWeeklyDestinationMock.mockResolvedValue({ valid: true, reason_code: 'OK' });
 
     render(
@@ -53,19 +41,15 @@ describe('Weekly report save button guards', () => {
       />
     );
 
-    const saveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement;
+    const saveButton = screen.getByRole('button', { name: 'レポートを保存' }) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(true);
 
-    fireEvent.change(screen.getByPlaceholderText('Destination Issue ID'), { target: { value: '321' } });
-    fireEvent.click(screen.getByRole('button', { name: '検証' }));
+    fireEvent.change(screen.getByPlaceholderText('Issue ID'), { target: { value: '321' } });
+    fireEvent.click(screen.getByRole('button', { name: '宛先を確認' }));
     await waitFor(() => expect(validateWeeklyDestinationMock).toHaveBeenCalledTimes(1));
 
     expect(saveButton.disabled).toBe(true);
-
-    fireEvent.click(screen.getByRole('button', { name: '開始（プロンプト作成）' }));
-    await waitFor(() => expect(prepareWeeklyPromptMock).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole('button', { name: 'LLMへ送信' }));
-    await waitFor(() => expect(generateWeeklyReportMock).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText('生成プレビュー本文'), { target: { value: 'manual markdown' } });
 
     expect(saveButton.disabled).toBe(false);
   });
