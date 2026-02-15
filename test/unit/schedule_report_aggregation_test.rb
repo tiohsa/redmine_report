@@ -120,7 +120,7 @@ class ScheduleReportAggregationTest < ActiveSupport::TestCase
 
   def test_aggregator_creates_separate_bars_per_versioned_ticket_in_same_project
     issue_v1 = DummyIssue.new(
-      id: 1,
+      id: 100,
       subject: 'Ticket A',
       project_id: 1,
       category_id: nil,
@@ -133,7 +133,7 @@ class ScheduleReportAggregationTest < ActiveSupport::TestCase
       root_id: 100
     )
     issue_v2 = DummyIssue.new(
-      id: 2,
+      id: 101,
       subject: 'Ticket B',
       project_id: 1,
       category_id: nil,
@@ -167,6 +167,66 @@ class ScheduleReportAggregationTest < ActiveSupport::TestCase
     result = aggregator.call
     assert_equal 2, result[:bars].size
     assert_equal ['Ticket A', 'Ticket B'], result[:bars].map { |bar| bar[:category_name] }.sort
+  end
+
+  def test_aggregator_converts_child_candidate_to_root_issue
+    child_issue = DummyIssue.new(
+      id: 1,
+      subject: 'Child Ticket',
+      project_id: 1,
+      category_id: nil,
+      category: nil,
+      start_date: Date.today,
+      due_date: Date.today + 2,
+      done_ratio: 20,
+      fixed_version: DummyVersion.new(1, 'v1', 'open'),
+      closed: false,
+      root_id: 100
+    )
+    root_issue = DummyIssue.new(
+      id: 100,
+      subject: 'Root Ticket',
+      project_id: 1,
+      category_id: nil,
+      category: nil,
+      start_date: Date.today - 1,
+      due_date: Date.today + 3,
+      done_ratio: 40,
+      fixed_version: nil,
+      closed: false,
+      root_id: 100
+    )
+
+    visibility_scope = Object.new
+    visibility_scope.define_singleton_method(:select_visible_top_level_parents) do |candidates|
+      RedmineReport::ScheduleReport::VisibilityScope::SelectionResult.new(
+        display_root_issue_ids: candidates.map(&:root_id).uniq,
+        total_candidates: candidates.size,
+        excluded_not_visible: 0,
+        excluded_invalid_hierarchy: 0
+      )
+    end
+
+    scope = DummyScope.new([child_issue])
+    aggregator = RedmineReport::ScheduleReport::Aggregator.new(
+      issues: scope,
+      project: build_project,
+      filters: build_filters,
+      visibility_scope: visibility_scope
+    )
+
+    where_stub = lambda do |conditions|
+      assert_equal [100], Array(conditions[:id]).sort
+      [root_issue]
+    end
+
+    Issue.stub(:where, where_stub) do
+      result = aggregator.call
+      assert_equal 1, result[:bars].size
+      assert_equal 'Root Ticket', result[:bars].first[:category_name]
+      assert_equal 'Root Ticket', result[:bars].first[:ticket_subject]
+      refute_includes result[:bars].map { |bar| bar[:ticket_subject] }, 'Child Ticket'
+    end
   end
 
   def test_snapshot_builder_applies_limits

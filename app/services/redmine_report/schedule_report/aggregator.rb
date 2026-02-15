@@ -16,8 +16,8 @@ module RedmineReport
       def call
         candidates = selectable_candidates
         selection = @visibility_scope.select_visible_top_level_parents(candidates)
-        selected_candidates = filter_visible_candidates(candidates, selection.display_root_issue_ids)
-        bars = build_bars(selected_candidates)
+        display_issues = resolve_display_issues(candidates, selection.display_root_issue_ids)
+        bars = build_bars(display_issues)
         filtered_rows = filter_rows_with_ancestors(build_rows, bars)
 
         {
@@ -39,9 +39,24 @@ module RedmineReport
         open_version_candidates(apply_status_scope(@issues))
       end
 
-      def filter_visible_candidates(candidates, display_root_issue_ids)
+      def resolve_display_issues(candidates, display_root_issue_ids)
         visible_root_ids = display_root_issue_ids.to_set
-        candidates.select { |issue| visible_root_ids.include?(issue_root_id(issue)) }
+        root_issue_ids_in_order = candidates
+                                  .map { |issue| issue_root_id(issue) }
+                                  .select { |root_id| visible_root_ids.include?(root_id) }
+                                  .uniq
+        candidate_issue_map = candidates.index_by(&:id)
+        missing_root_ids = root_issue_ids_in_order.reject { |root_id| candidate_issue_map.key?(root_id) }
+        fetched_roots = fetch_root_issues(missing_root_ids)
+
+        root_issue_ids_in_order.filter_map do |root_id|
+          candidate_issue_map[root_id] || fetched_roots[root_id]
+        end
+      end
+
+      def fetch_root_issues(root_issue_ids)
+        return {} if root_issue_ids.empty?
+        Issue.where(id: root_issue_ids).index_by(&:id)
       end
 
       def filter_rows_with_ancestors(rows, bars)
