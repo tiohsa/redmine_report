@@ -25,6 +25,7 @@ Redmine::Plugin.register :redmine_report do
                  generate
                  weekly_versions
                  weekly_validate_destination
+                 weekly_prepare
                  weekly_generate
                  weekly_save
                  bundle_js

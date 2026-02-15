@@ -50,6 +50,29 @@ export type WeeklyGenerateResponse = {
     high_priority_open: number;
   };
   markdown: string;
+  llm_response?: {
+    major_achievements?: string[];
+    next_actions?: string[];
+    risks?: string[];
+    decisions?: string[];
+  };
+  tickets: WeeklyTicketChange[];
+};
+
+export type WeeklyPrepareResponse = {
+  header_preview: {
+    project_id: number;
+    version_id: number;
+    week: string;
+    generated_at: string;
+  };
+  kpi: {
+    completed: number;
+    wip: number;
+    overdue: number;
+    high_priority_open: number;
+  };
+  prompt: string;
   tickets: WeeklyTicketChange[];
 };
 

@@ -132,7 +132,7 @@ export function TimelineChart({
                   <button
                     type="button"
                     aria-label={`AI分析を開始 ${project.versionName}`}
-                    className="h-6 w-6 rounded-md border border-indigo-200 text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                    className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-indigo-200 hover:bg-indigo-50/30 transition-all duration-300 shadow-sm hover:shadow-indigo-100/50 cursor-pointer overflow-hidden relative"
                     onClick={() =>
                       onVersionAiClick?.({
                         versionId: project.versionId as number,
@@ -142,7 +142,30 @@ export function TimelineChart({
                       })
                     }
                   >
-                    AI
+                    <svg
+                      className="w-4 h-4 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <defs>
+                        <linearGradient id={`ai-grad-${project.versionId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#6366f1" />
+                          <stop offset="100%" stopColor="#a855f7" />
+                        </linearGradient>
+                      </defs>
+                      <path
+                        d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z"
+                        fill={`url(#ai-grad-${project.versionId})`}
+                      />
+                      <path
+                        d="M6 4L7 5M17 19L18 20M4 6L6 7M18 4L20 5M6 20L4 18M20 18L18 19"
+                        stroke={`url(#ai-grad-${project.versionId})`}
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        opacity="0.5"
+                      />
+                    </svg>
                   </button>
                 </div>
               ) : (

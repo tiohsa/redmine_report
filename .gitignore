@@ -6,7 +6,7 @@ log/
 tmp/
 *.gem
 vendor/bundle/
-
+.ruby-version
 # Node / SPA
 node_modules/
 spa/node_modules/

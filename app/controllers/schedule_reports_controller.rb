@@ -108,6 +108,20 @@ class ScheduleReportsController < ApplicationController
     render json: { code: 'UPSTREAM_FAILURE', message: e.message, retryable: true }, status: :service_unavailable
   end
 
+  def weekly_prepare
+    service = RedmineReport::WeeklyReport::GenerateService.new(
+      project: @project,
+      user: User.current
+    )
+    result = service.prepare(weekly_payload)
+    render json: result
+  rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
+    render json: { code: 'INVALID_INPUT', message: e.message }, status: :unprocessable_entity
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] weekly_prepare failed: #{e.class}: #{e.message}")
+    render json: { code: 'UPSTREAM_FAILURE', message: e.message, retryable: true }, status: :service_unavailable
+  end
+
   def weekly_save
     service = RedmineReport::WeeklyReport::SaveService.new(
       project: @project,

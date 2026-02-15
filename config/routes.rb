@@ -13,6 +13,9 @@ post '/projects/:project_id/schedule_report/weekly/destination/validate',
 post '/projects/:project_id/schedule_report/weekly/generate',
      to: 'schedule_reports#weekly_generate',
      as: 'project_schedule_report_weekly_generate'
+post '/projects/:project_id/schedule_report/weekly/prepare',
+     to: 'schedule_reports#weekly_prepare',
+     as: 'project_schedule_report_weekly_prepare'
 post '/projects/:project_id/schedule_report/weekly/save',
      to: 'schedule_reports#weekly_save',
      as: 'project_schedule_report_weekly_save'

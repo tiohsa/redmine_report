@@ -8,6 +8,7 @@ export type ReportFilterSet = {
 import type {
   DestinationValidationResult,
   WeeklyGenerateResponse,
+  WeeklyPrepareResponse,
   WeeklySaveResponse,
   WeeklyVersionItem
 } from '../types/weeklyReport';
@@ -198,6 +199,7 @@ export const generateWeeklyReport = async (
     week_to: string;
     top_topics_limit?: number;
     top_tickets_limit?: number;
+    prompt?: string;
   }
 ): Promise<WeeklyGenerateResponse> => {
   const path = `/projects/${projectIdentifier}/schedule_report/weekly/generate`;
@@ -214,6 +216,33 @@ export const generateWeeklyReport = async (
     throw await parseWeeklyError(res, `Failed to generate weekly report: ${res.status}`);
   }
   return (await res.json()) as WeeklyGenerateResponse;
+};
+
+export const prepareWeeklyPrompt = async (
+  projectIdentifier: string,
+  payload: {
+    project_id: number;
+    version_id: number;
+    week_from: string;
+    week_to: string;
+    top_topics_limit?: number;
+    top_tickets_limit?: number;
+  }
+): Promise<WeeklyPrepareResponse> => {
+  const path = `/projects/${projectIdentifier}/schedule_report/weekly/prepare`;
+  const res = await fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) {
+    throw await parseWeeklyError(res, `Failed to prepare weekly prompt: ${res.status}`);
+  }
+  return (await res.json()) as WeeklyPrepareResponse;
 };
 
 export const saveWeeklyReport = async (

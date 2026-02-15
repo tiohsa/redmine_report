@@ -317,17 +317,33 @@ export const ProjectStatusReport = ({
                             disabled={isGenerating}
                             aria-label="AIレポート生成"
                             title="AIレポート生成"
-                            className="p-2.5 bg-[#4f46e5] text-white rounded-lg hover:bg-[#4338ca] transition-all flex items-center justify-center shadow-lg shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="group p-2.5 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative overflow-hidden"
                         >
                             {isGenerating ? (
-                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                             ) : (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
-                                </svg>
+                                <>
+                                    <svg className="w-5 h-5 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <defs>
+                                            <linearGradient id="ai-grad-main" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                <stop offset="0%" stopColor="#6366f1" />
+                                                <stop offset="100%" stopColor="#a855f7" />
+                                            </linearGradient>
+                                            <filter id="ai-glow-main" x="-20%" y="-20%" width="140%" height="140%">
+                                                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                            </filter>
+                                        </defs>
+                                        <g filter="url(#ai-glow-main)">
+                                            <path d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z" fill="url(#ai-grad-main)" />
+                                            <path d="M5 3L6 5M18 19L19 21M3 5L5 6M19 3L21 5M5 21L3 19M21 17L19 18" stroke="url(#ai-grad-main)" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
+                                        </g>
+                                    </svg>
+                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                </>
                             )}
                         </button>
                     </div>

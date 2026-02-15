@@ -9,10 +9,40 @@ module RedmineReport
         @validator = RequestValidator.new
       end
 
+      def prepare(payload)
+        validated = @validator.validate_generate!(payload)
+        ensure_project!(validated[:project_id])
+        version = find_version!(validated[:version_id])
+
+        context = ContextBuilder.new(
+          project: @project,
+          version: version,
+          week_from: validated[:week_from],
+          week_to: validated[:week_to],
+          top_tickets_limit: validated[:top_tickets_limit]
+        ).call
+
+        llm = RedmineReport::Llm::WeeklyMarkdownGenerator.new
+        prompt = llm.prepare(context: context, top_topics_limit: validated[:top_topics_limit])
+
+        {
+          header_preview: {
+            project_id: @project.id,
+            version_id: version.id,
+            week: week_key(validated[:week_from]),
+            generated_at: Time.current.iso8601
+          },
+          kpi: context[:kpi],
+          prompt: prompt,
+          tickets: context[:tickets]
+        }
+      end
+
       def call(payload)
         validated = @validator.validate_generate!(payload)
         ensure_project!(validated[:project_id])
         version = find_version!(validated[:version_id])
+        @requested_prompt = payload[:prompt].to_s.strip.presence
 
         context = ContextBuilder.new(
           project: @project,
@@ -31,6 +61,7 @@ module RedmineReport
           },
           kpi: context[:kpi],
           markdown: build_markdown(context, validated[:top_topics_limit]),
+          llm_response: @last_sections || {},
           tickets: context[:tickets]
         }
       end
@@ -54,6 +85,22 @@ module RedmineReport
 
       def build_markdown(context, limit)
         week = week_key(context[:week][:from])
+        header = "[Weekly][#{week}] project_id=#{context[:project][:id]} version_id=#{context[:version][:id]} generated_at=#{Time.current.strftime('%Y-%m-%dT%H:%M:%S%:z')}"
+        llm_result = generate_with_llm(context, limit, @requested_prompt)
+        @last_sections = llm_result[:sections]
+        llm_markdown = llm_result[:markdown]
+        return llm_markdown if llm_markdown.start_with?('[Weekly][')
+
+        "#{header}\n#{llm_markdown}".strip
+      rescue StandardError => e
+        Rails.logger.warn("[schedule_report] weekly LLM fallback: #{e.class}: #{e.message}")
+        markdown, sections = fallback_markdown(context, limit)
+        @last_sections = sections
+        markdown
+      end
+
+      def fallback_markdown(context, limit)
+        week = week_key(context[:week][:from])
         generated_at = Time.current.strftime('%Y-%m-%dT%H:%M:%S%:z')
         tickets = context[:tickets]
         achievements = tickets.select { |t| t[:layer] == 'A_WEEKLY_CHANGE' }.first(limit)
@@ -61,7 +108,14 @@ module RedmineReport
           t[:layer] == 'B_CONTINUOUS_RISK' || (t[:due_date].present? && t[:due_date] < Date.current)
         end.first(limit)
 
-        <<~MD
+        sections = {
+          major_achievements: achievements.map { |t| "##{t[:id]} #{t[:title]}" },
+          next_actions: achievements.map { |t| "##{t[:id]} #{next_action(t)}" },
+          risks: risks.map { |t| "##{t[:id]} #{risk_line(t)}" },
+          decisions: achievements.map { |t| "##{t[:id]} 継続対応（根拠: #{evidence_excerpt(t)})" }
+        }
+
+        markdown = <<~MD
           [Weekly][#{week}] project_id=#{context[:project][:id]} version_id=#{context[:version][:id]} generated_at=#{generated_at}
           - 完了: #{context[:kpi][:completed]}
           - WIP: #{context[:kpi][:wip]}
@@ -80,6 +134,16 @@ module RedmineReport
           ## 決定事項
           #{list_or_placeholder(achievements) { |t| "- ##{t[:id]} 継続対応（根拠: #{evidence_excerpt(t)})" }}
         MD
+
+        [markdown, sections]
+      end
+
+      def generate_with_llm(context, limit, prompt)
+        RedmineReport::Llm::WeeklyMarkdownGenerator.new.call(
+          context: context,
+          top_topics_limit: limit,
+          prompt: prompt
+        )
       end
 
       def list_or_placeholder(items)
@@ -103,6 +167,7 @@ module RedmineReport
 
         comment[:excerpt].to_s
       end
+
     end
   end
 end
