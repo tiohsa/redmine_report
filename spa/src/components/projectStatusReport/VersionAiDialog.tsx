@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   WeeklyApiError,
   generateWeeklyReport,
@@ -77,6 +77,29 @@ export const VersionAiDialog = ({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const validateDestinationById = useCallback(async (destinationId: number) => {
+    setLoadingValidate(true);
+    setError(null);
+    setMessage(null);
+    setValidation(null);
+
+    try {
+      const result = await validateWeeklyDestination(projectIdentifier, {
+        project_id: projectId,
+        version_id: versionId,
+        destination_issue_id: destinationId
+      });
+      setValidation(result);
+      if (result.valid) setMessage('宛先チケットを確認しました。');
+    } catch (e) {
+      const err = e as WeeklyApiError;
+      setValidation({ valid: false, reason_code: err.code || 'INVALID_INPUT', reason_message: err.message });
+      setError(err.message);
+    } finally {
+      setLoadingValidate(false);
+    }
+  }, [projectIdentifier, projectId, versionId]);
+
   useEffect(() => {
     if (!open) return;
     const mapped = weeklyDestinationStorage.getDestinationIssueId(projectId, versionId);
@@ -89,7 +112,10 @@ export const VersionAiDialog = ({
     setError(null);
     setMessage(null);
     weeklyDestinationStorage.setLastVersionId(projectId, versionId);
-  }, [open, projectId, versionId]);
+    if (mapped && mapped > 0) {
+      void validateDestinationById(mapped);
+    }
+  }, [open, projectId, versionId, validateDestinationById]);
 
   const destinationIdNumber = Number(destinationIssueId);
   const destinationValid = validation?.valid === true;
@@ -113,26 +139,7 @@ export const VersionAiDialog = ({
   if (!open) return null;
 
   const validateDestination = async () => {
-    setLoadingValidate(true);
-    setError(null);
-    setMessage(null);
-    setValidation(null);
-
-    try {
-      const result = await validateWeeklyDestination(projectIdentifier, {
-        project_id: projectId,
-        version_id: versionId,
-        destination_issue_id: destinationIdNumber
-      });
-      setValidation(result);
-      if (result.valid) setMessage('宛先チケットを確認しました。');
-    } catch (e) {
-      const err = e as WeeklyApiError;
-      setValidation({ valid: false, reason_code: err.code || 'INVALID_INPUT', reason_message: err.message });
-      setError(err.message);
-    } finally {
-      setLoadingValidate(false);
-    }
+    await validateDestinationById(destinationIdNumber);
   };
 
   const saveMapping = () => {
@@ -223,7 +230,7 @@ export const VersionAiDialog = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-100"
+        className="relative w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-100"
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}

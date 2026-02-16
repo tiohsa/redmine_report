@@ -87,6 +87,31 @@ describe('VersionAiDialog', () => {
     expect(window.localStorage.getItem('redmine_ai_weekly.destinationIssueId.1.2')).toBe('123');
   });
 
+  it('auto validates destination when mapping already exists', async () => {
+    validateWeeklyDestinationMock.mockResolvedValue({ valid: true, reason_code: 'OK', reason_message: 'ok' });
+    window.localStorage.setItem('redmine_ai_weekly.destinationIssueId.1.2', '123');
+
+    render(
+      <VersionAiDialog
+        open
+        projectIdentifier="ecookbook"
+        projectId={1}
+        versionId={2}
+        versionName="v1.0"
+        onClose={() => undefined}
+      />
+    );
+
+    await waitFor(() => {
+      expect(validateWeeklyDestinationMock).toHaveBeenCalledTimes(1);
+      expect(validateWeeklyDestinationMock).toHaveBeenCalledWith('ecookbook', expect.objectContaining({
+        project_id: 1,
+        version_id: 2,
+        destination_issue_id: 123
+      }));
+    });
+  });
+
   it('saves edited markdown from preview textarea', async () => {
     validateWeeklyDestinationMock.mockResolvedValue({ valid: true, reason_code: 'OK', reason_message: 'ok' });
     prepareWeeklyPromptMock.mockResolvedValue({
