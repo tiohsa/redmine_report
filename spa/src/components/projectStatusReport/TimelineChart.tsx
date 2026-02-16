@@ -72,6 +72,7 @@ type TimelineChartProps = {
   containerRef: RefObject<HTMLDivElement>;
   onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
   onVersionReportClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
+  activeReportLaneKey?: string | null;
 };
 
 const laneHeight = 130;
@@ -87,7 +88,8 @@ export function TimelineChart({
   todayX,
   containerRef,
   onVersionAiClick,
-  onVersionReportClick
+  onVersionReportClick,
+  activeReportLaneKey
 }: TimelineChartProps) {
   const [activeIssue, setActiveIssue] = useState<{ id: number; title: string } | null>(null);
 
@@ -119,7 +121,7 @@ export function TimelineChart({
           {timelineData.map((project) => (
             <div
               key={project.laneKey}
-              className="flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap"
+              className={`flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap transition-colors duration-300 ${project.laneKey === activeReportLaneKey ? 'bg-blue-50/70' : ''}`}
               style={{ height: laneHeight }}
             >
               {project.versionId ? (
@@ -230,6 +232,7 @@ export function TimelineChart({
             headerYears={headerYears}
             todayX={todayX}
             onStepClick={handleStepClick}
+            activeReportLaneKey={activeReportLaneKey}
           />
         </div>
       </div>
@@ -273,7 +276,8 @@ function TimelineSvg({
   headerMonths,
   headerYears,
   todayX,
-  onStepClick
+  onStepClick,
+  activeReportLaneKey
 }: Omit<TimelineChartProps, 'containerRef'> & { onStepClick: (issueId?: number, title?: string) => void }) {
   const svgHeight = headerHeight + timelineData.length * laneHeight;
 
@@ -364,6 +368,9 @@ function TimelineSvg({
 
         return (
           <g key={project.laneKey} transform={`translate(0, ${yOffset})`}>
+            {project.laneKey === activeReportLaneKey && (
+              <rect x={0} y={0} width={timelineWidth} height={laneHeight} fill="#eff6ff" opacity="0.7" />
+            )}
             <line x1={0} y1={laneHeight} x2={timelineWidth} y2={laneHeight} stroke="#f3f4f6" strokeWidth="1" />
             {headerMonths.map((month, monthIndex) => (
               <line

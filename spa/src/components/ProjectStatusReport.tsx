@@ -35,6 +35,7 @@ export const ProjectStatusReport = ({
     const [aiLoading, setAiLoading] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
     const [aiReportLabel, setAiReportLabel] = useState<string>('');
+    const [activeReportLaneKey, setActiveReportLaneKey] = useState<string | null>(null);
     const [weeklyDialog, setWeeklyDialog] = useState<{
         open: boolean;
         projectId: number;
@@ -117,6 +118,7 @@ export const ProjectStatusReport = ({
 
     const handleVersionReportClick = async (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => {
         setAiReportLabel(`${payload.projectName} / ${payload.versionName}`);
+        setActiveReportLaneKey(`${payload.projectId}:${payload.versionName}`);
         setAiLoading(true);
         setAiError(null);
         try {
@@ -347,6 +349,7 @@ export const ProjectStatusReport = ({
                             })
                         }
                         onVersionReportClick={handleVersionReportClick}
+                        activeReportLaneKey={activeReportLaneKey}
                     />
 
                     <section className="space-y-3">
