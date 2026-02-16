@@ -71,6 +71,7 @@ type TimelineChartProps = {
   todayX: number;
   containerRef: RefObject<HTMLDivElement>;
   onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
+  onVersionReportClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
 };
 
 const laneHeight = 130;
@@ -85,7 +86,8 @@ export function TimelineChart({
   headerYears,
   todayX,
   containerRef,
-  onVersionAiClick
+  onVersionAiClick,
+  onVersionReportClick
 }: TimelineChartProps) {
   const [activeIssue, setActiveIssue] = useState<{ id: number; title: string } | null>(null);
 
@@ -164,6 +166,35 @@ export function TimelineChart({
                         strokeWidth="1.5"
                         strokeLinecap="round"
                         opacity="0.5"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`詳細レポートを表示 ${project.versionName}`}
+                    className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-300 shadow-sm hover:shadow-blue-100/50 cursor-pointer overflow-hidden relative"
+                    onClick={() =>
+                      onVersionReportClick?.({
+                        versionId: project.versionId as number,
+                        versionName: project.versionName,
+                        projectId: project.projectId,
+                        projectName: project.projectName,
+                        projectIdentifier: project.projectIdentifier
+                      })
+                    }
+                  >
+                    <svg
+                      className="w-4 h-4 relative z-10 transition-transform duration-300 group-hover:scale-110"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        stroke="#3b82f6"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
                     </svg>
                   </button>

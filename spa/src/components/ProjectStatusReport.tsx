@@ -1,12 +1,18 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { generateScheduleReport, CategoryBar, ProjectInfo, ReportContent } from '../services/scheduleReportApi';
+import {
+    fetchWeeklyAiResponses,
+    CategoryBar,
+    ProjectInfo,
+    WeeklyApiError
+} from '../services/scheduleReportApi';
 import { format } from 'date-fns';
-import { INITIAL_REPORT_SECTIONS, STATUS } from './projectStatusReport/constants';
+import { STATUS } from './projectStatusReport/constants';
 import { buildTimelineViewModel } from './projectStatusReport/timeline';
 import { TimelineChart } from './projectStatusReport/TimelineChart';
-import { ReportSections } from './projectStatusReport/ReportSections';
 import { useUiStore } from '../stores/uiStore';
 import { VersionAiDialog } from './projectStatusReport/VersionAiDialog';
+import { AiResponsePanel } from './AiResponsePanel';
+import type { AiResponseView } from '../types/weeklyReport';
 
 interface ProjectStatusReportProps {
     bars?: CategoryBar[];
@@ -25,9 +31,10 @@ export const ProjectStatusReport = ({
     onVersionChange,
     fetchError = null
 }: ProjectStatusReportProps) => {
-    const [generatedContent, setGeneratedContent] = useState<ReportContent | null>(null);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [aiResponse, setAiResponse] = useState<AiResponseView | null>(null);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+    const [aiReportLabel, setAiReportLabel] = useState<string>('');
     const [weeklyDialog, setWeeklyDialog] = useState<{
         open: boolean;
         projectId: number;
@@ -44,7 +51,7 @@ export const ProjectStatusReport = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
 
-    const { selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
+    const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
     const [isProjectOpen, setIsProjectOpen] = useState(false);
     const [isVersionOpen, setIsVersionOpen] = useState(false);
     const projectDropdownRef = useRef<HTMLDivElement>(null);
@@ -65,10 +72,7 @@ export const ProjectStatusReport = ({
         };
     }, []);
 
-    useEffect(() => {
-        setGeneratedContent(null);
-        setError(null);
-    }, [projectIdentifier]);
+
 
     useLayoutEffect(() => {
         if (!containerRef.current) return;
@@ -111,34 +115,36 @@ export const ProjectStatusReport = ({
         return Array.from(versions).sort();
     }, [bars]);
 
-    const displaySections = useMemo(() => {
-        if (!generatedContent) return INITIAL_REPORT_SECTIONS;
-
-        return INITIAL_REPORT_SECTIONS.map((section) => ({
-            ...section,
-            items: generatedContent[section.id] || []
-        }));
-    }, [generatedContent]);
-
-    const handleGenerate = async () => {
-        setIsGenerating(true);
-        setError(null);
-
+    const handleVersionReportClick = async (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => {
+        setAiReportLabel(`${payload.projectName} / ${payload.versionName}`);
+        setAiLoading(true);
+        setAiError(null);
         try {
-            const content = await generateScheduleReport(projectIdentifier);
-            setGeneratedContent(content);
+            const result = await fetchWeeklyAiResponses(rootProjectIdentifier || projectIdentifier, {
+                selected_project_identifier: payload.projectIdentifier,
+                selected_version_id: payload.versionId
+            });
+            setAiResponse(result.response || null);
         } catch (caughtError: unknown) {
-            if (caughtError instanceof Error) {
-                setError(caughtError.message || 'Failed to generate report');
-            } else {
-                setError('Failed to generate report');
+            if (caughtError instanceof WeeklyApiError && caughtError.code === 'NOT_FOUND') {
+                setAiResponse({
+                    status: 'NOT_SAVED',
+                    destination_issue_id: 0,
+                    failure_reason_code: 'NOT_FOUND',
+                    message: '保存済みレスポンスがありません'
+                });
+                return;
             }
+            setAiResponse({
+                status: 'FETCH_FAILED',
+                destination_issue_id: 0,
+                message: caughtError instanceof Error ? caughtError.message : 'レスポンス取得に失敗しました'
+            });
+            setAiError(caughtError instanceof Error ? caughtError.message : 'レスポンス取得に失敗しました');
         } finally {
-            setIsGenerating(false);
+            setAiLoading(false);
         }
     };
-
-    const projectTitle = projectMap.get(Number(projectIdentifier) || 0)?.name || projectIdentifier;
 
     const toggleProject = (identifier: string) => {
         if (selectedProjectIdentifiers.includes(identifier)) {
@@ -163,6 +169,8 @@ export const ProjectStatusReport = ({
             document.exitFullscreen();
         }
     };
+
+
 
     return (
         <div ref={fullScreenRef} className="bg-white flex-1 overflow-auto font-sans text-[#1e293b]">
@@ -312,46 +320,12 @@ export const ProjectStatusReport = ({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3"></path>
                             </svg>
                         </button>
-                        <button
-                            onClick={handleGenerate}
-                            disabled={isGenerating}
-                            aria-label="AIレポート生成"
-                            title="AIレポート生成"
-                            className="group p-2.5 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative overflow-hidden"
-                        >
-                            {isGenerating ? (
-                                <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            ) : (
-                                <>
-                                    <svg className="w-5 h-5 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <defs>
-                                            <linearGradient id="ai-grad-main" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" stopColor="#6366f1" />
-                                                <stop offset="100%" stopColor="#a855f7" />
-                                            </linearGradient>
-                                            <filter id="ai-glow-main" x="-20%" y="-20%" width="140%" height="140%">
-                                                <feGaussianBlur stdDeviation="1.5" result="blur" />
-                                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                            </filter>
-                                        </defs>
-                                        <g filter="url(#ai-glow-main)">
-                                            <path d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z" fill="url(#ai-grad-main)" />
-                                            <path d="M5 3L6 5M18 19L19 21M3 5L5 6M19 3L21 5M5 21L3 19M21 17L19 18" stroke="url(#ai-grad-main)" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-                                        </g>
-                                    </svg>
-                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                </>
-                            )}
-                        </button>
                     </div>
                 </div>
 
-                {(error || fetchError) && (
+                {fetchError && (
                     <div className="mb-6 bg-red-50 border border-red-100 text-red-600 px-5 py-4 rounded-xl relative" role="alert">
-                        <span className="block sm:inline text-sm font-bold">{error || fetchError}</span>
+                        <span className="block sm:inline text-sm font-bold">{fetchError}</span>
                     </div>
                 )}
 
@@ -372,9 +346,21 @@ export const ProjectStatusReport = ({
                                 projectName
                             })
                         }
+                        onVersionReportClick={handleVersionReportClick}
                     />
 
-                    <ReportSections projectTitle={projectTitle} sections={displaySections} />
+                    <section className="space-y-3">
+                        <h3 className="flex items-baseline gap-2 mb-4">
+                            <span className="text-xl font-bold text-slate-800">詳細レポート</span>
+                            <span className="text-sm font-normal text-slate-500">(生成AIレスポンス)</span>
+                            {aiReportLabel && (
+                                <span className="ml-2 px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded border border-blue-100">
+                                    {aiReportLabel}
+                                </span>
+                            )}
+                        </h3>
+                        <AiResponsePanel response={aiResponse} isLoading={aiLoading} errorMessage={aiError} />
+                    </section>
                 </div>
 
                 <VersionAiDialog

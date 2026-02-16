@@ -28,6 +28,7 @@ Redmine::Plugin.register :redmine_report do
                  weekly_prepare
                  weekly_generate
                  weekly_save
+                 weekly_ai_responses
                  bundle_js
                  bundle_css
                ]

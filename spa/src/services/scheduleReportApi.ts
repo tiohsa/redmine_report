@@ -6,6 +6,7 @@ export type ReportFilterSet = {
   filter_rule?: 'open_version_top_parent';
 };
 import type {
+  AiResponseTabsPayload,
   DestinationValidationResult,
   WeeklyGenerateResponse,
   WeeklyPrepareResponse,
@@ -78,19 +79,8 @@ const toQuery = (filters: Partial<ReportFilterSet>) => {
   return query.toString();
 };
 
-export type ReportContent = {
-  progress: ReportItem[];
-  next_steps: ReportItem[];
-  risks: ReportItem[];
-};
 
-export type ReportItem = {
-  text: string;
-  type?: "normal" | "highlight";
-  subText?: string;
-  badge?: string;
-  badgeColor?: string;
-};
+
 
 export const fetchScheduleReport = async (
   rootProjectIdentifier: string,
@@ -109,30 +99,6 @@ export const fetchScheduleReport = async (
     throw new Error(errorBody.error || `Failed to fetch schedule report: ${res.status}`);
   }
   return (await res.json()) as ReportSnapshot;
-};
-
-export const generateScheduleReport = async (
-  projectIdentifier: string,
-  filters: Partial<ReportFilterSet> = {}
-): Promise<ReportContent> => {
-  const qs = toQuery(filters);
-  // Using POST for generation
-  const path = `/projects/${projectIdentifier}/schedule_report/generate${qs ? `?${qs}` : ''}`;
-  const res = await fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      // Start CSRF token if needed by Rails
-      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-    }
-  });
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.error || `Failed to generate report: ${res.status}`);
-  }
-  return (await res.json()) as ReportContent;
 };
 
 export class WeeklyApiError extends Error {
@@ -272,4 +238,28 @@ export const saveWeeklyReport = async (
     throw await parseWeeklyError(res, `Failed to save weekly report: ${res.status}`);
   }
   return (await res.json()) as WeeklySaveResponse;
+};
+
+export const fetchWeeklyAiResponses = async (
+  projectIdentifier: string,
+  params: {
+    selected_project_identifier?: string;
+    selected_version_id?: number;
+  } = {}
+): Promise<AiResponseTabsPayload> => {
+  const query = new URLSearchParams();
+  if (params.selected_project_identifier) {
+    query.set('selected_project_identifier', params.selected_project_identifier);
+  }
+  if (params.selected_version_id) {
+    query.set('selected_version_id', String(params.selected_version_id));
+  }
+
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const path = `/projects/${projectIdentifier}/schedule_report/weekly/ai_responses${suffix}`;
+  const res = await fetch(path, { credentials: 'same-origin' });
+  if (!res.ok) {
+    throw await parseWeeklyError(res, `Failed to fetch weekly AI responses: ${res.status}`);
+  }
+  return (await res.json()) as AiResponseTabsPayload;
 };

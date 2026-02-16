@@ -140,6 +140,20 @@ class ScheduleReportsController < ApplicationController
     render json: { code: 'UPSTREAM_FAILURE', message: e.message, retryable: true }, status: :service_unavailable
   end
 
+  def weekly_ai_responses
+    service = RedmineReport::ScheduleReport::AiResponseFetchService.new(
+      root_project: @project,
+      user: User.current,
+      selected_project_identifier: params[:selected_project_identifier],
+      selected_version_id: params[:selected_version_id]
+    )
+
+    render json: service.call
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] weekly_ai_responses failed: #{e.class}: #{e.message}")
+    render json: { code: 'UPSTREAM_UNAVAILABLE', message: l(:label_schedule_report_unavailable), retryable: true }, status: :service_unavailable
+  end
+
   def bundle_js
     serve_bundle(
       filename: 'main.js',

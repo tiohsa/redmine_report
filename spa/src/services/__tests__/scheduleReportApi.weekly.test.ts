@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchWeeklyAiResponses,
   generateWeeklyReport,
   saveWeeklyReport,
   validateWeeklyDestination,
@@ -68,5 +69,28 @@ describe('scheduleReportApi weekly methods', () => {
         generated_at: '2026-02-15T10:00:00+09:00'
       })
     ).rejects.toBeInstanceOf(WeeklyApiError);
+  });
+
+  it('maps ai response tabs payload', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        project_tabs: [
+          {
+            project_identifier: 'ecookbook',
+            project_name: 'eCookbook',
+            active: true,
+            versions: [{ version_id: 2, version_name: 'v1.0', active: true, has_saved_response: true }]
+          }
+        ],
+        selected_target: { project_identifier: 'ecookbook', version_id: 2 },
+        response: { status: 'AVAILABLE', destination_issue_id: 3 }
+      })
+    }));
+
+    const res = await fetchWeeklyAiResponses('ecookbook', { selected_project_identifier: 'ecookbook', selected_version_id: 2 });
+
+    expect(res.project_tabs[0].project_identifier).toBe('ecookbook');
+    expect(res.response.status).toBe('AVAILABLE');
   });
 });

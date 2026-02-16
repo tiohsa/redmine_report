@@ -19,6 +19,9 @@ post '/projects/:project_id/schedule_report/weekly/prepare',
 post '/projects/:project_id/schedule_report/weekly/save',
      to: 'schedule_reports#weekly_save',
      as: 'project_schedule_report_weekly_save'
+get '/projects/:project_id/schedule_report/weekly/ai_responses',
+    to: 'schedule_reports#weekly_ai_responses',
+    as: 'project_schedule_report_weekly_ai_responses'
 get '/projects/:project_id/schedule_report/bundle/main.js',
     to: 'schedule_reports#bundle_js',
     as: 'project_schedule_report_bundle_js',

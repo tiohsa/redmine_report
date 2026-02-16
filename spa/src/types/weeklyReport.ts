@@ -83,3 +83,40 @@ export type WeeklySaveResponse = {
   part?: string | null;
   saved_at: string;
 };
+
+export type AiResponseStatus = 'AVAILABLE' | 'PARTIAL' | 'NOT_SAVED' | 'FETCH_FAILED' | 'FORBIDDEN';
+
+export type AiResponseVersionTab = {
+  version_id: number;
+  version_name: string;
+  active: boolean;
+  has_saved_response: boolean;
+};
+
+export type AiResponseProjectTab = {
+  project_identifier: string;
+  project_name: string;
+  active: boolean;
+  versions: AiResponseVersionTab[];
+};
+
+export type AiResponseView = {
+  status: AiResponseStatus;
+  destination_issue_id: number;
+  saved_at?: string | null;
+  highlights_this_week?: string | null;
+  next_week_actions?: string | null;
+  risks_decisions?: string | null;
+  missing_sections?: Array<'highlights_this_week' | 'next_week_actions' | 'risks_decisions' | string>;
+  failure_reason_code?: 'NOT_FOUND' | 'FORBIDDEN' | 'UPSTREAM_ERROR' | 'INVALID_REFERENCE' | string | null;
+  message?: string | null;
+};
+
+export type AiResponseTabsPayload = {
+  project_tabs: AiResponseProjectTab[];
+  selected_target: {
+    project_identifier?: string | null;
+    version_id?: number | null;
+  };
+  response: AiResponseView;
+};
