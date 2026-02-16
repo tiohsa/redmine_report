@@ -126,7 +126,7 @@ export function ScheduleReportPage() {
 
 
   return (
-    <div className="schedule-report-page bg-white h-screen flex flex-col overflow-hidden">
+    <div className="schedule-report-page bg-white h-screen flex flex-col overflow-auto">
       {snapshot.isLoading && snapshot.rows.length === 0 && snapshot.bars.length === 0 ? (
         <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
       ) : (

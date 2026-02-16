@@ -175,10 +175,10 @@ export const ProjectStatusReport = ({
 
 
     return (
-        <div ref={fullScreenRef} className="bg-white flex-1 overflow-auto font-sans text-[#1e293b]">
-            <div className="w-full bg-white p-6">
+        <div ref={fullScreenRef} className="bg-white flex-1 font-sans text-[#1e293b]">
+            <div className="w-full bg-white px-6 pt-3 pb-4">
                 {/* 1st Row: Selectors and Buttons */}
-                <div className="flex justify-between items-start mb-6">
+                <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-8 flex-wrap">
                         <div className="flex items-center gap-6">
                             {/* Project Selection */}
@@ -331,7 +331,7 @@ export const ProjectStatusReport = ({
                     </div>
                 )}
 
-                <div className="flex flex-col gap-8">
+                <div className="flex flex-col gap-4">
                     <TimelineChart
                         timelineData={timelineData}
                         timelineWidth={timelineWidth}
@@ -352,8 +352,8 @@ export const ProjectStatusReport = ({
                         activeReportLaneKey={activeReportLaneKey}
                     />
 
-                    <section className="space-y-3">
-                        <h3 className="flex items-baseline gap-2 mb-4">
+                    <section className="space-y-2">
+                        <h3 className="flex items-baseline gap-2 mb-2">
                             <span className="text-xl font-bold text-slate-800">詳細レポート</span>
                             <span className="text-sm font-normal text-slate-500">(生成AIレスポンス)</span>
                             {aiReportLabel && (
