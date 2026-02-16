@@ -4,4 +4,94 @@
     .schedule-report-page {
         @apply flex flex-col h-screen overflow-hidden text-gray-900 font-sans;
     }
+
+    /* Markdown rendered content styles */
+    .markdown-body {
+        @apply text-sm text-gray-700 leading-relaxed;
+    }
+
+    .markdown-body h1 {
+        @apply text-lg font-bold text-gray-900 mt-4 mb-2 pb-1 border-b border-gray-200;
+    }
+
+    .markdown-body h2 {
+        @apply text-base font-bold text-gray-800 mt-3 mb-2;
+    }
+
+    .markdown-body h3 {
+        @apply text-sm font-bold text-gray-800 mt-2 mb-1;
+    }
+
+    .markdown-body h4 {
+        @apply text-sm font-semibold text-gray-700 mt-2 mb-1;
+    }
+
+    .markdown-body p {
+        @apply mb-2 last:mb-0;
+    }
+
+    .markdown-body ul {
+        @apply list-disc pl-5 mb-2 space-y-1;
+    }
+
+    .markdown-body ol {
+        @apply list-decimal pl-5 mb-2 space-y-1;
+    }
+
+    .markdown-body li {
+        @apply text-sm text-gray-700;
+    }
+
+    .markdown-body li > ul,
+    .markdown-body li > ol {
+        @apply mt-1 mb-0;
+    }
+
+    .markdown-body strong {
+        @apply font-bold text-gray-900;
+    }
+
+    .markdown-body em {
+        @apply italic;
+    }
+
+    .markdown-body a {
+        @apply text-blue-600 underline hover:text-blue-800;
+    }
+
+    .markdown-body blockquote {
+        @apply border-l-4 border-gray-300 pl-3 py-1 my-2 text-gray-600 italic;
+    }
+
+    .markdown-body code {
+        @apply bg-gray-100 text-red-600 px-1 py-0.5 rounded text-xs font-mono;
+    }
+
+    .markdown-body pre {
+        @apply bg-gray-50 border border-gray-200 rounded-lg p-3 my-2 overflow-x-auto;
+    }
+
+    .markdown-body pre code {
+        @apply bg-transparent text-gray-800 p-0;
+    }
+
+    .markdown-body table {
+        @apply w-full border-collapse my-2;
+    }
+
+    .markdown-body th {
+        @apply bg-gray-50 border border-gray-200 px-3 py-1.5 text-left text-xs font-bold text-gray-700;
+    }
+
+    .markdown-body td {
+        @apply border border-gray-200 px-3 py-1.5 text-xs text-gray-700;
+    }
+
+    .markdown-body hr {
+        @apply border-t border-gray-200 my-3;
+    }
+
+    .markdown-body > *:first-child {
+        @apply mt-0;
+    }
 }

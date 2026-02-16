@@ -1,3 +1,4 @@
+import { renderMarkdown } from '../utils/markdownRenderer';
 import type { AiResponseView } from '../types/weeklyReport';
 
 type AiResponsePanelProps = {
@@ -15,12 +16,7 @@ const Section = ({
   body?: string | null;
   headerColor: string;
 }) => {
-  const items = body
-    ? body
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-    : [];
+  const html = renderMarkdown(body);
 
   return (
     <div className="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col h-full bg-white">
@@ -30,15 +26,11 @@ const Section = ({
         {title}
       </div>
       <div className="p-5 flex-1">
-        {items.length > 0 ? (
-          <ul className="space-y-4">
-            {items.map((item, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                <span className="mt-1.5 w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>
-                <span className="flex-1 leading-relaxed">{item}</span>
-              </li>
-            ))}
-          </ul>
+        {html ? (
+          <div
+            className="markdown-body text-sm text-gray-700 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
         ) : (
           <p className="text-sm text-gray-400 text-center py-4">情報なし</p>
         )}

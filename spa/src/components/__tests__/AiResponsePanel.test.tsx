@@ -11,9 +11,9 @@ describe('AiResponsePanel', () => {
         response={{
           status: 'AVAILABLE',
           destination_issue_id: 10,
-          highlights_this_week: 'A',
-          next_week_actions: 'B',
-          risks_decisions: 'C'
+          highlights_this_week: '- 項目A\n- 項目B',
+          next_week_actions: '**重要タスク**',
+          risks_decisions: '1. リスク1'
         }}
       />
     );
@@ -21,7 +21,27 @@ describe('AiResponsePanel', () => {
     expect(screen.getByText('今週の主要実績')).toBeTruthy();
     expect(screen.getByText('来週の予定・アクション')).toBeTruthy();
     expect(screen.getByText('課題・リスク・決定事項')).toBeTruthy();
-    expect(screen.getByText('A')).toBeTruthy();
+  });
+
+  it('renders markdown as HTML', () => {
+    const { container } = render(
+      <AiResponsePanel
+        isLoading={false}
+        errorMessage={null}
+        response={{
+          status: 'AVAILABLE',
+          destination_issue_id: 10,
+          highlights_this_week: '- 項目A\n- **太字**',
+          next_week_actions: null,
+          risks_decisions: null
+        }}
+      />
+    );
+
+    const markdownBody = container.querySelector('.markdown-body');
+    expect(markdownBody).toBeTruthy();
+    expect(markdownBody!.innerHTML).toContain('<li>');
+    expect(markdownBody!.innerHTML).toContain('<strong>');
   });
 
   it('renders not-saved message', () => {
@@ -44,7 +64,7 @@ describe('AiResponsePanel', () => {
         response={{
           status: 'PARTIAL',
           destination_issue_id: 20,
-          highlights_this_week: 'A',
+          highlights_this_week: '- A',
           next_week_actions: null,
           risks_decisions: null
         }}
@@ -52,6 +72,25 @@ describe('AiResponsePanel', () => {
     );
 
     expect(screen.getByText('一部セクションが未保存です')).toBeTruthy();
+  });
+
+  it('shows 情報なし for empty sections', () => {
+    render(
+      <AiResponsePanel
+        isLoading={false}
+        errorMessage={null}
+        response={{
+          status: 'AVAILABLE',
+          destination_issue_id: 10,
+          highlights_this_week: null,
+          next_week_actions: null,
+          risks_decisions: null
+        }}
+      />
+    );
+
+    const emptyMessages = screen.getAllByText('情報なし');
+    expect(emptyMessages.length).toBe(3);
   });
 
   it('renders error alert and clears content on fetch failure', () => {
@@ -72,3 +111,4 @@ describe('AiResponsePanel', () => {
     expect(screen.queryByText('old value')).toBeNull();
   });
 });
+
