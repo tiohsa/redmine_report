@@ -51,6 +51,7 @@ export const ProjectStatusReport = ({
     });
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
+    const [chartScale, setChartScale] = useState<number>(1);
 
     const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
     const [isProjectOpen, setIsProjectOpen] = useState(false);
@@ -269,6 +270,21 @@ export const ProjectStatusReport = ({
                                     )}
                                 </div>
                             </div>
+
+                            {/* Chart Size Selection */}
+                            <div className="flex items-center gap-3">
+                                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Size:</label>
+                                <select
+                                    value={chartScale}
+                                    onChange={(e) => setChartScale(Number(e.target.value))}
+                                    className="bg-slate-50 hover:bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-lg px-3 py-2 cursor-pointer transition-colors appearance-none"
+                                >
+                                    <option value={0.5}>S</option>
+                                    <option value={0.75}>M</option>
+                                    <option value={1}>L</option>
+                                    <option value={1.5}>XL</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-6 flex-wrap">
@@ -339,6 +355,7 @@ export const ProjectStatusReport = ({
                         headerYears={headerYears}
                         todayX={todayX}
                         containerRef={containerRef}
+                        chartScale={chartScale}
                         onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
                             setWeeklyDialog({
                                 open: true,

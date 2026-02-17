@@ -70,12 +70,16 @@ type TimelineChartProps = {
   headerYears: HeaderYear[];
   todayX: number;
   containerRef: RefObject<HTMLDivElement>;
+  chartScale?: number;
   onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
   onVersionReportClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
   activeReportLaneKey?: string | null;
 };
 
-const laneHeight = 130;
+const BASE_LANE_HEIGHT = 130;
+const BASE_POINT_DEPTH = 15;
+const BASE_BAR_HEIGHT = 40;
+const BASE_DATE_SECTION_HEIGHT = 25;
 const yearRowHeight = 25;
 const monthRowHeight = 25;
 const headerHeight = yearRowHeight + monthRowHeight;
@@ -87,10 +91,12 @@ export function TimelineChart({
   headerYears,
   todayX,
   containerRef,
+  chartScale = 1,
   onVersionAiClick,
   onVersionReportClick,
   activeReportLaneKey
 }: TimelineChartProps) {
+  const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
   const [activeIssue, setActiveIssue] = useState<{ id: number; title: string } | null>(null);
 
   const handleStepClick = (issueId?: number, title?: string) => {
@@ -122,7 +128,7 @@ export function TimelineChart({
             <div
               key={project.laneKey}
               className={`flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap transition-colors duration-300 ${project.laneKey === activeReportLaneKey ? 'bg-blue-50/70' : ''}`}
-              style={{ height: laneHeight }}
+              style={{ height: laneHeight, minHeight: 60 }}
             >
               {project.versionId ? (
                 <div className="flex items-center gap-2">
@@ -233,6 +239,8 @@ export function TimelineChart({
             todayX={todayX}
             onStepClick={handleStepClick}
             activeReportLaneKey={activeReportLaneKey}
+            laneHeight={laneHeight}
+            chartScale={chartScale}
           />
         </div>
       </div>
@@ -277,8 +285,10 @@ function TimelineSvg({
   headerYears,
   todayX,
   onStepClick,
-  activeReportLaneKey
-}: Omit<TimelineChartProps, 'containerRef'> & { onStepClick: (issueId?: number, title?: string) => void }) {
+  activeReportLaneKey,
+  laneHeight,
+  chartScale = 1
+}: Omit<TimelineChartProps, 'containerRef'> & { onStepClick: (issueId?: number, title?: string) => void; laneHeight: number }) {
   const svgHeight = headerHeight + timelineData.length * laneHeight;
 
   if (timelineData.length === 0) {
@@ -387,10 +397,11 @@ function TimelineSvg({
             {project.steps
               .map((step, stepIndex) => {
                 const isFirst = stepIndex === 0;
-                const pointDepth = 15;
-                const barHeight = 40;
-                const dateSectionHeight = 25;
+                const pointDepth = BASE_POINT_DEPTH * chartScale;
+                const barHeight = BASE_BAR_HEIGHT * chartScale;
+                const dateSectionHeight = BASE_DATE_SECTION_HEIGHT * chartScale;
                 const verticalOffset = (laneHeight - (barHeight + dateSectionHeight)) / 2;
+                const fontSize = Math.max(10, Math.round(12 * chartScale));
 
                 const isPending = step.status.label === '未着手';
                 const isInProgress = step.status.label === '進行中';
@@ -425,7 +436,7 @@ function TimelineSvg({
                           x={step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2)}
                           y={barHeight / 2}
                           fill={step.status.text}
-                          fontSize="12"
+                          fontSize={fontSize}
                           fontWeight="bold"
                           textAnchor="middle"
                           dominantBaseline="middle"
@@ -443,21 +454,21 @@ function TimelineSvg({
                       )}
 
                       {(step.startDate || step.endDate) && (
-                        <g transform={`translate(${step.x + (isFirst ? 0 : pointDepth / 2)}, ${barHeight + 10})`}>
+                        <g transform={`translate(${step.x + (isFirst ? 0 : pointDepth / 2)}, ${barHeight + 10 * chartScale})`}>
                           <line
-                            x1={25}
-                            y1={5}
-                            x2={step.width - 25}
-                            y2={5}
+                            x1={25 * chartScale}
+                            y1={5 * chartScale}
+                            x2={step.width - 25 * chartScale}
+                            y2={5 * chartScale}
                             stroke="#94a3b8"
                             strokeWidth="0.5"
                             markerStart="url(#arrow-start)"
                             markerEnd="url(#arrow-end)"
                           />
-                          <text x={0} y={8} fontSize="9" fill="#94a3b8" textAnchor="start">
+                          <text x={0} y={8 * chartScale} fontSize={Math.max(8, Math.round(9 * chartScale))} fill="#94a3b8" textAnchor="start">
                             {step.startDate}
                           </text>
-                          <text x={step.width} y={8} fontSize="9" fill="#94a3b8" textAnchor="end">
+                          <text x={step.width} y={8 * chartScale} fontSize={Math.max(8, Math.round(9 * chartScale))} fill="#94a3b8" textAnchor="end">
                             {step.endDate}
                           </text>
                         </g>
