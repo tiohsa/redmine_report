@@ -5,9 +5,9 @@ module RedmineReport
     class AiResponseFetchService
       WEEKLY_HEADER_PATTERN = /\[Weekly\]\[(?<week>[^\]]+)\]\s+project_id=(?<project_id>\d+)\s+version_id=(?<version_id>\d+)(?:\s+revision=(?<revision>\d+))?(?:\s+generated_at=(?<generated_at>\S+))?/
       SECTION_HEADERS = {
-        highlights_this_week: /^##\s*今週の主要実績\s*$/,
-        next_week_actions: /^##\s*来週の予定・アクション\s*$/,
-        risks_decisions: /^##\s*課題・リスク・決定事項\s*$/
+        highlights_this_week: /^##\s*(?:📈\s*)?今週の主要実績\s*$/,
+        next_week_actions: /^##\s*(?:🚀\s*)?来週の予定・アクション\s*$/,
+        risks_decisions: /^##\s*(?:⚠️\s*)?課題・リスク・決定事項\s*$/
       }.freeze
 
       def initialize(root_project:, user:, selected_project_identifier: nil, selected_version_id: nil)
