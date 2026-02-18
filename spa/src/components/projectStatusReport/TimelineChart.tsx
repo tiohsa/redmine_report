@@ -269,6 +269,17 @@ export function TimelineChart({
             <iframe
               title={`issue-${activeIssue.id}`}
               src={`/issues/${activeIssue.id}`}
+              onLoad={(e) => {
+                const iframe = e.target as HTMLIFrameElement;
+                if (iframe.contentDocument) {
+                  const style = iframe.contentDocument.createElement('style');
+                  style.textContent = `
+                    #top-menu, #header, #main-menu, #sidebar, #footer { display: none !important; }
+                    #content { width: 100% !important; margin: 0 !important; }
+                  `;
+                  iframe.contentDocument.head.appendChild(style);
+                }
+              }}
               className="w-full flex-1 border-0"
             />
           </div>
