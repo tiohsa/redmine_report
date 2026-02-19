@@ -1,0 +1,7 @@
+ja:
+  label_schedule_report: "スケジュールレポート"
+  label_schedule_report_filters: "フィルター"
+  label_schedule_report_empty: "選択したフィルターに該当するデータはありません。"
+  label_schedule_report_limit_warning: "表示上限を超えました。"
+  label_schedule_report_permission_denied: "スケジュールレポートを表示する権限がありません。"
+  label_schedule_report_unavailable: "スケジュールレポートは一時的に利用できません。"

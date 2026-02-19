@@ -11,9 +11,9 @@ import {
   startOfMonth,
   startOfYear
 } from 'date-fns';
-import { ja } from 'date-fns/locale';
 import { CategoryBar, ProjectInfo } from '../../services/scheduleReportApi';
-import { STATUS, StatusStyle } from './constants';
+import { getDateFnsLocale, getLocale, t } from '../../i18n';
+import { buildStatusStyles, StatusStyle } from './constants';
 
 export type TimelineStep = {
   issueId?: number;
@@ -73,13 +73,14 @@ export function buildTimelineViewModel({
   projectMap,
   containerWidth
 }: TimelineCalculationInput): TimelineViewModel {
+  const statusStyles = buildStatusStyles();
   if (bars.length === 0) {
     return {
       timelineData: [],
       timelineWidth: DEFAULT_TIMELINE_WIDTH,
       headerMonths: [],
       headerYears: [],
-      totalDurationText: 'データなし',
+      totalDurationText: t('timeline.noDataDuration'),
       todayX: -1
     };
   }
@@ -109,7 +110,8 @@ export function buildTimelineViewModel({
     selectedVersions,
     projectMap,
     getX,
-    getWidth
+    getWidth,
+    statusStyles
   });
 
   return {
@@ -158,6 +160,8 @@ function getDateRangeWithBuffer(bars: CategoryBar[]): { minDate: Date; maxDate: 
 
 function buildHeaderMonths(minDate: Date, maxDate: Date, pixelsPerDay: number): HeaderMonth[] {
   const headerMonths: HeaderMonth[] = [];
+  const locale = getDateFnsLocale();
+  const monthFormat = getLocale() === 'ja' ? 'M月' : 'MMM';
   let currentMonth = minDate;
 
   while (isBefore(currentMonth, maxDate) || currentMonth.getTime() === maxDate.getTime()) {
@@ -170,7 +174,7 @@ function buildHeaderMonths(minDate: Date, maxDate: Date, pixelsPerDay: number): 
     const monthDays = differenceInDays(visibleEnd, visibleStart) + 1;
 
     headerMonths.push({
-      label: format(currentMonth, 'M月', { locale: ja }),
+      label: format(currentMonth, monthFormat, { locale }),
       x: differenceInDays(visibleStart, minDate) * pixelsPerDay,
       width: monthDays * pixelsPerDay
     });
@@ -183,6 +187,8 @@ function buildHeaderMonths(minDate: Date, maxDate: Date, pixelsPerDay: number): 
 
 function buildHeaderYears(minDate: Date, maxDate: Date, pixelsPerDay: number): HeaderYear[] {
   const headerYears: HeaderYear[] = [];
+  const locale = getDateFnsLocale();
+  const yearFormat = getLocale() === 'ja' ? 'yyyy年' : 'yyyy';
   let currentYearDate = startOfYear(minDate);
 
   while (isBefore(currentYearDate, maxDate) || currentYearDate.getTime() <= maxDate.getTime()) {
@@ -196,7 +202,7 @@ function buildHeaderYears(minDate: Date, maxDate: Date, pixelsPerDay: number): H
       const yearDays = differenceInDays(visibleEnd, visibleStart) + 1;
 
       headerYears.push({
-        year: format(currentYearDate, 'yyyy年', { locale: ja }),
+        year: format(currentYearDate, yearFormat, { locale }),
         x: differenceInDays(visibleStart, minDate) * pixelsPerDay,
         width: yearDays * pixelsPerDay
       });
@@ -213,18 +219,20 @@ function buildTimelineData({
   selectedVersions,
   projectMap,
   getX,
-  getWidth
+  getWidth,
+  statusStyles
 }: {
   bars: CategoryBar[];
   selectedVersions: string[];
   projectMap: Map<number, ProjectInfo>;
   getX: (dateStr?: string) => number;
   getWidth: (startStr?: string, endStr?: string) => number;
+  statusStyles: Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDING', StatusStyle>;
 }): TimelineLane[] {
   const groupedByProject = new Map<number, Map<string, CategoryBar[]>>();
 
   bars.forEach((bar) => {
-    const versionKey = bar.version_name || 'No Version';
+    const versionKey = bar.version_name || t('common.noVersion');
     if (!selectedVersions.includes(versionKey)) return;
 
     if (!groupedByProject.has(bar.project_id)) {
@@ -243,7 +251,7 @@ function buildTimelineData({
 
   Array.from(groupedByProject.entries()).forEach(([projectId, versionMap]) => {
     const project = projectMap.get(projectId);
-    const projectName = project?.name || `Project ${projectId}`;
+    const projectName = project?.name || t('timeline.projectFallback', { id: projectId });
     const projectIdentifier = project?.identifier || '';
 
     Array.from(versionMap.entries()).forEach(([versionKey, versionBars]) => {
@@ -258,7 +266,7 @@ function buildTimelineData({
         versionId,
         versionName: versionKey,
         steps: sortedBars.map((bar, idx) => {
-          const { status, progress } = resolveStatus(bar.progress_rate);
+          const { status, progress } = resolveStatus(bar.progress_rate, statusStyles);
 
           return {
             issueId: bar.category_id,
@@ -279,16 +287,19 @@ function buildTimelineData({
   return timelineData;
 }
 
-function resolveStatus(progressRate: number): { status: StatusStyle; progress?: number } {
+function resolveStatus(
+  progressRate: number,
+  statusStyles: Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDING', StatusStyle>
+): { status: StatusStyle; progress?: number } {
   if (progressRate === 100) {
-    return { status: STATUS.COMPLETED };
+    return { status: statusStyles.COMPLETED };
   }
 
   if (progressRate > 0) {
-    return { status: STATUS.IN_PROGRESS, progress: progressRate };
+    return { status: statusStyles.IN_PROGRESS, progress: progressRate };
   }
 
-  return { status: STATUS.PENDING };
+  return { status: statusStyles.PENDING };
 }
 
 function toLabelDate(dateStr?: string): string {

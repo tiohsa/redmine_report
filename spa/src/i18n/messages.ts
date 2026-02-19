@@ -1,0 +1,206 @@
+export const messages = {
+  en: {
+    common: {
+      loading: 'Loading...',
+      noData: 'No data available',
+      noVersion: 'No Version',
+      noInfo: 'No information',
+      errorPrefix: 'Error:',
+      close: 'Close',
+      copy: 'Copy',
+      copied: 'Copied'
+    },
+    schedule: {
+      updating: 'Updating report...',
+      fetchFailedSelected: 'Failed to fetch schedule report for selected projects.',
+      fetchFailed: 'Failed to fetch schedule report.',
+      refreshFailedShowingCached: 'Failed to refresh report. Showing last successful data.'
+    },
+    filter: {
+      projects: 'Projects:',
+      versions: 'Versions:',
+      project: 'Project:',
+      version: 'Version:',
+      size: 'Size:',
+      selectProjects: 'Select Projects',
+      oneProject: '1 Project',
+      projectsCount: '{count} Projects',
+      allVersions: 'All Versions',
+      selectedCount: '{count} Selected',
+      selectAll: 'Select All',
+      clear: 'Clear',
+      noProjects: 'No projects available',
+      noVersions: 'No versions available'
+    },
+    report: {
+      reportDate: 'Report Date',
+      displayPeriod: 'Display Period',
+      fullscreen: 'Fullscreen',
+      export: 'Export',
+      detailTitle: 'Detailed Report',
+      aiSuffix: '(AI Responses)'
+    },
+    aiPanel: {
+      loading: 'Fetching AI responses...',
+      notSaved: 'No saved response was found',
+      notSavedHint: 'Click a version on the timeline to create or edit a report.',
+      fetchFailed: 'Failed to fetch response',
+      partial: 'Some sections are not saved yet',
+      sectionHighlights: 'Key Achievements This Week',
+      sectionNextActions: 'Next Week Plan / Actions',
+      sectionRisks: 'Issues / Risks / Decisions'
+    },
+    timeline: {
+      laneHeader: 'Version / Project',
+      startAiAria: 'Start AI analysis for {versionName}',
+      showDetailAria: 'Show detailed report for {versionName}',
+      ticketTitle: 'Issue #{id}{suffix}',
+      closeDialogAria: 'Close dialog',
+      projectFallback: 'Project {id}',
+      noDataDuration: 'No data'
+    },
+    status: {
+      completed: 'Completed',
+      inProgress: 'In Progress',
+      pending: 'Pending'
+    },
+    weeklyDialog: {
+      title: 'AI Report Generator',
+      steps: ['Setup', 'Prepare', 'Generate', 'Complete'],
+      sectionTarget: 'Target Period and Destination',
+      sectionPrompt: 'Generated Prompt',
+      sectionPreview: 'Preview',
+      startDate: 'Start Date',
+      endDate: 'End Date',
+      destinationIssueId: 'Destination Issue ID',
+      issueIdPlaceholder: 'Issue ID',
+      validating: 'Validating...',
+      validateDestination: 'Validate Destination',
+      saveSetting: 'Save Setting',
+      destinationValidated: 'Destination issue validated.',
+      promptPreparing: 'Preparing...',
+      preparePrompt: 'Create Prompt',
+      preparedSummary: 'Prepared: {week} / Tickets: {count}',
+      generating: 'Generating...',
+      sendToLlm: 'Send to LLM',
+      previewBodyAria: 'Preview body',
+      previewPlaceholder: 'You can edit and save report text here without running LLM.',
+      weekCalculationFailed: 'Failed to calculate week info. Please check the start date.',
+      reportSaved: 'Report saved (revision: {revision})',
+      saveReport: 'Save Report',
+      saving: 'Saving...'
+    },
+    api: {
+      fetchScheduleReport: 'Failed to fetch schedule report: {status}',
+      fetchWeeklyVersions: 'Failed to fetch weekly versions: {status}',
+      validateDestination: 'Failed to validate destination: {status}',
+      generateWeeklyReport: 'Failed to generate weekly report: {status}',
+      prepareWeeklyPrompt: 'Failed to prepare weekly prompt: {status}',
+      saveWeeklyReport: 'Failed to save weekly report: {status}',
+      fetchWeeklyAiResponses: 'Failed to fetch weekly AI responses: {status}'
+    }
+  },
+  ja: {
+    common: {
+      loading: '読み込み中...',
+      noData: 'データがありません',
+      noVersion: 'バージョンなし',
+      noInfo: '情報なし',
+      errorPrefix: 'エラー:',
+      close: '閉じる',
+      copy: 'コピー',
+      copied: 'コピーしました'
+    },
+    schedule: {
+      updating: 'レポートを更新中...',
+      fetchFailedSelected: '選択したプロジェクトのスケジュールレポート取得に失敗しました。',
+      fetchFailed: 'スケジュールレポートの取得に失敗しました。',
+      refreshFailedShowingCached: 'レポートの更新に失敗しました。直近の成功データを表示しています。'
+    },
+    filter: {
+      projects: 'Projects:',
+      versions: 'Versions:',
+      project: 'Project:',
+      version: 'Version:',
+      size: 'Size:',
+      selectProjects: 'Select Projects',
+      oneProject: '1 Project',
+      projectsCount: '{count} Projects',
+      allVersions: 'All Versions',
+      selectedCount: '{count} Selected',
+      selectAll: 'Select All',
+      clear: 'Clear',
+      noProjects: '利用可能なプロジェクトがありません',
+      noVersions: '利用可能なバージョンがありません'
+    },
+    report: {
+      reportDate: '報告日',
+      displayPeriod: '表示期間',
+      fullscreen: '全画面表示',
+      export: 'エクスポート',
+      detailTitle: '詳細レポート',
+      aiSuffix: '(生成AIレスポンス)'
+    },
+    aiPanel: {
+      loading: '生成AIレスポンスを取得中...',
+      notSaved: '保存済みレスポンスがありません',
+      notSavedHint: 'タイムライン上のバージョンをクリックして、レポートを作成・編集してください。',
+      fetchFailed: 'レスポンス取得に失敗しました',
+      partial: '一部セクションが未保存です',
+      sectionHighlights: '今週の主要実績',
+      sectionNextActions: '来週の予定・アクション',
+      sectionRisks: '課題・リスク・決定事項'
+    },
+    timeline: {
+      laneHeader: 'バージョン / プロジェクト',
+      startAiAria: '{versionName} のAI分析を開始',
+      showDetailAria: '{versionName} の詳細レポートを表示',
+      ticketTitle: 'チケット #{id}{suffix}',
+      closeDialogAria: 'ダイアログを閉じる',
+      projectFallback: 'プロジェクト {id}',
+      noDataDuration: 'データなし'
+    },
+    status: {
+      completed: '完了',
+      inProgress: '進行中',
+      pending: '未着手'
+    },
+    weeklyDialog: {
+      title: 'AI Report Generator',
+      steps: ['設定', '準備', '生成', '完了'],
+      sectionTarget: '対象期間と出力先',
+      sectionPrompt: '生成プロンプト',
+      sectionPreview: '生成プレビュー',
+      startDate: '開始日',
+      endDate: '終了日',
+      destinationIssueId: '宛先チケットID',
+      issueIdPlaceholder: 'Issue ID',
+      validating: '検証中...',
+      validateDestination: '宛先を確認',
+      saveSetting: '設定を保存',
+      destinationValidated: '宛先チケットを確認しました。',
+      promptPreparing: '準備中...',
+      preparePrompt: 'プロンプト作成',
+      preparedSummary: '準備完了: {week} / チケット数: {count}',
+      generating: '生成中...',
+      sendToLlm: 'LLMへ送信',
+      previewBodyAria: '生成プレビュー本文',
+      previewPlaceholder: 'ここにレポート本文を直接入力できます（LLM未実行でも保存可能）',
+      weekCalculationFailed: '週情報を計算できませんでした。開始日を確認してください。',
+      reportSaved: 'レポートを保存しました (revision: {revision})',
+      saveReport: 'レポートを保存',
+      saving: '保存中...'
+    },
+    api: {
+      fetchScheduleReport: 'スケジュールレポートの取得に失敗しました: {status}',
+      fetchWeeklyVersions: '週次バージョンの取得に失敗しました: {status}',
+      validateDestination: '宛先の検証に失敗しました: {status}',
+      generateWeeklyReport: '週次レポートの生成に失敗しました: {status}',
+      prepareWeeklyPrompt: '週次プロンプトの準備に失敗しました: {status}',
+      saveWeeklyReport: '週次レポートの保存に失敗しました: {status}',
+      fetchWeeklyAiResponses: '週次AIレスポンスの取得に失敗しました: {status}'
+    }
+  }
+} as const;
+
+export type I18nLocale = keyof typeof messages;

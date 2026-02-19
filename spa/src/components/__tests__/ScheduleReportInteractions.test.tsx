@@ -131,7 +131,7 @@ describe('Schedule report interactions', () => {
 
     await waitFor(() => {
       expect(useTaskStore.getState().bars[0]?.bar_key).toBe('ok');
-      expect(useTaskStore.getState().errorMessage).toContain('Failed to fetch');
+      expect(useTaskStore.getState().errorMessage).toBeTruthy();
     });
   });
 

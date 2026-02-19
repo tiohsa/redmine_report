@@ -13,6 +13,7 @@ import type {
   WeeklySaveResponse,
   WeeklyVersionItem
 } from '../types/weeklyReport';
+import { t } from '../i18n';
 
 export type ProjectRow = {
   project_id: number;
@@ -96,7 +97,7 @@ export const fetchScheduleReport = async (
   const res = await fetch(path, { credentials: 'same-origin' });
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.error || `Failed to fetch schedule report: ${res.status}`);
+    throw new Error(errorBody.error || t('api.fetchScheduleReport', { status: res.status }));
   }
   return (await res.json()) as ReportSnapshot;
 };
@@ -130,7 +131,7 @@ export const fetchWeeklyVersions = async (
   const path = `/projects/${projectIdentifier}/schedule_report/weekly/versions`;
   const res = await fetch(path, { credentials: 'same-origin' });
   if (!res.ok) {
-    throw await parseWeeklyError(res, `Failed to fetch weekly versions: ${res.status}`);
+    throw await parseWeeklyError(res, t('api.fetchWeeklyVersions', { status: res.status }));
   }
   const json = (await res.json()) as { versions: WeeklyVersionItem[] };
   return json.versions || [];
@@ -151,7 +152,7 @@ export const validateWeeklyDestination = async (
     body: JSON.stringify(payload)
   });
   if (!res.ok) {
-    throw await parseWeeklyError(res, `Failed to validate destination: ${res.status}`);
+    throw await parseWeeklyError(res, t('api.validateDestination', { status: res.status }));
   }
   return (await res.json()) as DestinationValidationResult;
 };
@@ -179,7 +180,7 @@ export const generateWeeklyReport = async (
     body: JSON.stringify(payload)
   });
   if (!res.ok) {
-    throw await parseWeeklyError(res, `Failed to generate weekly report: ${res.status}`);
+    throw await parseWeeklyError(res, t('api.generateWeeklyReport', { status: res.status }));
   }
   return (await res.json()) as WeeklyGenerateResponse;
 };
@@ -206,7 +207,7 @@ export const prepareWeeklyPrompt = async (
     body: JSON.stringify(payload)
   });
   if (!res.ok) {
-    throw await parseWeeklyError(res, `Failed to prepare weekly prompt: ${res.status}`);
+    throw await parseWeeklyError(res, t('api.prepareWeeklyPrompt', { status: res.status }));
   }
   return (await res.json()) as WeeklyPrepareResponse;
 };
@@ -235,7 +236,7 @@ export const saveWeeklyReport = async (
     body: JSON.stringify(payload)
   });
   if (!res.ok) {
-    throw await parseWeeklyError(res, `Failed to save weekly report: ${res.status}`);
+    throw await parseWeeklyError(res, t('api.saveWeeklyReport', { status: res.status }));
   }
   return (await res.json()) as WeeklySaveResponse;
 };
@@ -259,7 +260,7 @@ export const fetchWeeklyAiResponses = async (
   const path = `/projects/${projectIdentifier}/schedule_report/weekly/ai_responses${suffix}`;
   const res = await fetch(path, { credentials: 'same-origin' });
   if (!res.ok) {
-    throw await parseWeeklyError(res, `Failed to fetch weekly AI responses: ${res.status}`);
+    throw await parseWeeklyError(res, t('api.fetchWeeklyAiResponses', { status: res.status }));
   }
   return (await res.json()) as AiResponseTabsPayload;
 };

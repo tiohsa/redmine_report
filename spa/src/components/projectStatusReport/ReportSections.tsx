@@ -1,4 +1,5 @@
 import { ReportSection } from './constants';
+import { t } from '../../i18n';
 
 type ReportSectionsProps = {
   projectTitle: string;
@@ -8,7 +9,7 @@ type ReportSectionsProps = {
 export function ReportSections({ projectTitle, sections }: ReportSectionsProps) {
   return (
     <div className="mt-8 border-t pt-8">
-      <h2 className="text-xl font-bold mb-4">詳細レポート ({projectTitle})</h2>
+      <h2 className="text-xl font-bold mb-4">{t('report.detailTitle')} ({projectTitle})</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         {sections.map((section) => (
           <div key={section.id} className="border border-gray-200 rounded-lg shadow-sm overflow-hidden flex flex-col h-full">

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useUiStore } from '../stores/uiStore';
 import { useTaskStore } from '../stores/taskStore';
+import { t } from '../i18n';
 
 interface FilterToolbarProps {
   allVersions?: string[];
@@ -51,17 +52,17 @@ export function FilterToolbar(props: FilterToolbarProps) {
 
   const selectedCount = selectedProjectIdentifiers.length;
   const buttonLabel = selectedCount === 0
-    ? "Select Projects"
+    ? t('filter.selectProjects')
     : selectedCount === 1
-      ? availableProjects.find(p => p.identifier === selectedProjectIdentifiers[0])?.name || "1 Project"
-      : `${selectedCount} Projects`;
+      ? availableProjects.find(p => p.identifier === selectedProjectIdentifiers[0])?.name || t('filter.oneProject')
+      : t('filter.projectsCount', { count: selectedCount });
 
   return (
     <div className="schedule-report-filter-toolbar flex items-center gap-4 p-2 bg-gray-50 border-b border-gray-200">
 
       {/* Project Selection */}
       <div className="flex items-center gap-2 relative" ref={projectDropdownRef}>
-        <label className="text-sm text-gray-600 font-medium">Projects:</label>
+        <label className="text-sm text-gray-600 font-medium">{t('filter.projects')}</label>
         <button
           onClick={() => setIsProjectOpen(!isProjectOpen)}
           className="bg-white border border-gray-300 text-gray-700 text-sm rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2 min-w-[200px] justify-between"
@@ -97,7 +98,7 @@ export function FilterToolbar(props: FilterToolbarProps) {
               );
             })}
             {availableProjects.length === 0 && (
-              <div className="px-3 py-2 text-sm text-gray-500">No projects available</div>
+              <div className="px-3 py-2 text-sm text-gray-500">{t('filter.noProjects')}</div>
             )}
           </div>
         )}
@@ -107,13 +108,13 @@ export function FilterToolbar(props: FilterToolbarProps) {
 
       {/* Version Selection */}
       <div className="flex items-center gap-2 relative" ref={versionDropdownRef}>
-        <label className="text-sm text-gray-600 font-medium">Versions:</label>
+        <label className="text-sm text-gray-600 font-medium">{t('filter.versions')}</label>
         <button
           onClick={() => setIsVersionOpen(!isVersionOpen)}
           className="bg-white border border-gray-300 text-gray-700 text-sm rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2 min-w-[150px] justify-between"
         >
           <span className="truncate max-w-[130px]">
-            {selectedVersions.length === allVersions.length ? 'All Versions' : `${selectedVersions.length} Selected`}
+            {selectedVersions.length === allVersions.length ? t('filter.allVersions') : t('filter.selectedCount', { count: selectedVersions.length })}
           </span>
           <svg className={`w-4 h-4 transition-transform ${isVersionOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
@@ -127,13 +128,13 @@ export function FilterToolbar(props: FilterToolbarProps) {
                 className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                 onClick={() => onVersionChange(allVersions)}
               >
-                Select All
+                {t('filter.selectAll')}
               </button>
               <button
                 className="text-xs text-gray-500 hover:text-gray-700"
                 onClick={() => onVersionChange([])}
               >
-                Clear
+                {t('filter.clear')}
               </button>
             </div>
             {allVersions.map((version) => (
@@ -158,7 +159,7 @@ export function FilterToolbar(props: FilterToolbarProps) {
               </div>
             ))}
             {allVersions.length === 0 && (
-              <div className="px-3 py-2 text-sm text-gray-500">No versions available</div>
+              <div className="px-3 py-2 text-sm text-gray-500">{t('filter.noVersions')}</div>
             )}
           </div>
         )}

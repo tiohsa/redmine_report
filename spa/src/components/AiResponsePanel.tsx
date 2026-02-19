@@ -1,5 +1,6 @@
 import { renderMarkdown } from '../utils/markdownRenderer';
 import type { AiResponseView } from '../types/weeklyReport';
+import { t } from '../i18n';
 
 type AiResponsePanelProps = {
   response: AiResponseView | null;
@@ -32,7 +33,7 @@ const Section = ({
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : (
-          <p className="text-sm text-gray-400 text-center py-4">情報なし</p>
+          <p className="text-sm text-gray-400 text-center py-4">{t('common.noInfo')}</p>
         )}
       </div>
     </div>
@@ -44,7 +45,7 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
     return (
       <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-slate-200 border-t-indigo-600 mb-2"></div>
-        <p className="text-sm text-slate-500 font-medium">生成AIレスポンスを取得中...</p>
+        <p className="text-sm text-slate-500 font-medium">{t('aiPanel.loading')}</p>
       </div>
     );
   }
@@ -55,7 +56,7 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
         className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
         role="alert"
       >
-        <span className="font-bold">エラー:</span> {errorMessage}
+        <span className="font-bold">{t('common.errorPrefix')}</span> {errorMessage}
       </div>
     );
   }
@@ -63,9 +64,9 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
   if (!response || response.status === 'NOT_SAVED') {
     return (
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-6 py-8 text-center">
-        <p className="text-slate-500 text-sm mb-2">保存済みレスポンスがありません</p>
+        <p className="text-slate-500 text-sm mb-2">{t('aiPanel.notSaved')}</p>
         <p className="text-slate-400 text-xs">
-          タイムライン上のバージョンをクリックして、レポートを作成・編集してください。
+          {t('aiPanel.notSavedHint')}
         </p>
       </div>
     );
@@ -77,7 +78,7 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
         className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700"
         role="alert"
       >
-        {response.message || 'レスポンス取得に失敗しました'}
+        {response.message || t('aiPanel.fetchFailed')}
       </div>
     );
   }
@@ -89,23 +90,23 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
           <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          一部セクションが未保存です
+          {t('aiPanel.partial')}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         <Section
-          title="今週の主要実績"
+          title={t('aiPanel.sectionHighlights')}
           body={response.highlights_this_week}
           headerColor="bg-[#1e5fa0]"
         />
         <Section
-          title="来週の予定・アクション"
+          title={t('aiPanel.sectionNextActions')}
           body={response.next_week_actions}
           headerColor="bg-[#5b9bd5]"
         />
         <Section
-          title="課題・リスク・決定事項"
+          title={t('aiPanel.sectionRisks')}
           body={response.risks_decisions}
           headerColor="bg-[#ef4444]"
         />

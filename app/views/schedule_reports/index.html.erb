@@ -1,4 +1,8 @@
-<div id="schedule-report-root" data-project-id="<%= @project.identifier || @project.id %>"></div>
+<div
+  id="schedule-report-root"
+  data-project-id="<%= @project.identifier || @project.id %>"
+  data-locale="<%= I18n.locale %>"
+></div>
 <%
   plugin_root = Rails.root.join('plugins', 'redmine_report')
   built_css = plugin_root.join('assets', 'build', 'main.css')

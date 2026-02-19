@@ -6,6 +6,7 @@ import { ProjectStatusReport } from './ProjectStatusReport';
 import { useTaskStore } from '../stores/taskStore';
 import { useUiStore } from '../stores/uiStore';
 import { mapProjectInfo } from '../services/mappers/projectInfoMapper';
+import { t } from '../i18n';
 
 const collectTargets = (selectedProjectIdentifiers: string[], currentProjectIdentifier: string): string[] => {
   if (selectedProjectIdentifiers.length > 0) {
@@ -34,7 +35,7 @@ export function ScheduleReportPage() {
   const allVersions = useMemo(() => {
     const versions = new Set<string>();
     snapshot.bars.forEach(bar => {
-      versions.add(bar.version_name || 'No Version');
+      versions.add(bar.version_name || t('common.noVersion'));
     });
     return Array.from(versions).sort();
   }, [snapshot.bars]);
@@ -85,7 +86,7 @@ export function ScheduleReportPage() {
 
         const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null);
         if (validResults.length === 0) {
-          setError('Failed to fetch schedule report for selected projects.');
+          setError(t('schedule.fetchFailedSelected'));
           return;
         }
 
@@ -115,7 +116,7 @@ export function ScheduleReportPage() {
       })
       .catch((error) => {
         if (requestId !== requestSequenceRef.current) return;
-        setError(error instanceof Error ? error.message : 'Failed to fetch schedule report.');
+        setError(error instanceof Error ? error.message : t('schedule.fetchFailed'));
       })
       .finally(() => {
         if (requestId !== requestSequenceRef.current) return;
@@ -128,7 +129,7 @@ export function ScheduleReportPage() {
   return (
     <div className="schedule-report-page bg-white h-screen flex flex-col overflow-auto">
       {snapshot.isLoading && snapshot.rows.length === 0 && snapshot.bars.length === 0 ? (
-        <div className="flex items-center justify-center h-full text-gray-400">Loading...</div>
+        <div className="flex items-center justify-center h-full text-gray-400">{t('common.loading')}</div>
       ) : (
         <ProjectStatusReport
           bars={snapshot.bars}
@@ -140,7 +141,7 @@ export function ScheduleReportPage() {
         />
       )}
       {snapshot.isLoading && snapshot.rows.length > 0 && (
-        <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">Updating report…</div>
+        <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">{t('schedule.updating')}</div>
       )}
       {snapshot.errorMessage && snapshot.rows.length === 0 && snapshot.bars.length === 0 && (
         <div className="px-4 py-2 text-sm text-red-600 border-t border-red-100" role="alert">
@@ -149,7 +150,7 @@ export function ScheduleReportPage() {
       )}
       {snapshot.errorMessage && snapshot.rows.length > 0 && (
         <div className="px-4 py-2 text-sm text-amber-700 border-t border-amber-100" role="alert">
-          Failed to refresh report. Showing last successful data.
+          {t('schedule.refreshFailedShowingCached')}
         </div>
       )}
     </div>

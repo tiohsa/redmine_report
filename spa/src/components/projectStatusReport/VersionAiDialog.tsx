@@ -12,6 +12,7 @@ import type {
   WeeklyGenerateResponse,
   WeeklyPrepareResponse
 } from '../../types/weeklyReport';
+import { t, tList } from '../../i18n';
 
 type Props = {
   open: boolean;
@@ -90,7 +91,7 @@ export const VersionAiDialog = ({
         destination_issue_id: destinationId
       });
       setValidation(result);
-      if (result.valid) setMessage('宛先チケットを確認しました。');
+      if (result.valid) setMessage(t('weeklyDialog.destinationValidated'));
     } catch (e) {
       const err = e as WeeklyApiError;
       setValidation({ valid: false, reason_code: err.code || 'INVALID_INPUT', reason_message: err.message });
@@ -145,7 +146,7 @@ export const VersionAiDialog = ({
   const saveMapping = () => {
     if (!destinationValid || !Number.isFinite(destinationIdNumber) || destinationIdNumber <= 0) return;
     weeklyDestinationStorage.setDestinationIssueId(projectId, versionId, destinationIdNumber);
-    setMessage('設定を保存しました');
+    setMessage(t('weeklyDialog.saveSetting'));
   };
 
   const preparePrompt = async () => {
@@ -202,7 +203,7 @@ export const VersionAiDialog = ({
     const week = generated?.header_preview.week || prepared?.header_preview.week || isoWeekKey(weekFrom);
     const generatedAt = generated?.header_preview.generated_at || prepared?.header_preview.generated_at || new Date().toISOString();
     if (!week) {
-      setError('週情報を計算できませんでした。開始日を確認してください。');
+      setError(t('weeklyDialog.weekCalculationFailed'));
       return;
     }
     setLoadingSave(true);
@@ -219,7 +220,7 @@ export const VersionAiDialog = ({
         markdown: editableMarkdown,
         generated_at: generatedAt
       });
-      setMessage(`レポートを保存しました (revision: ${saveResult.revision})`);
+      setMessage(t('weeklyDialog.reportSaved', { revision: saveResult.revision }));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -242,7 +243,7 @@ export const VersionAiDialog = ({
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">AI Report Generator</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('weeklyDialog.title')}</h2>
               <p className="text-xs text-slate-500 font-medium">{versionName}</p>
             </div>
           </div>
@@ -257,31 +258,28 @@ export const VersionAiDialog = ({
 
         {/* Step Indicator */}
         <div className="flex-none px-8 py-4 bg-slate-50/50 flex items-center justify-between border-b border-slate-100">
-          {[
-            { step: 1, label: '設定' },
-            { step: 2, label: '準備' },
-            { step: 3, label: '生成' },
-            { step: 4, label: '完了' }
-          ].map((item, idx) => (
-            <div key={item.step} className="flex items-center flex-1 last:flex-none">
+          {tList('weeklyDialog.steps').map((label, idx) => {
+            const step = idx + 1;
+            return (
+            <div key={step} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center gap-1.5 relative">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${currentStep >= item.step ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-110' : 'bg-white border-2 border-slate-200 text-slate-400'
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${currentStep >= step ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-110' : 'bg-white border-2 border-slate-200 text-slate-400'
                   }`}>
-                  {currentStep > item.step ? (
+                  {currentStep > step ? (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                  ) : item.step}
+                  ) : step}
                 </div>
-                <span className={`text-[10px] font-bold tracking-wider uppercase ${currentStep >= item.step ? 'text-indigo-600' : 'text-slate-400'}`}>
-                  {item.label}
+                <span className={`text-[10px] font-bold tracking-wider uppercase ${currentStep >= step ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  {label}
                 </span>
               </div>
               {idx < 3 && (
                 <div className="flex-1 h-0.5 mx-4 bg-slate-200 overflow-hidden">
-                  <div className="h-full bg-indigo-600 transition-all duration-1000" style={{ width: currentStep > item.step ? '100%' : '0%' }}></div>
+                  <div className="h-full bg-indigo-600 transition-all duration-1000" style={{ width: currentStep > step ? '100%' : '0%' }}></div>
                 </div>
               )}
             </div>
-          ))}
+          );})}
         </div>
 
         {/* Scrollable Content */}
@@ -290,11 +288,11 @@ export const VersionAiDialog = ({
           <section className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
               <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
-              対象期間と出力先
+              {t('weeklyDialog.sectionTarget')}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">開始日</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('weeklyDialog.startDate')}</label>
                 <input
                   type="date"
                   className="w-full h-10 px-4 rounded-xl border-none bg-slate-50 text-slate-700 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer"
@@ -303,7 +301,7 @@ export const VersionAiDialog = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">終了日</label>
+                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('weeklyDialog.endDate')}</label>
                 <input
                   type="date"
                   className="w-full h-10 px-4 rounded-xl border-none bg-slate-50 text-slate-700 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer"
@@ -314,13 +312,13 @@ export const VersionAiDialog = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">宛先チケットID</label>
+              <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('weeklyDialog.destinationIssueId')}</label>
               <div className="flex items-center gap-3">
                 <div className="relative group w-48">
                   <input
                     type="number"
                     min={1}
-                    placeholder="Issue ID"
+                    placeholder={t('weeklyDialog.issueIdPlaceholder')}
                     value={destinationIssueId}
                     onChange={(e) => {
                       setDestinationIssueId(e.target.value);
@@ -344,7 +342,7 @@ export const VersionAiDialog = ({
                   disabled={loadingValidate || !destinationIssueId}
                   className="h-10 px-6 rounded-xl bg-slate-700 text-white text-[11px] font-black tracking-tight hover:bg-slate-800 transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-slate-100"
                 >
-                  {loadingValidate ? '検証中...' : '宛先を確認'}
+                  {loadingValidate ? t('weeklyDialog.validating') : t('weeklyDialog.validateDestination')}
                 </button>
                 <button
                   type="button"
@@ -352,7 +350,7 @@ export const VersionAiDialog = ({
                   disabled={!destinationValid}
                   className="h-10 px-6 rounded-xl bg-emerald-600 text-white text-[11px] font-black tracking-tight hover:bg-emerald-700 transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-emerald-50"
                 >
-                  設定を保存
+                  {t('weeklyDialog.saveSetting')}
                 </button>
                 {message && !error && currentStep < 3 && <span className="text-[11px] font-black text-emerald-600 animate-in fade-in slide-in-from-left-2">{message}</span>}
               </div>
@@ -364,7 +362,7 @@ export const VersionAiDialog = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
-                生成プロンプト
+                {t('weeklyDialog.sectionPrompt')}
               </div>
               <button
                 type="button"
@@ -378,7 +376,7 @@ export const VersionAiDialog = ({
                   ) : (
                     <svg className="w-3.5 h-3.5 transition-transform group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                   )}
-                  {loadingPrepare ? '準備中...' : 'プロンプト作成'}
+                  {loadingPrepare ? t('weeklyDialog.promptPreparing') : t('weeklyDialog.preparePrompt')}
                 </div>
               </button>
             </div>
@@ -391,10 +389,10 @@ export const VersionAiDialog = ({
                 />
                 <button
                   className="absolute top-4 right-4 p-2 bg-white rounded-lg shadow-sm text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all border border-slate-100 cursor-pointer"
-                  title="コピー"
+                  title={t('common.copy')}
                   onClick={() => {
                     navigator.clipboard.writeText(promptText);
-                    setMessage('コピーしました');
+                    setMessage(t('common.copied'));
                   }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-6a2 2 0 00-2 2zM8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2"></path></svg>
@@ -404,7 +402,7 @@ export const VersionAiDialog = ({
             {prepared && (
               <div className="px-4 py-2 bg-indigo-50/50 rounded-lg text-[10px] text-indigo-600 font-bold tracking-tight inline-flex items-center gap-2">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path></svg>
-                準備完了: {prepared.header_preview.week} / チケット数: {prepared.tickets.length}
+                {t('weeklyDialog.preparedSummary', { week: prepared.header_preview.week, count: prepared.tickets.length })}
               </div>
             )}
           </section>
@@ -414,7 +412,7 @@ export const VersionAiDialog = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
-                生成プレビュー
+                {t('weeklyDialog.sectionPreview')}
               </div>
               <button
                 type="button"
@@ -428,7 +426,7 @@ export const VersionAiDialog = ({
                   ) : (
                     <svg className="w-3.5 h-3.5 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z" fill="currentColor" fillOpacity="0.2" /></svg>
                   )}
-                  {loadingGenerate ? '生成中...' : 'LLMへ送信'}
+                  {loadingGenerate ? t('weeklyDialog.generating') : t('weeklyDialog.sendToLlm')}
                 </div>
               </button>
             </div>
@@ -439,8 +437,8 @@ export const VersionAiDialog = ({
                   {(generated?.header_preview.generated_at || prepared?.header_preview.generated_at || '-')}
                 </div>
                 <textarea
-                  aria-label="生成プレビュー本文"
-                  placeholder="ここにレポート本文を直接入力できます（LLM未実行でも保存可能）"
+                  aria-label={t('weeklyDialog.previewBodyAria')}
+                  placeholder={t('weeklyDialog.previewPlaceholder')}
                   className="w-full min-h-[220px] whitespace-pre-wrap rounded-xl bg-white border border-slate-200 p-3 text-xs leading-relaxed font-sans focus:ring-2 focus:ring-violet-500/20"
                   value={editableMarkdown}
                   onChange={(e) => setEditableMarkdown(e.target.value)}
@@ -468,7 +466,7 @@ export const VersionAiDialog = ({
               onClick={onClose}
               className="h-10 px-6 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
             >
-              閉じる
+              {t('common.close')}
             </button>
             <button
               type="button"
@@ -482,7 +480,7 @@ export const VersionAiDialog = ({
                 ) : (
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V3"></path></svg>
                 )}
-                {loadingSave ? '保存中...' : 'レポートを保存'}
+                {loadingSave ? t('weeklyDialog.saving') : t('weeklyDialog.saveReport')}
               </div>
             </button>
           </div>

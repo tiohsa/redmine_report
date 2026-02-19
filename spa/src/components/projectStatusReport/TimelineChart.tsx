@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
+import { t } from '../../i18n';
 import { HeaderMonth, HeaderYear, TimelineLane } from './timeline';
 
 type ChevronPathProps = {
@@ -122,7 +123,7 @@ export function TimelineChart({
       <div className="flex border border-gray-200 rounded-lg overflow-hidden">
         <div className="flex-none min-w-max bg-white border-r border-gray-200 flex flex-col">
           <div className="flex items-center px-6 font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
-            バージョン / プロジェクト
+            {t('timeline.laneHeader')}
           </div>
           {timelineData.map((project) => (
             <div
@@ -141,7 +142,7 @@ export function TimelineChart({
                   </a>
                   <button
                     type="button"
-                    aria-label={`AI分析を開始 ${project.versionName}`}
+                    aria-label={t('timeline.startAiAria', { versionName: project.versionName })}
                     className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-indigo-200 hover:bg-indigo-50/30 transition-all duration-300 shadow-sm hover:shadow-indigo-100/50 cursor-pointer overflow-hidden relative"
                     onClick={() =>
                       onVersionAiClick?.({
@@ -179,7 +180,7 @@ export function TimelineChart({
                   </button>
                   <button
                     type="button"
-                    aria-label={`詳細レポートを表示 ${project.versionName}`}
+                    aria-label={t('timeline.showDetailAria', { versionName: project.versionName })}
                     className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-300 shadow-sm hover:shadow-blue-100/50 cursor-pointer overflow-hidden relative"
                     onClick={() =>
                       onVersionReportClick?.({
@@ -256,10 +257,13 @@ export function TimelineChart({
           >
             <div className="h-12 px-4 border-b border-slate-200 flex items-center justify-between">
               <span className="text-sm font-semibold text-slate-700 truncate">
-                チケット #{activeIssue.id}{activeIssue.title ? `: ${activeIssue.title}` : ''}
+                {t('timeline.ticketTitle', {
+                  id: activeIssue.id,
+                  suffix: activeIssue.title ? `: ${activeIssue.title}` : ''
+                })}
               </span>
               <button
-                aria-label="ダイアログを閉じる"
+                aria-label={t('timeline.closeDialogAria')}
                 className="text-slate-500 hover:text-slate-700 text-xl leading-none px-2 cursor-pointer"
                 onClick={() => setActiveIssue(null)}
               >
@@ -303,7 +307,7 @@ function TimelineSvg({
   const svgHeight = headerHeight + timelineData.length * laneHeight;
 
   if (timelineData.length === 0) {
-    return <div className="flex items-center justify-center h-32 text-gray-400">データがありません</div>;
+    return <div className="flex items-center justify-center h-32 text-gray-400">{t('common.noData')}</div>;
   }
 
   return (
@@ -414,8 +418,8 @@ function TimelineSvg({
                 const verticalOffset = (laneHeight - (barHeight + dateSectionHeight)) / 2;
                 const fontSize = Math.max(10, Math.round(12 * chartScale));
 
-                const isPending = step.status.label === '未着手';
-                const isInProgress = step.status.label === '進行中';
+                const isPending = step.status.code === 'PENDING';
+                const isInProgress = step.status.code === 'IN_PROGRESS';
                 const fill = isPending ? 'url(#stripePattern)' : step.status.fill;
 
                 return {
