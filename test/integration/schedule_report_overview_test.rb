@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require File.expand_path('../../test_helper', __dir__)
+require File.expand_path('../test_helper', __dir__)
 
 class ScheduleReportOverviewTest < Redmine::IntegrationTest
   def test_route_exists_for_schedule_report

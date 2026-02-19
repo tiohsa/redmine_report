@@ -87,21 +87,14 @@ module RedmineReport
             identifier: p.identifier,
             name: p.name,
             parent_project_id: p.parent_id,
-            level: hierarchy_level(p),
+            level: hierarchy_level_resolver.call(p),
             expanded: true
           }
         end
       end
 
-      def hierarchy_level(project)
-        level = 0
-        node = project
-        while node.parent_id
-          level += 1
-          node = node.parent
-          break unless node
-        end
-        level
+      def hierarchy_level_resolver
+        @hierarchy_level_resolver ||= HierarchyLevelResolver.new
       end
 
       def apply_status_scope(scope)

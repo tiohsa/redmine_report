@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require File.expand_path('../../test_helper', __dir__)
+require File.expand_path('../test_helper', __dir__)
 require 'yaml'
 require File.expand_path('./schedule_report_project_selection_helper', __dir__)
 

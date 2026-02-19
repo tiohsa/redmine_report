@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require File.expand_path('../../test_helper', __dir__)
+require File.expand_path('../test_helper', __dir__)
 
 class WeeklyReportGenerationTest < ActiveSupport::TestCase
   def test_request_validator_rejects_invalid_week_range

@@ -15,7 +15,7 @@ module RedmineReport
             identifier: project.identifier,
             name: project.name,
             parent_project_id: project.parent_id,
-            level: hierarchy_level(project),
+            level: hierarchy_level_resolver.call(project),
             selectable: true
           }
         end
@@ -28,15 +28,8 @@ module RedmineReport
         Project.visible(@user).where(id: ids).sort_by(&:lft)
       end
 
-      def hierarchy_level(project)
-        level = 0
-        node = project
-        while node.parent_id
-          level += 1
-          node = node.parent
-          break unless node
-        end
-        level
+      def hierarchy_level_resolver
+        @hierarchy_level_resolver ||= HierarchyLevelResolver.new
       end
     end
   end

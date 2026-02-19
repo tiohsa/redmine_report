@@ -2,7 +2,7 @@
 
 module RedmineReport
   module WeeklyReport
-    class SaveService
+    class SaveService < BaseService
       class DestinationInvalidError < StandardError
         attr_reader :code, :status
 
@@ -18,18 +18,18 @@ module RedmineReport
       MAX_RETRIES = 2
 
       def initialize(project:, user:)
-        @project = project
-        @user = user
-        @validator = RequestValidator.new
+        super
         @destination_validator = DestinationValidator.new(project: project, user: user)
         @revision_resolver = RevisionResolver.new
         @overflow_handler = OverflowHandler.new
       end
 
       def call(payload)
-        validated = @validator.validate_save!(payload)
-        ensure_project!(validated[:project_id])
-        version = find_version!(validated[:version_id])
+        validated = validator.validate_save!(payload)
+        version = ensure_project_and_find_version!(
+          project_id: validated[:project_id],
+          version_id: validated[:version_id]
+        )
 
         destination_result = @destination_validator.call(destination_issue_id: validated[:destination_issue_id])
         unless destination_result.valid
@@ -42,10 +42,10 @@ module RedmineReport
 
         issue = destination_result.issue
         week = validated[:week]
-        revision = with_revision_retry(issue: issue, project_id: @project.id, version_id: version.id, week: week) do |next_revision|
-          header = "[Weekly][#{week}] project_id=#{@project.id} version_id=#{version.id} revision=#{next_revision} generated_at=#{validated[:generated_at]}"
+        revision = with_revision_retry(issue: issue, project_id: project.id, version_id: version.id, week: week) do |next_revision|
+          header = "[Weekly][#{week}] project_id=#{project.id} version_id=#{version.id} revision=#{next_revision} generated_at=#{validated[:generated_at]}"
           resolved = @overflow_handler.call(markdown: validated[:markdown], header: header)
-          issue.init_journal(@user, resolved[:note])
+          issue.init_journal(user, resolved[:note])
           issue.save!
 
           {
@@ -61,17 +61,6 @@ module RedmineReport
       end
 
       private
-
-      def ensure_project!(project_id)
-        raise RequestValidator::ValidationError, 'project_id mismatch' unless project_id == @project.id
-      end
-
-      def find_version!(version_id)
-        version = @project.versions.find_by(id: version_id)
-        raise RequestValidator::ValidationError, 'version_id not found in selected project' unless version
-
-        version
-      end
 
       def with_revision_retry(issue:, project_id:, version_id:, week:)
         retries = 0

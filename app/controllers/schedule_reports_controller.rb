@@ -74,8 +74,7 @@ class ScheduleReportsController < ApplicationController
 
     render json: { versions: versions }
   rescue StandardError => e
-    Rails.logger.error("[schedule_report] weekly_versions failed: #{e.class}: #{e.message}")
-    render json: { code: 'UNAVAILABLE', message: l(:label_schedule_report_unavailable) }, status: :service_unavailable
+    render_weekly_unavailable_error(action_name: __method__, exception: e)
   end
 
   def weekly_validate_destination
@@ -90,8 +89,7 @@ class ScheduleReportsController < ApplicationController
       reason_message: result[:reason_message]
     }, status: result[:status]
   rescue StandardError => e
-    Rails.logger.error("[schedule_report] weekly_validate_destination failed: #{e.class}: #{e.message}")
-    render json: { code: 'UNAVAILABLE', message: l(:label_schedule_report_unavailable) }, status: :service_unavailable
+    render_weekly_unavailable_error(action_name: __method__, exception: e)
   end
 
   def weekly_generate
@@ -102,10 +100,9 @@ class ScheduleReportsController < ApplicationController
     result = service.call(weekly_payload)
     render json: result
   rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
-    render json: { code: 'INVALID_INPUT', message: e.message }, status: :unprocessable_entity
+    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.invalid_input(e.message))
   rescue StandardError => e
-    Rails.logger.error("[schedule_report] weekly_generate failed: #{e.class}: #{e.message}")
-    render json: { code: 'UPSTREAM_FAILURE', message: e.message, retryable: true }, status: :service_unavailable
+    render_weekly_upstream_failure(action_name: __method__, exception: e)
   end
 
   def weekly_prepare
@@ -116,10 +113,9 @@ class ScheduleReportsController < ApplicationController
     result = service.prepare(weekly_payload)
     render json: result
   rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
-    render json: { code: 'INVALID_INPUT', message: e.message }, status: :unprocessable_entity
+    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.invalid_input(e.message))
   rescue StandardError => e
-    Rails.logger.error("[schedule_report] weekly_prepare failed: #{e.class}: #{e.message}")
-    render json: { code: 'UPSTREAM_FAILURE', message: e.message, retryable: true }, status: :service_unavailable
+    render_weekly_upstream_failure(action_name: __method__, exception: e)
   end
 
   def weekly_save
@@ -130,14 +126,19 @@ class ScheduleReportsController < ApplicationController
     result = service.call(weekly_payload)
     render json: result
   rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
-    render json: { code: 'INVALID_INPUT', message: e.message }, status: :unprocessable_entity
+    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.invalid_input(e.message))
   rescue RedmineReport::WeeklyReport::SaveService::DestinationInvalidError => e
-    render json: { code: e.code, message: e.message }, status: e.status
+    render_weekly_payload(
+      RedmineReport::WeeklyReport::ErrorPayloadBuilder.destination_invalid(
+        code: e.code,
+        message: e.message,
+        status: e.status
+      )
+    )
   rescue RedmineReport::WeeklyReport::SaveService::RevisionConflictError => e
-    render json: { code: 'REVISION_CONFLICT', message: e.message, retryable: true }, status: :conflict
+    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.revision_conflict(e.message))
   rescue StandardError => e
-    Rails.logger.error("[schedule_report] weekly_save failed: #{e.class}: #{e.message}")
-    render json: { code: 'UPSTREAM_FAILURE', message: e.message, retryable: true }, status: :service_unavailable
+    render_weekly_upstream_failure(action_name: __method__, exception: e)
   end
 
   def weekly_ai_responses
@@ -150,8 +151,10 @@ class ScheduleReportsController < ApplicationController
 
     render json: service.call
   rescue StandardError => e
-    Rails.logger.error("[schedule_report] weekly_ai_responses failed: #{e.class}: #{e.message}")
-    render json: { code: 'UPSTREAM_UNAVAILABLE', message: l(:label_schedule_report_unavailable), retryable: true }, status: :service_unavailable
+    log_weekly_error(action_name: __method__, exception: e)
+    render_weekly_payload(
+      RedmineReport::WeeklyReport::ErrorPayloadBuilder.upstream_unavailable(l(:label_schedule_report_unavailable))
+    )
   end
 
   def bundle_js
@@ -225,5 +228,25 @@ class ScheduleReportsController < ApplicationController
       # Prefer JSON body values over query values while preserving fallback.
       params.to_unsafe_h.merge(raw.to_h).symbolize_keys
     end
+  end
+
+  def render_weekly_unavailable_error(action_name:, exception:)
+    log_weekly_error(action_name: action_name, exception: exception)
+    render_weekly_payload(
+      RedmineReport::WeeklyReport::ErrorPayloadBuilder.unavailable(l(:label_schedule_report_unavailable))
+    )
+  end
+
+  def render_weekly_upstream_failure(action_name:, exception:)
+    log_weekly_error(action_name: action_name, exception: exception)
+    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.upstream_failure(exception.message))
+  end
+
+  def render_weekly_payload(payload)
+    render json: payload[:json], status: payload[:status]
+  end
+
+  def log_weekly_error(action_name:, exception:)
+    Rails.logger.error("[schedule_report] #{action_name} failed: #{exception.class}: #{exception.message}")
   end
 end

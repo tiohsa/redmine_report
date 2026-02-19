@@ -27,17 +27,9 @@ module RedmineReport
       end
 
       def select_visible_top_level_parents(candidate_issues)
-        root_ids = []
-        invalid_count = 0
-
-        candidate_issues.each do |issue|
-          root_id = resolve_root_issue_id(issue)
-          if root_id
-            root_ids << root_id
-          else
-            invalid_count += 1
-          end
-        end
+        resolved = root_issue_resolver.resolve_many(candidate_issues)
+        root_ids = resolved[:root_ids]
+        invalid_count = resolved[:invalid_count]
 
         unique_root_ids = root_ids.uniq
         visible_root_ids = Issue.visible(@user).where(id: unique_root_ids).pluck(:id)
@@ -53,27 +45,8 @@ module RedmineReport
 
       private
 
-      def resolve_root_issue_id(issue)
-        return issue.root_id if issue.respond_to?(:root_id) && issue.root_id.present?
-
-        visited = {}
-        node = issue
-        depth = 0
-
-        while node
-          node_id = node.id
-          return nil if node_id.nil? || visited[node_id]
-          visited[node_id] = true
-
-          parent_id = node.respond_to?(:parent_id) ? node.parent_id : nil
-          return node_id unless parent_id
-
-          node = Issue.find_by(id: parent_id)
-          depth += 1
-          return nil if depth > 100
-        end
-
-        nil
+      def root_issue_resolver
+        @root_issue_resolver ||= RootIssueResolver.new(issue_class: Issue)
       end
     end
   end

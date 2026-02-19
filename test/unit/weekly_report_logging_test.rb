@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require File.expand_path('../../test_helper', __dir__)
+require File.expand_path('../test_helper', __dir__)
 
 class WeeklyReportLoggingTest < ActiveSupport::TestCase
   def test_destination_validator_reports_invalid_input_without_exception

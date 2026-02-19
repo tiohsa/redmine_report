@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require File.expand_path('../../test_helper', __dir__)
+require File.expand_path('../test_helper', __dir__)
 
 class ScheduleReportAggregationTest < ActiveSupport::TestCase
   DummyIssue = Struct.new(:id, :subject, :project_id, :category_id, :category, :start_date, :due_date, :done_ratio, :fixed_version, :closed, :root_id, keyword_init: true) do

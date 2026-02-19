@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require File.expand_path('../../test_helper', __dir__)
+require File.expand_path('../test_helper', __dir__)
 
 class WeeklyReportSaveFlowTest < ActiveSupport::TestCase
   DummyJournal = Struct.new(:notes, keyword_init: true)

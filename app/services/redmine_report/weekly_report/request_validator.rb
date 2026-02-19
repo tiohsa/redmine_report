@@ -4,6 +4,8 @@ module RedmineReport
   module WeeklyReport
     class RequestValidator
       class ValidationError < StandardError; end
+      DEFAULT_TOP_TOPICS_LIMIT = 10
+      DEFAULT_TOP_TICKETS_LIMIT = 30
 
       def validate_generate!(payload)
         project_id = to_i(payload[:project_id])
@@ -22,8 +24,8 @@ module RedmineReport
           version_id: version_id,
           week_from: week_from,
           week_to: week_to,
-          top_topics_limit: [to_i(payload[:top_topics_limit]) || 10, 10].min,
-          top_tickets_limit: [to_i(payload[:top_tickets_limit]) || 30, 30].min
+          top_topics_limit: clamp_limit(payload[:top_topics_limit], DEFAULT_TOP_TOPICS_LIMIT),
+          top_tickets_limit: clamp_limit(payload[:top_tickets_limit], DEFAULT_TOP_TICKETS_LIMIT)
         }
       end
 
@@ -41,11 +43,19 @@ module RedmineReport
           destination_issue_id: destination_issue_id,
           markdown: markdown,
           week: week,
-          generated_at: payload[:generated_at].presence || Time.current.iso8601
+          generated_at: fallback_time(payload[:generated_at])
         )
       end
 
       private
+
+      def clamp_limit(value, max)
+        [to_i(value) || max, max].min
+      end
+
+      def fallback_time(value)
+        value.presence || Time.current.iso8601
+      end
 
       def to_i(value)
         return nil if value.nil?
