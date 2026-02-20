@@ -12,6 +12,7 @@ type TaskDetailsDialogProps = {
   projectIdentifier: string;
   issueId: number;
   issueTitle?: string;
+  onTaskDatesUpdated?: () => void;
   onClose: () => void;
 };
 
@@ -139,6 +140,7 @@ export function TaskDetailsDialog({
   projectIdentifier,
   issueId,
   issueTitle,
+  onTaskDatesUpdated,
   onClose
 }: TaskDetailsDialogProps) {
   const [issues, setIssues] = useState<TaskDetailIssue[]>([]);
@@ -251,6 +253,7 @@ export function TaskDetailsDialog({
       updated.parent_id = row.parent_id;
       setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? updated : item)));
       setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
+      onTaskDatesUpdated?.();
     } catch (error: unknown) {
       const message =
         error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });

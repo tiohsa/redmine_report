@@ -27,6 +27,7 @@ export function ScheduleReportPage() {
   const currentProjectIdentifier = useUiStore((s) => s.currentProjectIdentifier);
   const selectedProjectIdentifiers = useUiStore((s) => s.selectedProjectIdentifiers);
   const requestSequenceRef = useRef(0);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   // Version Selection State
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
@@ -122,7 +123,7 @@ export function ScheduleReportPage() {
         if (requestId !== requestSequenceRef.current) return;
         setLoading(false);
       });
-  }, [setSnapshot, setLoading, setError, filters, rootProjectIdentifier, currentProjectIdentifier, selectedProjectIdentifiers]);
+  }, [setSnapshot, setLoading, setError, filters, rootProjectIdentifier, currentProjectIdentifier, selectedProjectIdentifiers, refreshToken]);
 
 
 
@@ -137,6 +138,7 @@ export function ScheduleReportPage() {
           availableProjects={snapshot.available_projects}
           selectedVersions={selectedVersions}
           onVersionChange={setSelectedVersions}
+          onTaskDatesUpdated={() => setRefreshToken((current) => current + 1)}
           fetchError={snapshot.rows.length === 0 && snapshot.bars.length === 0 ? snapshot.errorMessage : null}
         />
       )}

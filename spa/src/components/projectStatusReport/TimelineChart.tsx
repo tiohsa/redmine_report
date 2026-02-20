@@ -76,6 +76,7 @@ type TimelineChartProps = {
   chartScale?: number;
   onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
   onVersionReportClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
+  onTaskDatesUpdated?: () => void;
   activeReportLaneKey?: string | null;
 };
 
@@ -98,6 +99,7 @@ export function TimelineChart({
   chartScale = 1,
   onVersionAiClick,
   onVersionReportClick,
+  onTaskDatesUpdated,
   activeReportLaneKey
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
@@ -242,6 +244,7 @@ export function TimelineChart({
           projectIdentifier={projectIdentifier}
           issueId={activeIssue.id}
           issueTitle={activeIssue.title}
+          onTaskDatesUpdated={onTaskDatesUpdated}
           onClose={() => setActiveIssue(null)}
         />
       )}

@@ -21,6 +21,7 @@ interface ProjectStatusReportProps {
     availableProjects?: ProjectInfo[];
     selectedVersions?: string[];
     onVersionChange?: (versions: string[]) => void;
+    onTaskDatesUpdated?: () => void;
     fetchError?: string | null;
 }
 
@@ -30,6 +31,7 @@ export const ProjectStatusReport = ({
     availableProjects = [],
     selectedVersions = [],
     onVersionChange,
+    onTaskDatesUpdated,
     fetchError = null
 }: ProjectStatusReportProps) => {
     const [aiResponse, setAiResponse] = useState<AiResponseView | null>(null);
@@ -359,6 +361,7 @@ export const ProjectStatusReport = ({
                         containerRef={containerRef}
                         projectIdentifier={rootProjectIdentifier || projectIdentifier}
                         chartScale={chartScale}
+                        onTaskDatesUpdated={onTaskDatesUpdated}
                         onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
                             setWeeklyDialog({
                                 open: true,
