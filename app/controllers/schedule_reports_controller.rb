@@ -317,10 +317,19 @@ class ScheduleReportsController < ApplicationController
   end
 
   def task_date_payload
-    raw = request.request_parameters.presence || {}
     payload = {}
-    payload[:start_date] = raw['start_date'] if raw.key?('start_date')
-    payload[:due_date] = raw['due_date'] if raw.key?('due_date')
+
+    permitted = params.permit(:start_date, :due_date).to_h
+    payload[:start_date] = permitted['start_date'] if permitted.key?('start_date')
+    payload[:due_date] = permitted['due_date'] if permitted.key?('due_date')
+
+    # Fallback for environments where request parameter parsing differs by content-type.
+    if payload.empty?
+      raw = request.request_parameters.presence || {}
+      payload[:start_date] = raw['start_date'] if raw.key?('start_date')
+      payload[:due_date] = raw['due_date'] if raw.key?('due_date')
+    end
+
     payload
   end
 end

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../../i18n';
 import {
   fetchTaskDetails,
@@ -146,6 +146,10 @@ export function TaskDetailsDialog({
   const [savingIssueIds, setSavingIssueIds] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const issuesRef = useRef<TaskDetailIssue[]>([]);
+  const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
+  const savingIssueIdsRef = useRef<Record<number, boolean>>({});
+  const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     if (!open) return;
@@ -189,6 +193,23 @@ export function TaskDetailsDialog({
     };
   }, [open, projectIdentifier, issueId]);
 
+  useEffect(() => {
+    issuesRef.current = issues;
+  }, [issues]);
+
+  useEffect(() => {
+    baselineByIdRef.current = baselineById;
+  }, [baselineById]);
+
+  useEffect(() => {
+    savingIssueIdsRef.current = savingIssueIds;
+  }, [savingIssueIds]);
+
+  useEffect(() => () => {
+    Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
+    saveTimersRef.current = {};
+  }, []);
+
   const treeRoots = useMemo(() => {
     const map = new Map<number, TreeNodeType>();
     issues.forEach(issue => {
@@ -212,14 +233,8 @@ export function TaskDetailsDialog({
     return t('timeline.ticketTitle', { id: issueId, suffix: `: ${issueTitle}` });
   }, [issueId, issueTitle]);
 
-  const setDateValue = (rowIssueId: number, key: 'start_date' | 'due_date', value: string) => {
-    setIssues((prev) =>
-      prev.map((row) => (row.issue_id === rowIssueId ? { ...row, [key]: value || null } : row))
-    );
-  };
-
   const isRowDirty = (row: TaskDetailIssue) => {
-    const baseline = baselineById[row.issue_id];
+    const baseline = baselineByIdRef.current[row.issue_id];
     if (!baseline) return false;
     return baseline.start_date !== row.start_date || baseline.due_date !== row.due_date;
   };
@@ -246,10 +261,29 @@ export function TaskDetailsDialog({
   };
 
   const handleDateChange = (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => {
-    const nextRow = { ...row, [key]: value || null };
-    setDateValue(row.issue_id, key, value);
-    if (!isRowDirty(nextRow) || savingIssueIds[row.issue_id]) return;
-    void saveRow(nextRow);
+    setIssues((prev) => {
+      const next = prev.map((item) => (item.issue_id === row.issue_id ? { ...item, [key]: value || null } : item));
+      const updatedRow = next.find((item) => item.issue_id === row.issue_id);
+      if (!updatedRow) return next;
+
+      if (saveTimersRef.current[row.issue_id]) {
+        clearTimeout(saveTimersRef.current[row.issue_id]);
+      }
+
+      if (!isRowDirty(updatedRow)) {
+        delete saveTimersRef.current[row.issue_id];
+        return next;
+      }
+
+      saveTimersRef.current[row.issue_id] = setTimeout(() => {
+        const latestRow = issuesRef.current.find((item) => item.issue_id === row.issue_id);
+        delete saveTimersRef.current[row.issue_id];
+        if (!latestRow || !isRowDirty(latestRow) || savingIssueIdsRef.current[row.issue_id]) return;
+        void saveRow(latestRow);
+      }, 500);
+
+      return next;
+    });
   };
 
   if (!open) return null;
@@ -331,4 +365,3 @@ export function TaskDetailsDialog({
     </div>
   );
 }
-

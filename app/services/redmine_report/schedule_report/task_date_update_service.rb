@@ -21,11 +21,11 @@ module RedmineReport
         issue = visible_scope.find_by(id: resolved_issue_id)
         return error('NOT_FOUND', 'Issue not found', :not_found) unless issue
 
-        safe_names = issue.safe_attribute_names(@user).map(&:to_s)
-        disallowed = parsed_attrs[:attrs].keys.reject { |key| safe_names.include?(key) }
-        return error('FORBIDDEN', 'Issue is not editable', :forbidden) if disallowed.any?
+        return error('FORBIDDEN', 'Issue is not editable', :forbidden) unless issue.editable?(@user)
 
-        issue.safe_attributes = parsed_attrs[:attrs], @user
+        parsed_attrs[:attrs].each do |key, value|
+          issue.public_send("#{key}=", value)
+        end
         return error('VALIDATION_ERROR', issue.errors.full_messages.join(', '), :unprocessable_entity) unless issue.save
 
         { ok: true, issue: serialize_issue(issue) }
