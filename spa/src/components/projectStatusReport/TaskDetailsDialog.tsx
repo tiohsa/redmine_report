@@ -49,7 +49,7 @@ const IssueTreeNode = ({
             <div
               key={level}
               className="absolute top-0 bottom-0 border-l border-slate-300 pointer-events-none"
-              style={{ left: `${level * 28 + 24}px` }}
+              style={{ left: `${level * 24 + 48}px` }}
             />
           ) : null
         ))}
@@ -61,7 +61,7 @@ const IssueTreeNode = ({
             <div
               className="absolute border-l border-slate-300 pointer-events-none"
               style={{
-                left: `${(depth - 1) * 28 + 24}px`,
+                left: `${(depth - 1) * 24 + 48}px`,
                 top: 0,
                 bottom: isLast ? 'calc(100% - 20px)' : 0
               }}
@@ -70,15 +70,15 @@ const IssueTreeNode = ({
             <div
               className="absolute border-t border-slate-300 pointer-events-none"
               style={{
-                left: `${(depth - 1) * 28 + 24}px`,
+                left: `${(depth - 1) * 24 + 48}px`,
                 top: '20px',
-                width: '14px'
+                width: '12px'
               }}
             />
           </>
         )}
 
-        <div className="w-full md:flex-1 flex items-center min-w-0" style={{ paddingLeft: `${depth * 28 + 12}px` }}>
+        <div className="w-full md:flex-1 flex items-center min-w-0" style={{ paddingLeft: `${depth * 24 + 12}px` }}>
           <div className="flex items-center min-w-0 pr-4 z-10 w-full relative">
             {isRoot ? (
               <a href={node.issue_url} target="_blank" rel="noreferrer" className="flex-shrink-0 bg-blue-50 text-blue-600 border border-blue-200 text-xs font-semibold px-2 py-0.5 rounded mr-3 hover:bg-blue-100 transition-colors">
