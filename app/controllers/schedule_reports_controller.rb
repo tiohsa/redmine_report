@@ -59,6 +59,66 @@ class ScheduleReportsController < ApplicationController
     render json: { error: e.message }, status: :internal_server_error
   end
 
+  def task_details
+    service = RedmineReport::ScheduleReport::TaskDetailsService.new(
+      root_project: @project,
+      user: User.current
+    )
+    result = service.call(issue_id: params[:issue_id])
+
+    if result[:ok]
+      render json: { issues: result[:issues] }
+      return
+    end
+
+    render_schedule_report_error(
+      code: result[:code],
+      message: result[:message],
+      status: result[:status],
+      retryable: result[:retryable]
+    )
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] task_details failed: #{e.class}: #{e.message}")
+    render_schedule_report_error(
+      code: 'UPSTREAM_FAILURE',
+      message: l(:label_schedule_report_unavailable),
+      status: :service_unavailable,
+      retryable: true
+    )
+  end
+
+  def task_dates
+    service = RedmineReport::ScheduleReport::TaskDateUpdateService.new(
+      root_project: @project,
+      user: User.current
+    )
+    result = service.call(
+      issue_id: params[:issue_id],
+      start_date: task_date_payload.fetch(:start_date, RedmineReport::ScheduleReport::TaskDateUpdateService::MISSING),
+      due_date: task_date_payload.fetch(:due_date, RedmineReport::ScheduleReport::TaskDateUpdateService::MISSING)
+    )
+
+    if result[:ok]
+      render json: { issue: result[:issue] }
+      return
+    end
+
+    render_schedule_report_error(
+      code: result[:code],
+      message: result[:message],
+      status: result[:status],
+      retryable: result[:retryable]
+    )
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] task_dates failed: #{e.class}: #{e.message}")
+    render_schedule_report_error(
+      code: 'UPSTREAM_FAILURE',
+      message: l(:label_schedule_report_unavailable),
+      status: :service_unavailable,
+      retryable: true
+    )
+  end
+
   def weekly_versions
     versions = @project.versions
                        .select(:id, :name, :status)
@@ -248,5 +308,19 @@ class ScheduleReportsController < ApplicationController
 
   def log_weekly_error(action_name:, exception:)
     Rails.logger.error("[schedule_report] #{action_name} failed: #{exception.class}: #{exception.message}")
+  end
+
+  def render_schedule_report_error(code:, message:, status:, retryable: nil)
+    payload = { code: code, message: message }
+    payload[:retryable] = retryable unless retryable.nil?
+    render json: payload, status: status
+  end
+
+  def task_date_payload
+    raw = request.request_parameters.presence || {}
+    payload = {}
+    payload[:start_date] = raw['start_date'] if raw.key?('start_date')
+    payload[:due_date] = raw['due_date'] if raw.key?('due_date')
+    payload
   end
 end

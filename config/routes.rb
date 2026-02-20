@@ -4,6 +4,12 @@
 get '/projects/:project_id/schedule_report', to: 'schedule_reports#index', as: 'project_schedule_report'
 get '/projects/:project_id/schedule_report/data', to: 'schedule_reports#data', as: 'project_schedule_report_data'
 post '/projects/:project_id/schedule_report/generate', to: 'schedule_reports#generate', as: 'project_schedule_report_generate'
+get '/projects/:project_id/schedule_report/task_details/:issue_id',
+    to: 'schedule_reports#task_details',
+    as: 'project_schedule_report_task_details'
+patch '/projects/:project_id/schedule_report/task_dates/:issue_id',
+      to: 'schedule_reports#task_dates',
+      as: 'project_schedule_report_task_dates'
 get '/projects/:project_id/schedule_report/weekly/versions',
     to: 'schedule_reports#weekly_versions',
     as: 'project_schedule_report_weekly_versions'

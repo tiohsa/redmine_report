@@ -357,6 +357,7 @@ export const ProjectStatusReport = ({
                         headerYears={headerYears}
                         todayX={todayX}
                         containerRef={containerRef}
+                        projectIdentifier={rootProjectIdentifier || projectIdentifier}
                         chartScale={chartScale}
                         onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
                             setWeeklyDialog({

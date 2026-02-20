@@ -23,6 +23,8 @@ Redmine::Plugin.register :redmine_report do
                  index
                  data
                  generate
+                 task_details
+                 task_dates
                  weekly_versions
                  weekly_validate_destination
                  weekly_prepare

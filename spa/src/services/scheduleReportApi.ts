@@ -69,6 +69,14 @@ export type ProjectInfo = {
   selectable?: boolean;
 };
 
+export type TaskDetailIssue = {
+  issue_id: number;
+  subject: string;
+  start_date: string | null;
+  due_date: string | null;
+  issue_url: string;
+};
+
 const toQuery = (filters: Partial<ReportFilterSet>) => {
   const query = new URLSearchParams();
   if (filters.include_subprojects !== undefined) {
@@ -100,6 +108,45 @@ export const fetchScheduleReport = async (
     throw new Error(errorBody.error || t('api.fetchScheduleReport', { status: res.status }));
   }
   return (await res.json()) as ReportSnapshot;
+};
+
+export const fetchTaskDetails = async (
+  projectIdentifier: string,
+  issueId: number
+): Promise<TaskDetailIssue[]> => {
+  const path = `/projects/${projectIdentifier}/schedule_report/task_details/${issueId}`;
+  const res = await fetch(path, { credentials: 'same-origin' });
+  if (!res.ok) {
+    throw await parseWeeklyError(res, t('api.fetchTaskDetails', { status: res.status }));
+  }
+  const json = (await res.json()) as { issues: TaskDetailIssue[] };
+  return json.issues || [];
+};
+
+export const updateTaskDates = async (
+  projectIdentifier: string,
+  issueId: number,
+  payload: {
+    start_date?: string | null;
+    due_date?: string | null;
+  }
+): Promise<TaskDetailIssue> => {
+  const path = `/projects/${projectIdentifier}/schedule_report/task_dates/${issueId}`;
+  const res = await fetch(path, {
+    method: 'PATCH',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    throw await parseWeeklyError(res, t('api.updateTaskDates', { status: res.status }));
+  }
+  const json = (await res.json()) as { issue: TaskDetailIssue };
+  return json.issue;
 };
 
 export class WeeklyApiError extends Error {

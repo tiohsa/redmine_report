@@ -1,8 +1,9 @@
 import { format } from 'date-fns';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { RefObject } from 'react';
 import { t } from '../../i18n';
 import { HeaderMonth, HeaderYear, TimelineLane } from './timeline';
+import { TaskDetailsDialog } from './TaskDetailsDialog';
 
 type ChevronPathProps = {
   x: number;
@@ -71,6 +72,7 @@ type TimelineChartProps = {
   headerYears: HeaderYear[];
   todayX: number;
   containerRef: RefObject<HTMLDivElement>;
+  projectIdentifier: string;
   chartScale?: number;
   onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
   onVersionReportClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
@@ -92,6 +94,7 @@ export function TimelineChart({
   headerYears,
   todayX,
   containerRef,
+  projectIdentifier,
   chartScale = 1,
   onVersionAiClick,
   onVersionReportClick,
@@ -104,19 +107,6 @@ export function TimelineChart({
     if (!issueId) return;
     setActiveIssue({ id: issueId, title: title || '' });
   };
-
-  useEffect(() => {
-    if (!activeIssue) return;
-
-    const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setActiveIssue(null);
-      }
-    };
-
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [activeIssue]);
 
   return (
     <>
@@ -247,47 +237,13 @@ export function TimelineChart({
       </div>
 
       {activeIssue && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/50"
-          onClick={() => setActiveIssue(null)}
-        >
-          <div
-            className="bg-white w-full h-full flex flex-col overflow-hidden"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="h-12 px-4 border-b border-slate-200 flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-700 truncate">
-                {t('timeline.ticketTitle', {
-                  id: activeIssue.id,
-                  suffix: activeIssue.title ? `: ${activeIssue.title}` : ''
-                })}
-              </span>
-              <button
-                aria-label={t('timeline.closeDialogAria')}
-                className="text-slate-500 hover:text-slate-700 text-xl leading-none px-2 cursor-pointer"
-                onClick={() => setActiveIssue(null)}
-              >
-                ×
-              </button>
-            </div>
-            <iframe
-              title={`issue-${activeIssue.id}`}
-              src={`/issues/${activeIssue.id}`}
-              onLoad={(e) => {
-                const iframe = e.target as HTMLIFrameElement;
-                if (iframe.contentDocument) {
-                  const style = iframe.contentDocument.createElement('style');
-                  style.textContent = `
-                    #top-menu, #header, #main-menu, #sidebar, #footer { display: none !important; }
-                    #content { width: 100% !important; margin: 0 !important; }
-                  `;
-                  iframe.contentDocument.head.appendChild(style);
-                }
-              }}
-              className="w-full flex-1 border-0"
-            />
-          </div>
-        </div>
+        <TaskDetailsDialog
+          open
+          projectIdentifier={projectIdentifier}
+          issueId={activeIssue.id}
+          issueTitle={activeIssue.title}
+          onClose={() => setActiveIssue(null)}
+        />
       )}
     </>
   );
@@ -303,7 +259,17 @@ function TimelineSvg({
   activeReportLaneKey,
   laneHeight,
   chartScale = 1
-}: Omit<TimelineChartProps, 'containerRef'> & { onStepClick: (issueId?: number, title?: string) => void; laneHeight: number }) {
+}: {
+  timelineData: TimelineLane[];
+  timelineWidth: number;
+  headerMonths: HeaderMonth[];
+  headerYears: HeaderYear[];
+  todayX: number;
+  onStepClick: (issueId?: number, title?: string) => void;
+  activeReportLaneKey?: string | null;
+  laneHeight: number;
+  chartScale?: number;
+}) {
   const svgHeight = headerHeight + timelineData.length * laneHeight;
 
   if (timelineData.length === 0) {

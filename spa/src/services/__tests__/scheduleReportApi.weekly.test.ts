@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchTaskDetails,
   fetchWeeklyAiResponses,
   generateWeeklyReport,
   saveWeeklyReport,
+  updateTaskDates,
   validateWeeklyDestination,
   WeeklyApiError
 } from '../scheduleReportApi';
@@ -92,5 +94,33 @@ describe('scheduleReportApi weekly methods', () => {
 
     expect(res.project_tabs[0].project_identifier).toBe('ecookbook');
     expect(res.response.status).toBe('AVAILABLE');
+  });
+
+  it('maps task details payload', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        issues: [
+          { issue_id: 10, subject: 'Parent', start_date: '2026-02-01', due_date: '2026-02-10', issue_url: '/issues/10' }
+        ]
+      })
+    }));
+
+    const rows = await fetchTaskDetails('ecookbook', 10);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].issue_id).toBe(10);
+  });
+
+  it('maps task date update payload', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        issue: { issue_id: 10, subject: 'Parent', start_date: '2026-02-02', due_date: '2026-02-11', issue_url: '/issues/10' }
+      })
+    }));
+
+    const issue = await updateTaskDates('ecookbook', 10, { start_date: '2026-02-02', due_date: '2026-02-11' });
+    expect(issue.start_date).toBe('2026-02-02');
+    expect(issue.due_date).toBe('2026-02-11');
   });
 });

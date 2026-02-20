@@ -11,4 +11,13 @@ class ScheduleReportAuthorizationTest < Redmine::IntegrationTest
       '/projects/ecookbook/schedule_report/data'
     )
   end
+
+  def test_permission_includes_task_dialog_actions
+    permission = Redmine::AccessControl.permission(:view_schedule_report)
+
+    assert_not_nil permission
+    actions = permission.actions.map(&:to_s)
+    assert_includes actions, 'schedule_reports/task_details'
+    assert_includes actions, 'schedule_reports/task_dates'
+  end
 end
