@@ -47,6 +47,7 @@ module RedmineReport
       def serialize_issue(issue)
         {
           issue_id: issue.id,
+          parent_id: issue.parent_id,
           subject: issue.subject.to_s,
           start_date: issue.start_date&.iso8601,
           due_date: issue.due_date&.iso8601,

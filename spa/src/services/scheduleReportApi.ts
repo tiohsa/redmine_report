@@ -71,6 +71,7 @@ export type ProjectInfo = {
 
 export type TaskDetailIssue = {
   issue_id: number;
+  parent_id: number | null;
   subject: string;
   start_date: string | null;
   due_date: string | null;
