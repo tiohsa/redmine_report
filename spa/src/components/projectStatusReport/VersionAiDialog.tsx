@@ -13,6 +13,7 @@ import type {
   WeeklyPrepareResponse
 } from '../../types/weeklyReport';
 import { t, tList } from '../../i18n';
+import { CreateDestinationIssueDialog } from './CreateDestinationIssueDialog';
 
 type Props = {
   open: boolean;
@@ -77,6 +78,7 @@ export const VersionAiDialog = ({
   const [loadingSave, setLoadingSave] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [createTicketOpen, setCreateTicketOpen] = useState(false);
 
   const validateDestinationById = useCallback(async (destinationId: number) => {
     setLoadingValidate(true);
@@ -91,7 +93,10 @@ export const VersionAiDialog = ({
         destination_issue_id: destinationId
       });
       setValidation(result);
-      if (result.valid) setMessage(t('weeklyDialog.destinationValidated'));
+      if (result.valid) {
+        weeklyDestinationStorage.setDestinationIssueId(projectId, versionId, destinationId);
+        setMessage(t('weeklyDialog.destinationValidatedAndSaved'));
+      }
     } catch (e) {
       const err = e as WeeklyApiError;
       setValidation({ valid: false, reason_code: err.code || 'INVALID_INPUT', reason_message: err.message });
@@ -103,7 +108,12 @@ export const VersionAiDialog = ({
 
   useEffect(() => {
     if (!open) return;
-    const mapped = weeklyDestinationStorage.getDestinationIssueId(projectId, versionId);
+    const mappedCurrent = weeklyDestinationStorage.getDestinationIssueId(projectId, versionId);
+    const lastVersionId = weeklyDestinationStorage.getLastVersionId(projectId);
+    const mappedFromLastVersion = lastVersionId && lastVersionId !== versionId
+      ? weeklyDestinationStorage.getDestinationIssueId(projectId, lastVersionId)
+      : null;
+    const mapped = mappedCurrent ?? mappedFromLastVersion;
     setDestinationIssueId(mapped ? String(mapped) : '');
     setValidation(null);
     setPrepared(null);
@@ -261,25 +271,26 @@ export const VersionAiDialog = ({
           {tList('weeklyDialog.steps').map((label, idx) => {
             const step = idx + 1;
             return (
-            <div key={step} className="flex items-center flex-1 last:flex-none">
-              <div className="flex flex-col items-center gap-1.5 relative">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${currentStep >= step ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-110' : 'bg-white border-2 border-slate-200 text-slate-400'
-                  }`}>
-                  {currentStep > step ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                  ) : step}
+              <div key={step} className="flex items-center flex-1 last:flex-none">
+                <div className="flex flex-col items-center gap-1.5 relative">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${currentStep >= step ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-110' : 'bg-white border-2 border-slate-200 text-slate-400'
+                    }`}>
+                    {currentStep > step ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                    ) : step}
+                  </div>
+                  <span className={`text-[10px] font-bold tracking-wider uppercase ${currentStep >= step ? 'text-indigo-600' : 'text-slate-400'}`}>
+                    {label}
+                  </span>
                 </div>
-                <span className={`text-[10px] font-bold tracking-wider uppercase ${currentStep >= step ? 'text-indigo-600' : 'text-slate-400'}`}>
-                  {label}
-                </span>
+                {idx < 3 && (
+                  <div className="flex-1 h-0.5 mx-4 bg-slate-200 overflow-hidden">
+                    <div className="h-full bg-indigo-600 transition-all duration-1000" style={{ width: currentStep > step ? '100%' : '0%' }}></div>
+                  </div>
+                )}
               </div>
-              {idx < 3 && (
-                <div className="flex-1 h-0.5 mx-4 bg-slate-200 overflow-hidden">
-                  <div className="h-full bg-indigo-600 transition-all duration-1000" style={{ width: currentStep > step ? '100%' : '0%' }}></div>
-                </div>
-              )}
-            </div>
-          );})}
+            );
+          })}
         </div>
 
         {/* Scrollable Content */}
@@ -336,6 +347,16 @@ export const VersionAiDialog = ({
                     </div>
                   )}
                 </div>
+                <button
+                  type="button"
+                  title="生成AIレスポンス保存用のチケットを新規作成"
+                  onClick={() => setCreateTicketOpen(true)}
+                  className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-indigo-600 transition-all cursor-pointer flex-shrink-0"
+                >
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
                 <button
                   type="button"
                   onClick={validateDestination}
@@ -486,6 +507,19 @@ export const VersionAiDialog = ({
           </div>
         </div>
       </div>
+
+      {createTicketOpen && (
+        <CreateDestinationIssueDialog
+          projectIdentifier={projectIdentifier}
+          onCreated={async (newIssueId) => {
+            if (newIssueId) {
+              setDestinationIssueId(String(newIssueId));
+              await validateDestinationById(newIssueId);
+            }
+          }}
+          onClose={() => setCreateTicketOpen(false)}
+        />
+      )}
     </div>
   );
 };
