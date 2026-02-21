@@ -27,7 +27,7 @@ type IssueTreeNodeProps = {
   rootIssueId: number;
   savingIssueIds: Record<number, boolean>;
   handleDateChange: (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => void;
-  onAddSubIssue: (parentId: number) => void;
+  onAddSubIssue: (parentIssue: TaskDetailIssue) => void;
 };
 
 const IssueTreeNode = ({
@@ -103,7 +103,7 @@ const IssueTreeNode = ({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onAddSubIssue(node.issue_id);
+                onAddSubIssue(node);
               }}
               title="子チケットを追加"
             >
@@ -158,20 +158,46 @@ const IssueTreeNode = ({
 type SubIssueCreationDialogProps = {
   projectIdentifier: string;
   parentIssueId: number;
+  parentStartDate?: string | null;
+  parentDueDate?: string | null;
+  onCreated?: (createdIssueId?: number) => void;
   onClose: () => void;
 };
 
-function SubIssueCreationDialog({ projectIdentifier, parentIssueId, onClose }: SubIssueCreationDialogProps) {
-  const iframeUrl = `/projects/${projectIdentifier}/issues/new?issue[parent_issue_id]=${parentIssueId}`;
-  const externalUrl = `/projects/${projectIdentifier}/issues/new?issue[parent_issue_id]=${parentIssueId}`;
+function SubIssueCreationDialog({
+  projectIdentifier,
+  parentIssueId,
+  parentStartDate,
+  parentDueDate,
+  onCreated,
+  onClose
+}: SubIssueCreationDialogProps) {
+  const issueQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set('issue[parent_issue_id]', String(parentIssueId));
+    if (parentStartDate) {
+      params.set('issue[start_date]', parentStartDate);
+      params.set('start_date', parentStartDate);
+    }
+    if (parentDueDate) {
+      params.set('issue[due_date]', parentDueDate);
+      params.set('due_date', parentDueDate);
+    }
+    return params.toString();
+  }, [parentDueDate, parentIssueId, parentStartDate]);
+
+  const iframeUrl = `/projects/${projectIdentifier}/issues/new?${issueQuery}`;
+  const externalUrl = `/projects/${projectIdentifier}/issues/new?${issueQuery}`;
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const handledCreationRef = useRef(false);
 
   useEffect(() => {
     setIframeReady(false);
+    handledCreationRef.current = false;
   }, [iframeUrl]);
 
   const createBulkIssues = async (newParentIssueId: number, lines: string[]) => {
@@ -261,6 +287,7 @@ function SubIssueCreationDialog({ projectIdentifier, parentIssueId, onClose }: S
       await createBulkIssues(newParentIssueId, lines);
       setBulkText('');
       setBulkOpen(false);
+      onCreated?.(newParentIssueId);
       onClose();
     } catch (err: any) {
       alert(`エラーが発生しました: ${err.message}`);
@@ -371,6 +398,15 @@ function SubIssueCreationDialog({ projectIdentifier, parentIssueId, onClose }: S
                 `;
                 doc.head.appendChild(style);
                 normalizeEmbeddedFormActions(doc);
+
+                const pathname = doc.location?.pathname || '';
+                if (!handledCreationRef.current && /^\/issues\/\d+(?:\/)?$/.test(pathname)) {
+                  handledCreationRef.current = true;
+                  const createdIssueId = Number(pathname.split('/').pop());
+                  onCreated?.(Number.isFinite(createdIssueId) ? createdIssueId : undefined);
+                  onClose();
+                  return;
+                }
               } catch { /* cross-origin fallback: do nothing */ }
               requestAnimationFrame(() => setIframeReady(true));
             }}
@@ -445,27 +481,52 @@ export function TaskDetailsDialog({
   const [savingIssueIds, setSavingIssueIds] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [createIssueParentId, setCreateIssueParentId] = useState<number | null>(null);
+  const [createIssueContext, setCreateIssueContext] = useState<{
+    issueId: number;
+    startDate: string | null;
+    dueDate: string | null;
+  } | null>(null);
   const issuesRef = useRef<TaskDetailIssue[]>([]);
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const hasDateChangesRef = useRef(false);
 
-  const newIssueUrl = useMemo(() => {
-    let url = `/projects/${projectIdentifier}/issues/new`;
-    if (createIssueParentId) {
-      url += `?issue[parent_issue_id]=${createIssueParentId}`;
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const reloadTaskDetails = useCallback(async (expectedIssueId?: number) => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      let latestRows: TaskDetailIssue[] = [];
+      const maxAttempts = expectedIssueId ? 3 : 1;
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        latestRows = await fetchTaskDetails(projectIdentifier, issueId);
+        const found = !expectedIssueId || latestRows.some((row) => row.issue_id === expectedIssueId);
+        if (found) break;
+        if (attempt < maxAttempts - 1) {
+          await sleep(250);
+        }
+      }
+
+      setIssues(latestRows);
+      setBaselineById(latestRows.reduce<Record<number, TaskDetailIssue>>((acc, row) => {
+        acc[row.issue_id] = row;
+        return acc;
+      }, {}));
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : t('timeline.detailsLoadFailed'));
+    } finally {
+      setLoading(false);
     }
-    return url;
-  }, [projectIdentifier, createIssueParentId]);
+  }, [issueId, projectIdentifier]);
 
   const handleClose = useCallback(() => {
     if (hasDateChangesRef.current) {
       onTaskDatesUpdated?.();
       hasDateChangesRef.current = false;
     }
-    setCreateIssueParentId(null);
+    setCreateIssueContext(null);
     onClose();
   }, [onClose, onTaskDatesUpdated]);
 
@@ -485,32 +546,10 @@ export function TaskDetailsDialog({
 
   useEffect(() => {
     if (!open) return;
-
-    let cancelled = false;
-    setLoading(true);
-    setErrorMessage(null);
-
-    fetchTaskDetails(projectIdentifier, issueId)
-      .then((rows) => {
-        if (cancelled) return;
-        setIssues(rows);
-        setBaselineById(rows.reduce<Record<number, TaskDetailIssue>>((acc, row) => {
-          acc[row.issue_id] = row;
-          return acc;
-        }, {}));
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setErrorMessage(error instanceof Error ? error.message : t('timeline.detailsLoadFailed'));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, projectIdentifier, issueId]);
+    void reloadTaskDetails().catch(() => {
+      // Errors are handled in reloadTaskDetails.
+    });
+  }, [open, reloadTaskDetails]);
 
   useEffect(() => {
     issuesRef.current = issues;
@@ -677,7 +716,11 @@ export function TaskDetailsDialog({
                     rootIssueId={issueId}
                     savingIssueIds={savingIssueIds}
                     handleDateChange={handleDateChange}
-                    onAddSubIssue={(parentId) => setCreateIssueParentId(parentId)}
+                    onAddSubIssue={(parentIssue) => setCreateIssueContext({
+                      issueId: parentIssue.issue_id,
+                      startDate: parentIssue.start_date,
+                      dueDate: parentIssue.due_date
+                    })}
                   />
                 ))}
               </div>
@@ -685,11 +728,16 @@ export function TaskDetailsDialog({
           )}
         </div>
       </div>
-      {createIssueParentId !== null && (
+      {createIssueContext !== null && (
         <SubIssueCreationDialog
           projectIdentifier={projectIdentifier}
-          parentIssueId={createIssueParentId}
-          onClose={() => setCreateIssueParentId(null)}
+          parentIssueId={createIssueContext.issueId}
+          parentStartDate={createIssueContext.startDate}
+          parentDueDate={createIssueContext.dueDate}
+          onCreated={(createdIssueId) => {
+            void reloadTaskDetails(createdIssueId);
+          }}
+          onClose={() => setCreateIssueContext(null)}
         />
       )}
     </div>

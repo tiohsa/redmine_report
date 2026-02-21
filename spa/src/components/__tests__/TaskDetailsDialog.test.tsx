@@ -103,10 +103,91 @@ describe('TaskDetailsDialog', () => {
 
     const iframe = screen.getByTitle('子チケット新規登録') as HTMLIFrameElement;
     expect(iframe).toBeTruthy();
-    expect(iframe.getAttribute('src')).toBe('/projects/ecookbook/issues/new?issue[parent_issue_id]=10');
+    const iframeSrc = iframe.getAttribute('src');
+    expect(iframeSrc).toBeTruthy();
+    const srcUrl = new URL(iframeSrc as string, 'http://localhost');
+    expect(srcUrl.pathname).toBe('/projects/ecookbook/issues/new');
+    expect(srcUrl.searchParams.get('issue[parent_issue_id]')).toBe('10');
+    expect(srcUrl.searchParams.get('issue[start_date]')).toBe('2026-02-01');
+    expect(srcUrl.searchParams.get('issue[due_date]')).toBe('2026-02-10');
+    expect(srcUrl.searchParams.get('start_date')).toBe('2026-02-01');
+    expect(srcUrl.searchParams.get('due_date')).toBe('2026-02-10');
 
     fireEvent.click(screen.getByRole('button', { name: /新規チケット作成ダイアログを閉じる/ }));
     expect(screen.queryByTitle('子チケット新規登録')).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('reloads task details after a sub-issue is created', async () => {
+    fetchTaskDetailsMock
+      .mockResolvedValueOnce([
+        {
+          issue_id: 10,
+          parent_id: null,
+          subject: 'Root issue',
+          start_date: '2026-02-01',
+          due_date: '2026-02-10',
+          issue_url: '/issues/10'
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          issue_id: 10,
+          parent_id: null,
+          subject: 'Root issue',
+          start_date: '2026-02-01',
+          due_date: '2026-02-10',
+          issue_url: '/issues/10'
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          issue_id: 10,
+          parent_id: null,
+          subject: 'Root issue',
+          start_date: '2026-02-01',
+          due_date: '2026-02-10',
+          issue_url: '/issues/10'
+        },
+        {
+          issue_id: 11,
+          parent_id: 10,
+          subject: 'New child issue',
+          start_date: null,
+          due_date: null,
+          issue_url: '/issues/11'
+        }
+      ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTitle('子チケットを追加'));
+
+    const iframe = screen.getByTitle('子チケット新規登録') as HTMLIFrameElement;
+    const fakeDoc = {
+      head: { appendChild: vi.fn() },
+      createElement: vi.fn(() => ({ textContent: '' })),
+      querySelectorAll: vi.fn(() => []),
+      location: { pathname: '/issues/11' }
+    } as unknown as Document;
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: fakeDoc
+    });
+
+    fireEvent.load(iframe);
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(3));
+    expect(screen.getByText('New child issue')).toBeTruthy();
+    expect(screen.queryByTitle('子チケット新規登録')).toBeNull();
   });
 });
