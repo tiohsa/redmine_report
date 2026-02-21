@@ -72,4 +72,41 @@ describe('TaskDetailsDialog', () => {
     expect(onTaskDatesUpdated).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('opens create issue dialog with redmine default new issue screen', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        issue_url: '/issues/10'
+      }
+    ]);
+    const onClose = vi.fn();
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={onClose}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    // Click the add sub-issue button (appears on row hover)
+    const addButton = screen.getByTitle('子チケットを追加');
+    fireEvent.click(addButton);
+
+    const iframe = screen.getByTitle('子チケット新規登録') as HTMLIFrameElement;
+    expect(iframe).toBeTruthy();
+    expect(iframe.getAttribute('src')).toBe('/projects/ecookbook/issues/new?issue[parent_issue_id]=10');
+
+    fireEvent.click(screen.getByRole('button', { name: /新規チケット作成ダイアログを閉じる/ }));
+    expect(screen.queryByTitle('子チケット新規登録')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

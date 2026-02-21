@@ -6,6 +6,7 @@ import {
   updateTaskDates,
   WeeklyApiError
 } from '../../services/scheduleReportApi';
+import { createIssue, BulkIssuePayload } from '../bulkIssueRegistration/bulkIssueApi';
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -26,6 +27,7 @@ type IssueTreeNodeProps = {
   rootIssueId: number;
   savingIssueIds: Record<number, boolean>;
   handleDateChange: (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => void;
+  onAddSubIssue: (parentId: number) => void;
 };
 
 const IssueTreeNode = ({
@@ -35,7 +37,8 @@ const IssueTreeNode = ({
   isLast,
   rootIssueId,
   savingIssueIds,
-  handleDateChange
+  handleDateChange,
+  onAddSubIssue
 }: IssueTreeNodeProps) => {
   const saving = Boolean(savingIssueIds[node.issue_id]);
   const isRoot = node.issue_id === rootIssueId;
@@ -89,9 +92,25 @@ const IssueTreeNode = ({
                 #{node.issue_id}
               </a>
             )}
-            <a href={node.issue_url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 truncate hover:underline hover:text-indigo-600">
+            <a href={node.issue_url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 truncate hover:underline hover:text-indigo-600 block mr-2">
               {node.subject}
             </a>
+
+            {/* Add Sub-ticket Icon (visible on row hover) */}
+            <button
+              type="button"
+              className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAddSubIssue(node.issue_id);
+              }}
+              title="子チケットを追加"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -129,11 +148,289 @@ const IssueTreeNode = ({
           rootIssueId={rootIssueId}
           savingIssueIds={savingIssueIds}
           handleDateChange={handleDateChange}
+          onAddSubIssue={onAddSubIssue}
         />
       ))}
     </>
   );
 };
+
+type SubIssueCreationDialogProps = {
+  projectIdentifier: string;
+  parentIssueId: number;
+  onClose: () => void;
+};
+
+function SubIssueCreationDialog({ projectIdentifier, parentIssueId, onClose }: SubIssueCreationDialogProps) {
+  const iframeUrl = `/projects/${projectIdentifier}/issues/new?issue[parent_issue_id]=${parentIssueId}`;
+  const externalUrl = `/projects/${projectIdentifier}/issues/new?issue[parent_issue_id]=${parentIssueId}`;
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [iframeReady, setIframeReady] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
+  useEffect(() => {
+    setIframeReady(false);
+  }, [iframeUrl]);
+
+  const createBulkIssues = async (newParentIssueId: number, lines: string[]) => {
+    for (const subject of lines) {
+      const payload: BulkIssuePayload = { subject };
+      await createIssue(projectIdentifier, newParentIssueId, payload);
+    }
+  };
+
+  const submitDefaultIssueForm = () => {
+    try {
+      const doc = iframeRef.current?.contentDocument;
+      if (!doc) throw new Error('フォームがまだ読み込まれていません。');
+      const form =
+        doc.querySelector<HTMLFormElement>('form#issue-form') ||
+        doc.querySelector<HTMLFormElement>('form#new_issue') ||
+        doc.querySelector<HTMLFormElement>('#issue-form form') ||
+        doc.querySelector<HTMLFormElement>('form.new_issue');
+      if (!form) throw new Error('Redmineの作成フォームが見つかりません。');
+      const submitter =
+        form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('button[name="commit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('input[type="submit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
+      if (submitter) {
+        submitter.click();
+        return;
+      }
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+        return;
+      }
+      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+      if (form.dispatchEvent(submitEvent)) {
+        form.submit();
+      }
+    } catch (err: any) {
+      alert(`エラーが発生しました: ${err.message}`);
+    }
+  };
+
+  const createParentIssueFromEmbeddedForm = async (): Promise<number> => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) throw new Error('フォームがまだ読み込まれていません。');
+
+    const form =
+      doc.querySelector<HTMLFormElement>('form#issue-form') ||
+      doc.querySelector<HTMLFormElement>('form#new_issue') ||
+      doc.querySelector<HTMLFormElement>('#issue-form form') ||
+      doc.querySelector<HTMLFormElement>('form.new_issue');
+    if (!form) throw new Error('Redmineの作成フォームが見つかりません。');
+
+    const action = form.getAttribute('action') || '/issues';
+    const method = (form.getAttribute('method') || 'post').toUpperCase();
+    const formData = new FormData(form);
+    const res = await fetch(action, {
+      method,
+      credentials: 'same-origin',
+      body: formData
+    });
+    if (!res.ok) {
+      throw new Error(`親チケット作成に失敗しました (HTTP ${res.status})`);
+    }
+
+    const locationCandidates = [res.url, res.headers.get('x-response-url') || '', res.headers.get('location') || ''];
+    const createdIssueId = locationCandidates
+      .map((url) => url.match(/\/issues\/(\d+)(?:[/?#]|$)/))
+      .find((match): match is RegExpMatchArray => Boolean(match && match[1]));
+
+    if (!createdIssueId) {
+      throw new Error('親チケットIDを取得できませんでした。入力内容に不備がないか確認してください。');
+    }
+    return Number(createdIssueId[1]);
+  };
+
+  const handleSave = async () => {
+    const lines = bulkText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
+
+    if (lines.length === 0) {
+      submitDefaultIssueForm();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const newParentIssueId = await createParentIssueFromEmbeddedForm();
+      await createBulkIssues(newParentIssueId, lines);
+      setBulkText('');
+      setBulkOpen(false);
+      onClose();
+    } catch (err: any) {
+      alert(`エラーが発生しました: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const normalizeEmbeddedFormActions = (doc: Document) => {
+    const forms = Array.from(doc.querySelectorAll('form[action]'));
+    forms.forEach((form) => {
+      const rawAction = form.getAttribute('action');
+      if (!rawAction) return;
+      try {
+        const actionUrl = new URL(rawAction, window.location.origin);
+        if (actionUrl.origin === window.location.origin) return;
+        const normalized = `${actionUrl.pathname}${actionUrl.search}${actionUrl.hash}`;
+        form.setAttribute('action', normalized);
+      } catch {
+        // Ignore invalid URL and keep original action.
+      }
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
+      <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <h4 className="text-base font-bold text-slate-800">
+            #{parentIssueId}
+          </h4>
+          <div className="flex items-center gap-1">
+            <a
+              href={externalUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              title="新しいタブで開く"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
+              </svg>
+            </a>
+            <button
+              type="button"
+              aria-label="新規チケット作成ダイアログを閉じる"
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              onClick={onClose}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Iframe showing Redmine's default new issue form */}
+        <div className="relative flex-1 min-h-[400px] bg-white">
+          <iframe
+            ref={iframeRef}
+            title="子チケット新規登録"
+            src={iframeUrl}
+            className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={(e) => {
+              try {
+                const doc = (e.target as HTMLIFrameElement).contentDocument;
+                if (!doc) return;
+
+                // Keep Redmine's issue form visible and hide only outer chrome.
+                const style = doc.createElement('style');
+                style.textContent = `
+                  #header,
+                  #top-menu,
+                  #main-menu,
+                  #sidebar,
+                  #footer,
+                  #redmine-report-bulk-issue-creation-root {
+                    display: none !important;
+                  }
+                  html,
+                  body {
+                    overflow-x: hidden !important;
+                  }
+                  #wrapper,
+                  #main,
+                  #content {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    width: 100% !important;
+                  }
+                  #content {
+                    padding: 12px 16px !important;
+                  }
+                  #issue-form p.buttons,
+                  #new_issue p.buttons {
+                    position: absolute !important;
+                    width: 1px !important;
+                    height: 1px !important;
+                    margin: -1px !important;
+                    padding: 0 !important;
+                    border: 0 !important;
+                    overflow: hidden !important;
+                    clip: rect(0 0 0 0) !important;
+                    clip-path: inset(50%) !important;
+                    white-space: nowrap !important;
+                  }
+                `;
+                doc.head.appendChild(style);
+                normalizeEmbeddedFormActions(doc);
+              } catch { /* cross-origin fallback: do nothing */ }
+              requestAnimationFrame(() => setIframeReady(true));
+            }}
+          />
+          {!iframeReady && (
+            <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
+              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
+        </div>
+
+        {/* Bulk Ticket Creation Section */}
+        <div className="border-t border-slate-200 px-5 py-3 flex-shrink-0">
+          <button
+            type="button"
+            className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
+            onClick={() => setBulkOpen(!bulkOpen)}
+          >
+            <span
+              className="inline-block transition-transform duration-200 text-xs"
+              style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            >
+              ▶
+            </span>
+            <span className="text-[13px]">Bulk Ticket Creation</span>
+          </button>
+
+          {bulkOpen && (
+            <div className="mt-3">
+              <textarea
+                className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y"
+                placeholder="Enter one ticket subject per line..."
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 mt-3">
+            <button
+              type="button"
+              className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-[13px] py-1.5 px-5 rounded shadow-sm transition-colors cursor-pointer"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-[13px] py-1.5 px-5 rounded shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+              disabled={isSubmitting || !iframeReady}
+              onClick={handleSave}
+            >
+              {isSubmitting ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function TaskDetailsDialog({
   open,
@@ -148,17 +445,27 @@ export function TaskDetailsDialog({
   const [savingIssueIds, setSavingIssueIds] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [createIssueParentId, setCreateIssueParentId] = useState<number | null>(null);
   const issuesRef = useRef<TaskDetailIssue[]>([]);
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const hasDateChangesRef = useRef(false);
 
+  const newIssueUrl = useMemo(() => {
+    let url = `/projects/${projectIdentifier}/issues/new`;
+    if (createIssueParentId) {
+      url += `?issue[parent_issue_id]=${createIssueParentId}`;
+    }
+    return url;
+  }, [projectIdentifier, createIssueParentId]);
+
   const handleClose = useCallback(() => {
     if (hasDateChangesRef.current) {
       onTaskDatesUpdated?.();
       hasDateChangesRef.current = false;
     }
+    setCreateIssueParentId(null);
     onClose();
   }, [onClose, onTaskDatesUpdated]);
 
@@ -309,15 +616,17 @@ export function TaskDetailsDialog({
       >
         <div className="px-6 py-5 flex items-center justify-between bg-white relative z-10">
           <h3 className="text-lg font-bold text-slate-800 truncate pr-4">{dialogTitle}</h3>
-          <button
-            aria-label={t('timeline.closeDialogAria')}
-            className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0 cursor-pointer"
-            onClick={handleClose}
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              aria-label={t('timeline.closeDialogAria')}
+              className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0 cursor-pointer"
+              onClick={handleClose}
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-auto bg-white border-t border-slate-100 relative">
@@ -368,6 +677,7 @@ export function TaskDetailsDialog({
                     rootIssueId={issueId}
                     savingIssueIds={savingIssueIds}
                     handleDateChange={handleDateChange}
+                    onAddSubIssue={(parentId) => setCreateIssueParentId(parentId)}
                   />
                 ))}
               </div>
@@ -375,6 +685,13 @@ export function TaskDetailsDialog({
           )}
         </div>
       </div>
+      {createIssueParentId !== null && (
+        <SubIssueCreationDialog
+          projectIdentifier={projectIdentifier}
+          parentIssueId={createIssueParentId}
+          onClose={() => setCreateIssueParentId(null)}
+        />
+      )}
     </div>
   );
 }
