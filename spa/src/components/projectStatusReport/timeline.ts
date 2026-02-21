@@ -153,14 +153,20 @@ function getDateRangeWithBuffer(bars: CategoryBar[]): { minDate: Date; maxDate: 
   const bufferedMaxDate = new Date(maxDate);
   bufferedMaxDate.setDate(bufferedMaxDate.getDate() + 7);
 
-  return { minDate: bufferedMinDate, maxDate: bufferedMaxDate };
+  const minMonthStart = startOfMonth(minDate);
+  const maxMonthEnd = endOfMonth(maxDate);
+
+  return {
+    minDate: isBefore(bufferedMinDate, minMonthStart) ? minMonthStart : bufferedMinDate,
+    maxDate: isAfter(bufferedMaxDate, maxMonthEnd) ? maxMonthEnd : bufferedMaxDate
+  };
 }
 
 function buildHeaderMonths(minDate: Date, maxDate: Date, pixelsPerDay: number): HeaderMonth[] {
   const headerMonths: HeaderMonth[] = [];
   const locale = getDateFnsLocale();
   const monthFormat = getLocale() === 'ja' ? 'M月' : 'MMM';
-  let currentMonth = minDate;
+  let currentMonth = startOfMonth(minDate);
 
   while (isBefore(currentMonth, maxDate) || currentMonth.getTime() === maxDate.getTime()) {
     const monthStart = startOfMonth(currentMonth);
