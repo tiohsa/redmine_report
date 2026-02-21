@@ -9,8 +9,6 @@ if File.exist?(env_path)
   end
 end
 
-require_relative 'lib/redmine_report/hooks/view_issues_form_details_bottom_hook'
-
 Redmine::Plugin.register :redmine_report do
   name 'Redmine Report plugin'
   author 'Author name'
