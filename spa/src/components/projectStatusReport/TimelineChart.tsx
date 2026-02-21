@@ -83,7 +83,6 @@ type TimelineChartProps = {
 const BASE_LANE_HEIGHT = 130;
 const BASE_POINT_DEPTH = 15;
 const BASE_BAR_HEIGHT = 40;
-const BASE_DATE_SECTION_HEIGHT = 25;
 const yearRowHeight = 25;
 const monthRowHeight = 25;
 const headerHeight = yearRowHeight + monthRowHeight;
@@ -285,12 +284,6 @@ function TimelineSvg({
         <pattern id="gridPattern" width="100" height="100" patternUnits="userSpaceOnUse">
           <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#f3f4f6" strokeWidth="1" />
         </pattern>
-        <marker id="arrow-start" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto">
-          <path d="M10,0 L0,5 L10,10" fill="none" stroke="#64748b" strokeWidth="1" />
-        </marker>
-        <marker id="arrow-end" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto">
-          <path d="M0,0 L10,5 L0,10" fill="none" stroke="#64748b" strokeWidth="1" />
-        </marker>
         <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
           <feOffset in="blur" dx="0" dy="1" result="offsetBlur" />
@@ -383,8 +376,7 @@ function TimelineSvg({
                 const isFirst = stepIndex === 0;
                 const pointDepth = BASE_POINT_DEPTH * chartScale;
                 const barHeight = BASE_BAR_HEIGHT * chartScale;
-                const dateSectionHeight = BASE_DATE_SECTION_HEIGHT * chartScale;
-                const verticalOffset = (laneHeight - (barHeight + dateSectionHeight)) / 2;
+                const verticalOffset = (laneHeight - barHeight) / 2;
                 const fontSize = Math.max(10, Math.round(12 * chartScale));
 
                 const isPending = step.status.code === 'PENDING';
@@ -435,27 +427,6 @@ function TimelineSvg({
                         >
                           {step.name}
                         </text>
-                      )}
-
-                      {(step.startDate || step.endDate) && (
-                        <g transform={`translate(${step.x + (isFirst ? 0 : pointDepth / 2)}, ${barHeight + 10 * chartScale})`}>
-                          <line
-                            x1={25 * chartScale}
-                            y1={5 * chartScale}
-                            x2={step.width - 25 * chartScale}
-                            y2={5 * chartScale}
-                            stroke="#94a3b8"
-                            strokeWidth="0.5"
-                            markerStart="url(#arrow-start)"
-                            markerEnd="url(#arrow-end)"
-                          />
-                          <text x={0} y={8 * chartScale} fontSize={Math.max(8, Math.round(9 * chartScale))} fill="#94a3b8" textAnchor="start">
-                            {step.startDate}
-                          </text>
-                          <text x={step.width} y={8 * chartScale} fontSize={Math.max(8, Math.round(9 * chartScale))} fill="#94a3b8" textAnchor="end">
-                            {step.endDate}
-                          </text>
-                        </g>
                       )}
                     </g>
                   )

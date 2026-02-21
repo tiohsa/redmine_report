@@ -23,8 +23,6 @@ export type TimelineStep = {
   status: StatusStyle;
   progress?: number;
   id: string;
-  startDate?: string;
-  endDate?: string;
 };
 
 export type TimelineLane = {
@@ -275,9 +273,7 @@ function buildTimelineData({
             width: getWidth(bar.start_date, bar.end_date),
             status,
             progress,
-            id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`,
-            startDate: toLabelDate(bar.start_date),
-            endDate: toLabelDate(bar.end_date)
+            id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`
           };
         })
       });
@@ -300,11 +296,4 @@ function resolveStatus(
   }
 
   return { status: statusStyles.PENDING };
-}
-
-function toLabelDate(dateStr?: string): string {
-  if (!dateStr) return '';
-  const parsed = new Date(dateStr);
-  if (Number.isNaN(parsed.getTime())) return '';
-  return `${parsed.getMonth() + 1}/${parsed.getDate()}`;
 }
