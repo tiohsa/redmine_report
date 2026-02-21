@@ -80,6 +80,10 @@ export const VersionAiDialog = ({
   const [error, setError] = useState<string | null>(null);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
 
+  const persistDestinationIssueId = useCallback((issueId: number) => {
+    weeklyDestinationStorage.setDestinationIssueId(projectId, versionId, issueId);
+  }, [projectId, versionId]);
+
   const validateDestinationById = useCallback(async (destinationId: number) => {
     setLoadingValidate(true);
     setError(null);
@@ -94,7 +98,7 @@ export const VersionAiDialog = ({
       });
       setValidation(result);
       if (result.valid) {
-        weeklyDestinationStorage.setDestinationIssueId(projectId, versionId, destinationId);
+        persistDestinationIssueId(destinationId);
         setMessage(t('weeklyDialog.destinationValidatedAndSaved'));
       }
     } catch (e) {
@@ -104,16 +108,11 @@ export const VersionAiDialog = ({
     } finally {
       setLoadingValidate(false);
     }
-  }, [projectIdentifier, projectId, versionId]);
+  }, [persistDestinationIssueId, projectIdentifier, projectId, versionId]);
 
   useEffect(() => {
     if (!open) return;
-    const mappedCurrent = weeklyDestinationStorage.getDestinationIssueId(projectId, versionId);
-    const lastVersionId = weeklyDestinationStorage.getLastVersionId(projectId);
-    const mappedFromLastVersion = lastVersionId && lastVersionId !== versionId
-      ? weeklyDestinationStorage.getDestinationIssueId(projectId, lastVersionId)
-      : null;
-    const mapped = mappedCurrent ?? mappedFromLastVersion;
+    const mapped = weeklyDestinationStorage.getPreferredDestinationIssueId(projectId, versionId);
     setDestinationIssueId(mapped ? String(mapped) : '');
     setValidation(null);
     setPrepared(null);
@@ -155,7 +154,7 @@ export const VersionAiDialog = ({
 
   const saveMapping = () => {
     if (!destinationValid || !Number.isFinite(destinationIdNumber) || destinationIdNumber <= 0) return;
-    weeklyDestinationStorage.setDestinationIssueId(projectId, versionId, destinationIdNumber);
+    persistDestinationIssueId(destinationIdNumber);
     setMessage(t('weeklyDialog.saveSetting'));
   };
 

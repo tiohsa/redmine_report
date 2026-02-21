@@ -27,6 +27,15 @@ export const weeklyDestinationStorage = {
     return Number.isFinite(parsed) ? parsed : null;
   },
 
+  getPreferredDestinationIssueId(projectId: number, versionId: number): number | null {
+    const currentVersionIssueId = this.getDestinationIssueId(projectId, versionId);
+    if (currentVersionIssueId !== null) return currentVersionIssueId;
+
+    const lastVersionId = this.getLastVersionId(projectId);
+    if (lastVersionId === null || lastVersionId === versionId) return null;
+    return this.getDestinationIssueId(projectId, lastVersionId);
+  },
+
   setLastVersionId(projectId: number, versionId: number): void {
     window.localStorage.setItem(lastVersionKey(projectId), String(versionId));
   }
