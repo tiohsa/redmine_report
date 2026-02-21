@@ -222,11 +222,30 @@ function SubIssueCreationDialog({
   const [iframeReady, setIframeReady] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const handledCreationRef = useRef(false);
+  const cleanupIframeEscRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     setIframeReady(false);
     handledCreationRef.current = false;
+    cleanupIframeEscRef.current?.();
+    cleanupIframeEscRef.current = null;
   }, [iframeUrl]);
+
+  useEffect(() => {
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [onClose]);
+
+  useEffect(() => () => {
+    cleanupIframeEscRef.current?.();
+    cleanupIframeEscRef.current = null;
+  }, []);
 
   const createBulkIssues = async (newParentIssueId: number, lines: string[]) => {
     for (const subject of lines) {
@@ -430,6 +449,18 @@ function SubIssueCreationDialog({
                   }
                 `;
                 doc.head.appendChild(style);
+                cleanupIframeEscRef.current?.();
+                const onIframeEsc = (event: KeyboardEvent) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onClose();
+                  }
+                };
+                doc.addEventListener('keydown', onIframeEsc);
+                cleanupIframeEscRef.current = () => {
+                  doc.removeEventListener('keydown', onIframeEsc);
+                };
                 normalizeEmbeddedFormActions(doc);
 
                 const pathname = doc.location?.pathname || '';
