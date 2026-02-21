@@ -28,7 +28,11 @@ module RedmineReport
 
       def child_scope(issue)
         if issue.respond_to?(:lft) && issue.respond_to?(:rgt) && issue.lft && issue.rgt
-          visible_scope.where("#{Issue.table_name}.lft > ? AND #{Issue.table_name}.rgt < ?", issue.lft, issue.rgt).order(:lft, :id)
+          scope = visible_scope.where("#{Issue.table_name}.lft > ? AND #{Issue.table_name}.rgt < ?", issue.lft, issue.rgt)
+          if issue.respond_to?(:root_id) && issue.root_id
+            scope = scope.where(root_id: issue.root_id)
+          end
+          scope.order(:lft, :id)
         else
           visible_scope.where(parent_id: issue.id).order(:lft, :id)
         end

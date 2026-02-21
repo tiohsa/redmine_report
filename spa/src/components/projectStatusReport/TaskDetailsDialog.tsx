@@ -46,45 +46,39 @@ const IssueTreeNode = ({
 
   return (
     <>
-      <div className="flex flex-col md:flex-row md:items-center py-2 hover:bg-slate-50 transition-colors relative group px-6">
-        {/* Vertical lines from ancestors */}
-        {activeLines.map((isActive, level) => (
-          isActive ? (
-            <div
-              key={level}
-              className="absolute top-0 bottom-0 border-l border-slate-200 pointer-events-none"
-              style={{ left: `${level * 24 + 40}px` }}
-            />
-          ) : null
-        ))}
+      <div className="flex flex-col md:flex-row md:items-center py-1.5 hover:bg-slate-50 transition-colors relative group px-6">
+        {/* Tree connectors */}
+        <div className="absolute left-6 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
+          {/* Ancestor continuation lines (│ or blank) */}
+          {activeLines.map((isActive, level) => (
+            <svg key={level} width="20" height="100%" className="flex-shrink-0 overflow-visible">
+              {isActive && (
+                <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1.5" />
+              )}
+            </svg>
+          ))}
+          {/* Current node connector (├ or └) */}
+          {depth > 0 && (
+            <svg width="20" height="100%" className="flex-shrink-0 overflow-visible">
+              {/* vertical part */}
+              <line x1="10" y1="0" x2="10" y2={isLast ? '50%' : '100%'} stroke="#cbd5e1" strokeWidth="1.5" />
+              {/* horizontal part */}
+              <line x1="10" y1="50%" x2="20" y2="50%" stroke="#cbd5e1" strokeWidth="1.5" />
+            </svg>
+          )}
+        </div>
 
-        {/* L-shape/T-shape for current node */}
-        {depth > 0 && (
-          <>
-            {/* Vertical */}
-            <div
-              className="absolute border-l border-slate-200 pointer-events-none"
-              style={{
-                left: `${(depth - 1) * 24 + 40}px`,
-                top: 0,
-                bottom: isLast ? 'calc(100% - 24px)' : 0
-              }}
-            />
-            {/* Horizontal */}
-            <div
-              className="absolute border-b border-slate-200 pointer-events-none"
-              style={{
-                left: `${(depth - 1) * 24 + 40}px`,
-                top: 0,
-                height: '24px',
-                width: '16px'
-              }}
-            />
-          </>
+        {/* Stem going down to children */}
+        {node.children.length > 0 && (
+          <div className="absolute pointer-events-none" style={{ left: `${24 + depth * 20}px`, top: '50%', bottom: 0, width: '20px' }}>
+            <svg width="20" height="100%" className="overflow-visible">
+              <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1.5" />
+            </svg>
+          </div>
         )}
 
         {/* TASK Column */}
-        <div className="w-full md:flex-1 flex items-center min-w-0" style={{ paddingLeft: `${depth * 24}px` }}>
+        <div className="w-full md:flex-1 flex items-center min-w-0" style={{ paddingLeft: `${depth * 20}px` }}>
           <div className="flex items-center min-w-0 pr-4 z-10 w-full relative">
             <span className="flex-shrink-0 bg-slate-100 text-slate-500 text-xs font-[700] px-2 py-1 rounded mr-3">
               #{node.issue_id}
@@ -177,7 +171,7 @@ const IssueTreeNode = ({
           key={child.issue_id}
           node={child}
           depth={depth + 1}
-          activeLines={[...activeLines, !isLast]}
+          activeLines={depth === 0 ? [] : [...activeLines, !isLast]}
           isLast={idx === node.children.length - 1}
           rootIssueId={rootIssueId}
           savingIssueIds={savingIssueIds}
@@ -747,8 +741,8 @@ export function TaskDetailsDialog({
           {!loading && issues.length > 0 && (
             <div className="flex flex-col flex-1 min-h-0 relative">
               <div className="hidden md:flex py-2.5 px-6 sticky top-0 bg-slate-50/95 backdrop-blur-sm z-20 border-b border-slate-100 shadow-sm text-[11px] font-bold text-slate-400 tracking-wider flex-shrink-0 h-10 box-border items-center">
-                <div className="flex-1 uppercase">{t('timeline.task', { defaultValue: 'TASK' })}</div>
-                <div className="flex gap-2">
+                <div className="flex-1 uppercase pl-6">{t('timeline.task', { defaultValue: 'TASK' })}</div>
+                <div className="flex-shrink-0 flex gap-2">
                   <div className="w-[240px] text-center uppercase md:mr-4">{t('timeline.duration', { defaultValue: 'DURATION' })}</div>
                   <div className="w-[120px] uppercase text-right pr-2">{t('timeline.prog', { defaultValue: 'PROG' })}</div>
                 </div>
