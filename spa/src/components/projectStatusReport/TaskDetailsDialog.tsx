@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../../i18n';
 import {
   fetchTaskDetails,
@@ -152,19 +152,29 @@ export function TaskDetailsDialog({
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const hasDateChangesRef = useRef(false);
+
+  const handleClose = useCallback(() => {
+    if (hasDateChangesRef.current) {
+      onTaskDatesUpdated?.();
+      hasDateChangesRef.current = false;
+    }
+    onClose();
+  }, [onClose, onTaskDatesUpdated]);
 
   useEffect(() => {
     if (!open) return;
+    hasDateChangesRef.current = false;
 
     const onEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
 
     window.addEventListener('keydown', onEsc);
     return () => window.removeEventListener('keydown', onEsc);
-  }, [open, onClose]);
+  }, [open, handleClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -253,7 +263,7 @@ export function TaskDetailsDialog({
       updated.parent_id = row.parent_id;
       setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? updated : item)));
       setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
-      onTaskDatesUpdated?.();
+      hasDateChangesRef.current = true;
     } catch (error: unknown) {
       const message =
         error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
@@ -292,7 +302,7 @@ export function TaskDetailsDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 transition-all" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 transition-all" onClick={handleClose}>
       <div
         className="bg-white w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden transition-all transform"
         onClick={(event) => event.stopPropagation()}
@@ -302,7 +312,7 @@ export function TaskDetailsDialog({
           <button
             aria-label={t('timeline.closeDialogAria')}
             className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0 cursor-pointer"
-            onClick={onClose}
+            onClick={handleClose}
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
