@@ -301,7 +301,7 @@ export function TaskDetailsDialog({
           <h3 className="text-lg font-bold text-slate-800 truncate pr-4">{dialogTitle}</h3>
           <button
             aria-label={t('timeline.closeDialogAria')}
-            className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0"
+            className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0 cursor-pointer"
             onClick={onClose}
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
