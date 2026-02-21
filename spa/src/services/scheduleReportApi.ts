@@ -75,6 +75,7 @@ export type TaskDetailIssue = {
   subject: string;
   start_date: string | null;
   due_date: string | null;
+  done_ratio?: number | null;
   issue_url: string;
 };
 

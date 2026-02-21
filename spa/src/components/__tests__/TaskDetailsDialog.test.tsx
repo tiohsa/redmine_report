@@ -28,6 +28,7 @@ describe('TaskDetailsDialog', () => {
         subject: 'Root issue',
         start_date: '2026-02-01',
         due_date: '2026-02-10',
+        done_ratio: 65,
         issue_url: '/issues/10'
       }
     ]);
@@ -81,6 +82,7 @@ describe('TaskDetailsDialog', () => {
         subject: 'Root issue',
         start_date: '2026-02-01',
         due_date: '2026-02-10',
+        done_ratio: 65,
         issue_url: '/issues/10'
       }
     ]);
@@ -112,6 +114,7 @@ describe('TaskDetailsDialog', () => {
     expect(srcUrl.searchParams.get('issue[due_date]')).toBe('2026-02-10');
     expect(srcUrl.searchParams.get('start_date')).toBe('2026-02-01');
     expect(srcUrl.searchParams.get('due_date')).toBe('2026-02-10');
+    expect(screen.getByText('65%')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /新規チケット作成ダイアログを閉じる/ }));
     expect(screen.queryByTitle('子チケット新規登録')).toBeNull();

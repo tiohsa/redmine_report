@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../../i18n';
 import {
   fetchTaskDetails,
@@ -41,100 +41,134 @@ const IssueTreeNode = ({
   onAddSubIssue
 }: IssueTreeNodeProps) => {
   const saving = Boolean(savingIssueIds[node.issue_id]);
-  const isRoot = node.issue_id === rootIssueId;
+  const progressRatio = Math.max(0, Math.min(100, Number(node.done_ratio ?? 0)));
+  const isDone = progressRatio === 100;
 
   return (
     <>
-      <div className="flex flex-col md:flex-row md:items-center py-2.5 hover:bg-slate-50 transition-colors relative group px-6">
+      <div className="flex flex-col md:flex-row md:items-center py-2 hover:bg-slate-50 transition-colors relative group px-6">
         {/* Vertical lines from ancestors */}
         {activeLines.map((isActive, level) => (
           isActive ? (
             <div
               key={level}
-              className="absolute top-0 bottom-0 border-l border-slate-300 pointer-events-none"
-              style={{ left: `${level * 24 + 48}px` }}
+              className="absolute top-0 bottom-0 border-l border-slate-200 pointer-events-none"
+              style={{ left: `${level * 24 + 40}px` }}
             />
           ) : null
         ))}
 
-        {/* T-shape for current node */}
+        {/* L-shape/T-shape for current node */}
         {depth > 0 && (
           <>
             {/* Vertical */}
             <div
-              className="absolute border-l border-slate-300 pointer-events-none"
+              className="absolute border-l border-slate-200 pointer-events-none"
               style={{
-                left: `${(depth - 1) * 24 + 48}px`,
+                left: `${(depth - 1) * 24 + 40}px`,
                 top: 0,
-                bottom: isLast ? 'calc(100% - 20px)' : 0
+                bottom: isLast ? 'calc(100% - 24px)' : 0
               }}
             />
             {/* Horizontal */}
             <div
-              className="absolute border-t border-slate-300 pointer-events-none"
+              className="absolute border-b border-slate-200 pointer-events-none"
               style={{
-                left: `${(depth - 1) * 24 + 48}px`,
-                top: '20px',
-                width: '12px'
+                left: `${(depth - 1) * 24 + 40}px`,
+                top: 0,
+                height: '24px',
+                width: '16px'
               }}
             />
           </>
         )}
 
-        <div className="w-full md:flex-1 flex items-center min-w-0" style={{ paddingLeft: `${depth * 24 + 12}px` }}>
+        {/* TASK Column */}
+        <div className="w-full md:flex-1 flex items-center min-w-0" style={{ paddingLeft: `${depth * 24}px` }}>
           <div className="flex items-center min-w-0 pr-4 z-10 w-full relative">
-            {isRoot ? (
-              <a href={node.issue_url} target="_blank" rel="noreferrer" className="flex-shrink-0 bg-blue-50 text-blue-600 border border-blue-200 text-xs font-semibold px-2 py-0.5 rounded mr-3 hover:bg-blue-100 transition-colors">
-                #{node.issue_id}
-              </a>
-            ) : (
-              <a href={node.issue_url} target="_blank" rel="noreferrer" className="flex-shrink-0 text-slate-400 text-xs font-semibold mr-3 hover:text-indigo-500 transition-colors text-right px-2 min-w-[36px]">
-                #{node.issue_id}
-              </a>
-            )}
-            <a href={node.issue_url} target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-800 truncate hover:underline hover:text-indigo-600 block mr-2">
-              {node.subject}
-            </a>
+            <span className="flex-shrink-0 bg-slate-100 text-slate-500 text-xs font-[700] px-2 py-1 rounded mr-3">
+              #{node.issue_id}
+            </span>
 
-            {/* Add Sub-ticket Icon (visible on row hover) */}
-            <button
-              type="button"
-              className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onAddSubIssue(node);
-              }}
-              title="子チケットを追加"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
+            <div className="min-w-0 flex items-center flex-1">
+              <a href={node.issue_url} target="_blank" rel="noreferrer" className={`text-sm ${depth === 0 ? 'font-bold' : 'font-medium'} text-slate-800 truncate hover:underline hover:text-indigo-600 block mr-2`}>
+                {node.subject}
+              </a>
+
+              {/* Add Sub-ticket Icon (visible on row hover) */}
+              <button
+                type="button"
+                className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onAddSubIssue(node);
+                }}
+                title="子チケットを追加"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-row gap-3 md:gap-4 mt-3 md:mt-0 md:ml-auto w-full md:w-auto pr-2">
-          <div className="flex-1 md:w-[130px] md:flex-shrink-0">
-            <span className="text-xs font-semibold text-slate-500 mb-1 block md:hidden">{t('timeline.startDateHeader')}</span>
+        {/* DURATION Column */}
+        <div className="flex flex-row items-center justify-center gap-2 mt-3 md:mt-0 w-[240px] flex-shrink-0 md:mr-4">
+          <div className="relative w-[110px]">
+            <div className="absolute inset-0 flex items-center px-2 pointer-events-none z-0">
+              <span className="text-slate-300 text-[11px] font-mono tracking-tighter">{node.start_date ? '' : 'yyyy/mm/dd'}</span>
+            </div>
             <input
               type="date"
               value={node.start_date || ''}
               onChange={(event) => handleDateChange(node, 'start_date', event.target.value)}
               disabled={saving}
-              className="block w-full rounded-md border-0 py-1.5 text-slate-700 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 disabled:bg-slate-50 cursor-pointer"
+              className={`block w-full rounded-md border border-slate-200 py-1.5 pl-2 pr-6 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-50 cursor-pointer appearance-none bg-transparent font-mono transition-colors z-10 relative ${node.start_date ? 'text-slate-700 font-bold' : 'text-transparent'}`}
+              style={{ colorScheme: 'light' }}
             />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none z-20">
+              <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
           </div>
-          <div className="flex-1 md:w-[130px] md:flex-shrink-0">
-            <span className="text-xs font-semibold text-slate-500 mb-1 block md:hidden">{t('timeline.dueDateHeader')}</span>
+          <span className="text-slate-300 font-medium text-sm flex-shrink-0">-</span>
+          <div className="relative w-[110px]">
+            <div className="absolute inset-0 flex items-center px-2 pointer-events-none z-0">
+              <span className="text-slate-300 text-[11px] font-mono tracking-tighter">{node.due_date ? '' : 'yyyy/mm/dd'}</span>
+            </div>
             <input
               type="date"
               value={node.due_date || ''}
               onChange={(event) => handleDateChange(node, 'due_date', event.target.value)}
               disabled={saving}
-              className="block w-full rounded-md border-0 py-1.5 text-slate-700 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 disabled:bg-slate-50 cursor-pointer"
+              className={`block w-full rounded-md border border-slate-200 py-1.5 pl-2 pr-6 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-50 cursor-pointer appearance-none bg-transparent font-mono transition-colors z-10 relative ${node.due_date ? 'text-slate-700 font-bold' : 'text-transparent'}`}
+              style={{ colorScheme: 'light' }}
             />
+            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none z-20">
+              <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
           </div>
+        </div>
+
+        {/* PROG Column */}
+        <div className="flex items-center w-[120px] flex-shrink-0 mt-3 md:mt-0 gap-3 justify-end pr-2">
+          <div className="h-4 flex-1 max-w-[50px] flex-shrink-0 overflow-hidden rounded-[2px] bg-slate-100 border border-slate-200 box-border relative">
+            <div className={`absolute left-0 top-0 bottom-0 transition-all ${isDone ? 'bg-emerald-500' : 'bg-indigo-500'}`} style={{ width: `${progressRatio}%` }} />
+          </div>
+          <span className={`w-8 text-right text-xs font-bold ${isDone ? 'text-emerald-600' : 'text-slate-600'}`}>
+            {Math.round(progressRatio)}%
+          </span>
         </div>
       </div>
 
@@ -650,33 +684,38 @@ export function TaskDetailsDialog({
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 transition-all" onClick={handleClose}>
       <div
-        className="bg-white w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden transition-all transform"
+        className="bg-white w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden transition-all transform"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="px-6 py-5 flex items-center justify-between bg-white relative z-10">
-          <h3 className="text-lg font-bold text-slate-800 truncate pr-4">{dialogTitle}</h3>
-          <div className="flex items-center gap-2">
-            <button
-              aria-label={t('timeline.closeDialogAria')}
-              className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors flex-shrink-0 cursor-pointer"
-              onClick={handleClose}
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+        <div className="px-6 py-4 flex items-center justify-between bg-white relative z-10 border-b border-slate-100 flex-shrink-0 h-16 box-border">
+          <div className="flex flex-row items-center gap-3">
+            <svg className="w-5 h-5 text-indigo-600 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            <h3 className="text-[17px] font-bold text-slate-800 flex items-center gap-2">
+              {issueTitle ? <>{issueTitle} <span className="text-slate-300 font-semibold text-base">#{issueId}</span></> : `#{issueId}`}
+            </h3>
           </div>
+          <button
+            aria-label={t('timeline.closeDialogAria')}
+            className="p-1.5 text-slate-300 hover:text-slate-500 hover:bg-slate-100 rounded-md transition-colors flex-shrink-0 cursor-pointer"
+            onClick={handleClose}
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        <div className="flex-1 overflow-auto bg-white border-t border-slate-100 relative">
+        <div className="flex-1 flex flex-col min-h-0 bg-white relative">
           {loading && (
-            <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-20">
+            <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-30">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
             </div>
           )}
 
           {!loading && errorMessage && (
-            <div className="rounded-md bg-red-50 p-4 m-6 relative z-10">
+            <div className="rounded-md bg-red-50 p-4 m-6 relative z-10 flex-shrink-0">
               <div className="flex">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -691,21 +730,21 @@ export function TaskDetailsDialog({
           )}
 
           {!loading && !errorMessage && issues.length === 0 && (
-            <div className="text-center py-12 m-6 bg-white rounded-xl border border-dashed border-slate-300">
+            <div className="text-center py-12 m-6 bg-white rounded-xl border border-dashed border-slate-300 flex-shrink-0">
               <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
             </div>
           )}
 
           {!loading && issues.length > 0 && (
-            <div className="pb-8">
-              <div className="hidden md:flex border-b border-slate-100 py-3 px-6 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
-                <div className="flex-1 text-sm font-semibold text-slate-500">{t('timeline.subjectHeader')}</div>
-                <div className="flex gap-4 md:ml-auto w-auto pr-2">
-                  <div className="w-[130px] text-sm font-semibold text-slate-500">{t('timeline.startDateHeader')}</div>
-                  <div className="w-[130px] text-sm font-semibold text-slate-500">{t('timeline.dueDateHeader')}</div>
+            <div className="flex flex-col flex-1 min-h-0 relative">
+              <div className="hidden md:flex py-2.5 px-6 sticky top-0 bg-slate-50/95 backdrop-blur-sm z-20 border-b border-slate-100 shadow-sm text-[11px] font-bold text-slate-400 tracking-wider flex-shrink-0 h-10 box-border items-center">
+                <div className="flex-1 uppercase">{t('timeline.task', { defaultValue: 'TASK' })}</div>
+                <div className="flex gap-2">
+                  <div className="w-[240px] text-center uppercase md:mr-4">{t('timeline.duration', { defaultValue: 'DURATION' })}</div>
+                  <div className="w-[120px] uppercase text-right pr-2">{t('timeline.prog', { defaultValue: 'PROG' })}</div>
                 </div>
               </div>
-              <div className="pt-2">
+              <div className="pt-2 pb-2 overflow-auto flex-1 bg-white">
                 {treeRoots.map((rootNode) => (
                   <IssueTreeNode
                     key={rootNode.issue_id}
@@ -726,6 +765,23 @@ export function TaskDetailsDialog({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3 bg-slate-50/80 flex items-center text-slate-500 justify-between flex-shrink-0 border-t border-slate-100 h-12 box-border shadow-[0_-2px_6px_rgba(0,0,0,0.02)] z-20">
+          <div className="text-[13px] font-semibold">
+            Total Tasks: {issues.length}
+          </div>
+          <div className="flex items-center gap-4 text-[11px] font-bold text-slate-400 tracking-wider">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-indigo-400 rounded-sm"></div>
+              WIP
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 bg-emerald-400 rounded-sm"></div>
+              DONE
+            </div>
+          </div>
         </div>
       </div>
       {createIssueContext !== null && (

@@ -51,6 +51,7 @@ module RedmineReport
           subject: issue.subject.to_s,
           start_date: issue.start_date&.iso8601,
           due_date: issue.due_date&.iso8601,
+          done_ratio: issue.done_ratio.to_i,
           issue_url: "/issues/#{issue.id}"
         }
       end
