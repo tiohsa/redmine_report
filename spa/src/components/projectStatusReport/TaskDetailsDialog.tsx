@@ -410,18 +410,23 @@ function SubIssueCreationDialog({
                   #content {
                     padding: 12px 16px !important;
                   }
-                  #issue-form p.buttons,
-                  #new_issue p.buttons {
-                    position: absolute !important;
-                    width: 1px !important;
-                    height: 1px !important;
-                    margin: -1px !important;
-                    padding: 0 !important;
-                    border: 0 !important;
-                    overflow: hidden !important;
-                    clip: rect(0 0 0 0) !important;
-                    clip-path: inset(50%) !important;
-                    white-space: nowrap !important;
+                  #issue-form input[name="commit"],
+                  #issue-form button[name="commit"],
+                  #issue-form input[name="continue"],
+                  #issue-form button[name="continue"],
+                  #new_issue input[name="commit"],
+                  #new_issue button[name="commit"],
+                  #new_issue input[name="continue"],
+                  #new_issue button[name="continue"],
+                  #issue-form input[type="submit"][value="作成"],
+                  #issue-form input[type="submit"][value="連続作成"],
+                  #issue-form input[type="submit"][value="Create"],
+                  #issue-form input[type="submit"][value="Create and continue"],
+                  #new_issue input[type="submit"][value="作成"],
+                  #new_issue input[type="submit"][value="連続作成"],
+                  #new_issue input[type="submit"][value="Create"],
+                  #new_issue input[type="submit"][value="Create and continue"] {
+                    display: none !important;
                   }
                 `;
                 doc.head.appendChild(style);
@@ -476,18 +481,32 @@ function SubIssueCreationDialog({
           <div className="flex justify-end gap-3 mt-3">
             <button
               type="button"
-              className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-[13px] py-1.5 px-5 rounded shadow-sm transition-colors cursor-pointer"
+              className="rounded-[6px] border bg-white px-6 text-[14px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
+              style={{
+                width: '118px',
+                height: '40px',
+                borderColor: '#cbd5e1',
+                color: '#334155',
+                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+              }}
               onClick={onClose}
             >
-              Cancel
+              キャンセル
             </button>
             <button
               type="button"
-              className="bg-blue-600 hover:bg-blue-700 text-white text-[13px] py-1.5 px-5 rounded shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+              className="rounded-[6px] px-6 text-[14px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
+              style={{
+                width: '114px',
+                height: '40px',
+                backgroundColor: '#1b69e3',
+                color: '#fff',
+                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+              }}
               disabled={isSubmitting || !iframeReady}
               onClick={handleSave}
             >
-              {isSubmitting ? 'Saving...' : 'Save'}
+              {isSubmitting ? '保存中...' : '保存'}
             </button>
           </div>
         </div>

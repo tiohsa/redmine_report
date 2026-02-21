@@ -116,6 +116,24 @@ describe('TaskDetailsDialog', () => {
     expect(srcUrl.searchParams.get('due_date')).toBe('2026-02-10');
     expect(screen.getByText('65%')).toBeTruthy();
 
+    const styleElement = { textContent: '' } as unknown as HTMLStyleElement;
+    const fakeDoc = {
+      head: { appendChild: vi.fn() },
+      createElement: vi.fn(() => styleElement),
+      querySelectorAll: vi.fn(() => []),
+      location: { pathname: '/projects/ecookbook/issues/new' }
+    } as unknown as Document;
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: fakeDoc
+    });
+
+    fireEvent.load(iframe);
+
+    expect(fakeDoc.head.appendChild).toHaveBeenCalledTimes(1);
+    expect(styleElement.textContent).toContain('input[name="commit"]');
+    expect(styleElement.textContent).toContain('input[name="continue"]');
+
     fireEvent.click(screen.getByRole('button', { name: /新規チケット作成ダイアログを閉じる/ }));
     expect(screen.queryByTitle('子チケット新規登録')).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
