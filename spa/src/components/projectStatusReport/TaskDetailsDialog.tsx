@@ -28,6 +28,8 @@ type IssueTreeNodeProps = {
   savingIssueIds: Record<number, boolean>;
   handleDateChange: (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => void;
   onAddSubIssue: (parentIssue: TaskDetailIssue) => void;
+  onSelectIssue?: (node: TreeNodeType) => void;
+  selectedIssueId?: number | null;
 };
 
 const IssueTreeNode = ({
@@ -38,18 +40,39 @@ const IssueTreeNode = ({
   rootIssueId,
   savingIssueIds,
   handleDateChange,
-  onAddSubIssue
+  onAddSubIssue,
+  onSelectIssue,
+  selectedIssueId
 }: IssueTreeNodeProps) => {
-  const saving = Boolean(savingIssueIds[node.issue_id]);
   const progressRatio = Math.max(0, Math.min(100, Number(node.done_ratio ?? 0)));
   const isDone = progressRatio === 100;
+  const isSelected = selectedIssueId === node.issue_id;
+  const [collapsed, setCollapsed] = useState(false);
+
+  const statusLabel = node.status_name || t('status.pending');
+  const isClosed = node.status_is_closed ?? false;
+  const isInProgress = !isClosed && progressRatio > 0;
+  const statusBg = isClosed ? 'bg-emerald-500' : isInProgress ? 'bg-blue-500' : 'bg-slate-300';
+  const statusText = isClosed ? 'text-white' : isInProgress ? 'text-white' : 'text-slate-600';
+
+  const dateRange = (() => {
+    const s = node.start_date ? node.start_date.replace(/-/g, '/') : '';
+    const d = node.due_date ? node.due_date.replace(/-/g, '/') : '';
+    if (s && d) return `${s} - ${d}`;
+    if (s) return s;
+    if (d) return d;
+    return '';
+  })();
+  const hasBothDates = Boolean(node.start_date && node.due_date);
 
   return (
     <>
-      <div className="flex flex-col md:flex-row md:items-center py-1.5 hover:bg-slate-50 transition-colors relative group px-6">
+      <div
+        className={`flex items-center min-h-[44px] transition-colors relative group px-4 border-b border-slate-100/90 cursor-pointer ${isSelected ? 'bg-slate-100/90' : 'hover:bg-slate-50/80'}`}
+        onClick={(e) => { e.stopPropagation(); onSelectIssue?.(node); }}
+      >
         {/* Tree connectors */}
-        <div className="absolute left-6 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
-          {/* Ancestor continuation lines (│ or blank) */}
+        <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
           {activeLines.map((isActive, level) => (
             <svg key={level} width="20" height="100%" className="flex-shrink-0 overflow-visible">
               {isActive && (
@@ -57,116 +80,106 @@ const IssueTreeNode = ({
               )}
             </svg>
           ))}
-          {/* Current node connector (├ or └) */}
           {depth > 0 && (
             <svg width="20" height="100%" className="flex-shrink-0 overflow-visible">
-              {/* vertical part */}
               <line x1="10" y1="0" x2="10" y2={isLast ? '50%' : '100%'} stroke="#cbd5e1" strokeWidth="1.5" />
-              {/* horizontal part */}
               <line x1="10" y1="50%" x2="20" y2="50%" stroke="#cbd5e1" strokeWidth="1.5" />
             </svg>
           )}
         </div>
 
-        {/* Stem going down to children */}
         {node.children.length > 0 && (
-          <div className="absolute pointer-events-none" style={{ left: `${24 + depth * 20}px`, top: '50%', bottom: 0, width: '20px' }}>
-            <svg width="20" height="100%" className="overflow-visible">
-              <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1.5" />
-            </svg>
+          <div className="absolute pointer-events-none" style={{ left: `${16 + depth * 20}px`, top: '50%', bottom: 0, width: '20px' }}>
+            {!collapsed && (
+              <svg width="20" height="100%" className="overflow-visible">
+                <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1.5" />
+              </svg>
+            )}
           </div>
         )}
 
         {/* TASK Column */}
-        <div className="w-full md:flex-1 flex items-center min-w-0" style={{ paddingLeft: `${depth * 20}px` }}>
-          <div className="flex items-center min-w-0 pr-4 z-10 w-full relative">
-            <span className="flex-shrink-0 bg-slate-100 text-slate-500 text-xs font-[700] px-2 py-1 rounded mr-3">
-              #{node.issue_id}
-            </span>
-
-            <div className="min-w-0 flex items-center flex-1">
-              <a href={node.issue_url} target="_blank" rel="noreferrer" className={`text-sm ${depth === 0 ? 'font-bold' : 'font-medium'} text-slate-800 truncate hover:underline hover:text-indigo-600 block mr-2`}>
-                {node.subject}
-              </a>
-
-              {/* Add Sub-ticket Icon (visible on row hover) */}
-                <button
-                type="button"
-                className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onAddSubIssue(node);
-                }}
-                title={t('timeline.addSubIssue')}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
+        <div className="flex-1 flex items-center min-w-0" style={{ paddingLeft: `${depth * 20}px` }}>
+          {node.children.length > 0 && (
+            <button
+              type="button"
+              className="mr-1 p-0.5 text-slate-400 hover:text-slate-600 cursor-pointer flex-shrink-0 z-10"
+              onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                {collapsed
+                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  : <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                }
+              </svg>
+            </button>
+          )}
+          <div className="flex items-center min-w-0 z-10">
+            <span className="flex-shrink-0 text-slate-400 text-xs font-semibold mr-2">#{node.issue_id}</span>
+            <a href={node.issue_url} target="_blank" rel="noreferrer"
+              className={`text-[13px] ${depth === 0 ? 'font-semibold' : 'font-medium'} text-slate-700 truncate hover:underline hover:text-blue-600 block`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {node.subject}
+            </a>
+            <button
+              type="button"
+              className="opacity-0 group-hover:opacity-100 ml-1 p-0.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddSubIssue(node); }}
+              title={t('timeline.addSubIssue')}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        {/* DURATION Column */}
-        <div className="flex flex-row items-center justify-center gap-2 mt-3 md:mt-0 w-[240px] flex-shrink-0 md:mr-4">
-          <div className="relative w-[110px]">
-            <div className="absolute inset-0 flex items-center px-2 pointer-events-none z-0">
-              <span className="text-slate-300 text-[11px] font-mono tracking-tighter">{node.start_date ? '' : 'yyyy/mm/dd'}</span>
-            </div>
-            <input
-              type="date"
-              value={node.start_date || ''}
-              onChange={(event) => handleDateChange(node, 'start_date', event.target.value)}
-              disabled={saving}
-              className={`block w-full rounded-md border border-slate-200 py-1.5 pl-2 pr-6 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-50 cursor-pointer appearance-none bg-transparent font-mono transition-colors z-10 relative ${node.start_date ? 'text-slate-700 font-bold' : 'text-transparent'}`}
-              style={{ colorScheme: 'light' }}
-            />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none z-20">
-              <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-            </div>
-          </div>
-          <span className="text-slate-300 font-medium text-sm flex-shrink-0">-</span>
-          <div className="relative w-[110px]">
-            <div className="absolute inset-0 flex items-center px-2 pointer-events-none z-0">
-              <span className="text-slate-300 text-[11px] font-mono tracking-tighter">{node.due_date ? '' : 'yyyy/mm/dd'}</span>
-            </div>
-            <input
-              type="date"
-              value={node.due_date || ''}
-              onChange={(event) => handleDateChange(node, 'due_date', event.target.value)}
-              disabled={saving}
-              className={`block w-full rounded-md border border-slate-200 py-1.5 pl-2 pr-6 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-slate-50 cursor-pointer appearance-none bg-transparent font-mono transition-colors z-10 relative ${node.due_date ? 'text-slate-700 font-bold' : 'text-transparent'}`}
-              style={{ colorScheme: 'light' }}
-            />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none z-20">
-              <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* PROG Column */}
-        <div className="flex items-center w-[120px] flex-shrink-0 mt-3 md:mt-0 gap-3 justify-end pr-2">
-          <div className="h-4 flex-1 max-w-[50px] flex-shrink-0 overflow-hidden rounded-[2px] bg-slate-100 border border-slate-200 box-border relative">
-            <div className={`absolute left-0 top-0 bottom-0 transition-all ${isDone ? 'bg-emerald-500' : 'bg-indigo-500'}`} style={{ width: `${progressRatio}%` }} />
-          </div>
-          <span className={`w-8 text-right text-xs font-bold ${isDone ? 'text-emerald-600' : 'text-slate-600'}`}>
-            {Math.round(progressRatio)}%
+        {/* STATUS Column */}
+        <div className="w-[80px] flex-shrink-0 flex justify-center">
+          <span className={`inline-flex items-center justify-center min-w-[52px] text-[10px] font-bold px-2 py-[3px] rounded-full ${statusBg} ${statusText}`}>
+            {statusLabel}
           </span>
+        </div>
+
+        {/* PROGRESS Column */}
+        <div className="flex items-center w-[100px] flex-shrink-0 gap-2 justify-center">
+          <div className="h-1.5 flex-1 max-w-[94px] overflow-hidden rounded-full bg-slate-200 relative">
+            <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
+          </div>
+        </div>
+
+        {/* DATE RANGE Column */}
+        <div className={`w-[200px] flex-shrink-0 flex items-center gap-1.5 text-[12px] text-slate-500 ${hasBothDates ? 'justify-center' : 'justify-start pl-6'}`}>
+          {dateRange && (
+            <>
+              <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              <span className="font-medium tabular-nums text-[11px]">{dateRange}</span>
+            </>
+          )}
+        </div>
+
+        {/* ASSIGNEE Column */}
+        <div className="w-[100px] flex-shrink-0 flex items-center justify-center gap-1.5">
+          {node.assignee_name && (
+            <>
+              <div className="w-5 h-5 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0">
+                <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+                </svg>
+              </div>
+              <span className="text-[12px] text-slate-600 truncate">{node.assignee_name}</span>
+            </>
+          )}
         </div>
       </div>
 
-      {node.children.map((child, idx) => (
+      {!collapsed && node.children.map((child, idx) => (
         <IssueTreeNode
           key={child.issue_id}
           node={child}
@@ -177,6 +190,8 @@ const IssueTreeNode = ({
           savingIssueIds={savingIssueIds}
           handleDateChange={handleDateChange}
           onAddSubIssue={onAddSubIssue}
+          onSelectIssue={onSelectIssue}
+          selectedIssueId={selectedIssueId}
         />
       ))}
     </>
@@ -564,6 +579,7 @@ export function TaskDetailsDialog({
     startDate: string | null;
     dueDate: string | null;
   } | null>(null);
+  const [selectedIssue, setSelectedIssue] = useState<TreeNodeType | null>(null);
   const issuesRef = useRef<TaskDetailIssue[]>([]);
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
@@ -726,23 +742,26 @@ export function TaskDetailsDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 transition-all" onClick={handleClose}>
+    <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] flex items-center justify-center p-2 sm:p-4 transition-all" onClick={handleClose}>
       <div
-        className="bg-white w-full max-w-4xl h-[80vh] rounded-xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden transition-all transform"
+        className="bg-white w-full max-w-[98vw] h-[94vh] rounded-md shadow-[0_18px_60px_rgba(15,23,42,0.22)] ring-1 ring-slate-200/70 flex flex-col overflow-hidden transition-all transform"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="px-6 py-4 flex items-center justify-between bg-white relative z-10 border-b border-slate-100 flex-shrink-0 h-16 box-border">
-          <div className="flex flex-row items-center gap-3">
-            <svg className="w-5 h-5 text-indigo-600 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
+        {/* Header */}
+        <div className="px-5 py-2.5 flex items-center justify-between bg-white relative z-10 border-b border-slate-200 flex-shrink-0 h-12 box-border">
+          <div className="flex flex-row items-center gap-2.5 min-w-0">
+            <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.25}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
             <h3 className="text-[17px] font-bold text-slate-800 flex items-center gap-2">
-              {issueTitle ? <>{issueTitle} <span className="text-slate-300 font-semibold text-base">#{issueId}</span></> : `#{issueId}`}
+              {issueTitle ? <>{issueTitle} <span className="text-slate-300 font-semibold text-base">#{issueId}</span></> : `#${issueId}`}
             </h3>
             <button
               onClick={() => void reloadTaskDetails(issueId)}
               title={t('timeline.reloadTasks')}
-              className="p-1.5 ml-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+              className="p-1.5 ml-1 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -751,7 +770,7 @@ export function TaskDetailsDialog({
           </div>
           <button
             aria-label={t('timeline.closeDialogAria')}
-            className="p-1.5 text-slate-300 hover:text-slate-500 hover:bg-slate-100 rounded-md transition-colors flex-shrink-0 cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors flex-shrink-0 cursor-pointer"
             onClick={handleClose}
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
@@ -760,7 +779,8 @@ export function TaskDetailsDialog({
           </button>
         </div>
 
-        <div className="flex-1 flex flex-col min-h-0 bg-white relative">
+        {/* Split Panel Body */}
+        <div className="flex-1 flex min-h-0 bg-slate-100 relative">
           {loading && (
             <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-30">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -768,7 +788,7 @@ export function TaskDetailsDialog({
           )}
 
           {!loading && errorMessage && (
-            <div className="rounded-md bg-red-50 p-4 m-6 relative z-10 flex-shrink-0">
+            <div className="rounded-md bg-red-50 p-4 m-6 relative z-10 flex-shrink-0 w-full">
               <div className="flex">
                 <div className="flex-shrink-0">
                   <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -783,51 +803,211 @@ export function TaskDetailsDialog({
           )}
 
           {!loading && !errorMessage && issues.length === 0 && (
-            <div className="text-center py-12 m-6 bg-white rounded-xl border border-dashed border-slate-300 flex-shrink-0">
+            <div className="text-center py-12 m-6 bg-white rounded-xl border border-dashed border-slate-300 flex-shrink-0 w-full">
               <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
             </div>
           )}
 
           {!loading && issues.length > 0 && (
-            <div className="flex flex-col flex-1 min-h-0 relative">
-              <div className="hidden md:flex py-2.5 px-6 sticky top-0 bg-slate-50/95 backdrop-blur-sm z-20 border-b border-slate-100 shadow-sm text-[11px] font-bold text-slate-400 tracking-wider flex-shrink-0 h-10 box-border items-center">
-                <div className="flex-1 uppercase pl-6">{t('timeline.task', { defaultValue: 'TASK' })}</div>
-                <div className="flex-shrink-0 flex gap-2">
-                  <div className="w-[240px] text-center uppercase md:mr-4">{t('timeline.duration', { defaultValue: 'DURATION' })}</div>
-                  <div className="w-[120px] uppercase text-right pr-2">{t('timeline.prog', { defaultValue: 'PROG' })}</div>
+            <>
+              {/* Left Panel - Task List */}
+              <div className={`flex flex-col min-h-0 border-r border-slate-200 bg-white ${selectedIssue ? 'w-[68%]' : 'w-full'} transition-all`}>
+                {/* Column Headers */}
+                <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border">
+                  <div className="flex-1 pl-4">{t('timeline.task', { defaultValue: 'Task' })}</div>
+                  <div className="w-[80px] text-center">{t('timeline.statusCol', { defaultValue: 'Status' })}</div>
+                  <div className="w-[100px] text-center">{t('timeline.progressCol', { defaultValue: 'Progress' })}</div>
+                  <div className="w-[200px] text-center">{t('timeline.dateRangeCol', { defaultValue: 'Date Range' })}</div>
+                  <div className="w-[100px] text-center">{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}</div>
+                </div>
+                {/* Task Tree */}
+                <div className="overflow-auto flex-1 bg-white">
+                  {treeRoots.map((rootNode) => (
+                    <IssueTreeNode
+                      key={rootNode.issue_id}
+                      node={rootNode}
+                      depth={0}
+                      activeLines={[]}
+                      isLast={true}
+                      rootIssueId={issueId}
+                      savingIssueIds={savingIssueIds}
+                      handleDateChange={handleDateChange}
+                      onAddSubIssue={(parentIssue) => setCreateIssueContext({
+                        issueId: parentIssue.issue_id,
+                        startDate: parentIssue.start_date,
+                        dueDate: parentIssue.due_date
+                      })}
+                      onSelectIssue={setSelectedIssue}
+                      selectedIssueId={selectedIssue?.issue_id}
+                    />
+                  ))}
                 </div>
               </div>
-              <div className="pt-2 pb-2 overflow-auto flex-1 bg-white">
-                {treeRoots.map((rootNode) => (
-                  <IssueTreeNode
-                    key={rootNode.issue_id}
-                    node={rootNode}
-                    depth={0}
-                    activeLines={[]}
-                    isLast={true}
-                    rootIssueId={issueId}
-                    savingIssueIds={savingIssueIds}
-                    handleDateChange={handleDateChange}
-                    onAddSubIssue={(parentIssue) => setCreateIssueContext({
-                      issueId: parentIssue.issue_id,
-                      startDate: parentIssue.start_date,
-                      dueDate: parentIssue.due_date
-                    })}
-                  />
-                ))}
-              </div>
-            </div>
+
+              {/* Right Panel - Detail View */}
+              {selectedIssue && (
+                <div className="w-[32%] min-w-[320px] flex flex-col min-h-0 overflow-auto bg-[#f6f7fb]">
+                  {/* Detail Header */}
+                  <div className="px-5 pt-4 pb-3 flex items-start justify-between flex-shrink-0 border-b border-slate-200 bg-white">
+                    <div className="min-w-0 flex items-center gap-2">
+                      <h4 className="text-[13px] font-semibold text-slate-800 truncate">
+                        #{selectedIssue.issue_id} {selectedIssue.subject}
+                      </h4>
+                      <a
+                        href={`${selectedIssue.issue_url}/edit`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex-shrink-0"
+                        title={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
+                        aria-label={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
+                        </svg>
+                      </a>
+                    </div>
+                    <button
+                      type="button"
+                      className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer flex-shrink-0"
+                      onClick={() => setSelectedIssue(null)}
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Detail Fields */}
+                  <div className="px-5 py-4 space-y-3">
+                    {/* Title + Status */}
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.titleLabel')}</span>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {selectedIssue.status_name && (
+                          <span className={`inline-flex items-center text-[10px] font-bold px-2 py-[3px] rounded-full flex-shrink-0 ${selectedIssue.status_is_closed ? 'bg-emerald-500 text-white'
+                              : (selectedIssue.done_ratio ?? 0) > 0 ? 'bg-blue-500 text-white'
+                                : 'bg-slate-300 text-slate-600'
+                            }`}>
+                            {selectedIssue.status_name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress */}
+                    <div className="flex items-center">
+                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.progressCol')}</span>
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="h-1.5 flex-1 max-w-[150px] bg-slate-200 rounded-full overflow-hidden relative">
+                          <div
+                            className={`absolute left-0 top-0 bottom-0 rounded-full ${(selectedIssue.done_ratio ?? 0) === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                            style={{ width: `${Math.max(0, Math.min(100, Number(selectedIssue.done_ratio ?? 0)))}%` }}
+                          />
+                        </div>
+                        <span className="text-[13px] text-slate-500 min-w-[36px] text-right">{Math.round(Number(selectedIssue.done_ratio ?? 0))}%</span>
+                      </div>
+                    </div>
+
+                    {/* Date Range */}
+                    <div className="flex items-center">
+                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.dateRangeCol')}</span>
+                      <span className="text-[13px] text-slate-700 font-medium tabular-nums">
+                        {selectedIssue.start_date && selectedIssue.due_date
+                          ? `${selectedIssue.start_date.replace(/-/g, '/')} - ${selectedIssue.due_date.replace(/-/g, '/')}`
+                          : selectedIssue.start_date?.replace(/-/g, '/') || selectedIssue.due_date?.replace(/-/g, '/') || '-'}
+                      </span>
+                    </div>
+
+                    {/* Assignee */}
+                    <div className="flex items-center">
+                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.assigneeCol')}</span>
+                      <div className="flex items-center gap-2">
+                        {selectedIssue.assignee_name && (
+                          <>
+                            <div className="w-6 h-6 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0">
+                              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+                              </svg>
+                            </div>
+                            <span className="text-[13px] text-slate-700">{selectedIssue.assignee_name}</span>
+                          </>
+                        )}
+                        {!selectedIssue.assignee_name && <span className="text-[13px] text-slate-400">-</span>}
+                      </div>
+                    </div>
+
+                    {/* Priority */}
+                    <div className="flex items-center">
+                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.priorityLabel')}</span>
+                      <div className="flex items-center gap-1.5">
+                        {selectedIssue.priority_name && (
+                          <>
+                            {(selectedIssue.priority_id ?? 0) >= 4 && (
+                              <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M3 3a1 1 0 011-1h2a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm3 0h10l-5 5 5 5H6V3z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            <span className="text-[13px] text-slate-700">{selectedIssue.priority_name}</span>
+                          </>
+                        )}
+                        {!selectedIssue.priority_name && <span className="text-[13px] text-slate-400">-</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="px-5 pb-4">
+                    <h5 className="text-[13px] font-semibold text-slate-700 mb-2">{t('timeline.descriptionTab')}</h5>
+                    <div className="p-3 bg-white rounded-md border border-slate-200 text-[13px] leading-5 text-slate-600 min-h-[88px] whitespace-pre-wrap">
+                      {selectedIssue.description || <span className="text-slate-400 italic">{t('timeline.noDescription')}</span>}
+                    </div>
+                  </div>
+
+                  {/* Comments */}
+                  <div className="px-5 pb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h5 className="text-[13px] font-semibold text-slate-700">{t('timeline.commentsTab')}</h5>
+                      <span className="text-[12px] text-slate-400">{selectedIssue.comments?.length ?? 0}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {(selectedIssue.comments && selectedIssue.comments.length > 0) ? selectedIssue.comments.map((comment) => (
+                        <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="rounded-md border border-slate-200 bg-white p-3">
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <span className="text-[12px] font-medium text-slate-700 truncate">
+                              {comment.author_name || '-'}
+                            </span>
+                            <span className="text-[11px] text-slate-400 shrink-0">
+                              {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
+                            </span>
+                          </div>
+                          <div className="text-[13px] leading-5 text-slate-600 whitespace-pre-wrap break-words">
+                            {comment.notes}
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="p-3 bg-white rounded-md border border-slate-200 text-[13px] text-slate-400">
+                          {t('timeline.noComments', { defaultValue: 'No comments' })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pb-2" />
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 bg-slate-50/80 flex items-center text-slate-500 justify-between flex-shrink-0 border-t border-slate-100 h-12 box-border shadow-[0_-2px_6px_rgba(0,0,0,0.02)] z-20">
+        <div className="px-5 py-2 bg-slate-50 flex items-center text-slate-500 justify-between flex-shrink-0 border-t border-slate-200 h-11 box-border z-20">
           <div className="text-[13px] font-semibold">
             {t('timeline.totalTasks', { count: issues.length })}
           </div>
-          <div className="flex items-center gap-4 text-[11px] font-bold text-slate-400 tracking-wider">
+          <div className="flex items-center gap-4 text-[11px] font-semibold text-slate-400">
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 bg-indigo-400 rounded-sm"></div>
+              <div className="w-2.5 h-2.5 bg-blue-400 rounded-sm"></div>
               {t('timeline.legendWip')}
             </div>
             <div className="flex items-center gap-1.5">

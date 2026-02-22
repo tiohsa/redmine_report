@@ -77,6 +77,18 @@ export type TaskDetailIssue = {
   due_date: string | null;
   done_ratio?: number | null;
   issue_url: string;
+  status_name?: string;
+  status_is_closed?: boolean;
+  assignee_name?: string;
+  priority_name?: string;
+  priority_id?: number;
+  description?: string;
+  comments?: Array<{
+    id?: number;
+    author_name?: string;
+    notes: string;
+    created_on?: string | null;
+  }>;
 };
 
 const toQuery = (filters: Partial<ReportFilterSet>) => {
