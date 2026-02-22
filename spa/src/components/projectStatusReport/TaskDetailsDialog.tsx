@@ -1126,7 +1126,6 @@ export function TaskDetailsDialog({
   const [baselineById, setBaselineById] = useState<Record<number, TaskDetailIssue>>({});
   const [savingIssueIds, setSavingIssueIds] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [masters, setMasters] = useState<import('../../services/scheduleReportApi').TaskMasters | null>(null);
   const [createIssueContext, setCreateIssueContext] = useState<{
     issueId: number;
@@ -1160,7 +1159,6 @@ export function TaskDetailsDialog({
 
   const reloadTaskDetails = useCallback(async (expectedIssueId?: number) => {
     setLoading(true);
-    setErrorMessage(null);
     try {
       let latestRows: TaskDetailIssue[] = [];
       const maxAttempts = expectedIssueId ? 3 : 1;
@@ -1185,7 +1183,7 @@ export function TaskDetailsDialog({
         return found ? { ...found, children: [] } : prev;
       });
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : t('timeline.detailsLoadFailed'));
+      alert(error instanceof Error ? error.message : t('timeline.detailsLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -1274,7 +1272,6 @@ export function TaskDetailsDialog({
 
   const saveRow = async (row: TaskDetailIssue) => {
     setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: true }));
-    setErrorMessage(null);
     try {
       const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
         start_date: row.start_date,
@@ -1288,7 +1285,13 @@ export function TaskDetailsDialog({
     } catch (error: unknown) {
       const message =
         error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
-      setErrorMessage(message);
+      alert(message);
+
+      const baseline = baselineByIdRef.current[row.issue_id];
+      if (baseline) {
+        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
+        hasDateChangesRef.current = true; // Need to refresh Gantt chart if they actually saved previously, but for now we just revert our local list
+      }
     } finally {
       setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
     }
@@ -1329,7 +1332,14 @@ export function TaskDetailsDialog({
       setSelectedIssue(prev => prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev);
     } catch (error: unknown) {
       const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
-      setErrorMessage(message);
+      alert(message);
+
+      const baseline = baselineByIdRef.current[issueId];
+      if (baseline) {
+        setIssues((prev) => prev.map((item) => (item.issue_id === issueId ? { ...item, ...baseline } : item)));
+        setSelectedIssue((prev) => (prev?.issue_id === issueId ? { ...prev, ...baseline, children: prev.children } : prev));
+      }
+
       throw error;
     }
   }, [projectIdentifier, issues]);
@@ -1364,7 +1374,7 @@ export function TaskDetailsDialog({
       void reloadTaskDetails(selectedIssue.issue_id);
     } catch (error: unknown) {
       const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
-      setErrorMessage(message);
+      alert(message);
     }
   };
 
@@ -1431,22 +1441,7 @@ export function TaskDetailsDialog({
             </div>
           )}
 
-          {!loading && errorMessage && (
-            <div className="rounded-md bg-red-50 p-4 m-6 relative z-10 flex-shrink-0 w-full">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">{errorMessage}</h3>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!loading && !errorMessage && issues.length === 0 && (
+          {!loading && issues.length === 0 && (
             <div className="text-center py-12 m-6 bg-white rounded-xl border border-dashed border-slate-300 flex-shrink-0 w-full">
               <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
             </div>
