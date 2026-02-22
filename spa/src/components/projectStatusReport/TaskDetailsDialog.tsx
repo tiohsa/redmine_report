@@ -207,6 +207,14 @@ type SubIssueCreationDialogProps = {
   onClose: () => void;
 };
 
+type IssueEditDialogProps = {
+  projectIdentifier: string;
+  issueId: number;
+  issueUrl: string;
+  onSaved?: (updatedIssueId?: number) => void;
+  onClose: () => void;
+};
+
 function SubIssueCreationDialog({
   projectIdentifier,
   parentIssueId,
@@ -561,6 +569,323 @@ function SubIssueCreationDialog({
   );
 }
 
+function IssueEditDialog({
+  projectIdentifier,
+  issueId,
+  issueUrl,
+  onSaved,
+  onClose
+}: IssueEditDialogProps) {
+  const iframeUrl = `${issueUrl}/edit`;
+  const externalUrl = iframeUrl;
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [iframeReady, setIframeReady] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const handledSaveRef = useRef(false);
+  const cleanupIframeEscRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    setIframeReady(false);
+    handledSaveRef.current = false;
+    cleanupIframeEscRef.current?.();
+    cleanupIframeEscRef.current = null;
+  }, [iframeUrl]);
+
+  useEffect(() => {
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [onClose]);
+
+  useEffect(() => () => {
+    cleanupIframeEscRef.current?.();
+    cleanupIframeEscRef.current = null;
+  }, []);
+
+  const createBulkIssues = async (parentIssueId: number, lines: string[]) => {
+    for (const subject of lines) {
+      const payload: BulkIssuePayload = { subject };
+      await createIssue(projectIdentifier, parentIssueId, payload);
+    }
+  };
+
+  const normalizeEmbeddedFormActions = (doc: Document) => {
+    const forms = Array.from(doc.querySelectorAll('form[action]'));
+    forms.forEach((form) => {
+      const rawAction = form.getAttribute('action');
+      if (!rawAction) return;
+      try {
+        const actionUrl = new URL(rawAction, window.location.origin);
+        if (actionUrl.origin === window.location.origin) return;
+        form.setAttribute('action', `${actionUrl.pathname}${actionUrl.search}${actionUrl.hash}`);
+      } catch {
+        // Ignore invalid URL and keep original action.
+      }
+    });
+  };
+
+  const findEmbeddedIssueForm = () => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
+    const form =
+      doc.querySelector<HTMLFormElement>('form#issue-form') ||
+      doc.querySelector<HTMLFormElement>('form#edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form#new_issue') ||
+      doc.querySelector<HTMLFormElement>('#issue-form form') ||
+      doc.querySelector<HTMLFormElement>('form.edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form.new_issue');
+    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
+    return { doc, form };
+  };
+
+  const submitDefaultIssueForm = () => {
+    try {
+      const { form } = findEmbeddedIssueForm();
+      const submitter =
+        form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('button[name="commit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('input[type="submit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
+      if (submitter) {
+        submitter.click();
+        return;
+      }
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+        return;
+      }
+      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+      if (form.dispatchEvent(submitEvent)) form.submit();
+    } catch (err: any) {
+      alert(t('common.alertError', { message: err.message }));
+    }
+  };
+
+  const saveEditedIssueFromEmbeddedForm = async (): Promise<number> => {
+    const { form } = findEmbeddedIssueForm();
+    const action = form.getAttribute('action') || `/issues/${issueId}`;
+    const method = (form.getAttribute('method') || 'post').toUpperCase();
+    const formData = new FormData(form);
+    const res = await fetch(action, {
+      method,
+      credentials: 'same-origin',
+      body: formData
+    });
+    if (!res.ok) {
+      throw new Error(t('common.alertError', { message: `status=${res.status}` }));
+    }
+
+    const locationCandidates = [res.url, res.headers.get('x-response-url') || '', res.headers.get('location') || '', action];
+    const matched = locationCandidates
+      .map((url) => url.match(/\/issues\/(\d+)(?:[/?#]|$)/))
+      .find((match): match is RegExpMatchArray => Boolean(match && match[1]));
+    if (!matched) return issueId;
+    return Number(matched[1]);
+  };
+
+  const handleSave = async () => {
+    const lines = bulkText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
+
+    if (lines.length === 0) {
+      submitDefaultIssueForm();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const updatedIssueId = await saveEditedIssueFromEmbeddedForm();
+      await createBulkIssues(updatedIssueId, lines);
+      setBulkText('');
+      setBulkOpen(false);
+      onSaved?.(updatedIssueId);
+      onClose();
+    } catch (err: any) {
+      alert(t('common.alertError', { message: err.message }));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
+      <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <h4 className="text-base font-bold text-slate-800">#{issueId}</h4>
+          <div className="flex items-center gap-1">
+            <a
+              href={externalUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              title={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 4h6v6" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 14L20 4" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h4" />
+              </svg>
+            </a>
+            <button
+              type="button"
+              aria-label={t('timeline.closeEditIssueDialogAria', { defaultValue: 'Close edit issue dialog' })}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              onClick={onClose}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="relative flex-1 min-h-[400px] bg-white">
+          <iframe
+            ref={iframeRef}
+            title={t('timeline.editIssueDialogTitle', { defaultValue: 'Edit Issue' })}
+            src={iframeUrl}
+            className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={(e) => {
+              try {
+                const doc = (e.target as HTMLIFrameElement).contentDocument;
+                if (!doc) return;
+
+                const style = doc.createElement('style');
+                style.textContent = `
+                  #header,
+                  #top-menu,
+                  #main-menu,
+                  #sidebar,
+                  #footer,
+                  #redmine-report-bulk-issue-creation-root {
+                    display: none !important;
+                  }
+                  html,
+                  body {
+                    overflow-x: hidden !important;
+                  }
+                  #wrapper,
+                  #main,
+                  #content {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    width: 100% !important;
+                  }
+                  #content {
+                    padding: 12px 16px !important;
+                  }
+                  #issue-form input[name="commit"],
+                  #issue-form button[name="commit"],
+                  #issue-form input[name="continue"],
+                  #issue-form button[name="continue"],
+                  #edit_issue input[name="commit"],
+                  #edit_issue button[name="commit"],
+                  #new_issue input[name="commit"],
+                  #new_issue button[name="commit"],
+                  input[type="submit"][value="保存"],
+                  input[type="submit"][value="Save"] {
+                    display: none !important;
+                  }
+                `;
+                doc.head.appendChild(style);
+                cleanupIframeEscRef.current?.();
+                const onIframeEsc = (event: KeyboardEvent) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onClose();
+                  }
+                };
+                doc.addEventListener('keydown', onIframeEsc);
+                cleanupIframeEscRef.current = () => doc.removeEventListener('keydown', onIframeEsc);
+                normalizeEmbeddedFormActions(doc);
+
+                const pathname = doc.location?.pathname || '';
+                if (!handledSaveRef.current && new RegExp(`^/issues/${issueId}(?:/)?$`).test(pathname)) {
+                  handledSaveRef.current = true;
+                  onSaved?.(issueId);
+                  onClose();
+                  return;
+                }
+              } catch {
+                // Ignore cross-origin / iframe access issues.
+              }
+              requestAnimationFrame(() => setIframeReady(true));
+            }}
+          />
+          {!iframeReady && (
+            <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
+              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-slate-200 px-5 py-3 flex-shrink-0">
+          <button
+            type="button"
+            className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
+            onClick={() => setBulkOpen(!bulkOpen)}
+          >
+            <span
+              className="inline-block transition-transform duration-200 text-xs"
+              style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            >
+              ▶
+            </span>
+            <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
+          </button>
+
+          {bulkOpen && (
+            <div className="mt-3">
+              <textarea
+                className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y"
+                placeholder={t('subIssueDialog.bulkPlaceholder')}
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 mt-3">
+            <button
+              type="button"
+              className="rounded-[6px] border bg-white px-6 text-[14px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
+              style={{
+                width: '118px',
+                height: '40px',
+                borderColor: '#cbd5e1',
+                color: '#334155',
+                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+              }}
+              onClick={onClose}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              className="rounded-[6px] px-6 text-[14px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
+              style={{
+                width: '114px',
+                height: '40px',
+                backgroundColor: '#1b69e3',
+                color: '#fff',
+                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+              }}
+              disabled={isSubmitting || !iframeReady}
+              onClick={handleSave}
+            >
+              {isSubmitting ? t('common.saving') : t('common.save')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TaskDetailsDialog({
   open,
   projectIdentifier,
@@ -578,6 +903,10 @@ export function TaskDetailsDialog({
     issueId: number;
     startDate: string | null;
     dueDate: string | null;
+  } | null>(null);
+  const [editIssueContext, setEditIssueContext] = useState<{
+    issueId: number;
+    issueUrl: string;
   } | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<TreeNodeType | null>(null);
   const issuesRef = useRef<TaskDetailIssue[]>([]);
@@ -608,6 +937,12 @@ export function TaskDetailsDialog({
         acc[row.issue_id] = row;
         return acc;
       }, {}));
+      setSelectedIssue((prev) => {
+        const targetIssueId = expectedIssueId ?? prev?.issue_id;
+        if (!targetIssueId) return prev;
+        const found = latestRows.find((row) => row.issue_id === targetIssueId);
+        return found ? { ...found, children: [] } : prev;
+      });
     } catch (error: unknown) {
       setErrorMessage(error instanceof Error ? error.message : t('timeline.detailsLoadFailed'));
     } finally {
@@ -621,6 +956,7 @@ export function TaskDetailsDialog({
       hasDateChangesRef.current = false;
     }
     setCreateIssueContext(null);
+    setEditIssueContext(null);
     onClose();
   }, [onClose, onTaskDatesUpdated]);
 
@@ -853,19 +1189,23 @@ export function TaskDetailsDialog({
                       <h4 className="text-[13px] font-semibold text-slate-800 truncate">
                         #{selectedIssue.issue_id} {selectedIssue.subject}
                       </h4>
-                      <a
-                        href={`${selectedIssue.issue_url}/edit`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex-shrink-0"
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex-shrink-0 cursor-pointer"
                         title={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
                         aria-label={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditIssueContext({
+                            issueId: selectedIssue.issue_id,
+                            issueUrl: selectedIssue.issue_url
+                          });
+                        }}
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
                         </svg>
-                      </a>
+                      </button>
                     </div>
                     <button
                       type="button"
@@ -1027,6 +1367,17 @@ export function TaskDetailsDialog({
             void reloadTaskDetails(createdIssueId);
           }}
           onClose={() => setCreateIssueContext(null)}
+        />
+      )}
+      {editIssueContext !== null && (
+        <IssueEditDialog
+          projectIdentifier={projectIdentifier}
+          issueId={editIssueContext.issueId}
+          issueUrl={editIssueContext.issueUrl}
+          onSaved={(updatedIssueId) => {
+            void reloadTaskDetails(updatedIssueId ?? editIssueContext.issueId);
+          }}
+          onClose={() => setEditIssueContext(null)}
         />
       )}
     </div>
