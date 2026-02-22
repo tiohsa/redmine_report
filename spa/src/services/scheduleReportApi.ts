@@ -78,9 +78,12 @@ export type TaskDetailIssue = {
   done_ratio?: number | null;
   issue_url: string;
   tracker_name?: string;
+  tracker_id?: number;
   status_name?: string;
+  status_id?: number;
   status_is_closed?: boolean;
   assignee_name?: string;
+  assignee_id?: number | null;
   priority_name?: string;
   priority_id?: number;
   description?: string;
@@ -159,6 +162,57 @@ export const updateTaskDates = async (
 
   if (!res.ok) {
     throw await parseWeeklyError(res, t('api.updateTaskDates', { status: res.status }));
+  }
+  const json = (await res.json()) as { issue: TaskDetailIssue };
+  return json.issue;
+};
+
+export type TaskMasterItem = { id: number | null; name: string };
+export type TaskStatusItem = { id: number; name: string; is_closed: boolean };
+
+export type TaskMasters = {
+  trackers: TaskMasterItem[];
+  statuses: TaskStatusItem[];
+  priorities: TaskMasterItem[];
+  members: TaskMasterItem[];
+};
+
+export const fetchTaskMasters = async (projectIdentifier: string): Promise<TaskMasters> => {
+  const path = `/projects/${projectIdentifier}/schedule_report/task_masters`;
+  const res = await fetch(path, { credentials: 'same-origin' });
+  if (!res.ok) {
+    throw await parseWeeklyError(res, t('api.fetchTaskMasters', { status: res.status, defaultValue: `Failed to load masters (${res.status})` }));
+  }
+  return (await res.json()) as TaskMasters;
+};
+
+export type TaskUpdatePayload = {
+  subject?: string;
+  tracker_id?: number | null;
+  status_id?: number | null;
+  priority_id?: number | null;
+  assigned_to_id?: number | null;
+  done_ratio?: number | null;
+};
+
+export const updateTaskFields = async (
+  projectIdentifier: string,
+  issueId: number,
+  payload: TaskUpdatePayload
+): Promise<TaskDetailIssue> => {
+  const path = `/projects/${projectIdentifier}/schedule_report/task_update/${issueId}`;
+  const res = await fetch(path, {
+    method: 'PATCH',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    throw await parseWeeklyError(res, t('api.updateTaskFields', { status: res.status, defaultValue: `Failed to update issue (${res.status})` }));
   }
   const json = (await res.json()) as { issue: TaskDetailIssue };
   return json.issue;

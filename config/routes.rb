@@ -10,6 +10,12 @@ get '/projects/:project_id/schedule_report/task_details/:issue_id',
 patch '/projects/:project_id/schedule_report/task_dates/:issue_id',
       to: 'schedule_reports#task_dates',
       as: 'project_schedule_report_task_dates'
+get '/projects/:project_id/schedule_report/task_masters',
+    to: 'schedule_reports#task_masters',
+    as: 'project_schedule_report_task_masters'
+patch '/projects/:project_id/schedule_report/task_update/:issue_id',
+      to: 'schedule_reports#task_update',
+      as: 'project_schedule_report_task_update'
 get '/projects/:project_id/schedule_report/weekly/versions',
     to: 'schedule_reports#weekly_versions',
     as: 'project_schedule_report_weekly_versions'

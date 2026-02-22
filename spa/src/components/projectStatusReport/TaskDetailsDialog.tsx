@@ -2,8 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { t } from '../../i18n';
 import {
   fetchTaskDetails,
+  fetchTaskMasters,
   TaskDetailIssue,
+  TaskMasters,
   updateTaskDates,
+  updateTaskFields,
   WeeklyApiError
 } from '../../services/scheduleReportApi';
 import { createIssue, BulkIssuePayload } from '../bulkIssueRegistration/bulkIssueApi';
@@ -30,7 +33,11 @@ type IssueTreeNodeProps = {
   onAddSubIssue: (parentIssue: TaskDetailIssue) => void;
   onSelectIssue?: (node: TreeNodeType) => void;
   selectedIssueId?: number | null;
+  masters: TaskMasters | null;
+  onFieldUpdate: (issueId: number, field: string, value: string | number | null) => Promise<void>;
 };
+
+type EditingCell = { field: string; value: string };
 
 const IssueTreeNode = ({
   node,
@@ -42,12 +49,26 @@ const IssueTreeNode = ({
   handleDateChange,
   onAddSubIssue,
   onSelectIssue,
-  selectedIssueId
+  selectedIssueId,
+  masters,
+  onFieldUpdate
 }: IssueTreeNodeProps) => {
   const progressRatio = Math.max(0, Math.min(100, Number(node.done_ratio ?? 0)));
   const isDone = progressRatio === 100;
   const isSelected = selectedIssueId === node.issue_id;
   const [collapsed, setCollapsed] = useState(false);
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [isSavingField, setIsSavingField] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (editingCell && inputRef.current) {
+      inputRef.current.focus();
+      if (inputRef.current.type === 'text' || inputRef.current.type === 'number') {
+        inputRef.current.select();
+      }
+    }
+  }, [editingCell]);
 
   const statusLabel = node.status_name || t('status.pending');
   const isClosed = node.status_is_closed ?? false;
@@ -76,11 +97,48 @@ const IssueTreeNode = ({
     return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
   })();
 
+  const startEdit = (field: string, currentValue: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCell({ field, value: currentValue });
+  };
+
+  const cancelEdit = () => setEditingCell(null);
+
+  const commitEdit = async (field: string, rawValue: string) => {
+    setEditingCell(null);
+    let value: string | number | null = rawValue;
+    if (['tracker_id', 'status_id', 'priority_id', 'done_ratio'].includes(field)) {
+      value = rawValue === '' ? null : Number(rawValue);
+    } else if (field === 'assigned_to_id') {
+      value = rawValue === '' || rawValue === '0' ? null : Number(rawValue);
+    }
+    setIsSavingField(true);
+    try {
+      await onFieldUpdate(node.issue_id, field, value);
+    } finally {
+      setIsSavingField(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void commitEdit(editingCell!.field, editingCell!.value);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
+  };
+
+  const isEditing = (field: string) => editingCell?.field === field;
+  const isSaving = savingIssueIds[node.issue_id] || isSavingField;
+
+  const cellClass = 'group/cell cursor-text';
+
   return (
     <>
       <div
-        className={`flex items-center min-h-[44px] transition-colors relative group px-4 border-b border-slate-100/90 cursor-pointer ${isSelected ? 'bg-slate-100/90' : 'hover:bg-slate-50/80'}`}
-        onClick={(e) => { e.stopPropagation(); onSelectIssue?.(node); }}
+        className={`flex items-center min-h-[44px] transition-colors relative group px-4 border-b border-slate-100/90 ${isSelected ? 'bg-slate-100/90' : 'hover:bg-slate-50/80'}`}
       >
         {/* Tree connectors */}
         <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
@@ -127,61 +185,169 @@ const IssueTreeNode = ({
               </button>
             )}
           </div>
-          <div className="flex items-center min-w-0 z-10">
-            <span className="flex-shrink-0 text-slate-400 text-xs font-semibold mr-2">#{node.issue_id}</span>
-            <a href={node.issue_url} target="_blank" rel="noreferrer"
-              data-testid="task-subject"
-              className={`text-[13px] ${depth === 0 ? 'font-semibold' : 'font-medium'} text-slate-700 truncate hover:underline hover:text-blue-600 block`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {node.subject}
-            </a>
-            <button
-              type="button"
-              className="opacity-0 group-hover:opacity-100 ml-1 inline-flex items-center justify-center w-6 h-6 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all cursor-pointer flex-shrink-0"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddSubIssue(node); }}
-              title={t('timeline.addSubIssue')}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
+          <div className="flex items-center min-w-0 z-10 flex-1">
+            <span
+              className="flex-shrink-0 text-slate-400 text-xs font-semibold mr-1.5 cursor-pointer hover:text-blue-500"
+              onClick={(e) => { e.stopPropagation(); onSelectIssue?.(node); }}
+            >#{node.issue_id}</span>
+            {isEditing('subject') ? (
+              <input
+                ref={inputRef}
+                type="text"
+                className="flex-1 text-[13px] h-7 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-700 min-w-0"
+                value={editingCell!.value}
+                onChange={(e) => setEditingCell({ field: 'subject', value: e.target.value })}
+                onBlur={() => { void commitEdit('subject', editingCell!.value); }}
+                onKeyDown={handleKeyDown}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span
+                data-testid="task-subject"
+                className={`text-[13px] ${depth === 0 ? 'font-semibold' : 'font-medium'} text-slate-700 truncate hover:text-blue-600 block cursor-pointer`}
+                onClick={(e) => { e.stopPropagation(); onSelectIssue?.(node); }}
+                onDoubleClick={(e) => startEdit('subject', node.subject, e)}
+                title={node.subject}
+              >
+                {node.subject}
+              </span>
+            )}
+            {!isEditing('subject') && (
+              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1 flex-shrink-0">
+                <a
+                  href={node.issue_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center w-5 h-5 text-slate-300 hover:text-blue-500 rounded"
+                  onClick={(e) => e.stopPropagation()}
+                  title={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
+                  </svg>
+                </a>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center w-5 h-5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded cursor-pointer"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddSubIssue(node); }}
+                  title={t('timeline.addSubIssue')}
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* TRACKER Column */}
-        <div className="w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2">
-          <span
-            className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${trackerBadgeClass}`}
-            title={node.tracker_name || ''}
-          >
-            {node.tracker_name || '-'}
-          </span>
+        <div
+          className={`w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          onDoubleClick={(e) => startEdit('tracker_id', String(node.tracker_id || ''), e)}
+        >
+          {isEditing('tracker_id') && masters ? (
+            <select
+              className="w-full text-[11px] h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700"
+              value={editingCell!.value}
+              onChange={(e) => { void commitEdit('tracker_id', e.target.value); }}
+              onBlur={() => cancelEdit()}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            >
+              {masters.trackers.map((tr) => (
+                <option key={tr.id} value={String(tr.id)}>{tr.name}</option>
+              ))}
+            </select>
+          ) : (
+            <span
+              className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${trackerBadgeClass} group/cell:hover:ring-blue-300`}
+              title={node.tracker_name || ''}
+            >
+              {node.tracker_name || '-'}
+            </span>
+          )}
         </div>
 
         {/* PRIORITY Column */}
-        <div className="w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2">
-          <span
-            className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${priorityBadgeClass}`}
-            title={node.priority_name || ''}
-          >
-            {node.priority_name || '-'}
-          </span>
+        <div
+          className={`w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          onDoubleClick={(e) => startEdit('priority_id', String(node.priority_id || ''), e)}
+        >
+          {isEditing('priority_id') && masters ? (
+            <select
+              className="w-full text-[11px] h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700"
+              value={editingCell!.value}
+              onChange={(e) => { void commitEdit('priority_id', e.target.value); }}
+              onBlur={() => cancelEdit()}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            >
+              {masters.priorities.filter(p => p.id !== null).map((p) => (
+                <option key={p.id} value={String(p.id)}>{p.name}</option>
+              ))}
+            </select>
+          ) : (
+            <span
+              className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${priorityBadgeClass}`}
+              title={node.priority_name || ''}
+            >
+              {node.priority_name || '-'}
+            </span>
+          )}
         </div>
 
         {/* STATUS Column */}
-        <div className="w-[80px] min-w-[80px] shrink-0 flex items-center justify-start px-2">
-          <span className={`inline-flex items-center justify-center min-w-[52px] text-[10px] font-bold px-2 py-[3px] rounded-full ${statusBg} ${statusText}`}>
-            {statusLabel}
-          </span>
+        <div
+          className={`w-[80px] min-w-[80px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          onDoubleClick={(e) => startEdit('status_id', String(node.status_id || ''), e)}
+        >
+          {isEditing('status_id') && masters ? (
+            <select
+              className="w-full text-[11px] h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700"
+              value={editingCell!.value}
+              onChange={(e) => { void commitEdit('status_id', e.target.value); }}
+              onBlur={() => cancelEdit()}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            >
+              {masters.statuses.map((s) => (
+                <option key={s.id} value={String(s.id)}>{s.name}</option>
+              ))}
+            </select>
+          ) : (
+            <span className={`inline-flex items-center justify-center min-w-[52px] text-[10px] font-bold px-2 py-[3px] rounded-full ${statusBg} ${statusText}`}>
+              {statusLabel}
+            </span>
+          )}
         </div>
 
         {/* PROGRESS Column */}
-        <div className="w-[120px] min-w-[120px] shrink-0 flex items-center gap-2 justify-start px-2">
-          <div className="h-1.5 w-full max-w-[70px] overflow-hidden rounded-full bg-slate-200 relative">
-            <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
-          </div>
-          <span className="text-[10px] text-slate-500 font-medium tabular-nums" data-testid="progress-text">{progressRatio}%</span>
+        <div
+          className={`w-[120px] min-w-[120px] shrink-0 flex items-center gap-2 justify-start px-2 ${cellClass}`}
+          onDoubleClick={(e) => startEdit('done_ratio', String(progressRatio), e)}
+        >
+          {isEditing('done_ratio') ? (
+            <input
+              ref={inputRef}
+              type="number"
+              min={0}
+              max={100}
+              className="w-[70px] text-[11px] h-7 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-700"
+              value={editingCell!.value}
+              onChange={(e) => setEditingCell({ field: 'done_ratio', value: e.target.value })}
+              onBlur={() => { void commitEdit('done_ratio', editingCell!.value); }}
+              onKeyDown={handleKeyDown}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <>
+              <div className="h-1.5 w-full max-w-[70px] overflow-hidden rounded-full bg-slate-200 relative">
+                <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
+              </div>
+              <span className="text-[10px] text-slate-500 font-medium tabular-nums" data-testid="progress-text">{progressRatio}%</span>
+            </>
+          )}
         </div>
 
         {/* DATE RANGE Column */}
@@ -203,22 +369,42 @@ const IssueTreeNode = ({
             onChange={(e) => handleDateChange(node, 'due_date', e.target.value)}
             onClick={(e) => e.stopPropagation()}
           />
-          {savingIssueIds[node.issue_id] && (
+          {isSaving && (
             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 ml-1"></div>
           )}
         </div>
 
         {/* ASSIGNEE Column */}
-        <div className="w-[120px] min-w-[120px] shrink-0 flex items-center justify-start gap-1.5 px-2">
-          {node.assignee_name && (
-            <>
-              <div className="w-5 h-5 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0">
-                <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
-                </svg>
-              </div>
-              <span className="text-[12px] text-slate-600 truncate">{node.assignee_name}</span>
-            </>
+        <div
+          className={`w-[120px] min-w-[120px] shrink-0 flex items-center justify-start gap-1.5 px-2 ${cellClass}`}
+          onDoubleClick={(e) => startEdit('assigned_to_id', String(node.assignee_id || ''), e)}
+        >
+          {isEditing('assigned_to_id') && masters ? (
+            <select
+              className="w-full text-[11px] h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700"
+              value={editingCell!.value}
+              onChange={(e) => { void commitEdit('assigned_to_id', e.target.value); }}
+              onBlur={() => cancelEdit()}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            >
+              {masters.members.map((m) => (
+                <option key={m.id ?? 'none'} value={m.id === null ? '' : String(m.id)}>{m.name}</option>
+              ))}
+            </select>
+          ) : (
+            node.assignee_name ? (
+              <>
+                <div className="w-5 h-5 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+                  </svg>
+                </div>
+                <span className="text-[12px] text-slate-600 truncate">{node.assignee_name}</span>
+              </>
+            ) : (
+              <span className="text-[11px] text-slate-400">-</span>
+            )
           )}
         </div>
       </div>
@@ -236,6 +422,8 @@ const IssueTreeNode = ({
           onAddSubIssue={onAddSubIssue}
           onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
+          masters={masters}
+          onFieldUpdate={onFieldUpdate}
         />
       ))}
     </>
@@ -951,6 +1139,7 @@ export function TaskDetailsDialog({
   const [savingIssueIds, setSavingIssueIds] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [masters, setMasters] = useState<import('../../services/scheduleReportApi').TaskMasters | null>(null);
   const [createIssueContext, setCreateIssueContext] = useState<{
     issueId: number;
     startDate: string | null;
@@ -968,6 +1157,12 @@ export function TaskDetailsDialog({
   const hasDateChangesRef = useRef(false);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Load master data when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    fetchTaskMasters(projectIdentifier).then(setMasters).catch(() => { /* best-effort */ });
+  }, [open, projectIdentifier]);
 
   const reloadTaskDetails = useCallback(async (expectedIssueId?: number) => {
     setLoading(true);
@@ -1089,7 +1284,7 @@ export function TaskDetailsDialog({
       });
       // Preserve parent_id in the updated row
       updated.parent_id = row.parent_id;
-      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? updated : item)));
+      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
       setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
       hasDateChangesRef.current = true;
     } catch (error: unknown) {
@@ -1126,6 +1321,19 @@ export function TaskDetailsDialog({
       return next;
     });
   };
+
+  const handleFieldUpdate = useCallback(async (issueId: number, field: string, value: string | number | null) => {
+    const payload: Record<string, unknown> = { [field]: value };
+    try {
+      const updated = await updateTaskFields(projectIdentifier, issueId, payload as import('../../services/scheduleReportApi').TaskUpdatePayload);
+      setIssues(prev => prev.map(item => item.issue_id === updated.issue_id ? { ...item, ...updated } : item));
+      setBaselineById(prev => ({ ...prev, [updated.issue_id]: { ...prev[updated.issue_id], ...updated } }));
+      setSelectedIssue(prev => prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev);
+    } catch (error: unknown) {
+      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
+      setErrorMessage(message);
+    }
+  }, [projectIdentifier, issues]);
 
   if (!open) return null;
 
@@ -1247,6 +1455,8 @@ export function TaskDetailsDialog({
                       })}
                       onSelectIssue={setSelectedIssue}
                       selectedIssueId={selectedIssue?.issue_id}
+                      masters={masters}
+                      onFieldUpdate={handleFieldUpdate}
                     />
                   ))}
                 </div>

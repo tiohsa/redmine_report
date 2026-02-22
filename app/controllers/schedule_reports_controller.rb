@@ -119,6 +119,63 @@ class ScheduleReportsController < ApplicationController
     )
   end
 
+  def task_masters
+    service = RedmineReport::ScheduleReport::TaskMastersService.new(
+      project: @project,
+      user: User.current
+    )
+    result = service.call
+
+    if result[:ok]
+      render json: result.slice(:trackers, :statuses, :priorities, :members)
+      return
+    end
+
+    render_schedule_report_error(
+      code: result[:code],
+      message: result[:message],
+      status: result[:status]
+    )
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] task_masters failed: #{e.class}: #{e.message}")
+    render_schedule_report_error(
+      code: 'UPSTREAM_FAILURE',
+      message: l(:label_schedule_report_unavailable),
+      status: :service_unavailable
+    )
+  end
+
+  def task_update
+    service = RedmineReport::ScheduleReport::TaskUpdateService.new(
+      root_project: @project,
+      user: User.current
+    )
+    result = service.call(
+      issue_id: params[:issue_id],
+      fields: task_update_payload
+    )
+
+    if result[:ok]
+      render json: { issue: result[:issue] }
+      return
+    end
+
+    render_schedule_report_error(
+      code: result[:code],
+      message: result[:message],
+      status: result[:status],
+      retryable: result[:retryable]
+    )
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] task_update failed: #{e.class}: #{e.message}")
+    render_schedule_report_error(
+      code: 'UPSTREAM_FAILURE',
+      message: l(:label_schedule_report_unavailable),
+      status: :service_unavailable,
+      retryable: true
+    )
+  end
+
   def weekly_versions
     versions = @project.versions
                        .select(:id, :name, :status)
@@ -331,5 +388,12 @@ class ScheduleReportsController < ApplicationController
     end
 
     payload
+  end
+
+  def task_update_payload
+    raw = request.request_parameters.presence || {}
+    raw.slice(*RedmineReport::ScheduleReport::TaskUpdateService::ALLOWED_FIELDS)
+  rescue StandardError
+    {}
   end
 end

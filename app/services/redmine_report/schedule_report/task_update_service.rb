@@ -2,40 +2,40 @@
 
 module RedmineReport
   module ScheduleReport
-    class TaskDetailsService
+    class TaskUpdateService
+      ALLOWED_FIELDS = %w[subject tracker_id status_id priority_id assigned_to_id done_ratio].freeze
+
       def initialize(root_project:, user:, issue_class: Issue)
         @root_project = root_project
         @user = user
         @issue_class = issue_class
       end
 
-      def call(issue_id:)
+      def call(issue_id:, fields:)
         resolved_issue_id = parse_issue_id(issue_id)
         return resolved_issue_id unless resolved_issue_id.is_a?(Integer)
+
+        filtered = filter_fields(fields)
+        return error('INVALID_INPUT', 'No valid fields provided', :unprocessable_entity) if filtered.empty?
 
         issue = visible_scope.find_by(id: resolved_issue_id)
         return error('NOT_FOUND', 'Issue not found', :not_found) unless issue
 
-        issues = [issue] + child_scope(issue).to_a
-        { ok: true, issues: issues.map { |item| serialize_issue(item) } }
+        return error('FORBIDDEN', 'Issue is not editable', :forbidden) unless issue.editable?(@user)
+
+        filtered.each do |key, value|
+          issue.public_send(:"#{key}=", value)
+        end
+
+        return error('VALIDATION_ERROR', issue.errors.full_messages.join(', '), :unprocessable_entity) unless issue.save
+
+        { ok: true, issue: serialize_issue(issue) }
       end
 
       private
 
       def visible_scope
         @visible_scope ||= @issue_class.visible(@user).where(project_id: allowed_project_ids)
-      end
-
-      def child_scope(issue)
-        if issue.respond_to?(:lft) && issue.respond_to?(:rgt) && issue.lft && issue.rgt
-          scope = visible_scope.where("#{Issue.table_name}.lft > ? AND #{Issue.table_name}.rgt < ?", issue.lft, issue.rgt)
-          if issue.respond_to?(:root_id) && issue.root_id
-            scope = scope.where(root_id: issue.root_id)
-          end
-          scope.order(:lft, :id)
-        else
-          visible_scope.where(parent_id: issue.id).order(:lft, :id)
-        end
       end
 
       def allowed_project_ids
@@ -46,6 +46,29 @@ module RedmineReport
         Integer(raw_issue_id)
       rescue ArgumentError, TypeError
         error('INVALID_INPUT', 'issue_id must be an integer', :unprocessable_entity)
+      end
+
+      def filter_fields(fields)
+        return {} unless fields.is_a?(Hash)
+
+        fields.each_with_object({}) do |(key, value), acc|
+          next unless ALLOWED_FIELDS.include?(key.to_s)
+
+          acc[key.to_s] = coerce_value(key.to_s, value)
+        end
+      end
+
+      def coerce_value(key, value)
+        case key
+        when 'tracker_id', 'status_id', 'priority_id', 'done_ratio'
+          value.present? ? Integer(value) : nil
+        when 'assigned_to_id'
+          value.present? ? Integer(value) : nil
+        else
+          value.presence
+        end
+      rescue ArgumentError, TypeError
+        nil
       end
 
       def serialize_issue(issue)
