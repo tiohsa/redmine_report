@@ -124,11 +124,11 @@ const IssueTreeNode = ({
             </a>
             <button
               type="button"
-              className="opacity-0 group-hover:opacity-100 ml-1 p-0.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
+              className="opacity-0 group-hover:opacity-100 ml-1 inline-flex items-center justify-center w-6 h-6 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all cursor-pointer flex-shrink-0"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddSubIssue(node); }}
               title={t('timeline.addSubIssue')}
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
             </button>
@@ -386,29 +386,32 @@ function SubIssueCreationDialog({
     <div className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
       <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
-          <h4 className="text-base font-bold text-slate-800">
-            #{parentIssueId}
-          </h4>
-          <div className="flex items-center gap-1">
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+              #{parentIssueId}
+            </span>
+            <span className="text-[13px] font-semibold text-slate-700">{t('subIssueDialog.iframeTitle')}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <a
               href={externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
               title={t('common.openInNewTab')}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
               </svg>
             </a>
             <button
               type="button"
               aria-label={t('timeline.closeCreateIssueDialogAria')}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
               onClick={onClose}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -713,17 +716,22 @@ function IssueEditDialog({
   return (
     <div className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
       <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
-          <h4 className="text-base font-bold text-slate-800">#{issueId}</h4>
-          <div className="flex items-center gap-1">
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+              #{issueId}
+            </span>
+            <span className="text-[13px] font-semibold text-slate-700">{t('timeline.editIssueDialogTitle', { defaultValue: 'Edit Issue' })}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <a
               href={externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
               title={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14 4h6v6" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10 14L20 4" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h4" />
@@ -732,10 +740,10 @@ function IssueEditDialog({
             <button
               type="button"
               aria-label={t('timeline.closeEditIssueDialogAria', { defaultValue: 'Close edit issue dialog' })}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
               onClick={onClose}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -1084,32 +1092,47 @@ export function TaskDetailsDialog({
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-2.5 flex items-center justify-between bg-white relative z-10 border-b border-slate-200 flex-shrink-0 h-12 box-border">
+        <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-white relative z-10 border-b border-slate-200 flex-shrink-0 h-12 box-border">
           <div className="flex flex-row items-center gap-2.5 min-w-0">
             <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.25}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </div>
-            <h3 className="text-[17px] font-bold text-slate-800 flex items-center gap-2">
-              {issueTitle ? <>{issueTitle} <span className="text-slate-300 font-semibold text-base">#{issueId}</span></> : `#${issueId}`}
+            <h3 className="text-[16px] font-semibold text-slate-800 flex items-center gap-2 min-w-0">
+              {issueTitle ? <><span className="truncate">{issueTitle}</span> <span className="text-slate-300 font-semibold text-sm shrink-0">#{issueId}</span></> : `#${issueId}`}
             </h3>
             <button
               onClick={() => void reloadTaskDetails(issueId)}
               title={t('timeline.reloadTasks')}
-              className="p-1.5 ml-1 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center w-8 h-8 ml-1 border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
           </div>
+
+          <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-400 shrink min-w-0">
+            <div className="text-[12px] text-slate-500 font-semibold whitespace-nowrap">
+              {t('timeline.totalTasks', { count: issues.length })}
+            </div>
+            <div className="hidden sm:flex items-center gap-1.5 whitespace-nowrap">
+              <div className="w-2.5 h-2.5 bg-blue-400 rounded-sm"></div>
+              {t('timeline.legendWip')}
+            </div>
+            <div className="hidden sm:flex items-center gap-1.5 whitespace-nowrap">
+              <div className="w-2.5 h-2.5 bg-emerald-400 rounded-sm"></div>
+              {t('timeline.legendDone')}
+            </div>
+          </div>
+
           <button
             aria-label={t('timeline.closeDialogAria')}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors flex-shrink-0 cursor-pointer"
+            className="inline-flex items-center justify-center w-8 h-8 border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg shadow-sm transition-colors flex-shrink-0 cursor-pointer"
             onClick={handleClose}
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+            <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" strokeWidth="2.25" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -1182,16 +1205,26 @@ export function TaskDetailsDialog({
 
               {/* Right Panel - Detail View */}
               {selectedIssue && (
-                <div className="w-[32%] min-w-[320px] flex flex-col min-h-0 overflow-auto bg-[#f6f7fb]">
+                <div className="w-[34%] min-w-[340px] flex flex-col min-h-0 overflow-auto bg-[#f4f6fb]">
                   {/* Detail Header */}
-                  <div className="px-5 pt-4 pb-3 flex items-start justify-between flex-shrink-0 border-b border-slate-200 bg-white">
-                    <div className="min-w-0 flex items-center gap-2">
-                      <h4 className="text-[13px] font-semibold text-slate-800 truncate">
-                        #{selectedIssue.issue_id} {selectedIssue.subject}
-                      </h4>
+                  <div className="px-4 pt-3.5 pb-3 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-10">
+                    <div className="min-w-0">
+                      <div className="flex items-baseline gap-2 min-w-0">
+                        <span className="text-[11px] leading-none font-semibold text-slate-400 shrink-0">
+                          #{selectedIssue.issue_id}
+                        </span>
+                        <h4 className="text-[14px] leading-5 font-semibold text-slate-800 truncate">
+                          {selectedIssue.subject}
+                        </h4>
+                      </div>
+                      <div className="mt-1 text-[10px] leading-4 text-slate-400 truncate">
+                        {selectedIssue.issue_url}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
-                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex-shrink-0 cursor-pointer"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm cursor-pointer transition-colors"
                         title={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
                         aria-label={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
                         onClick={(e) => {
@@ -1202,27 +1235,30 @@ export function TaskDetailsDialog({
                           });
                         }}
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
                         </svg>
                       </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors"
+                        onClick={() => setSelectedIssue(null)}
+                        title={t('common.close', { defaultValue: 'Close' })}
+                        aria-label={t('common.close', { defaultValue: 'Close' })}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer flex-shrink-0"
-                      onClick={() => setSelectedIssue(null)}
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
                   </div>
 
                   {/* Detail Fields */}
-                  <div className="px-5 py-4 space-y-3">
-                    {/* Title + Status */}
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.titleLabel')}</span>
+                  <div className="px-4 py-3">
+                    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    {/* Status */}
+                    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100">
+                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.statusCol')}</span>
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         {selectedIssue.status_name && (
                           <span className={`inline-flex items-center text-[10px] font-bold px-2 py-[3px] rounded-full flex-shrink-0 ${selectedIssue.status_is_closed ? 'bg-emerald-500 text-white'
@@ -1232,12 +1268,13 @@ export function TaskDetailsDialog({
                             {selectedIssue.status_name}
                           </span>
                         )}
+                        {!selectedIssue.status_name && <span className="text-[13px] text-slate-400">-</span>}
                       </div>
                     </div>
 
                     {/* Progress */}
-                    <div className="flex items-center">
-                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.progressCol')}</span>
+                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
+                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.progressCol')}</span>
                       <div className="flex items-center gap-3 flex-1">
                         <div className="h-1.5 flex-1 max-w-[150px] bg-slate-200 rounded-full overflow-hidden relative">
                           <div
@@ -1250,8 +1287,8 @@ export function TaskDetailsDialog({
                     </div>
 
                     {/* Date Range */}
-                    <div className="flex items-center">
-                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.dateRangeCol')}</span>
+                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
+                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.dateRangeCol')}</span>
                       <span className="text-[13px] text-slate-700 font-medium tabular-nums">
                         {selectedIssue.start_date && selectedIssue.due_date
                           ? `${selectedIssue.start_date.replace(/-/g, '/')} - ${selectedIssue.due_date.replace(/-/g, '/')}`
@@ -1260,8 +1297,8 @@ export function TaskDetailsDialog({
                     </div>
 
                     {/* Assignee */}
-                    <div className="flex items-center">
-                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.assigneeCol')}</span>
+                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
+                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.assigneeCol')}</span>
                       <div className="flex items-center gap-2">
                         {selectedIssue.assignee_name && (
                           <>
@@ -1278,8 +1315,8 @@ export function TaskDetailsDialog({
                     </div>
 
                     {/* Priority */}
-                    <div className="flex items-center">
-                      <span className="text-[13px] text-slate-500 w-24 flex-shrink-0">{t('timeline.priorityLabel')}</span>
+                    <div className="flex items-center px-4 py-2.5">
+                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.priorityLabel')}</span>
                       <div className="flex items-center gap-1.5">
                         {selectedIssue.priority_name && (
                           <>
@@ -1294,26 +1331,29 @@ export function TaskDetailsDialog({
                         {!selectedIssue.priority_name && <span className="text-[13px] text-slate-400">-</span>}
                       </div>
                     </div>
+                    </div>
                   </div>
 
                   {/* Description */}
-                  <div className="px-5 pb-4">
-                    <h5 className="text-[13px] font-semibold text-slate-700 mb-2">{t('timeline.descriptionTab')}</h5>
-                    <div className="p-3 bg-white rounded-md border border-slate-200 text-[13px] leading-5 text-slate-600 min-h-[88px] whitespace-pre-wrap">
+                  <div className="px-4 pb-3">
+                    <h5 className="text-[12px] font-semibold tracking-wide text-slate-500 mb-2">{t('timeline.descriptionTab')}</h5>
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm text-[13px] leading-[1.45] text-slate-600 min-h-[80px] whitespace-pre-wrap">
                       {selectedIssue.description || <span className="text-slate-400 italic">{t('timeline.noDescription')}</span>}
                     </div>
                   </div>
 
                   {/* Comments */}
-                  <div className="px-5 pb-4">
+                  <div className="px-4 pb-3">
                     <div className="flex items-center justify-between mb-2">
-                      <h5 className="text-[13px] font-semibold text-slate-700">{t('timeline.commentsTab')}</h5>
-                      <span className="text-[12px] text-slate-400">{selectedIssue.comments?.length ?? 0}</span>
+                      <h5 className="text-[12px] font-semibold tracking-wide text-slate-500">{t('timeline.commentsTab')}</h5>
+                      <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full border border-slate-200 bg-white text-[11px] font-semibold text-slate-500 shadow-sm">
+                        {selectedIssue.comments?.length ?? 0}
+                      </span>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       {(selectedIssue.comments && selectedIssue.comments.length > 0) ? selectedIssue.comments.map((comment) => (
-                        <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="rounded-md border border-slate-200 bg-white p-3">
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                          <div className="flex items-center justify-between gap-2 mb-1">
                             <span className="text-[12px] font-medium text-slate-700 truncate">
                               {comment.author_name || '-'}
                             </span>
@@ -1321,12 +1361,12 @@ export function TaskDetailsDialog({
                               {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
                             </span>
                           </div>
-                          <div className="text-[13px] leading-5 text-slate-600 whitespace-pre-wrap break-words">
+                          <div className="text-[12px] leading-[1.45] text-slate-600 whitespace-pre-wrap break-words">
                             {comment.notes}
                           </div>
                         </div>
                       )) : (
-                        <div className="p-3 bg-white rounded-md border border-slate-200 text-[13px] text-slate-400">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm text-[12px] text-slate-400">
                           {t('timeline.noComments', { defaultValue: 'No comments' })}
                         </div>
                       )}
@@ -1340,22 +1380,6 @@ export function TaskDetailsDialog({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-5 py-2 bg-slate-50 flex items-center text-slate-500 justify-between flex-shrink-0 border-t border-slate-200 h-11 box-border z-20">
-          <div className="text-[13px] font-semibold">
-            {t('timeline.totalTasks', { count: issues.length })}
-          </div>
-          <div className="flex items-center gap-4 text-[11px] font-semibold text-slate-400">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 bg-blue-400 rounded-sm"></div>
-              {t('timeline.legendWip')}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 bg-emerald-400 rounded-sm"></div>
-              {t('timeline.legendDone')}
-            </div>
-          </div>
-        </div>
       </div>
       {createIssueContext !== null && (
         <SubIssueCreationDialog
