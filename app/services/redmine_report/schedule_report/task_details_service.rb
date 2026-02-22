@@ -57,6 +57,7 @@ module RedmineReport
           due_date: issue.due_date&.iso8601,
           done_ratio: issue.done_ratio.to_i,
           issue_url: "/issues/#{issue.id}",
+          tracker_name: issue.tracker&.name.to_s,
           status_name: issue.status&.name.to_s,
           status_is_closed: issue.status&.is_closed? || false,
           assignee_name: issue.assigned_to&.name.to_s,

@@ -64,6 +64,17 @@ const IssueTreeNode = ({
     return '';
   })();
   const hasBothDates = Boolean(node.start_date && node.due_date);
+  const trackerBadgeClass = node.tracker_name
+    ? 'bg-slate-100 text-slate-700 ring-1 ring-slate-200'
+    : 'bg-slate-50 text-slate-400 ring-1 ring-slate-200/70';
+  const priorityBadgeClass = (() => {
+    const priorityId = Number(node.priority_id ?? 0);
+    if (!node.priority_name) return 'bg-slate-50 text-slate-400 ring-1 ring-slate-200/70';
+    if (priorityId >= 5) return 'bg-rose-50 text-rose-700 ring-1 ring-rose-200';
+    if (priorityId >= 4) return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
+    if (priorityId >= 3) return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200';
+    return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
+  })();
 
   return (
     <>
@@ -99,11 +110,11 @@ const IssueTreeNode = ({
         )}
 
         {/* TASK Column */}
-        <div className="flex-1 flex items-center min-w-0" style={{ paddingLeft: `${depth * 20}px` }}>
+        <div className="basis-0 grow-[7] shrink flex items-center min-w-[240px]" style={{ paddingLeft: `${depth * 20}px` }}>
           {node.children.length > 0 && (
             <button
               type="button"
-              className="mr-1 p-0.5 text-slate-400 hover:text-slate-600 cursor-pointer flex-shrink-0 z-10"
+              className="mr-1 p-0.5 border-0 ring-0 shadow-none bg-transparent appearance-none rounded-sm text-slate-300 hover:text-slate-500 hover:bg-slate-100/70 focus:outline-none cursor-pointer flex-shrink-0 z-10"
               onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
@@ -135,22 +146,42 @@ const IssueTreeNode = ({
           </div>
         </div>
 
+        {/* TRACKER Column */}
+        <div className="basis-0 grow-[2] min-w-[90px] flex items-center justify-start px-2">
+          <span
+            className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${trackerBadgeClass}`}
+            title={node.tracker_name || ''}
+          >
+            {node.tracker_name || '-'}
+          </span>
+        </div>
+
+        {/* PRIORITY Column */}
+        <div className="basis-0 grow-[2] min-w-[90px] flex items-center justify-start px-2">
+          <span
+            className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${priorityBadgeClass}`}
+            title={node.priority_name || ''}
+          >
+            {node.priority_name || '-'}
+          </span>
+        </div>
+
         {/* STATUS Column */}
-        <div className="w-[80px] flex-shrink-0 flex justify-center">
+        <div className="basis-0 grow-[2] min-w-[80px] flex justify-start px-1">
           <span className={`inline-flex items-center justify-center min-w-[52px] text-[10px] font-bold px-2 py-[3px] rounded-full ${statusBg} ${statusText}`}>
             {statusLabel}
           </span>
         </div>
 
         {/* PROGRESS Column */}
-        <div className="flex items-center w-[100px] flex-shrink-0 gap-2 justify-center">
-          <div className="h-1.5 flex-1 max-w-[94px] overflow-hidden rounded-full bg-slate-200 relative">
+        <div className="basis-0 grow-[2] min-w-[90px] flex items-center gap-2 justify-start px-2">
+          <div className="h-1.5 w-full max-w-[110px] overflow-hidden rounded-full bg-slate-200 relative">
             <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
           </div>
         </div>
 
         {/* DATE RANGE Column */}
-        <div className={`w-[200px] flex-shrink-0 flex items-center gap-1.5 text-[12px] text-slate-500 ${hasBothDates ? 'justify-center' : 'justify-start pl-6'}`}>
+        <div className="basis-0 grow-[3] min-w-[150px] flex items-center gap-1.5 text-[12px] text-slate-500 px-2 justify-start">
           {dateRange && (
             <>
               <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -165,7 +196,7 @@ const IssueTreeNode = ({
         </div>
 
         {/* ASSIGNEE Column */}
-        <div className="w-[100px] flex-shrink-0 flex items-center justify-center gap-1.5">
+        <div className="basis-0 grow-[2] min-w-[90px] flex items-center justify-start gap-1.5 px-1">
           {node.assignee_name && (
             <>
               <div className="w-5 h-5 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0">
@@ -1173,11 +1204,13 @@ export function TaskDetailsDialog({
               <div className={`flex flex-col min-h-0 border-r border-slate-200 bg-white ${selectedIssue ? 'w-[68%]' : 'w-full'} transition-all`}>
                 {/* Column Headers */}
                 <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border">
-                  <div className="flex-1 pl-4">{t('timeline.task', { defaultValue: 'Task' })}</div>
-                  <div className="w-[80px] text-center">{t('timeline.statusCol', { defaultValue: 'Status' })}</div>
-                  <div className="w-[100px] text-center">{t('timeline.progressCol', { defaultValue: 'Progress' })}</div>
-                  <div className="w-[200px] text-center">{t('timeline.dateRangeCol', { defaultValue: 'Date Range' })}</div>
-                  <div className="w-[100px] text-center">{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}</div>
+                  <div className="basis-0 grow-[7] shrink min-w-[240px] pl-4">{t('timeline.task', { defaultValue: 'Task' })}</div>
+                  <div className="basis-0 grow-[2] min-w-[90px] text-left px-2">{t('timeline.trackerCol', { defaultValue: 'Tracker' })}</div>
+                  <div className="basis-0 grow-[2] min-w-[90px] text-left px-2">{t('timeline.priorityCol', { defaultValue: 'Priority' })}</div>
+                  <div className="basis-0 grow-[2] min-w-[80px] text-left px-1">{t('timeline.statusCol', { defaultValue: 'Status' })}</div>
+                  <div className="basis-0 grow-[2] min-w-[90px] text-left px-2">{t('timeline.progressCol', { defaultValue: 'Progress' })}</div>
+                  <div className="basis-0 grow-[3] min-w-[150px] text-left px-2">{t('timeline.dateRangeCol', { defaultValue: 'Date Range' })}</div>
+                  <div className="basis-0 grow-[2] min-w-[90px] text-left px-1">{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}</div>
                 </div>
                 {/* Task Tree */}
                 <div className="overflow-auto flex-1 bg-white">
@@ -1217,9 +1250,6 @@ export function TaskDetailsDialog({
                           {selectedIssue.subject}
                         </h4>
                       </div>
-                      <div className="mt-1 text-[10px] leading-4 text-slate-400 truncate">
-                        {selectedIssue.issue_url}
-                      </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
@@ -1256,8 +1286,44 @@ export function TaskDetailsDialog({
                   {/* Detail Fields */}
                   <div className="px-4 py-3">
                     <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    {/* Status */}
+                    {/* Tracker */}
                     <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100">
+                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.trackerCol')}</span>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {selectedIssue.tracker_name && (
+                          <span className="inline-flex items-center text-[10px] font-semibold px-2 py-[3px] rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200">
+                            {selectedIssue.tracker_name}
+                          </span>
+                        )}
+                        {!selectedIssue.tracker_name && <span className="text-[13px] text-slate-400">-</span>}
+                      </div>
+                    </div>
+
+                    {/* Priority */}
+                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
+                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.priorityLabel')}</span>
+                      <div className="flex items-center gap-1.5">
+                        {selectedIssue.priority_name && (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-[3px] text-[10px] font-semibold ${
+                              (() => {
+                                const priorityId = Number(selectedIssue.priority_id ?? 0);
+                                if (priorityId >= 5) return 'bg-rose-50 text-rose-700 ring-1 ring-rose-200';
+                                if (priorityId >= 4) return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
+                                if (priorityId >= 3) return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200';
+                                return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
+                              })()
+                            }`}
+                          >
+                            {selectedIssue.priority_name}
+                          </span>
+                        )}
+                        {!selectedIssue.priority_name && <span className="text-[13px] text-slate-400">-</span>}
+                      </div>
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
                       <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.statusCol')}</span>
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         {selectedIssue.status_name && (
@@ -1297,7 +1363,7 @@ export function TaskDetailsDialog({
                     </div>
 
                     {/* Assignee */}
-                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
+                    <div className="flex items-center px-4 py-2.5">
                       <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.assigneeCol')}</span>
                       <div className="flex items-center gap-2">
                         {selectedIssue.assignee_name && (
@@ -1311,24 +1377,6 @@ export function TaskDetailsDialog({
                           </>
                         )}
                         {!selectedIssue.assignee_name && <span className="text-[13px] text-slate-400">-</span>}
-                      </div>
-                    </div>
-
-                    {/* Priority */}
-                    <div className="flex items-center px-4 py-2.5">
-                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.priorityLabel')}</span>
-                      <div className="flex items-center gap-1.5">
-                        {selectedIssue.priority_name && (
-                          <>
-                            {(selectedIssue.priority_id ?? 0) >= 4 && (
-                              <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M3 3a1 1 0 011-1h2a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm3 0h10l-5 5 5 5H6V3z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                            <span className="text-[13px] text-slate-700">{selectedIssue.priority_name}</span>
-                          </>
-                        )}
-                        {!selectedIssue.priority_name && <span className="text-[13px] text-slate-400">-</span>}
                       </div>
                     </div>
                     </div>

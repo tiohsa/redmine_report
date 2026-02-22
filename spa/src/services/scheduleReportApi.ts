@@ -77,6 +77,7 @@ export type TaskDetailIssue = {
   due_date: string | null;
   done_ratio?: number | null;
   issue_url: string;
+  tracker_name?: string;
   status_name?: string;
   status_is_closed?: boolean;
   assignee_name?: string;
