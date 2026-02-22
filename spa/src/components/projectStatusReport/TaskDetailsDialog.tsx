@@ -110,24 +110,27 @@ const IssueTreeNode = ({
         )}
 
         {/* TASK Column */}
-        <div className="basis-0 grow-[7] shrink flex items-center min-w-[240px]" style={{ paddingLeft: `${depth * 20}px` }}>
-          {node.children.length > 0 && (
-            <button
-              type="button"
-              className="mr-1 p-0.5 border-0 ring-0 shadow-none bg-transparent appearance-none rounded-sm text-slate-300 hover:text-slate-500 hover:bg-slate-100/70 focus:outline-none cursor-pointer flex-shrink-0 z-10"
-              onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
-                {collapsed
-                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  : <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                }
-              </svg>
-            </button>
-          )}
+        <div className="w-[280px] min-w-[280px] shrink-0 flex items-center" style={{ paddingLeft: `${depth * 20}px` }}>
+          <div className="w-5 mr-1 flex-shrink-0 flex items-center justify-center">
+            {node.children.length > 0 && (
+              <button
+                type="button"
+                className="p-0.5 !border-0 ring-0 shadow-none bg-transparent appearance-none rounded-sm text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus:outline-none cursor-pointer flex-shrink-0 z-10"
+                onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                  {collapsed
+                    ? <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    : <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  }
+                </svg>
+              </button>
+            )}
+          </div>
           <div className="flex items-center min-w-0 z-10">
             <span className="flex-shrink-0 text-slate-400 text-xs font-semibold mr-2">#{node.issue_id}</span>
             <a href={node.issue_url} target="_blank" rel="noreferrer"
+              data-testid="task-subject"
               className={`text-[13px] ${depth === 0 ? 'font-semibold' : 'font-medium'} text-slate-700 truncate hover:underline hover:text-blue-600 block`}
               onClick={(e) => e.stopPropagation()}
             >
@@ -147,7 +150,7 @@ const IssueTreeNode = ({
         </div>
 
         {/* TRACKER Column */}
-        <div className="basis-0 grow-[2] min-w-[90px] flex items-center justify-start px-2">
+        <div className="w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2">
           <span
             className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${trackerBadgeClass}`}
             title={node.tracker_name || ''}
@@ -157,7 +160,7 @@ const IssueTreeNode = ({
         </div>
 
         {/* PRIORITY Column */}
-        <div className="basis-0 grow-[2] min-w-[90px] flex items-center justify-start px-2">
+        <div className="w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2">
           <span
             className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${priorityBadgeClass}`}
             title={node.priority_name || ''}
@@ -167,36 +170,46 @@ const IssueTreeNode = ({
         </div>
 
         {/* STATUS Column */}
-        <div className="basis-0 grow-[2] min-w-[80px] flex justify-start px-1">
+        <div className="w-[80px] min-w-[80px] shrink-0 flex items-center justify-start px-2">
           <span className={`inline-flex items-center justify-center min-w-[52px] text-[10px] font-bold px-2 py-[3px] rounded-full ${statusBg} ${statusText}`}>
             {statusLabel}
           </span>
         </div>
 
         {/* PROGRESS Column */}
-        <div className="basis-0 grow-[2] min-w-[90px] flex items-center gap-2 justify-start px-2">
-          <div className="h-1.5 w-full max-w-[110px] overflow-hidden rounded-full bg-slate-200 relative">
+        <div className="w-[120px] min-w-[120px] shrink-0 flex items-center gap-2 justify-start px-2">
+          <div className="h-1.5 w-full max-w-[70px] overflow-hidden rounded-full bg-slate-200 relative">
             <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
           </div>
+          <span className="text-[10px] text-slate-500 font-medium tabular-nums" data-testid="progress-text">{progressRatio}%</span>
         </div>
 
         {/* DATE RANGE Column */}
-        <div className="basis-0 grow-[3] min-w-[150px] flex items-center gap-1.5 text-[12px] text-slate-500 px-2 justify-start">
-          {dateRange && (
-            <>
-              <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span className="font-medium tabular-nums text-[11px]">{dateRange}</span>
-            </>
+        <div className="w-[260px] min-w-[260px] shrink-0 flex items-center gap-1.5 px-2 justify-start">
+          <input
+            type="date"
+            data-testid="start-date-input"
+            className="w-[110px] text-[11px] h-7 px-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 tabular-nums text-slate-600 bg-white"
+            value={node.start_date || ''}
+            onChange={(e) => handleDateChange(node, 'start_date', e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <span className="text-slate-400 text-[10px]">-</span>
+          <input
+            type="date"
+            data-testid="due-date-input"
+            className="w-[110px] text-[11px] h-7 px-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 tabular-nums text-slate-600 bg-white"
+            value={node.due_date || ''}
+            onChange={(e) => handleDateChange(node, 'due_date', e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+          />
+          {savingIssueIds[node.issue_id] && (
+            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 ml-1"></div>
           )}
         </div>
 
         {/* ASSIGNEE Column */}
-        <div className="basis-0 grow-[2] min-w-[90px] flex items-center justify-start gap-1.5 px-1">
+        <div className="w-[120px] min-w-[120px] shrink-0 flex items-center justify-start gap-1.5 px-2">
           {node.assignee_name && (
             <>
               <div className="w-5 h-5 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0">
@@ -1203,17 +1216,20 @@ export function TaskDetailsDialog({
               {/* Left Panel - Task List */}
               <div className={`flex flex-col min-h-0 border-r border-slate-200 bg-white ${selectedIssue ? 'w-[68%]' : 'w-full'} transition-all`}>
                 {/* Column Headers */}
-                <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border">
-                  <div className="basis-0 grow-[7] shrink min-w-[240px] pl-4">{t('timeline.task', { defaultValue: 'Task' })}</div>
-                  <div className="basis-0 grow-[2] min-w-[90px] text-left px-2">{t('timeline.trackerCol', { defaultValue: 'Tracker' })}</div>
-                  <div className="basis-0 grow-[2] min-w-[90px] text-left px-2">{t('timeline.priorityCol', { defaultValue: 'Priority' })}</div>
-                  <div className="basis-0 grow-[2] min-w-[80px] text-left px-1">{t('timeline.statusCol', { defaultValue: 'Status' })}</div>
-                  <div className="basis-0 grow-[2] min-w-[90px] text-left px-2">{t('timeline.progressCol', { defaultValue: 'Progress' })}</div>
-                  <div className="basis-0 grow-[3] min-w-[150px] text-left px-2">{t('timeline.dateRangeCol', { defaultValue: 'Date Range' })}</div>
-                  <div className="basis-0 grow-[2] min-w-[90px] text-left px-1">{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}</div>
-                </div>
-                {/* Task Tree */}
                 <div className="overflow-auto flex-1 bg-white">
+                  <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0">
+                    <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
+                      <div className="w-5 mr-1" /> {/* Spacer for expand button */}
+                      {t('timeline.task', { defaultValue: 'Task' })}
+                    </div>
+                    <div className="w-[90px] min-w-[90px] shrink-0 text-left px-2">{t('timeline.trackerCol', { defaultValue: 'Tracker' })}</div>
+                    <div className="w-[90px] min-w-[90px] shrink-0 text-left px-2">{t('timeline.priorityCol', { defaultValue: 'Priority' })}</div>
+                    <div className="w-[80px] min-w-[80px] shrink-0 text-left px-2">{t('timeline.statusCol', { defaultValue: 'Status' })}</div>
+                    <div className="w-[120px] min-w-[120px] shrink-0 text-left px-2">{t('timeline.progressCol', { defaultValue: 'Progress' })}</div>
+                    <div className="w-[260px] min-w-[260px] shrink-0 text-left px-2">{t('timeline.dateRangeCol', { defaultValue: 'Date Range' })}</div>
+                    <div className="w-[120px] min-w-[120px] shrink-0 text-left px-2">{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}</div>
+                  </div>
+                  {/* Task Tree */}
                   {treeRoots.map((rootNode) => (
                     <IssueTreeNode
                       key={rootNode.issue_id}
@@ -1286,99 +1302,98 @@ export function TaskDetailsDialog({
                   {/* Detail Fields */}
                   <div className="px-4 py-3">
                     <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    {/* Tracker */}
-                    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100">
-                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.trackerCol')}</span>
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {selectedIssue.tracker_name && (
-                          <span className="inline-flex items-center text-[10px] font-semibold px-2 py-[3px] rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200">
-                            {selectedIssue.tracker_name}
-                          </span>
-                        )}
-                        {!selectedIssue.tracker_name && <span className="text-[13px] text-slate-400">-</span>}
+                      {/* Tracker */}
+                      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100">
+                        <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.trackerCol')}</span>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          {selectedIssue.tracker_name && (
+                            <span className="inline-flex items-center text-[10px] font-semibold px-2 py-[3px] rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200">
+                              {selectedIssue.tracker_name}
+                            </span>
+                          )}
+                          {!selectedIssue.tracker_name && <span className="text-[13px] text-slate-400">-</span>}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Priority */}
-                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
-                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.priorityLabel')}</span>
-                      <div className="flex items-center gap-1.5">
-                        {selectedIssue.priority_name && (
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-[3px] text-[10px] font-semibold ${
-                              (() => {
+                      {/* Priority */}
+                      <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
+                        <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.priorityLabel')}</span>
+                        <div className="flex items-center gap-1.5">
+                          {selectedIssue.priority_name && (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-[3px] text-[10px] font-semibold ${(() => {
                                 const priorityId = Number(selectedIssue.priority_id ?? 0);
                                 if (priorityId >= 5) return 'bg-rose-50 text-rose-700 ring-1 ring-rose-200';
                                 if (priorityId >= 4) return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
                                 if (priorityId >= 3) return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200';
                                 return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
                               })()
-                            }`}
-                          >
-                            {selectedIssue.priority_name}
-                          </span>
-                        )}
-                        {!selectedIssue.priority_name && <span className="text-[13px] text-slate-400">-</span>}
+                                }`}
+                            >
+                              {selectedIssue.priority_name}
+                            </span>
+                          )}
+                          {!selectedIssue.priority_name && <span className="text-[13px] text-slate-400">-</span>}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Status */}
-                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
-                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.statusCol')}</span>
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {selectedIssue.status_name && (
-                          <span className={`inline-flex items-center text-[10px] font-bold px-2 py-[3px] rounded-full flex-shrink-0 ${selectedIssue.status_is_closed ? 'bg-emerald-500 text-white'
+                      {/* Status */}
+                      <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
+                        <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.statusCol')}</span>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          {selectedIssue.status_name && (
+                            <span className={`inline-flex items-center text-[10px] font-bold px-2 py-[3px] rounded-full flex-shrink-0 ${selectedIssue.status_is_closed ? 'bg-emerald-500 text-white'
                               : (selectedIssue.done_ratio ?? 0) > 0 ? 'bg-blue-500 text-white'
                                 : 'bg-slate-300 text-slate-600'
-                            }`}>
-                            {selectedIssue.status_name}
-                          </span>
-                        )}
-                        {!selectedIssue.status_name && <span className="text-[13px] text-slate-400">-</span>}
-                      </div>
-                    </div>
-
-                    {/* Progress */}
-                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
-                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.progressCol')}</span>
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="h-1.5 flex-1 max-w-[150px] bg-slate-200 rounded-full overflow-hidden relative">
-                          <div
-                            className={`absolute left-0 top-0 bottom-0 rounded-full ${(selectedIssue.done_ratio ?? 0) === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                            style={{ width: `${Math.max(0, Math.min(100, Number(selectedIssue.done_ratio ?? 0)))}%` }}
-                          />
+                              }`}>
+                              {selectedIssue.status_name}
+                            </span>
+                          )}
+                          {!selectedIssue.status_name && <span className="text-[13px] text-slate-400">-</span>}
                         </div>
-                        <span className="text-[13px] text-slate-500 min-w-[36px] text-right">{Math.round(Number(selectedIssue.done_ratio ?? 0))}%</span>
                       </div>
-                    </div>
 
-                    {/* Date Range */}
-                    <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
-                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.dateRangeCol')}</span>
-                      <span className="text-[13px] text-slate-700 font-medium tabular-nums">
-                        {selectedIssue.start_date && selectedIssue.due_date
-                          ? `${selectedIssue.start_date.replace(/-/g, '/')} - ${selectedIssue.due_date.replace(/-/g, '/')}`
-                          : selectedIssue.start_date?.replace(/-/g, '/') || selectedIssue.due_date?.replace(/-/g, '/') || '-'}
-                      </span>
-                    </div>
-
-                    {/* Assignee */}
-                    <div className="flex items-center px-4 py-2.5">
-                      <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.assigneeCol')}</span>
-                      <div className="flex items-center gap-2">
-                        {selectedIssue.assignee_name && (
-                          <>
-                            <div className="w-6 h-6 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0">
-                              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
-                              </svg>
-                            </div>
-                            <span className="text-[13px] text-slate-700">{selectedIssue.assignee_name}</span>
-                          </>
-                        )}
-                        {!selectedIssue.assignee_name && <span className="text-[13px] text-slate-400">-</span>}
+                      {/* Progress */}
+                      <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
+                        <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.progressCol')}</span>
+                        <div className="flex items-center gap-3 flex-1">
+                          <div className="h-1.5 flex-1 max-w-[150px] bg-slate-200 rounded-full overflow-hidden relative">
+                            <div
+                              className={`absolute left-0 top-0 bottom-0 rounded-full ${(selectedIssue.done_ratio ?? 0) === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                              style={{ width: `${Math.max(0, Math.min(100, Number(selectedIssue.done_ratio ?? 0)))}%` }}
+                            />
+                          </div>
+                          <span className="text-[13px] text-slate-500 min-w-[36px] text-right">{Math.round(Number(selectedIssue.done_ratio ?? 0))}%</span>
+                        </div>
                       </div>
-                    </div>
+
+                      {/* Date Range */}
+                      <div className="flex items-center px-4 py-2.5 border-b border-slate-100">
+                        <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.dateRangeCol')}</span>
+                        <span className="text-[13px] text-slate-700 font-medium tabular-nums">
+                          {selectedIssue.start_date && selectedIssue.due_date
+                            ? `${selectedIssue.start_date.replace(/-/g, '/')} - ${selectedIssue.due_date.replace(/-/g, '/')}`
+                            : selectedIssue.start_date?.replace(/-/g, '/') || selectedIssue.due_date?.replace(/-/g, '/') || '-'}
+                        </span>
+                      </div>
+
+                      {/* Assignee */}
+                      <div className="flex items-center px-4 py-2.5">
+                        <span className="text-[12px] font-medium text-slate-500 w-20 flex-shrink-0">{t('timeline.assigneeCol')}</span>
+                        <div className="flex items-center gap-2">
+                          {selectedIssue.assignee_name && (
+                            <>
+                              <div className="w-6 h-6 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0">
+                                <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+                                </svg>
+                              </div>
+                              <span className="text-[13px] text-slate-700">{selectedIssue.assignee_name}</span>
+                            </>
+                          )}
+                          {!selectedIssue.assignee_name && <span className="text-[13px] text-slate-400">-</span>}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

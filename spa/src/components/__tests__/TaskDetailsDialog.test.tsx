@@ -56,7 +56,7 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
-    const startDateInput = container.querySelector('input[type="date"]');
+    const startDateInput = screen.getAllByTestId('start-date-input')[0];
     expect(startDateInput).toBeTruthy();
 
     fireEvent.change(startDateInput as HTMLInputElement, { target: { value: '2026-02-03' } });
@@ -114,7 +114,7 @@ describe('TaskDetailsDialog', () => {
     expect(srcUrl.searchParams.get('issue[due_date]')).toBe('2026-02-10');
     expect(srcUrl.searchParams.get('start_date')).toBe('2026-02-01');
     expect(srcUrl.searchParams.get('due_date')).toBe('2026-02-10');
-    expect(screen.getByText('65%')).toBeTruthy();
+    expect(screen.getAllByTestId('progress-text').some(t => t.textContent === '65%')).toBeTruthy();
 
     const styleElement = { textContent: '' } as unknown as HTMLStyleElement;
     const fakeDoc = {
@@ -210,7 +210,8 @@ describe('TaskDetailsDialog', () => {
     fireEvent.load(iframe);
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(3));
-    expect(screen.getByText('New child issue')).toBeTruthy();
+    const subjects = screen.getAllByTestId('task-subject');
+    expect(subjects.some(s => s.textContent === 'New child issue')).toBeTruthy();
     expect(screen.queryByTitle('子チケット新規登録')).toBeNull();
   });
 });
