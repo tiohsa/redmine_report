@@ -3,7 +3,7 @@
 module RedmineReport
   module ScheduleReport
     class TaskUpdateService
-      ALLOWED_FIELDS = %w[subject tracker_id status_id priority_id assigned_to_id done_ratio].freeze
+      ALLOWED_FIELDS = %w[subject tracker_id status_id priority_id assigned_to_id done_ratio description notes].freeze
 
       def initialize(root_project:, user:, issue_class: Issue)
         @root_project = root_project
@@ -24,7 +24,11 @@ module RedmineReport
         return error('FORBIDDEN', 'Issue is not editable', :forbidden) unless issue.editable?(@user)
 
         filtered.each do |key, value|
-          issue.public_send(:"#{key}=", value)
+          if key == 'notes'
+            issue.init_journal(@user, value) if value.present?
+          else
+            issue.public_send(:"#{key}=", value)
+          end
         end
 
         return error('VALIDATION_ERROR', issue.errors.full_messages.join(', '), :unprocessable_entity) unless issue.save
@@ -64,6 +68,8 @@ module RedmineReport
           value.present? ? Integer(value) : nil
         when 'assigned_to_id'
           value.present? ? Integer(value) : nil
+        when 'description', 'notes'
+          value.presence
         else
           value.presence
         end

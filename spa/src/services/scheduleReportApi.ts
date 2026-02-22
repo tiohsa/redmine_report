@@ -218,6 +218,27 @@ export const updateTaskFields = async (
   return json.issue;
 };
 
+export const updateTaskJournal = async (
+  projectIdentifier: string,
+  journalId: number,
+  notes: string
+): Promise<void> => {
+  const path = `/projects/${projectIdentifier}/schedule_report/task_journal/${journalId}`;
+  const res = await fetch(path, {
+    method: 'PATCH',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+    },
+    body: JSON.stringify({ notes })
+  });
+
+  if (!res.ok) {
+    throw await parseWeeklyError(res, t('api.updateTaskJournal', { status: res.status, defaultValue: `Failed to update journal (${res.status})` }));
+  }
+};
+
 export class WeeklyApiError extends Error {
   status: number;
   code?: string;

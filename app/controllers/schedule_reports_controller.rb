@@ -145,6 +145,36 @@ class ScheduleReportsController < ApplicationController
     )
   end
 
+  def update_journal
+    journal = Journal.find_by(id: params[:journal_id])
+    if journal.nil?
+      return render_schedule_report_error(
+        code: 'NOT_FOUND',
+        message: 'Journal not found',
+        status: :not_found
+      )
+    end
+
+    unless journal.editable_by?(User.current)
+      return render_schedule_report_error(
+        code: 'FORBIDDEN',
+        message: 'You are not authorized to edit this comment',
+        status: :forbidden
+      )
+    end
+
+    journal.safe_attributes = { 'notes' => params[:notes] }
+    if journal.save
+      render json: { ok: true }
+    else
+      render_schedule_report_error(
+        code: 'VALIDATION_ERROR',
+        message: journal.errors.full_messages.join(', '),
+        status: :unprocessable_entity
+      )
+    end
+  end
+
   def task_update
     service = RedmineReport::ScheduleReport::TaskUpdateService.new(
       root_project: @project,
@@ -392,7 +422,7 @@ class ScheduleReportsController < ApplicationController
 
   def task_update_payload
     raw = request.request_parameters.presence || {}
-    raw.slice(*RedmineReport::ScheduleReport::TaskUpdateService::ALLOWED_FIELDS)
+    raw.slice(*%w[subject tracker_id status_id priority_id assigned_to_id done_ratio description notes])
   rescue StandardError
     {}
   end

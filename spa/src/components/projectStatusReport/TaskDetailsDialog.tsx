@@ -1138,6 +1138,12 @@ export function TaskDetailsDialog({
     issueUrl: string;
   } | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<TreeNodeType | null>(null);
+  const [editingDescription, setEditingDescription] = useState<boolean>(false);
+  const [descriptionDraft, setDescriptionDraft] = useState<string>('');
+  const [newCommentDraft, setNewCommentDraft] = useState<string>('');
+  const [isSavingComment, setIsSavingComment] = useState<boolean>(false);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editingCommentDraft, setEditingCommentDraft] = useState<string>('');
   const issuesRef = useRef<TaskDetailIssue[]>([]);
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
@@ -1192,6 +1198,10 @@ export function TaskDetailsDialog({
     }
     setCreateIssueContext(null);
     setEditIssueContext(null);
+    setEditingDescription(false);
+    setNewCommentDraft('');
+    setEditingCommentId(null);
+    setEditingCommentDraft('');
     onClose();
   }, [onClose, onTaskDatesUpdated]);
 
@@ -1320,8 +1330,43 @@ export function TaskDetailsDialog({
     } catch (error: unknown) {
       const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
       setErrorMessage(message);
+      throw error;
     }
   }, [projectIdentifier, issues]);
+
+  const handleSaveDescription = async () => {
+    if (!selectedIssue) return;
+    try {
+      await handleFieldUpdate(selectedIssue.issue_id, 'description', descriptionDraft);
+      setEditingDescription(false);
+    } catch (error) {
+      // Error is handled in handleFieldUpdate
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!selectedIssue || !newCommentDraft.trim()) return;
+    setIsSavingComment(true);
+    try {
+      await handleFieldUpdate(selectedIssue.issue_id, 'notes', newCommentDraft.trim());
+      setNewCommentDraft('');
+    } catch (error) {
+      // Error is handled in handleFieldUpdate
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
+
+  const handleUpdateComment = async (journalId: number, notes: string) => {
+    if (!selectedIssue) return;
+    try {
+      await import('../../services/scheduleReportApi').then(m => m.updateTaskJournal(projectIdentifier, journalId, notes));
+      void reloadTaskDetails(selectedIssue.issue_id);
+    } catch (error: unknown) {
+      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
+      setErrorMessage(message);
+    }
+  };
 
   if (!open) return null;
 
@@ -1441,7 +1486,14 @@ export function TaskDetailsDialog({
                         startDate: parentIssue.start_date,
                         dueDate: parentIssue.due_date
                       })}
-                      onSelectIssue={setSelectedIssue}
+                      onSelectIssue={(issue) => {
+                        setSelectedIssue(issue);
+                        setEditingDescription(false);
+                        setDescriptionDraft(issue.description || '');
+                        setNewCommentDraft('');
+                        setEditingCommentId(null);
+                        setEditingCommentDraft('');
+                      }}
                       selectedIssueId={selectedIssue?.issue_id}
                       masters={masters}
                       onFieldUpdate={handleFieldUpdate}
@@ -1498,7 +1550,13 @@ export function TaskDetailsDialog({
                       <button
                         type="button"
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors"
-                        onClick={() => setSelectedIssue(null)}
+                        onClick={() => {
+                          setSelectedIssue(null);
+                          setEditingDescription(false);
+                          setNewCommentDraft('');
+                          setEditingCommentId(null);
+                          setEditingCommentDraft('');
+                        }}
                         title={t('common.close', { defaultValue: 'Close' })}
                         aria-label={t('common.close', { defaultValue: 'Close' })}
                       >
@@ -1513,10 +1571,69 @@ export function TaskDetailsDialog({
 
                   {/* Description */}
                   <div className="px-4 pb-3">
-                    <h5 className="text-[12px] font-semibold tracking-wide text-slate-500 mb-2">{t('timeline.descriptionTab')}</h5>
-                    <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm text-[13px] leading-[1.45] text-slate-600 min-h-[80px] whitespace-pre-wrap">
-                      {selectedIssue.description || <span className="text-slate-400 italic">{t('timeline.noDescription')}</span>}
+                    <div className="flex items-center justify-between mb-2">
+                      <h5 className="text-[12px] font-semibold tracking-wide text-slate-500">{t('timeline.descriptionTab')}</h5>
+                      {!editingDescription && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center w-6 h-6 rounded border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 cursor-pointer transition-colors"
+                          onClick={() => {
+                            setDescriptionDraft(selectedIssue.description || '');
+                            setEditingDescription(true);
+                          }}
+                          title={t('common.edit', { defaultValue: 'Edit' })}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
+                    {editingDescription ? (
+                      <div className="bg-white rounded-xl border border-blue-400 shadow-sm overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
+                        <textarea
+                          className="w-full p-3 text-[13px] leading-[1.45] text-slate-700 bg-transparent border-none resize-y min-h-[120px] focus:outline-none focus:ring-0"
+                          value={descriptionDraft}
+                          onChange={(e) => setDescriptionDraft(e.target.value)}
+                          placeholder={t('timeline.noDescription')}
+                          autoFocus
+                        />
+                        <div className="bg-slate-50 px-3 py-2 border-t border-slate-100 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer"
+                            onClick={() => {
+                              setEditingDescription(false);
+                              setDescriptionDraft(selectedIssue.description || '');
+                            }}
+                          >
+                            {t('common.cancel')}
+                          </button>
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 text-[12px] font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors cursor-pointer"
+                            onClick={() => { void handleSaveDescription(); }}
+                          >
+                            {t('common.save')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm text-[13px] leading-[1.45] text-slate-600 min-h-[80px] whitespace-pre-wrap cursor-pointer hover:border-blue-300 transition-colors group relative"
+                        onClick={() => {
+                          setDescriptionDraft(selectedIssue.description || '');
+                          setEditingDescription(true);
+                        }}
+                      >
+                        {selectedIssue.description || <span className="text-slate-400 italic">{t('timeline.noDescription')}</span>}
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500 bg-white/80 rounded p-1">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Comments */}
@@ -1529,24 +1646,102 @@ export function TaskDetailsDialog({
                     </div>
                     <div className="space-y-1.5">
                       {(selectedIssue.comments && selectedIssue.comments.length > 0) ? selectedIssue.comments.map((comment) => (
-                        <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <span className="text-[12px] font-medium text-slate-700 truncate">
-                              {comment.author_name || '-'}
-                            </span>
-                            <span className="text-[11px] text-slate-400 shrink-0">
-                              {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
-                            </span>
-                          </div>
-                          <div className="text-[12px] leading-[1.45] text-slate-600 whitespace-pre-wrap break-words">
-                            {comment.notes}
-                          </div>
+                        <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col group">
+                          {editingCommentId === comment.id && comment.id !== undefined ? (
+                            <div className="flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
+                              <textarea
+                                className="w-full p-3 text-[13px] leading-[1.45] text-slate-700 bg-transparent border-none resize-y min-h-[80px] focus:outline-none focus:ring-0"
+                                value={editingCommentDraft}
+                                onChange={(e) => setEditingCommentDraft(e.target.value)}
+                                autoFocus
+                              />
+                              <div className="bg-slate-50 px-3 py-2 border-t border-slate-100 flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  className="px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer"
+                                  onClick={() => {
+                                    setEditingCommentId(null);
+                                    setEditingCommentDraft('');
+                                  }}
+                                >
+                                  {t('common.cancel')}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="px-3 py-1.5 text-[12px] font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors cursor-pointer flex items-center gap-1"
+                                  onClick={() => {
+                                    void handleUpdateComment(comment.id!, editingCommentDraft);
+                                    setEditingCommentId(null);
+                                  }}
+                                >
+                                  {t('common.save')}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="px-3 py-2.5 relative">
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <span className="text-[12px] font-medium text-slate-700 truncate">
+                                  {comment.author_name || '-'}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] text-slate-400 shrink-0">
+                                    {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
+                                  </span>
+                                  {comment.id !== undefined && (
+                                    <button
+                                      type="button"
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-5 h-5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                      onClick={() => {
+                                        setEditingCommentId(comment.id!);
+                                        setEditingCommentDraft(comment.notes || '');
+                                      }}
+                                      title={t('common.edit', { defaultValue: 'Edit' })}
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-[12px] leading-[1.45] text-slate-600 whitespace-pre-wrap break-words">
+                                {comment.notes}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )) : (
-                        <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm text-[12px] text-slate-400">
+                        <div className="p-3 bg-white rounded-xl border border-dashed border-slate-300 shadow-sm text-[12px] text-slate-400 text-center">
                           {t('timeline.noComments', { defaultValue: 'No comments' })}
                         </div>
                       )}
+                    </div>
+
+                    <div className="mt-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
+                      <textarea
+                        className="w-full p-3 text-[13px] leading-[1.45] text-slate-700 bg-transparent border-none resize-y min-h-[80px] focus:outline-none focus:ring-0"
+                        placeholder={t('timeline.addCommentPlaceholder', { defaultValue: 'Add a comment...' })}
+                        value={newCommentDraft}
+                        onChange={(e) => setNewCommentDraft(e.target.value)}
+                        disabled={isSavingComment}
+                      />
+                      <div className="bg-slate-50 px-3 py-2 border-t border-slate-100 flex justify-end">
+                        <button
+                          type="button"
+                          className="px-3 py-1.5 text-[12px] font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1"
+                          onClick={() => { void handleAddComment(); }}
+                          disabled={!newCommentDraft.trim() || isSavingComment}
+                        >
+                          {isSavingComment && (
+                            <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          )}
+                          {t('common.add', { defaultValue: 'Add' })}
+                        </button>
+                      </div>
                     </div>
                   </div>
 

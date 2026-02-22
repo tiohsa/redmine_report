@@ -16,6 +16,9 @@ get '/projects/:project_id/schedule_report/task_masters',
 patch '/projects/:project_id/schedule_report/task_update/:issue_id',
       to: 'schedule_reports#task_update',
       as: 'project_schedule_report_task_update'
+patch '/projects/:project_id/schedule_report/task_journal/:journal_id',
+      to: 'schedule_reports#update_journal',
+      as: 'project_schedule_report_update_journal'
 get '/projects/:project_id/schedule_report/weekly/versions',
     to: 'schedule_reports#weekly_versions',
     as: 'project_schedule_report_weekly_versions'
