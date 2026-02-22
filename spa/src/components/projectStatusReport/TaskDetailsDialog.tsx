@@ -1571,23 +1571,8 @@ export function TaskDetailsDialog({
 
                   {/* Description */}
                   <div className="px-4 pb-3">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center mb-2">
                       <h5 className="text-[12px] font-semibold tracking-wide text-slate-500">{t('timeline.descriptionTab')}</h5>
-                      {!editingDescription && (
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 cursor-pointer transition-colors"
-                          onClick={() => {
-                            setDescriptionDraft(selectedIssue.description || '');
-                            setEditingDescription(true);
-                          }}
-                          title={t('common.edit', { defaultValue: 'Edit' })}
-                        >
-                          <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
-                          </svg>
-                        </button>
-                      )}
                     </div>
                     {editingDescription ? (
                       <div className="bg-white rounded-xl border border-blue-400 shadow-sm overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
@@ -1626,11 +1611,24 @@ export function TaskDetailsDialog({
                           setEditingDescription(true);
                         }}
                       >
-                        {selectedIssue.description || <span className="text-slate-400 italic">{t('timeline.noDescription')}</span>}
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500 bg-white/80 rounded p-1.5 shadow-sm">
-                          <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
-                          </svg>
+                        <div className="flex justify-between items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            {selectedIssue.description || <span className="text-slate-400 italic">{t('timeline.noDescription')}</span>}
+                          </div>
+                          <button
+                            type="button"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDescriptionDraft(selectedIssue.description || '');
+                              setEditingDescription(true);
+                            }}
+                            title={t('common.edit', { defaultValue: 'Edit' })}
+                          >
+                            <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     )}
@@ -1679,11 +1677,14 @@ export function TaskDetailsDialog({
                               </div>
                             </div>
                           ) : (
-                            <div className="px-3 py-2.5 relative">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-[12px] font-medium text-slate-700 truncate">
-                                  {comment.author_name || '-'}
-                                </span>
+                            <div
+                              className="px-3 py-2.5 relative cursor-pointer hover:bg-slate-50/50 transition-colors"
+                              onClick={() => {
+                                setEditingCommentId(comment.id!);
+                                setEditingCommentDraft(comment.notes || '');
+                              }}
+                            >
+                              <div className="flex items-center justify-end gap-2 mb-1">
                                 <div className="flex items-center gap-2">
                                   <span className="text-[11px] text-slate-400 shrink-0">
                                     {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
@@ -1692,7 +1693,8 @@ export function TaskDetailsDialog({
                                     <button
                                       type="button"
                                       className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         setEditingCommentId(comment.id!);
                                         setEditingCommentDraft(comment.notes || '');
                                       }}
@@ -1753,29 +1755,33 @@ export function TaskDetailsDialog({
         </div>
 
       </div>
-      {createIssueContext !== null && (
-        <SubIssueCreationDialog
-          projectIdentifier={projectIdentifier}
-          parentIssueId={createIssueContext.issueId}
-          parentStartDate={createIssueContext.startDate}
-          parentDueDate={createIssueContext.dueDate}
-          onCreated={(createdIssueId) => {
-            void reloadTaskDetails(createdIssueId);
-          }}
-          onClose={() => setCreateIssueContext(null)}
-        />
-      )}
-      {editIssueContext !== null && (
-        <IssueEditDialog
-          projectIdentifier={projectIdentifier}
-          issueId={editIssueContext.issueId}
-          issueUrl={editIssueContext.issueUrl}
-          onSaved={(updatedIssueId) => {
-            void reloadTaskDetails(updatedIssueId ?? editIssueContext.issueId);
-          }}
-          onClose={() => setEditIssueContext(null)}
-        />
-      )}
-    </div>
+      {
+        createIssueContext !== null && (
+          <SubIssueCreationDialog
+            projectIdentifier={projectIdentifier}
+            parentIssueId={createIssueContext.issueId}
+            parentStartDate={createIssueContext.startDate}
+            parentDueDate={createIssueContext.dueDate}
+            onCreated={(createdIssueId) => {
+              void reloadTaskDetails(createdIssueId);
+            }}
+            onClose={() => setCreateIssueContext(null)}
+          />
+        )
+      }
+      {
+        editIssueContext !== null && (
+          <IssueEditDialog
+            projectIdentifier={projectIdentifier}
+            issueId={editIssueContext.issueId}
+            issueUrl={editIssueContext.issueUrl}
+            onSaved={(updatedIssueId) => {
+              void reloadTaskDetails(updatedIssueId ?? editIssueContext.issueId);
+            }}
+            onClose={() => setEditIssueContext(null)}
+          />
+        )
+      }
+    </div >
   );
 }
