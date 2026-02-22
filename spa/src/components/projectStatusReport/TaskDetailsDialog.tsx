@@ -214,18 +214,6 @@ const IssueTreeNode = ({
             )}
             {!isEditing('subject') && (
               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1 flex-shrink-0">
-                <a
-                  href={node.issue_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center w-5 h-5 text-slate-300 hover:text-blue-500 rounded"
-                  onClick={(e) => e.stopPropagation()}
-                  title={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
-                >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
-                  </svg>
-                </a>
                 <button
                   type="button"
                   className="inline-flex items-center justify-center w-5 h-5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded cursor-pointer"
@@ -1478,6 +1466,18 @@ export function TaskDetailsDialog({
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <a
+                        href={selectedIssue.issue_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm cursor-pointer transition-colors"
+                        title={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
+                        aria-label={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
+                        </svg>
+                      </a>
                       <button
                         type="button"
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm cursor-pointer transition-colors"
