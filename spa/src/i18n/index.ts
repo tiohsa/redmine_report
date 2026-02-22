@@ -2,6 +2,7 @@ import { enUS, ja } from 'date-fns/locale';
 import { I18nLocale, messages } from './messages';
 
 type DateFnsLocale = typeof ja;
+type I18nParams = Record<string, string | number> & { defaultValue?: string };
 
 const rootElement = () => document.getElementById('schedule-report-root') as HTMLElement | null;
 
@@ -37,17 +38,18 @@ const lookup = (locale: I18nLocale, key: string): unknown => {
   }, messages[locale]);
 };
 
-const formatValue = (value: string, params?: Record<string, string | number>) => {
+const formatValue = (value: string, params?: I18nParams) => {
   if (!params) return value;
   return value.replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ''));
 };
 
-export const t = (key: string, params?: Record<string, string | number>): string => {
+export const t = (key: string, params?: I18nParams): string => {
   const localized = lookup(currentLocale, key);
   if (typeof localized === 'string') return formatValue(localized, params);
 
   const fallback = lookup('en', key);
   if (typeof fallback === 'string') return formatValue(fallback, params);
+  if (typeof params?.defaultValue === 'string') return params.defaultValue;
   return key;
 };
 

@@ -30,14 +30,14 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
   const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!parentIssueId) {
-      alert('親チケットが保存されていません。まずはチケットを作成してください。');
+      alert(t('bulkIssue.parentIssueRequired'));
       return;
     }
 
     const lines = bulkText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
     if (lines.length === 0) {
-      alert('登録するチケットの件名を入力してください。');
+      alert(t('bulkIssue.emptySubjects'));
       return;
     }
 
@@ -47,11 +47,11 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
         const payload: BulkIssuePayload = { subject };
         await createIssue(projectIdentifier, parentIssueId, payload);
       }
-      alert('一括登録が完了しました。');
+      alert(t('bulkIssue.success'));
       setBulkText('');
       setIsOpen(false);
     } catch (err: any) {
-      alert(`エラーが発生しました: ${err.message}`);
+      alert(t('common.alertError', { message: err.message }));
     } finally {
       setIsSubmitting(false);
     }
@@ -70,14 +70,14 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
         >
           ▶
         </span>
-        <span className="text-[13px]">チケット一括登録</span>
+        <span className="text-[13px]">{t('bulkIssue.panelTitle')}</span>
       </button>
 
       {isOpen && (
         <div className="mt-4">
           <textarea
             className="w-full h-32 p-3 border border-slate-300 rounded focus:outline-none focus:border-blue-500 font-mono text-[13px] bg-white text-slate-800"
-            placeholder="作成するチケットの件名を1行に1つずつ入力してください..."
+            placeholder={t('bulkIssue.placeholder')}
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
           />
@@ -88,7 +88,7 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
               className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-[13px] py-1.5 px-4 rounded shadow-sm transition-colors cursor-pointer"
               onClick={() => setIsOpen(false)}
             >
-              キャンセル
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -96,7 +96,7 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
               disabled={isSubmitting || bulkText.trim() === '' || !parentIssueId}
               onClick={handleSubmit}
             >
-              {isSubmitting ? '保存中...' : '保存'}
+              {isSubmitting ? t('common.saving') : t('common.save')}
             </button>
           </div>
         </div>

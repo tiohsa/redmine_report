@@ -90,7 +90,7 @@ const IssueTreeNode = ({
               </a>
 
               {/* Add Sub-ticket Icon (visible on row hover) */}
-              <button
+                <button
                 type="button"
                 className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all cursor-pointer flex-shrink-0"
                 onClick={(e) => {
@@ -98,7 +98,7 @@ const IssueTreeNode = ({
                   e.stopPropagation();
                   onAddSubIssue(node);
                 }}
-                title="子チケットを追加"
+                title={t('timeline.addSubIssue')}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -257,13 +257,13 @@ function SubIssueCreationDialog({
   const submitDefaultIssueForm = () => {
     try {
       const doc = iframeRef.current?.contentDocument;
-      if (!doc) throw new Error('フォームがまだ読み込まれていません。');
+      if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
       const form =
         doc.querySelector<HTMLFormElement>('form#issue-form') ||
         doc.querySelector<HTMLFormElement>('form#new_issue') ||
         doc.querySelector<HTMLFormElement>('#issue-form form') ||
         doc.querySelector<HTMLFormElement>('form.new_issue');
-      if (!form) throw new Error('Redmineの作成フォームが見つかりません。');
+      if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
       const submitter =
         form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
         form.querySelector<HTMLElement>('button[name="commit"]:not([disabled])') ||
@@ -282,20 +282,20 @@ function SubIssueCreationDialog({
         form.submit();
       }
     } catch (err: any) {
-      alert(`エラーが発生しました: ${err.message}`);
+      alert(t('common.alertError', { message: err.message }));
     }
   };
 
   const createParentIssueFromEmbeddedForm = async (): Promise<number> => {
     const doc = iframeRef.current?.contentDocument;
-    if (!doc) throw new Error('フォームがまだ読み込まれていません。');
+    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
 
     const form =
       doc.querySelector<HTMLFormElement>('form#issue-form') ||
       doc.querySelector<HTMLFormElement>('form#new_issue') ||
       doc.querySelector<HTMLFormElement>('#issue-form form') ||
       doc.querySelector<HTMLFormElement>('form.new_issue');
-    if (!form) throw new Error('Redmineの作成フォームが見つかりません。');
+    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
 
     const action = form.getAttribute('action') || '/issues';
     const method = (form.getAttribute('method') || 'post').toUpperCase();
@@ -306,7 +306,7 @@ function SubIssueCreationDialog({
       body: formData
     });
     if (!res.ok) {
-      throw new Error(`親チケット作成に失敗しました (HTTP ${res.status})`);
+      throw new Error(t('embeddedIssueForm.createParentIssueFailed', { status: res.status }));
     }
 
     const locationCandidates = [res.url, res.headers.get('x-response-url') || '', res.headers.get('location') || ''];
@@ -315,7 +315,7 @@ function SubIssueCreationDialog({
       .find((match): match is RegExpMatchArray => Boolean(match && match[1]));
 
     if (!createdIssueId) {
-      throw new Error('親チケットIDを取得できませんでした。入力内容に不備がないか確認してください。');
+      throw new Error(t('embeddedIssueForm.createdParentIssueIdNotFound'));
     }
     return Number(createdIssueId[1]);
   };
@@ -337,7 +337,7 @@ function SubIssueCreationDialog({
       onCreated?.(newParentIssueId);
       onClose();
     } catch (err: any) {
-      alert(`エラーが発生しました: ${err.message}`);
+      alert(t('common.alertError', { message: err.message }));
     } finally {
       setIsSubmitting(false);
     }
@@ -373,7 +373,7 @@ function SubIssueCreationDialog({
               target="_blank"
               rel="noreferrer"
               className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-              title="新しいタブで開く"
+              title={t('common.openInNewTab')}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
@@ -381,7 +381,7 @@ function SubIssueCreationDialog({
             </a>
             <button
               type="button"
-              aria-label="新規チケット作成ダイアログを閉じる"
+              aria-label={t('timeline.closeCreateIssueDialogAria')}
               className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
               onClick={onClose}
             >
@@ -396,7 +396,7 @@ function SubIssueCreationDialog({
         <div className="relative flex-1 min-h-[400px] bg-white">
           <iframe
             ref={iframeRef}
-            title="子チケット新規登録"
+            title={t('subIssueDialog.iframeTitle')}
             src={iframeUrl}
             className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
             onLoad={(e) => {
@@ -495,14 +495,14 @@ function SubIssueCreationDialog({
             >
               ▶
             </span>
-            <span className="text-[13px]">Bulk Ticket Creation</span>
+            <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
           </button>
 
           {bulkOpen && (
             <div className="mt-3">
               <textarea
                 className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y"
-                placeholder="Enter one ticket subject per line..."
+                placeholder={t('subIssueDialog.bulkPlaceholder')}
                 value={bulkText}
                 onChange={(e) => setBulkText(e.target.value)}
               />
@@ -522,7 +522,7 @@ function SubIssueCreationDialog({
               }}
               onClick={onClose}
             >
-              キャンセル
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -537,7 +537,7 @@ function SubIssueCreationDialog({
               disabled={isSubmitting || !iframeReady}
               onClick={handleSave}
             >
-              {isSubmitting ? '保存中...' : '保存'}
+              {isSubmitting ? t('common.saving') : t('common.save')}
             </button>
           </div>
         </div>
@@ -741,7 +741,7 @@ export function TaskDetailsDialog({
             </h3>
             <button
               onClick={() => void reloadTaskDetails(issueId)}
-              title={t('timeline.reloadTasks', { defaultValue: 'チケット一覧を再読込' })}
+              title={t('timeline.reloadTasks')}
               className="p-1.5 ml-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -823,16 +823,16 @@ export function TaskDetailsDialog({
         {/* Footer */}
         <div className="px-6 py-3 bg-slate-50/80 flex items-center text-slate-500 justify-between flex-shrink-0 border-t border-slate-100 h-12 box-border shadow-[0_-2px_6px_rgba(0,0,0,0.02)] z-20">
           <div className="text-[13px] font-semibold">
-            Total Tasks: {issues.length}
+            {t('timeline.totalTasks', { count: issues.length })}
           </div>
           <div className="flex items-center gap-4 text-[11px] font-bold text-slate-400 tracking-wider">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 bg-indigo-400 rounded-sm"></div>
-              WIP
+              {t('timeline.legendWip')}
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 bg-emerald-400 rounded-sm"></div>
-              DONE
+              {t('timeline.legendDone')}
             </div>
           </div>
         </div>

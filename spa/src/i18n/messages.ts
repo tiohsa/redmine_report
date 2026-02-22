@@ -7,8 +7,13 @@ export const messages = {
       noInfo: 'No information',
       errorPrefix: 'Error:',
       close: 'Close',
+      cancel: 'Cancel',
+      save: 'Save',
+      saving: 'Saving...',
+      openInNewTab: 'Open in new tab',
       copy: 'Copy',
-      copied: 'Copied'
+      copied: 'Copied',
+      alertError: 'An error occurred: {message}'
     },
     schedule: {
       updating: 'Updating report...',
@@ -39,6 +44,10 @@ export const messages = {
       export: 'Export',
       detailTitle: 'Detailed Report',
       aiSuffix: '(AI Responses)'
+    },
+    detailedTabs: {
+      projectsAria: 'Projects',
+      versionsLabel: 'Versions'
     },
     aiPanel: {
       loading: 'Fetching AI responses...',
@@ -72,7 +81,15 @@ export const messages = {
       saveDates: 'Save',
       savingDates: 'Saving...',
       projectFallback: 'Project {id}',
-      noDataDuration: 'No data'
+      noDataDuration: 'No data',
+      reloadTasks: 'Reload task list',
+      task: 'Task',
+      duration: 'Duration',
+      prog: 'Progress',
+      totalTasks: 'Total Tasks: {count}',
+      legendWip: 'WIP',
+      legendDone: 'DONE',
+      addSubIssue: 'Add sub-issue'
     },
     status: {
       completed: 'Completed',
@@ -99,6 +116,7 @@ export const messages = {
       preparedSummary: 'Prepared: {week} / Tickets: {count}',
       generating: 'Generating...',
       sendToLlm: 'Send to LLM',
+      createDestinationIssue: 'Create a destination issue for AI response storage',
       previewBodyAria: 'Preview body',
       previewPlaceholder: 'You can edit and save report text here without running LLM.',
       weekCalculationFailed: 'Failed to calculate week info. Please check the start date.',
@@ -107,6 +125,7 @@ export const messages = {
       saving: 'Saving...'
     },
     api: {
+      fetchFailed: 'Request failed',
       fetchScheduleReport: 'Failed to fetch schedule report: {status}',
       fetchTaskDetails: 'Failed to fetch task details: {status}',
       updateTaskDates: 'Failed to update task dates: {status}',
@@ -116,6 +135,33 @@ export const messages = {
       prepareWeeklyPrompt: 'Failed to prepare weekly prompt: {status}',
       saveWeeklyReport: 'Failed to save weekly report: {status}',
       fetchWeeklyAiResponses: 'Failed to fetch weekly AI responses: {status}'
+    },
+    embeddedIssueForm: {
+      descriptionForAiResponse: 'This issue is used to store generated AI responses.',
+      formNotLoaded: 'The form has not finished loading yet.',
+      formNotFound: 'Could not find the Redmine issue creation form.',
+      createIssueFailed: 'Failed to create issue (HTTP {status})',
+      createParentIssueFailed: 'Failed to create parent issue (HTTP {status})',
+      createdIssueIdNotFound: 'Could not get the created issue ID. Please check the form input.',
+      createdParentIssueIdNotFound: 'Could not get the created parent issue ID. Please check the form input.',
+      dialogLoading: 'Loading...'
+    },
+    destinationIssueDialog: {
+      title: 'Add New Issue',
+      iframeTitle: 'Create New Issue',
+      closeAria: 'Close new issue creation dialog'
+    },
+    subIssueDialog: {
+      iframeTitle: 'Create Sub-Issue',
+      bulkSectionTitle: 'Bulk Ticket Creation',
+      bulkPlaceholder: 'Enter one ticket subject per line...'
+    },
+    bulkIssue: {
+      panelTitle: 'Bulk Ticket Registration',
+      placeholder: 'Enter one ticket subject per line...',
+      parentIssueRequired: 'The parent issue is not saved yet. Create the issue first.',
+      emptySubjects: 'Enter at least one ticket subject to register.',
+      success: 'Bulk registration completed.'
     }
   },
   ja: {
@@ -126,8 +172,13 @@ export const messages = {
       noInfo: '情報なし',
       errorPrefix: 'エラー:',
       close: '閉じる',
+      cancel: 'キャンセル',
+      save: '保存',
+      saving: '保存中...',
+      openInNewTab: '新しいタブで開く',
       copy: 'コピー',
-      copied: 'コピーしました'
+      copied: 'コピーしました',
+      alertError: 'エラーが発生しました: {message}'
     },
     schedule: {
       updating: 'レポートを更新中...',
@@ -136,18 +187,18 @@ export const messages = {
       refreshFailedShowingCached: 'レポートの更新に失敗しました。直近の成功データを表示しています。'
     },
     filter: {
-      projects: 'Projects:',
-      versions: 'Versions:',
-      project: 'Project:',
-      version: 'Version:',
-      size: 'Size:',
-      selectProjects: 'Select Projects',
-      oneProject: '1 Project',
-      projectsCount: '{count} Projects',
-      allVersions: 'All Versions',
-      selectedCount: '{count} Selected',
-      selectAll: 'Select All',
-      clear: 'Clear',
+      projects: 'プロジェクト:',
+      versions: 'バージョン:',
+      project: 'プロジェクト:',
+      version: 'バージョン:',
+      size: '表示単位:',
+      selectProjects: 'プロジェクトを選択',
+      oneProject: '1件のプロジェクト',
+      projectsCount: '{count}件のプロジェクト',
+      allVersions: 'すべてのバージョン',
+      selectedCount: '{count}件選択',
+      selectAll: 'すべて選択',
+      clear: 'クリア',
       noProjects: '利用可能なプロジェクトがありません',
       noVersions: '利用可能なバージョンがありません'
     },
@@ -158,6 +209,10 @@ export const messages = {
       export: 'エクスポート',
       detailTitle: '詳細レポート',
       aiSuffix: '(生成AIレスポンス)'
+    },
+    detailedTabs: {
+      projectsAria: 'プロジェクト',
+      versionsLabel: 'バージョン'
     },
     aiPanel: {
       loading: '生成AIレスポンスを取得中...',
@@ -191,7 +246,15 @@ export const messages = {
       saveDates: '保存',
       savingDates: '保存中...',
       projectFallback: 'プロジェクト {id}',
-      noDataDuration: 'データなし'
+      noDataDuration: 'データなし',
+      reloadTasks: 'チケット一覧を再読込',
+      task: 'TASK',
+      duration: '期間',
+      prog: '進捗',
+      totalTasks: '合計チケット数: {count}',
+      legendWip: '進行中',
+      legendDone: '完了',
+      addSubIssue: '子チケットを追加'
     },
     status: {
       completed: '完了',
@@ -199,7 +262,7 @@ export const messages = {
       pending: '未着手'
     },
     weeklyDialog: {
-      title: 'AI Report Generator',
+      title: 'AIレポート生成',
       steps: ['設定', '準備', '生成', '完了'],
       sectionTarget: '対象期間と出力先',
       sectionPrompt: '生成プロンプト',
@@ -207,7 +270,7 @@ export const messages = {
       startDate: '開始日',
       endDate: '終了日',
       destinationIssueId: '宛先チケットID',
-      issueIdPlaceholder: 'Issue ID',
+      issueIdPlaceholder: 'チケットID',
       validating: '検証中...',
       validateDestination: '宛先を確認',
       saveSetting: '設定を保存',
@@ -218,6 +281,7 @@ export const messages = {
       preparedSummary: '準備完了: {week} / チケット数: {count}',
       generating: '生成中...',
       sendToLlm: 'LLMへ送信',
+      createDestinationIssue: '生成AIレスポンス保存用のチケットを新規作成',
       previewBodyAria: '生成プレビュー本文',
       previewPlaceholder: 'ここにレポート本文を直接入力できます（LLM未実行でも保存可能）',
       weekCalculationFailed: '週情報を計算できませんでした。開始日を確認してください。',
@@ -226,6 +290,7 @@ export const messages = {
       saving: '保存中...'
     },
     api: {
+      fetchFailed: 'リクエストに失敗しました',
       fetchScheduleReport: 'スケジュールレポートの取得に失敗しました: {status}',
       fetchTaskDetails: 'チケット詳細の取得に失敗しました: {status}',
       updateTaskDates: 'チケット日付の更新に失敗しました: {status}',
@@ -235,6 +300,33 @@ export const messages = {
       prepareWeeklyPrompt: '週次プロンプトの準備に失敗しました: {status}',
       saveWeeklyReport: '週次レポートの保存に失敗しました: {status}',
       fetchWeeklyAiResponses: '週次AIレスポンスの取得に失敗しました: {status}'
+    },
+    embeddedIssueForm: {
+      descriptionForAiResponse: '生成AIのレスポンス保存用のチケットです。',
+      formNotLoaded: 'フォームがまだ読み込まれていません。',
+      formNotFound: 'Redmineの作成フォームが見つかりません。',
+      createIssueFailed: 'チケットの作成に失敗しました (HTTP {status})',
+      createParentIssueFailed: '親チケット作成に失敗しました (HTTP {status})',
+      createdIssueIdNotFound: 'チケットIDを取得できませんでした。入力内容に不備がないか確認してください。',
+      createdParentIssueIdNotFound: '親チケットIDを取得できませんでした。入力内容に不備がないか確認してください。',
+      dialogLoading: '読み込み中...'
+    },
+    destinationIssueDialog: {
+      title: '新規チケット追加',
+      iframeTitle: '新規チケット登録',
+      closeAria: '新規チケット作成ダイアログを閉じる'
+    },
+    subIssueDialog: {
+      iframeTitle: '子チケット新規登録',
+      bulkSectionTitle: 'チケット一括登録',
+      bulkPlaceholder: '作成するチケットの件名を1行に1つずつ入力してください...'
+    },
+    bulkIssue: {
+      panelTitle: 'チケット一括登録',
+      placeholder: '作成するチケットの件名を1行に1つずつ入力してください...',
+      parentIssueRequired: '親チケットが保存されていません。まずはチケットを作成してください。',
+      emptySubjects: '登録するチケットの件名を入力してください。',
+      success: '一括登録が完了しました。'
     }
   }
 } as const;

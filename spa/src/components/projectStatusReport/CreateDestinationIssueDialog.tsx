@@ -18,7 +18,7 @@ export function CreateDestinationIssueDialog({
     const handledCreationRef = useRef(false);
 
     // Pre-fill description
-    const descriptionText = "生成AIのレスポンス保存用のチケットです。";
+    const descriptionText = t('embeddedIssueForm.descriptionForAiResponse');
 
     const issueQuery = new URLSearchParams();
     issueQuery.set('issue[description]', descriptionText);
@@ -34,14 +34,14 @@ export function CreateDestinationIssueDialog({
     const submitDefaultIssueForm = () => {
         try {
             const doc = iframeRef.current?.contentDocument;
-            if (!doc) throw new Error('フォームがまだ読み込まれていません。');
+            if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
             const form =
                 doc.querySelector<HTMLFormElement>('form#issue-form') ||
                 doc.querySelector<HTMLFormElement>('form#new_issue') ||
                 doc.querySelector<HTMLFormElement>('#issue-form form') ||
                 doc.querySelector<HTMLFormElement>('form.new_issue');
 
-            if (!form) throw new Error('Redmineの作成フォームが見つかりません。');
+            if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
 
             const submitter =
                 form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
@@ -62,13 +62,13 @@ export function CreateDestinationIssueDialog({
                 form.submit();
             }
         } catch (err: any) {
-            alert(`エラーが発生しました: ${err.message}`);
+            alert(t('common.alertError', { message: err.message }));
         }
     };
 
     const createIssueFromEmbeddedForm = async (): Promise<number> => {
         const doc = iframeRef.current?.contentDocument;
-        if (!doc) throw new Error('フォームがまだ読み込まれていません。');
+        if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
 
         const form =
             doc.querySelector<HTMLFormElement>('form#issue-form') ||
@@ -76,7 +76,7 @@ export function CreateDestinationIssueDialog({
             doc.querySelector<HTMLFormElement>('#issue-form form') ||
             doc.querySelector<HTMLFormElement>('form.new_issue');
 
-        if (!form) throw new Error('Redmineの作成フォームが見つかりません。');
+        if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
 
         const action = form.getAttribute('action') || '/issues';
         const method = (form.getAttribute('method') || 'post').toUpperCase();
@@ -88,7 +88,7 @@ export function CreateDestinationIssueDialog({
         });
 
         if (!res.ok) {
-            throw new Error(`チケットの作成に失敗しました (HTTP ${res.status})`);
+            throw new Error(t('embeddedIssueForm.createIssueFailed', { status: res.status }));
         }
 
         const locationCandidates = [res.url, res.headers.get('x-response-url') || '', res.headers.get('location') || ''];
@@ -97,7 +97,7 @@ export function CreateDestinationIssueDialog({
             .find((match): match is RegExpMatchArray => Boolean(match && match[1]));
 
         if (!createdIssueId) {
-            throw new Error('チケットIDを取得できませんでした。入力内容に不備がないか確認してください。');
+            throw new Error(t('embeddedIssueForm.createdIssueIdNotFound'));
         }
         return Number(createdIssueId[1]);
     };
@@ -109,7 +109,7 @@ export function CreateDestinationIssueDialog({
             onCreated?.(newIssueId);
             onClose();
         } catch (err: any) {
-            alert(`エラーが発生しました: ${err.message}`);
+            alert(t('common.alertError', { message: err.message }));
         } finally {
             setIsSubmitting(false);
         }
@@ -143,7 +143,7 @@ export function CreateDestinationIssueDialog({
                             </svg>
                         </div>
                         <h4 className="text-sm font-bold text-slate-800">
-                            新規チケット追加
+                            {t('destinationIssueDialog.title')}
                         </h4>
                     </div>
                     <div className="flex items-center gap-1">
@@ -152,7 +152,7 @@ export function CreateDestinationIssueDialog({
                             target="_blank"
                             rel="noreferrer"
                             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
-                            title="新しいタブで開く"
+                            title={t('common.openInNewTab')}
                         >
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
@@ -160,7 +160,7 @@ export function CreateDestinationIssueDialog({
                         </a>
                         <button
                             type="button"
-                            aria-label="新規チケット作成ダイアログを閉じる"
+                            aria-label={t('destinationIssueDialog.closeAria')}
                             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors cursor-pointer"
                             onClick={onClose}
                         >
@@ -175,7 +175,7 @@ export function CreateDestinationIssueDialog({
                 <div className="relative flex-1 min-h-[400px] bg-white">
                     <iframe
                         ref={iframeRef}
-                        title="新規チケット登録"
+                        title={t('destinationIssueDialog.iframeTitle')}
                         src={iframeUrl}
                         className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
                         onLoad={(e) => {
@@ -248,7 +248,7 @@ export function CreateDestinationIssueDialog({
                         <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
                             <div className="flex flex-col items-center gap-3">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                                <div className="text-xs text-slate-500 font-medium tracking-wide">読み込み中...</div>
+                                <div className="text-xs text-slate-500 font-medium tracking-wide">{t('embeddedIssueForm.dialogLoading')}</div>
                             </div>
                         </div>
                     )}
@@ -269,7 +269,7 @@ export function CreateDestinationIssueDialog({
                             }}
                             onClick={onClose}
                         >
-                            キャンセル
+                            {t('common.cancel')}
                         </button>
                         <button
                             type="button"
@@ -284,7 +284,7 @@ export function CreateDestinationIssueDialog({
                             disabled={isSubmitting || !iframeReady}
                             onClick={handleSave}
                         >
-                            {isSubmitting ? '保存中...' : '保存'}
+                            {isSubmitting ? t('common.saving') : t('common.save')}
                         </button>
                     </div>
                 </div>

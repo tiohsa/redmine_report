@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { AiResponseProjectTab } from '../types/weeklyReport';
 
 type DetailedReportTabsProps = {
@@ -26,7 +27,7 @@ export const DetailedReportTabs = ({
     <div className="space-y-4 mb-6">
       {/* Project Tabs - Outlined Style */}
       <div>
-        <nav className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200" aria-label="Projects">
+        <nav className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200" aria-label={t('detailedTabs.projectsAria')}>
           {projectTabs.map((tab) => {
             const active = tab.project_identifier === activeProject.project_identifier;
             return (
@@ -51,7 +52,7 @@ export const DetailedReportTabs = ({
       {/* Version Tabs - Outlined Style with Badge Label */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="flex items-center justify-center mr-2 px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-500 uppercase tracking-wide">
-          VERSIONS
+          {t('detailedTabs.versionsLabel')}
         </div>
 
         {activeProject.versions.map((version) => {

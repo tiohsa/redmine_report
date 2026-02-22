@@ -198,6 +198,8 @@ describe('TaskDetailsDialog', () => {
       head: { appendChild: vi.fn() },
       createElement: vi.fn(() => ({ textContent: '' })),
       querySelectorAll: vi.fn(() => []),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
       location: { pathname: '/issues/11' }
     } as unknown as Document;
     Object.defineProperty(iframe, 'contentDocument', {

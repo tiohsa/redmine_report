@@ -44,7 +44,7 @@ describe('Weekly report save button guards', () => {
     const saveButton = screen.getByRole('button', { name: 'レポートを保存' }) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(true);
 
-    fireEvent.change(screen.getByPlaceholderText('Issue ID'), { target: { value: '321' } });
+    fireEvent.change(screen.getByPlaceholderText(/Issue ID|チケットID/), { target: { value: '321' } });
     fireEvent.click(screen.getByRole('button', { name: '宛先を確認' }));
     await waitFor(() => expect(validateWeeklyDestinationMock).toHaveBeenCalledTimes(1));
 

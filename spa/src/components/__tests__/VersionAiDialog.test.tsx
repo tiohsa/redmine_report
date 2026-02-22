@@ -76,7 +76,7 @@ describe('VersionAiDialog', () => {
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Issue ID'), { target: { value: '123' } });
+    fireEvent.change(screen.getByPlaceholderText(/Issue ID|チケットID/), { target: { value: '123' } });
     fireEvent.click(screen.getByRole('button', { name: '宛先を確認' }));
 
     await waitFor(() => {
@@ -145,7 +145,7 @@ describe('VersionAiDialog', () => {
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Issue ID'), { target: { value: '123' } });
+    fireEvent.change(screen.getByPlaceholderText(/Issue ID|チケットID/), { target: { value: '123' } });
     fireEvent.click(screen.getByRole('button', { name: '宛先を確認' }));
     await waitFor(() => expect(validateWeeklyDestinationMock).toHaveBeenCalledTimes(1));
 
@@ -186,7 +186,7 @@ describe('VersionAiDialog', () => {
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Issue ID'), { target: { value: '123' } });
+    fireEvent.change(screen.getByPlaceholderText(/Issue ID|チケットID/), { target: { value: '123' } });
     fireEvent.click(screen.getByRole('button', { name: '宛先を確認' }));
     await waitFor(() => expect(validateWeeklyDestinationMock).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByLabelText('生成プレビュー本文'), { target: { value: 'manual only markdown' } });

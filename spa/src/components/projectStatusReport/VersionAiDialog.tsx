@@ -348,7 +348,7 @@ export const VersionAiDialog = ({
                 </div>
                 <button
                   type="button"
-                  title="生成AIレスポンス保存用のチケットを新規作成"
+                  title={t('weeklyDialog.createDestinationIssue')}
                   onClick={() => setCreateTicketOpen(true)}
                   className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-indigo-600 transition-all cursor-pointer flex-shrink-0"
                 >
