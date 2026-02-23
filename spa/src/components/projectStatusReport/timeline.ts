@@ -9,7 +9,8 @@ import {
   isBefore,
   parseISO,
   startOfMonth,
-  startOfYear
+  startOfYear,
+  getDate
 } from 'date-fns';
 import { CategoryBar, ProjectInfo } from '../../services/scheduleReportApi';
 import { getDateFnsLocale, getLocale, t } from '../../i18n';
@@ -23,6 +24,8 @@ export type TimelineStep = {
   status: StatusStyle;
   progress?: number;
   id: string;
+  startDateStr?: string;
+  endDateStr?: string;
 };
 
 export type TimelineLane = {
@@ -64,6 +67,7 @@ type TimelineCalculationInput = {
 };
 
 const DEFAULT_TIMELINE_WIDTH = 1000;
+const POINT_DEPTH = 15; // Visual depth of the arrow point
 
 export function buildTimelineViewModel({
   bars,
@@ -252,15 +256,43 @@ function buildTimelineData({
   });
 
   const timelineData: TimelineLane[] = [];
-
   Array.from(groupedByProject.entries()).forEach(([projectId, versionMap]) => {
     const project = projectMap.get(projectId);
     const projectName = project?.name || t('timeline.projectFallback', { id: projectId });
     const projectIdentifier = project?.identifier || '';
 
     Array.from(versionMap.entries()).forEach(([versionKey, versionBars]) => {
-      const sortedBars = [...versionBars].sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+      const sortedBars = [...versionBars]
+        .filter((bar) => bar.start_date && bar.end_date)
+        .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
       const versionId = sortedBars.find((bar) => typeof bar.version_id === 'number')?.version_id;
+
+      const steps: TimelineStep[] = sortedBars.map((bar, idx) => {
+        const { status, progress } = resolveStatus(bar.progress_rate, statusStyles);
+        const width = getWidth(bar.start_date, bar.end_date);
+
+        let startDateStr = '';
+        if (bar.start_date) {
+            startDateStr = format(parseISO(bar.start_date), 'M/d');
+        }
+
+        let endDateStr = '';
+        if (bar.end_date) {
+            endDateStr = format(parseISO(bar.end_date), 'M/d');
+        }
+
+        return {
+          issueId: bar.category_id,
+          name: bar.ticket_subject || bar.category_name,
+          x: getX(bar.start_date),
+          width,
+          status,
+          progress,
+          id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`,
+          startDateStr,
+          endDateStr
+        };
+      });
 
       timelineData.push({
         laneKey: `${projectId}:${versionKey}`,
@@ -269,19 +301,7 @@ function buildTimelineData({
         projectName,
         versionId,
         versionName: versionKey,
-        steps: sortedBars.map((bar, idx) => {
-          const { status, progress } = resolveStatus(bar.progress_rate, statusStyles);
-
-          return {
-            issueId: bar.category_id,
-            name: bar.ticket_subject || bar.category_name,
-            x: getX(bar.start_date),
-            width: getWidth(bar.start_date, bar.end_date),
-            status,
-            progress,
-            id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`
-          };
-        })
+        steps
       });
     });
   });

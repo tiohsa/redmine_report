@@ -65,6 +65,21 @@ const ChevronPath = ({
   );
 };
 
+const DateLabel = ({ x, y, label }: { x: number; y: number; label: string }) => (
+  <g transform={`translate(${x}, ${y})`}>
+    <text
+      y="1"
+      fill="#374151"
+      fontSize="10"
+      fontWeight="bold"
+      textAnchor="middle"
+      dominantBaseline="middle"
+    >
+      {label}
+    </text>
+  </g>
+);
+
 type TimelineChartProps = {
   timelineData: TimelineLane[];
   timelineWidth: number;
@@ -74,6 +89,7 @@ type TimelineChartProps = {
   containerRef: RefObject<HTMLDivElement>;
   projectIdentifier: string;
   chartScale?: number;
+  showAllDates?: boolean;
   onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
   onVersionReportClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
   onTaskDatesUpdated?: () => void;
@@ -96,6 +112,7 @@ export function TimelineChart({
   containerRef,
   projectIdentifier,
   chartScale = 1,
+  showAllDates = false,
   onVersionAiClick,
   onVersionReportClick,
   onTaskDatesUpdated,
@@ -233,6 +250,7 @@ export function TimelineChart({
             activeReportLaneKey={activeReportLaneKey}
             laneHeight={laneHeight}
             chartScale={chartScale}
+            showAllDates={showAllDates}
           />
         </div>
       </div>
@@ -260,7 +278,8 @@ function TimelineSvg({
   onStepClick,
   activeReportLaneKey,
   laneHeight,
-  chartScale = 1
+  chartScale = 1,
+  showAllDates
 }: {
   timelineData: TimelineLane[];
   timelineWidth: number;
@@ -271,8 +290,10 @@ function TimelineSvg({
   activeReportLaneKey?: string | null;
   laneHeight: number;
   chartScale?: number;
+  showAllDates?: boolean;
 }) {
   const svgHeight = headerHeight + timelineData.length * laneHeight;
+  const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
 
   if (timelineData.length === 0) {
     return <div className="flex items-center justify-center h-32 text-gray-400">{t('common.noData')}</div>;
@@ -386,7 +407,12 @@ function TimelineSvg({
                 return {
                   zIndex: isInProgress ? 1 : 0,
                   element: (
-                    <g key={step.id} transform={`translate(0, ${verticalOffset})`}>
+                    <g
+                      key={step.id}
+                      transform={`translate(0, ${verticalOffset})`}
+                      onMouseEnter={() => setHoveredStepId(step.id)}
+                      onMouseLeave={() => setHoveredStepId(null)}
+                    >
                       <g
                         style={{ cursor: step.issueId ? 'pointer' : 'default' }}
                         onClick={() => onStepClick(step.issueId, step.name)}
@@ -407,6 +433,7 @@ function TimelineSvg({
                         />
                       </g>
 
+                      {/* Task Name */}
                       {step.width > 30 && (
                         <text
                           x={step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2)}
@@ -427,6 +454,24 @@ function TimelineSvg({
                         >
                           {step.name}
                         </text>
+                      )}
+
+                      {/* Start Date Label */}
+                      {step.startDateStr && (showAllDates || hoveredStepId === step.id) && step.startDateStr !== step.endDateStr && (
+                        <DateLabel
+                          x={step.x + (isFirst ? 12 : pointDepth + 12)}
+                          y={-12}
+                          label={step.startDateStr}
+                        />
+                      )}
+
+                      {/* End Date Label */}
+                      {step.endDateStr && (showAllDates || hoveredStepId === step.id) && (
+                        <DateLabel
+                          x={step.startDateStr === step.endDateStr ? step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2) : step.x + step.width - 12}
+                          y={-12}
+                          label={step.endDateStr}
+                        />
                       )}
                     </g>
                   )

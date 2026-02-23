@@ -35,7 +35,10 @@ export const messages = {
       selectAll: 'Select All',
       clear: 'Clear',
       noProjects: 'No projects available',
-      noVersions: 'No versions available'
+      noVersions: 'No versions available',
+      dateDisplay: 'Dates:',
+      dateHover: 'Hover',
+      dateAll: 'All'
     },
     report: {
       reportDate: 'Report Date',
@@ -217,7 +220,10 @@ export const messages = {
       selectAll: 'すべて選択',
       clear: 'クリア',
       noProjects: '利用可能なプロジェクトがありません',
-      noVersions: '利用可能なバージョンがありません'
+      noVersions: '利用可能なバージョンがありません',
+      dateDisplay: '日付表示:',
+      dateHover: 'ホバーのみ',
+      dateAll: '全表示'
     },
     report: {
       reportDate: '報告日',
