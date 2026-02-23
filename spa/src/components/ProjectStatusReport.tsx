@@ -15,6 +15,38 @@ import { AiResponsePanel } from './AiResponsePanel';
 import type { AiResponseView } from '../types/weeklyReport';
 import { getDateFnsLocale, getLocale, t } from '../i18n';
 
+const CHART_SCALE_STORAGE_KEY = 'redmine_report.schedule.chartScale';
+const SHOW_ALL_DATES_STORAGE_KEY = 'redmine_report.schedule.showAllDates';
+
+const readStoredChartScale = (): number => {
+    if (typeof window === 'undefined') return 1;
+    try {
+        const raw = window.localStorage.getItem(CHART_SCALE_STORAGE_KEY);
+        const parsed = raw ? Number(raw) : NaN;
+        return [0.5, 0.75, 1, 1.5].includes(parsed) ? parsed : 1;
+    } catch {
+        return 1;
+    }
+};
+
+const readStoredShowAllDates = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+        return window.localStorage.getItem(SHOW_ALL_DATES_STORAGE_KEY) === 'true';
+    } catch {
+        return false;
+    }
+};
+
+const writeStoredScheduleViewSetting = (key: string, value: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // Ignore storage failures
+    }
+};
+
 interface ProjectStatusReportProps {
     bars?: CategoryBar[];
     projectIdentifier: string;
@@ -54,8 +86,8 @@ export const ProjectStatusReport = ({
     });
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
-    const [chartScale, setChartScale] = useState<number>(1);
-    const [showAllDates, setShowAllDates] = useState<boolean>(false);
+    const [chartScale, setChartScale] = useState<number>(() => readStoredChartScale());
+    const [showAllDates, setShowAllDates] = useState<boolean>(() => readStoredShowAllDates());
     const statuses = useMemo(() => Object.values(buildStatusStyles()), []);
 
     const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
@@ -89,6 +121,14 @@ export const ProjectStatusReport = ({
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
+
+    useEffect(() => {
+        writeStoredScheduleViewSetting(CHART_SCALE_STORAGE_KEY, String(chartScale));
+    }, [chartScale]);
+
+    useEffect(() => {
+        writeStoredScheduleViewSetting(SHOW_ALL_DATES_STORAGE_KEY, String(showAllDates));
+    }, [showAllDates]);
 
     useLayoutEffect(() => {
         if (!containerRef.current) return;
@@ -457,10 +497,19 @@ export const ProjectStatusReport = ({
                             onClick={() => setShowAllDates(!showAllDates)}
                             className={showAllDates ? activeIconButtonStyle : iconButtonStyle}
                             title={t('filter.dateDisplay')}
+                            aria-pressed={showAllDates}
                         >
                             <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
+                            <span
+                                className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded border ${showAllDates
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-slate-500 border-slate-200'
+                                }`}
+                            >
+                                {showAllDates ? 'ON' : 'OFF'}
+                            </span>
                         </button>
 
                         <div className="w-px h-6 bg-slate-200 mx-1"></div>

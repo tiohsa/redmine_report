@@ -75,6 +75,30 @@ const collectVersionNames = (bars: Array<{ version_name?: string }>): string[] =
 const areSameVersions = (left: string[], right: string[]): boolean =>
   left.length === right.length && left.every((version, index) => version === right[index]);
 
+const versionSelectionStorageKey = (rootProjectIdentifier: string) =>
+  `redmine_report.schedule.selectedVersions.${rootProjectIdentifier || 'default'}`;
+
+const readStoredVersionSelection = (rootProjectIdentifier: string): string[] | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(versionSelectionStorageKey(rootProjectIdentifier));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredVersionSelection = (rootProjectIdentifier: string, versions: string[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(versionSelectionStorageKey(rootProjectIdentifier), JSON.stringify(versions));
+  } catch {
+    // Ignore storage failures
+  }
+};
+
 export function ScheduleReportPage() {
   const setSnapshot = useTaskStore((s) => s.setSnapshot);
   const setLoading = useTaskStore((s) => s.setLoading);
@@ -85,6 +109,7 @@ export function ScheduleReportPage() {
   const currentProjectIdentifier = useUiStore((s) => s.currentProjectIdentifier);
   const selectedProjectIdentifiers = useUiStore((s) => s.selectedProjectIdentifiers);
   const requestSequenceRef = useRef(0);
+  const skipNextVersionPersistRef = useRef(false);
   const [refreshToken, setRefreshToken] = useState(0);
 
   // Version Selection State
@@ -100,20 +125,38 @@ export function ScheduleReportPage() {
   const allVersions = useMemo(() => collectVersionNames(snapshot.bars), [snapshot.bars]);
 
   // Reset selected versions when allVersions changes (new data loaded)
-  // But only if we have data now
+  // But only if we have data now. Prefer persisted selection if present.
   useEffect(() => {
     if (allVersions.length === 0) {
       setSelectedVersions([]);
       return;
     }
 
+    skipNextVersionPersistRef.current = true;
     setSelectedVersions((current) => {
+      const stored = readStoredVersionSelection(rootProjectIdentifier);
+      if (stored) {
+        const filteredStored = stored.filter((version) => allVersions.includes(version));
+        if (areSameVersions(current, filteredStored)) {
+          return current;
+        }
+        return filteredStored;
+      }
       if (areSameVersions(current, allVersions)) {
         return current;
       }
       return allVersions;
     });
-  }, [allVersions]);
+  }, [allVersions, rootProjectIdentifier]);
+
+  useEffect(() => {
+    if (allVersions.length === 0) return;
+    if (skipNextVersionPersistRef.current) {
+      skipNextVersionPersistRef.current = false;
+      return;
+    }
+    writeStoredVersionSelection(rootProjectIdentifier, selectedVersions);
+  }, [allVersions.length, rootProjectIdentifier, selectedVersions]);
 
   useEffect(() => {
     if (!rootProjectIdentifier) return;
