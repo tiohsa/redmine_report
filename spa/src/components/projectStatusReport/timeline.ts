@@ -262,7 +262,9 @@ function buildTimelineData({
     const projectIdentifier = project?.identifier || '';
 
     Array.from(versionMap.entries()).forEach(([versionKey, versionBars]) => {
-      const sortedBars = [...versionBars].sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+      const sortedBars = [...versionBars]
+        .filter((bar) => bar.start_date && bar.end_date)
+        .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
       const versionId = sortedBars.find((bar) => typeof bar.version_id === 'number')?.version_id;
 
       const steps: TimelineStep[] = sortedBars.map((bar, idx) => {
