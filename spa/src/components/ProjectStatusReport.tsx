@@ -61,8 +61,13 @@ export const ProjectStatusReport = ({
     const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
     const [isProjectOpen, setIsProjectOpen] = useState(false);
     const [isVersionOpen, setIsVersionOpen] = useState(false);
+    const [isSizeOpen, setIsSizeOpen] = useState(false);
+    const [isLegendOpen, setIsLegendOpen] = useState(false);
+
     const projectDropdownRef = useRef<HTMLDivElement>(null);
     const versionDropdownRef = useRef<HTMLDivElement>(null);
+    const sizeDropdownRef = useRef<HTMLDivElement>(null);
+    const legendDropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -72,14 +77,18 @@ export const ProjectStatusReport = ({
             if (versionDropdownRef.current && !versionDropdownRef.current.contains(event.target as Node)) {
                 setIsVersionOpen(false);
             }
+            if (sizeDropdownRef.current && !sizeDropdownRef.current.contains(event.target as Node)) {
+                setIsSizeOpen(false);
+            }
+            if (legendDropdownRef.current && !legendDropdownRef.current.contains(event.target as Node)) {
+                setIsLegendOpen(false);
+            }
         }
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
-
-
 
     useLayoutEffect(() => {
         if (!containerRef.current) return;
@@ -103,7 +112,7 @@ export const ProjectStatusReport = ({
         return map;
     }, [availableProjects]);
 
-    const { timelineData, timelineWidth, headerMonths, headerYears, totalDurationText, todayX } = useMemo(
+    const { timelineData, timelineWidth, headerMonths, headerYears, todayX } = useMemo(
         () =>
             buildTimelineViewModel({
                 bars,
@@ -162,12 +171,6 @@ export const ProjectStatusReport = ({
         }
     };
 
-    const selectedProjectLabel = selectedProjectIdentifiers.length === 0
-        ? t('filter.selectProjects')
-        : selectedProjectIdentifiers.length === 1
-            ? availableProjects.find(p => p.identifier === selectedProjectIdentifiers[0])?.name || t('filter.oneProject')
-            : t('filter.projectsCount', { count: selectedProjectIdentifiers.length });
-
     const fullScreenRef = useRef<HTMLDivElement>(null);
 
     const toggleFullScreen = () => {
@@ -178,188 +181,215 @@ export const ProjectStatusReport = ({
         }
     };
 
-
+    const iconButtonStyle = "p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative";
+    const activeIconButtonStyle = "p-2 rounded-lg text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 transition-colors relative shadow-sm";
 
     return (
         <div ref={fullScreenRef} className="bg-white flex-1 font-sans text-[#1e293b]">
-            <div className="w-full bg-white px-6 pt-3 pb-4">
-                {/* 1st Row: Selectors and Buttons */}
-                <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-8 flex-wrap">
-                        <div className="flex items-center gap-6">
-                            {/* Project Selection */}
-                            <div className="flex items-center gap-3 relative" ref={projectDropdownRef}>
-                                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('filter.project')}</label>
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setIsProjectOpen(!isProjectOpen)}
-                                        className="bg-slate-50 hover:bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-lg px-4 py-2 flex items-center gap-2 min-w-[160px] cursor-pointer transition-colors"
-                                    >
-                                        <span className="truncate max-w-[140px]">{selectedProjectLabel}</span>
-                                        <svg className={`w-4 h-4 text-slate-400 transition-transform ${isProjectOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </button>
-                                    {isProjectOpen && (
-                                        <div className="absolute top-full left-0 mt-2 w-64 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
-                                            {availableProjects.map((p) => {
-                                                const isSelected = selectedProjectIdentifiers.includes(p.identifier);
-                                                const isDisabled = p.selectable === false;
-                                                return (
-                                                    <div
-                                                        key={p.project_id}
-                                                        className={`px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                        onClick={() => !isDisabled && toggleProject(p.identifier)}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isSelected}
-                                                            readOnly
-                                                            disabled={isDisabled}
-                                                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
-                                                        />
-                                                        <span className={`text-sm ${isSelected ? 'font-semibold text-slate-900' : 'text-slate-600'}`} style={{ paddingLeft: `${p.level * 12}px` }}>
-                                                            {p.name}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+            <div className="w-full bg-white px-6 pt-2 pb-4">
+                {/* Header Row: Single line layout */}
+                <div className="flex items-center justify-between h-14 border-b border-slate-100 mb-4">
 
-                            {/* Version Selection */}
-                            <div className="flex items-center gap-3 relative" ref={versionDropdownRef}>
-                                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('filter.version')}</label>
-                                <div className="relative">
-                                    <button
-                                        onClick={() => setIsVersionOpen(!isVersionOpen)}
-                                        className="bg-slate-50 hover:bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-lg px-4 py-2 flex items-center gap-2 min-w-[140px] cursor-pointer transition-colors"
-                                    >
-                                        <span className="truncate max-w-[120px]">
-                                            {selectedVersions.length === allVersions.length ? t('filter.allVersions') : t('filter.selectedCount', { count: selectedVersions.length })}
-                                        </span>
-                                        <svg className={`w-4 h-4 text-slate-400 transition-transform ${isVersionOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </button>
-                                    {isVersionOpen && onVersionChange && (
-                                        <div className="absolute top-full left-0 mt-2 w-64 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
-                                            <div className="p-2 border-b border-slate-50 flex justify-between bg-slate-50/50 sticky top-0 z-10">
-                                                <button className="text-xs text-blue-600 hover:text-blue-700 font-bold px-2 py-1" onClick={() => onVersionChange(allVersions)}>{t('filter.selectAll')}</button>
-                                                <button className="text-xs text-slate-500 hover:text-slate-700 font-bold px-2 py-1" onClick={() => onVersionChange([])}>{t('filter.clear')}</button>
+                    {/* Left: Filters */}
+                    <div className="flex items-center gap-2">
+                        {/* Project Selection */}
+                        <div className="relative" ref={projectDropdownRef}>
+                            <button
+                                onClick={() => setIsProjectOpen(!isProjectOpen)}
+                                className={selectedProjectIdentifiers.length > 0 ? activeIconButtonStyle : iconButtonStyle}
+                                title={t('filter.project')}
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                                </svg>
+                                {selectedProjectIdentifiers.length > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full border border-white"></span>
+                                )}
+                            </button>
+                            {isProjectOpen && (
+                                <div className="absolute top-full left-0 mt-2 w-72 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
+                                    <div className="p-3 border-b border-slate-50 bg-slate-50/50">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t('filter.project')}</h4>
+                                    </div>
+                                    {availableProjects.map((p) => {
+                                        const isSelected = selectedProjectIdentifiers.includes(p.identifier);
+                                        const isDisabled = p.selectable === false;
+                                        return (
+                                            <div
+                                                key={p.project_id}
+                                                className={`px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                onClick={() => !isDisabled && toggleProject(p.identifier)}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    readOnly
+                                                    disabled={isDisabled}
+                                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
+                                                />
+                                                <span className={`text-sm ${isSelected ? 'font-semibold text-slate-900' : 'text-slate-600'}`} style={{ paddingLeft: `${p.level * 12}px` }}>
+                                                    {p.name}
+                                                </span>
                                             </div>
-                                            {allVersions.map((version) => (
-                                                <div
-                                                    key={version}
-                                                    className="px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer"
-                                                    onClick={() => {
-                                                        if (selectedVersions.includes(version)) {
-                                                            onVersionChange(selectedVersions.filter(v => v !== version));
-                                                        } else {
-                                                            onVersionChange([...selectedVersions, version]);
-                                                        }
-                                                    }}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedVersions.includes(version)}
-                                                        readOnly
-                                                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
-                                                    />
-                                                    <span className="text-sm text-slate-600 truncate font-medium">{version}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                        );
+                                    })}
                                 </div>
-                            </div>
-
-                            {/* Chart Size Selection */}
-                            <div className="flex items-center gap-3">
-                                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('filter.size')}</label>
-                                <select
-                                    value={chartScale}
-                                    onChange={(e) => setChartScale(Number(e.target.value))}
-                                    className="bg-slate-50 hover:bg-slate-100 border-none text-slate-700 text-sm font-semibold rounded-lg px-3 py-2 cursor-pointer transition-colors appearance-none"
-                                >
-                                    <option value={0.5}>S</option>
-                                    <option value={0.75}>M</option>
-                                    <option value={1}>L</option>
-                                    <option value={1.5}>XL</option>
-                                </select>
-                            </div>
-
-                            {/* Date Display Toggle */}
-                            <div className="flex items-center gap-3">
-                                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('filter.dateDisplay')}</label>
-                                <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
-                                    <button
-                                        onClick={() => setShowAllDates(false)}
-                                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${!showAllDates ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        {t('filter.dateHover')}
-                                    </button>
-                                    <button
-                                        onClick={() => setShowAllDates(true)}
-                                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${showAllDates ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        {t('filter.dateAll')}
-                                    </button>
-                                </div>
-                            </div>
+                            )}
                         </div>
 
-                        <div className="flex items-center gap-6 flex-wrap">
-                            <div className="flex items-center gap-2.5 text-slate-500">
-                                <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        {/* Version Selection */}
+                        <div className="relative" ref={versionDropdownRef}>
+                            <button
+                                onClick={() => setIsVersionOpen(!isVersionOpen)}
+                                className={selectedVersions.length > 0 ? activeIconButtonStyle : iconButtonStyle}
+                                title={t('filter.version')}
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
                                 </svg>
-                                <span className="text-sm font-medium">{t('report.reportDate')}: <span className="text-slate-900 font-bold">{format(new Date(), getLocale() === 'ja' ? 'yyyy年M月d日' : 'MMM d, yyyy', { locale: getDateFnsLocale() })}</span></span>
-                            </div>
-                            <div className="flex items-center gap-2.5 text-slate-500">
-                                <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                <span className="text-sm font-medium">{t('report.displayPeriod')}: <span className="text-slate-900 font-bold">{totalDurationText}</span></span>
-                            </div>
-                            <div className="h-4 w-px bg-slate-200"></div>
-                            <div className="flex items-center gap-6">
-                                {statuses.map((status) => (
-                                    <div key={status.label} className="flex items-center gap-2 text-slate-500">
-                                        <div
-                                            className="w-3.5 h-3.5 rounded-sm border"
-                                            style={{
-                                                backgroundColor: status.fill,
-                                                borderColor: status.stroke
-                                            }}
-                                        ></div>
-                                        <span className="text-sm font-medium">{status.label}</span>
+                                {selectedVersions.length > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full border border-white"></span>
+                                )}
+                            </button>
+                            {isVersionOpen && onVersionChange && (
+                                <div className="absolute top-full left-0 mt-2 w-64 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
+                                    <div className="p-2 border-b border-slate-50 flex justify-between bg-slate-50/50 sticky top-0 z-10 items-center">
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-2">{t('filter.version')}</span>
+                                        <div className="flex gap-1">
+                                            <button className="text-xs text-blue-600 hover:text-blue-700 font-bold px-2 py-1 rounded hover:bg-blue-50" onClick={() => onVersionChange(allVersions)}>{t('filter.selectAll')}</button>
+                                            <button className="text-xs text-slate-500 hover:text-slate-700 font-bold px-2 py-1 rounded hover:bg-slate-100" onClick={() => onVersionChange([])}>{t('filter.clear')}</button>
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
+                                    {allVersions.map((version) => (
+                                        <div
+                                            key={version}
+                                            className="px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer"
+                                            onClick={() => {
+                                                if (selectedVersions.includes(version)) {
+                                                    onVersionChange(selectedVersions.filter(v => v !== version));
+                                                } else {
+                                                    onVersionChange([...selectedVersions, version]);
+                                                }
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedVersions.includes(version)}
+                                                readOnly
+                                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
+                                            />
+                                            <span className="text-sm text-slate-600 truncate font-medium">{version}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    {/* Right: View Options & Actions */}
+                    <div className="flex items-center gap-2">
+                        {/* Status Legend Info */}
+                        <div className="relative" ref={legendDropdownRef}>
+                            <button
+                                onClick={() => setIsLegendOpen(!isLegendOpen)}
+                                onMouseEnter={() => setIsLegendOpen(true)}
+                                className={iconButtonStyle}
+                                title="Status Legend"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </button>
+                            {isLegendOpen && (
+                                <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl z-50 p-3">
+                                    <div className="flex flex-col gap-2">
+                                        {statuses.map((status) => (
+                                            <div key={status.label} className="flex items-center gap-2 text-slate-600">
+                                                <div
+                                                    className="w-3.5 h-3.5 rounded-sm border"
+                                                    style={{
+                                                        backgroundColor: status.fill,
+                                                        borderColor: status.stroke
+                                                    }}
+                                                ></div>
+                                                <span className="text-xs font-semibold">{status.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+                        {/* Chart Size Selection */}
+                        <div className="relative" ref={sizeDropdownRef}>
+                            <button
+                                onClick={() => setIsSizeOpen(!isSizeOpen)}
+                                className={iconButtonStyle}
+                                title={t('filter.size')}
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"></path>
+                                </svg>
+                                <span className="absolute -bottom-1 -right-1 text-[10px] font-bold bg-slate-100 text-slate-600 px-1 rounded border border-slate-200">
+                                    {chartScale === 0.5 ? 'S' : chartScale === 0.75 ? 'M' : chartScale === 1 ? 'L' : 'XL'}
+                                </span>
+                            </button>
+                            {isSizeOpen && (
+                                <div className="absolute top-full right-0 mt-2 w-24 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden">
+                                    {[
+                                        { label: 'S', value: 0.5 },
+                                        { label: 'M', value: 0.75 },
+                                        { label: 'L', value: 1 },
+                                        { label: 'XL', value: 1.5 }
+                                    ].map((option) => (
+                                        <button
+                                            key={option.label}
+                                            onClick={() => {
+                                                setChartScale(option.value);
+                                                setIsSizeOpen(false);
+                                            }}
+                                            className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${chartScale === option.value ? 'font-bold text-blue-600 bg-blue-50' : 'text-slate-600'}`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Date Display Toggle */}
                         <button
-                            onClick={toggleFullScreen}
-                            aria-label={t('report.fullscreen')}
-                            title={t('report.fullscreen')}
-                            className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center shadow-sm cursor-pointer"
+                            onClick={() => setShowAllDates(!showAllDates)}
+                            className={showAllDates ? activeIconButtonStyle : iconButtonStyle}
+                            title={t('filter.dateDisplay')}
                         >
-                            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
                         </button>
+
+                        <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+                        {/* Fullscreen */}
                         <button
-                            aria-label={t('report.export')}
-                            title={t('report.export')}
-                            className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center shadow-sm cursor-pointer"
+                            onClick={toggleFullScreen}
+                            className={iconButtonStyle}
+                            title={t('report.fullscreen')}
                         >
-                            <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3"></path>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                            </svg>
+                        </button>
+
+                        {/* Export */}
+                        <button
+                            className={iconButtonStyle}
+                            title={t('report.export')}
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3"></path>
                             </svg>
                         </button>
                     </div>
