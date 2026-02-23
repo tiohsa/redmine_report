@@ -67,10 +67,9 @@ const ChevronPath = ({
 
 const DateLabel = ({ x, y, label }: { x: number; y: number; label: string }) => (
   <g transform={`translate(${x}, ${y})`}>
-    <circle r="11" fill="#4b5563" />
     <text
       y="1"
-      fill="white"
+      fill="#374151"
       fontSize="10"
       fontWeight="bold"
       textAnchor="middle"
