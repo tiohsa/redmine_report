@@ -460,7 +460,7 @@ function TimelineSvg({
                       {/* Start Date Label */}
                       {step.startDateStr && (showAllDates || hoveredStepId === step.id) && (
                         <DateLabel
-                          x={step.startLabelPos === 'in' ? step.x + (isFirst ? 12 : pointDepth + 12) : step.x - 12}
+                          x={step.x + (isFirst ? 12 : pointDepth + 12)}
                           y={-12}
                           label={step.startDateStr}
                         />
@@ -469,7 +469,7 @@ function TimelineSvg({
                       {/* End Date Label */}
                       {step.endDateStr && (showAllDates || hoveredStepId === step.id) && (
                         <DateLabel
-                          x={step.endLabelPos === 'in' ? step.x + step.width + pointDepth - 12 : step.x + step.width + pointDepth + 12}
+                          x={step.x + step.width - 12}
                           y={-12}
                           label={step.endDateStr}
                         />

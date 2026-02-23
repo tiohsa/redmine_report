@@ -26,8 +26,6 @@ export type TimelineStep = {
   id: string;
   startDateStr?: string;
   endDateStr?: string;
-  startLabelPos: 'in' | 'out';
-  endLabelPos: 'in' | 'out';
 };
 
 export type TimelineLane = {
@@ -258,9 +256,6 @@ function buildTimelineData({
   });
 
   const timelineData: TimelineLane[] = [];
-  const GAP_THRESHOLD_PX = 45; // Approximately space for 2 digits
-  const MIN_WIDTH_FOR_INSIDE = 40; // Minimum width to fit text inside
-
   Array.from(groupedByProject.entries()).forEach(([projectId, versionMap]) => {
     const project = projectMap.get(projectId);
     const projectName = project?.name || t('timeline.projectFallback', { id: projectId });
@@ -293,61 +288,9 @@ function buildTimelineData({
           progress,
           id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`,
           startDateStr,
-          endDateStr,
-          startLabelPos: 'out', // Default
-          endLabelPos: 'out' // Default
+          endDateStr
         };
       });
-
-      // Calculate label positions based on overlap
-      for (let i = 0; i < steps.length; i++) {
-        const step = steps[i];
-        const prevStep = i > 0 ? steps[i - 1] : null;
-        const nextStep = i < steps.length - 1 ? steps[i + 1] : null;
-
-        const currStart = step.x;
-        const currEnd = step.x + step.width;
-
-        // Start Label Logic
-        let startPos: 'in' | 'out' = 'out';
-        if (prevStep) {
-            const prevEnd = prevStep.x + prevStep.width + POINT_DEPTH;
-            const gap = currStart - prevEnd;
-            if (gap < 0) {
-                 // Overlap: force out to preserve time order (e.g. 25 left of 26)
-                 startPos = 'out';
-            } else if (gap < GAP_THRESHOLD_PX) {
-                if (step.width >= MIN_WIDTH_FOR_INSIDE) {
-                    startPos = 'in';
-                }
-            }
-        }
-        // Also check if close to start of lane
-        if (currStart < GAP_THRESHOLD_PX) {
-             if (step.width >= MIN_WIDTH_FOR_INSIDE) {
-                startPos = 'in';
-            }
-        }
-
-        // End Label Logic
-        let endPos: 'in' | 'out' = 'out';
-        if (nextStep) {
-            const nextStart = nextStep.x;
-            // Include POINT_DEPTH in current end calculation
-            const gap = nextStart - (currEnd + POINT_DEPTH);
-            if (gap < 0) {
-                 // Overlap: force out to preserve time order
-                 endPos = 'out';
-            } else if (gap < GAP_THRESHOLD_PX) {
-                if (step.width >= MIN_WIDTH_FOR_INSIDE) {
-                    endPos = 'in';
-                }
-            }
-        }
-
-        steps[i].startLabelPos = startPos;
-        steps[i].endLabelPos = endPos;
-      }
 
       timelineData.push({
         laneKey: `${projectId}:${versionKey}`,
