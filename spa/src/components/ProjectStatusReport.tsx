@@ -186,9 +186,9 @@ export const ProjectStatusReport = ({
 
     return (
         <div ref={fullScreenRef} className="bg-white flex-1 font-sans text-[#1e293b]">
-            <div className="w-full bg-white px-6 pt-2 pb-4">
+            <div className="w-full bg-white px-6 pt-1 pb-2">
                 {/* Header Row: Single line layout */}
-                <div className="flex items-center justify-between h-14 border-b border-slate-100 mb-4">
+                <div className="flex items-center justify-between h-8 border-b border-slate-100 mb-2">
 
                     {/* Left: Filters */}
                     <div className="flex items-center gap-2">
