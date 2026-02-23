@@ -102,6 +102,10 @@ const BASE_BAR_HEIGHT = 40;
 const yearRowHeight = 25;
 const monthRowHeight = 25;
 const headerHeight = yearRowHeight + monthRowHeight;
+const TODAY_LABEL_WIDTH = 40;
+const TODAY_LABEL_HEIGHT = 16;
+const TODAY_LABEL_OFFSET_Y = 2;
+const TODAY_LABEL_LINE_GAP = 2;
 
 export function TimelineChart({
   timelineData,
@@ -362,9 +366,21 @@ function TimelineSvg({
 
         {todayX >= 0 && todayX <= timelineWidth && (
           <g transform={`translate(${todayX}, 0)`}>
-            <line x1={0} y1={0} x2={0} y2={headerHeight} stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4 2" />
-            <rect x={-20} y={headerHeight} width={40} height={16} fill="white" opacity="0.9" />
-            <text x={0} y={headerHeight + 12} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#ef4444">
+            <rect
+              x={-TODAY_LABEL_WIDTH / 2}
+              y={headerHeight + TODAY_LABEL_OFFSET_Y}
+              width={TODAY_LABEL_WIDTH}
+              height={TODAY_LABEL_HEIGHT}
+              fill="#ef4444"
+            />
+            <text
+              x={0}
+              y={headerHeight + TODAY_LABEL_OFFSET_Y + 12}
+              textAnchor="middle"
+              fontSize="10"
+              fontWeight="bold"
+              fill="#ffffff"
+            >
               {format(new Date(), 'M/d')}
             </text>
           </g>
@@ -481,7 +497,15 @@ function TimelineSvg({
               .map((item) => item.element)}
 
             {todayX >= 0 && todayX <= timelineWidth && (
-              <line x1={todayX} y1={0} x2={todayX} y2={laneHeight} stroke="#ef4444" strokeWidth="1" strokeDasharray="4 2" />
+              <line
+                x1={todayX}
+                y1={projectIndex === 0 ? TODAY_LABEL_OFFSET_Y + TODAY_LABEL_HEIGHT + TODAY_LABEL_LINE_GAP : 0}
+                x2={todayX}
+                y2={laneHeight}
+                stroke="#ef4444"
+                strokeWidth="1"
+                strokeDasharray="4 2"
+              />
             )}
           </g>
         );
