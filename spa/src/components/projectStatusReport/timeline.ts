@@ -9,7 +9,8 @@ import {
   isBefore,
   parseISO,
   startOfMonth,
-  startOfYear
+  startOfYear,
+  getDate
 } from 'date-fns';
 import { CategoryBar, ProjectInfo } from '../../services/scheduleReportApi';
 import { getDateFnsLocale, getLocale, t } from '../../i18n';
@@ -23,6 +24,10 @@ export type TimelineStep = {
   status: StatusStyle;
   progress?: number;
   id: string;
+  startDateStr?: string;
+  endDateStr?: string;
+  startLabelPos: 'in' | 'out';
+  endLabelPos: 'in' | 'out';
 };
 
 export type TimelineLane = {
@@ -64,6 +69,7 @@ type TimelineCalculationInput = {
 };
 
 const DEFAULT_TIMELINE_WIDTH = 1000;
+const POINT_DEPTH = 15; // Visual depth of the arrow point
 
 export function buildTimelineViewModel({
   bars,
@@ -252,6 +258,8 @@ function buildTimelineData({
   });
 
   const timelineData: TimelineLane[] = [];
+  const GAP_THRESHOLD_PX = 45; // Approximately space for 2 digits
+  const MIN_WIDTH_FOR_INSIDE = 40; // Minimum width to fit text inside
 
   Array.from(groupedByProject.entries()).forEach(([projectId, versionMap]) => {
     const project = projectMap.get(projectId);
@@ -262,6 +270,78 @@ function buildTimelineData({
       const sortedBars = [...versionBars].sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
       const versionId = sortedBars.find((bar) => typeof bar.version_id === 'number')?.version_id;
 
+      const steps: TimelineStep[] = sortedBars.map((bar, idx) => {
+        const { status, progress } = resolveStatus(bar.progress_rate, statusStyles);
+        const width = getWidth(bar.start_date, bar.end_date);
+
+        let startDateStr = '';
+        if (bar.start_date) {
+            startDateStr = String(getDate(parseISO(bar.start_date)));
+        }
+
+        let endDateStr = '';
+        if (bar.end_date) {
+            endDateStr = String(getDate(parseISO(bar.end_date)));
+        }
+
+        return {
+          issueId: bar.category_id,
+          name: bar.ticket_subject || bar.category_name,
+          x: getX(bar.start_date),
+          width,
+          status,
+          progress,
+          id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`,
+          startDateStr,
+          endDateStr,
+          startLabelPos: 'out', // Default
+          endLabelPos: 'out' // Default
+        };
+      });
+
+      // Calculate label positions based on overlap
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        const prevStep = i > 0 ? steps[i - 1] : null;
+        const nextStep = i < steps.length - 1 ? steps[i + 1] : null;
+
+        const currStart = step.x;
+        const currEnd = step.x + step.width;
+
+        // Start Label Logic
+        let startPos: 'in' | 'out' = 'out';
+        if (prevStep) {
+            // Include POINT_DEPTH in the previous end calculation because the arrow tip extends out
+            const prevEnd = prevStep.x + prevStep.width + POINT_DEPTH;
+            if (currStart - prevEnd < GAP_THRESHOLD_PX) {
+                if (step.width >= MIN_WIDTH_FOR_INSIDE) {
+                    startPos = 'in';
+                }
+            }
+        }
+        // Also check if close to start of lane
+        if (currStart < GAP_THRESHOLD_PX) {
+             if (step.width >= MIN_WIDTH_FOR_INSIDE) {
+                startPos = 'in';
+            }
+        }
+
+        // End Label Logic
+        let endPos: 'in' | 'out' = 'out';
+        if (nextStep) {
+            const nextStart = nextStep.x;
+            // Include POINT_DEPTH in current end calculation
+            if (nextStart - (currEnd + POINT_DEPTH) < GAP_THRESHOLD_PX) {
+                if (step.width >= MIN_WIDTH_FOR_INSIDE) {
+                    endPos = 'in';
+                }
+            }
+        }
+
+        steps[i].startLabelPos = startPos;
+        steps[i].endLabelPos = endPos;
+      }
+
       timelineData.push({
         laneKey: `${projectId}:${versionKey}`,
         projectId,
@@ -269,19 +349,7 @@ function buildTimelineData({
         projectName,
         versionId,
         versionName: versionKey,
-        steps: sortedBars.map((bar, idx) => {
-          const { status, progress } = resolveStatus(bar.progress_rate, statusStyles);
-
-          return {
-            issueId: bar.category_id,
-            name: bar.ticket_subject || bar.category_name,
-            x: getX(bar.start_date),
-            width: getWidth(bar.start_date, bar.end_date),
-            status,
-            progress,
-            id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`
-          };
-        })
+        steps
       });
     });
   });

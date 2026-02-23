@@ -378,10 +378,14 @@ function TimelineSvg({
                 const barHeight = BASE_BAR_HEIGHT * chartScale;
                 const verticalOffset = (laneHeight - barHeight) / 2;
                 const fontSize = Math.max(10, Math.round(12 * chartScale));
+                const dateFontSize = Math.max(9, Math.round(10 * chartScale));
 
                 const isPending = step.status.code === 'PENDING';
                 const isInProgress = step.status.code === 'IN_PROGRESS';
                 const fill = isPending ? 'url(#stripePattern)' : step.status.fill;
+
+                // Color for "in" labels: darker if background is light (pending), white otherwise
+                const inLabelColor = isPending ? '#64748b' : '#ffffff';
 
                 return {
                   zIndex: isInProgress ? 1 : 0,
@@ -407,6 +411,7 @@ function TimelineSvg({
                         />
                       </g>
 
+                      {/* Task Name */}
                       {step.width > 30 && (
                         <text
                           x={step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2)}
@@ -426,6 +431,44 @@ function TimelineSvg({
                           }}
                         >
                           {step.name}
+                        </text>
+                      )}
+
+                      {/* Start Date Label */}
+                      {step.startDateStr && (
+                        <text
+                          x={step.startLabelPos === 'in' ? step.x + (isFirst ? 4 : pointDepth + 4) : step.x - 4}
+                          y={barHeight / 2}
+                          fill={step.startLabelPos === 'in' ? inLabelColor : '#64748b'}
+                          fontSize={dateFontSize}
+                          fontWeight="500"
+                          textAnchor={step.startLabelPos === 'in' ? 'start' : 'end'}
+                          dominantBaseline="middle"
+                          style={{
+                            pointerEvents: 'none',
+                            textShadow: step.startLabelPos === 'in' && !isPending ? '0px 1px 2px rgba(0,0,0,0.5)' : 'none'
+                          }}
+                        >
+                          {step.startDateStr}
+                        </text>
+                      )}
+
+                      {/* End Date Label */}
+                      {step.endDateStr && (
+                        <text
+                          x={step.endLabelPos === 'in' ? step.x + step.width + pointDepth - 8 : step.x + step.width + pointDepth + 4}
+                          y={barHeight / 2}
+                          fill={step.endLabelPos === 'in' ? inLabelColor : '#64748b'}
+                          fontSize={dateFontSize}
+                          fontWeight="500"
+                          textAnchor={step.endLabelPos === 'in' ? 'end' : 'start'}
+                          dominantBaseline="middle"
+                          style={{
+                            pointerEvents: 'none',
+                            textShadow: step.endLabelPos === 'in' && !isPending ? '0px 1px 2px rgba(0,0,0,0.5)' : 'none'
+                          }}
+                        >
+                          {step.endDateStr}
                         </text>
                       )}
                     </g>
