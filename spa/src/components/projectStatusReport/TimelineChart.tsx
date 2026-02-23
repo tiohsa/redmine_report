@@ -67,7 +67,7 @@ const ChevronPath = ({
 
 const DateLabel = ({ x, y, label }: { x: number; y: number; label: string }) => (
   <g transform={`translate(${x}, ${y})`}>
-    <circle r="9" fill="#4b5563" />
+    <circle r="11" fill="#4b5563" />
     <text
       y="1"
       fill="white"
@@ -90,6 +90,7 @@ type TimelineChartProps = {
   containerRef: RefObject<HTMLDivElement>;
   projectIdentifier: string;
   chartScale?: number;
+  showAllDates?: boolean;
   onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
   onVersionReportClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
   onTaskDatesUpdated?: () => void;
@@ -112,6 +113,7 @@ export function TimelineChart({
   containerRef,
   projectIdentifier,
   chartScale = 1,
+  showAllDates = false,
   onVersionAiClick,
   onVersionReportClick,
   onTaskDatesUpdated,
@@ -249,6 +251,7 @@ export function TimelineChart({
             activeReportLaneKey={activeReportLaneKey}
             laneHeight={laneHeight}
             chartScale={chartScale}
+            showAllDates={showAllDates}
           />
         </div>
       </div>
@@ -276,7 +279,8 @@ function TimelineSvg({
   onStepClick,
   activeReportLaneKey,
   laneHeight,
-  chartScale = 1
+  chartScale = 1,
+  showAllDates
 }: {
   timelineData: TimelineLane[];
   timelineWidth: number;
@@ -287,8 +291,10 @@ function TimelineSvg({
   activeReportLaneKey?: string | null;
   laneHeight: number;
   chartScale?: number;
+  showAllDates?: boolean;
 }) {
   const svgHeight = headerHeight + timelineData.length * laneHeight;
+  const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
 
   if (timelineData.length === 0) {
     return <div className="flex items-center justify-center h-32 text-gray-400">{t('common.noData')}</div>;
@@ -402,7 +408,12 @@ function TimelineSvg({
                 return {
                   zIndex: isInProgress ? 1 : 0,
                   element: (
-                    <g key={step.id} transform={`translate(0, ${verticalOffset})`}>
+                    <g
+                      key={step.id}
+                      transform={`translate(0, ${verticalOffset})`}
+                      onMouseEnter={() => setHoveredStepId(step.id)}
+                      onMouseLeave={() => setHoveredStepId(null)}
+                    >
                       <g
                         style={{ cursor: step.issueId ? 'pointer' : 'default' }}
                         onClick={() => onStepClick(step.issueId, step.name)}
@@ -447,7 +458,7 @@ function TimelineSvg({
                       )}
 
                       {/* Start Date Label */}
-                      {step.startDateStr && (
+                      {step.startDateStr && (showAllDates || hoveredStepId === step.id) && (
                         <DateLabel
                           x={step.startLabelPos === 'in' ? step.x + (isFirst ? 12 : pointDepth + 12) : step.x - 12}
                           y={-12}
@@ -456,7 +467,7 @@ function TimelineSvg({
                       )}
 
                       {/* End Date Label */}
-                      {step.endDateStr && (
+                      {step.endDateStr && (showAllDates || hoveredStepId === step.id) && (
                         <DateLabel
                           x={step.endLabelPos === 'in' ? step.x + step.width + pointDepth - 12 : step.x + step.width + pointDepth + 12}
                           y={-12}

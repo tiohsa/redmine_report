@@ -55,6 +55,7 @@ export const ProjectStatusReport = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
     const [chartScale, setChartScale] = useState<number>(1);
+    const [showAllDates, setShowAllDates] = useState<boolean>(false);
     const statuses = useMemo(() => Object.values(buildStatusStyles()), []);
 
     const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
@@ -289,6 +290,25 @@ export const ProjectStatusReport = ({
                                     <option value={1.5}>XL</option>
                                 </select>
                             </div>
+
+                            {/* Date Display Toggle */}
+                            <div className="flex items-center gap-3">
+                                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('filter.dateDisplay')}</label>
+                                <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
+                                    <button
+                                        onClick={() => setShowAllDates(false)}
+                                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${!showAllDates ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        {t('filter.dateHover')}
+                                    </button>
+                                    <button
+                                        onClick={() => setShowAllDates(true)}
+                                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${showAllDates ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        {t('filter.dateAll')}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-6 flex-wrap">
@@ -361,6 +381,7 @@ export const ProjectStatusReport = ({
                         containerRef={containerRef}
                         projectIdentifier={rootProjectIdentifier || projectIdentifier}
                         chartScale={chartScale}
+                        showAllDates={showAllDates}
                         onTaskDatesUpdated={onTaskDatesUpdated}
                         onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
                             setWeeklyDialog({

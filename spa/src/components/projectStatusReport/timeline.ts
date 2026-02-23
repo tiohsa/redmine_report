@@ -276,12 +276,12 @@ function buildTimelineData({
 
         let startDateStr = '';
         if (bar.start_date) {
-            startDateStr = String(getDate(parseISO(bar.start_date)));
+            startDateStr = format(parseISO(bar.start_date), 'M/d');
         }
 
         let endDateStr = '';
         if (bar.end_date) {
-            endDateStr = String(getDate(parseISO(bar.end_date)));
+            endDateStr = format(parseISO(bar.end_date), 'M/d');
         }
 
         return {
@@ -311,9 +311,12 @@ function buildTimelineData({
         // Start Label Logic
         let startPos: 'in' | 'out' = 'out';
         if (prevStep) {
-            // Include POINT_DEPTH in the previous end calculation because the arrow tip extends out
             const prevEnd = prevStep.x + prevStep.width + POINT_DEPTH;
-            if (currStart - prevEnd < GAP_THRESHOLD_PX) {
+            const gap = currStart - prevEnd;
+            if (gap < 0) {
+                 // Overlap: force out to preserve time order (e.g. 25 left of 26)
+                 startPos = 'out';
+            } else if (gap < GAP_THRESHOLD_PX) {
                 if (step.width >= MIN_WIDTH_FOR_INSIDE) {
                     startPos = 'in';
                 }
@@ -331,7 +334,11 @@ function buildTimelineData({
         if (nextStep) {
             const nextStart = nextStep.x;
             // Include POINT_DEPTH in current end calculation
-            if (nextStart - (currEnd + POINT_DEPTH) < GAP_THRESHOLD_PX) {
+            const gap = nextStart - (currEnd + POINT_DEPTH);
+            if (gap < 0) {
+                 // Overlap: force out to preserve time order
+                 endPos = 'out';
+            } else if (gap < GAP_THRESHOLD_PX) {
                 if (step.width >= MIN_WIDTH_FOR_INSIDE) {
                     endPos = 'in';
                 }
