@@ -181,8 +181,9 @@ export const ProjectStatusReport = ({
         }
     };
 
-    const iconButtonStyle = "p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative";
-    const activeIconButtonStyle = "p-2 rounded-lg text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 transition-colors relative shadow-sm";
+    const iconButtonStyle = "p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative cursor-pointer";
+    const activeIconButtonStyle = "p-2 rounded-lg text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 transition-colors relative shadow-sm cursor-pointer";
+    const headerIconStyle = "w-5 h-5";
 
     return (
         <div ref={fullScreenRef} className="bg-white flex-1 font-sans text-[#1e293b]">
@@ -199,7 +200,7 @@ export const ProjectStatusReport = ({
                                 className={selectedProjectIdentifiers.length > 0 ? activeIconButtonStyle : iconButtonStyle}
                                 title={t('filter.project')}
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
                                 </svg>
                                 {selectedProjectIdentifiers.length > 0 && (
@@ -244,7 +245,7 @@ export const ProjectStatusReport = ({
                                 className={selectedVersions.length > 0 ? activeIconButtonStyle : iconButtonStyle}
                                 title={t('filter.version')}
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
                                 </svg>
                                 {selectedVersions.length > 0 && (
@@ -296,7 +297,7 @@ export const ProjectStatusReport = ({
                                 className={iconButtonStyle}
                                 title="Status Legend"
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </button>
@@ -329,7 +330,7 @@ export const ProjectStatusReport = ({
                                 className={iconButtonStyle}
                                 title={t('filter.size')}
                             >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"></path>
                                 </svg>
                                 <span className="absolute -bottom-1 -right-1 text-[10px] font-bold bg-slate-100 text-slate-600 px-1 rounded border border-slate-200">
@@ -337,23 +338,38 @@ export const ProjectStatusReport = ({
                                 </span>
                             </button>
                             {isSizeOpen && (
-                                <div className="absolute top-full right-0 mt-2 w-24 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden">
+                                <div className="absolute top-full right-0 mt-2 w-28 bg-white rounded-xl shadow-xl z-50 overflow-hidden">
                                     {[
                                         { label: 'S', value: 0.5 },
                                         { label: 'M', value: 0.75 },
                                         { label: 'L', value: 1 },
                                         { label: 'XL', value: 1.5 }
                                     ].map((option) => (
-                                        <button
+                                        <div
                                             key={option.label}
                                             onClick={() => {
                                                 setChartScale(option.value);
-                                                setIsSizeOpen(false);
                                             }}
-                                            className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 ${chartScale === option.value ? 'font-bold text-blue-600 bg-blue-50' : 'text-slate-600'}`}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    setChartScale(option.value);
+                                                }
+                                            }}
+                                            role="button"
+                                            tabIndex={0}
+                                            className={`block w-full m-0 flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 cursor-pointer ${chartScale === option.value ? 'text-blue-600 bg-blue-50' : 'text-slate-600'}`}
                                         >
-                                            {option.label}
-                                        </button>
+                                            <input
+                                                type="checkbox"
+                                                checked={chartScale === option.value}
+                                                readOnly
+                                                tabIndex={-1}
+                                                className="w-4 h-4 rounded border-slate-300 text-blue-600 accent-blue-600 pointer-events-none"
+                                                aria-hidden="true"
+                                            />
+                                            <span className={chartScale === option.value ? 'font-bold' : 'font-medium'}>{option.label}</span>
+                                        </div>
                                     ))}
                                 </div>
                             )}
@@ -365,7 +381,7 @@ export const ProjectStatusReport = ({
                             className={showAllDates ? activeIconButtonStyle : iconButtonStyle}
                             title={t('filter.dateDisplay')}
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
                         </button>
@@ -378,7 +394,7 @@ export const ProjectStatusReport = ({
                             className={iconButtonStyle}
                             title={t('report.fullscreen')}
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
                             </svg>
                         </button>
@@ -388,7 +404,7 @@ export const ProjectStatusReport = ({
                             className={iconButtonStyle}
                             title={t('report.export')}
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3"></path>
                             </svg>
                         </button>
