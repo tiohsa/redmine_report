@@ -10,10 +10,20 @@ Redmine上で以下を提供するプラグインです。
 
 ### 1.1 提供機能
 
-- `Schedule Report` 画面で、対象プロジェクトのチケット進捗を集計して表示
-- バージョン単位で週報を生成（`prepare -> generate -> save` の3段階）
-- 保存先チケットの妥当性チェック（存在/可視性/編集可否/プロジェクト一致）
-- 週報保存時に `revision` を自動採番し、同一週の追記履歴を管理
+- **スケジュール可視化とガントチャート**
+  - `Schedule Report` 画面で、対象プロジェクトのチケット進捗を集計して表示
+  - チケットの親子関係に基づく階層的（ツリー状）なタイムライン表示
+  - タイムライン（矢印）上でのチケット開始日・期日のインライン表示とテキスト同士の重複回避
+  - タスク行の高さなど、表示のカスタマイズ機能
+- **チケットの高度な操作と編集**
+  - **インライン編集**: チケット一覧画面から、担当者、ステータス、優先度、バージョンなどを直接編集可能（期日なしのバージョンへの割り当てもサポート）
+  - **詳細パネルでの編集**: チケット詳細をパネルで確認しながら、コメント（注記）をその場で編集可能
+  - **子チケットの一括登録**: 専用のダイアログから複数の子チケットを効率的に登録可能
+  - 便利なUI機能: 豊富なカラムフィルタ、スクロール対応、エラー発生時のポップアップ通知など機能性を重視したインターフェース
+- **LLMを活用した週報自動生成**
+  - バージョン単位で週報を生成（`prepare -> generate -> save` の3段階）
+  - 保存先チケットの妥当性チェック（存在/可視性/編集可否/プロジェクト一致）
+  - 週報保存時に `revision` を自動採番し、同一週の追記履歴を管理
 
 ### 1.2 主要エンドポイント
 
@@ -33,12 +43,26 @@ Redmine上で以下を提供するプラグインです。
 ## 2. セットアップ
 
 1. Redmine の `plugins` 配下へ配置
-2. 必要なら migration 実行
+2. Redmine を再起動
+3. 必要に応じて `.env.local` を配置（`init.rb` で読み込み）
+
+`.env.local` の記述例:
 ```bash
-bundle exec rake redmine:plugins:migrate NAME=redmine_report RAILS_ENV=production
+# OpenAI の場合
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o
+OPENAI_API_KEY=your_api_key_here
+
+# または Gemini の場合
+# LLM_PROVIDER=gemini
+# GEMINI_API_KEY=your_gemini_api_key
+
+# または Azure OpenAI の場合
+# LLM_PROVIDER=azure
+# AZURE_OPENAI_API_KEY=your_azure_api_key
+# AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+# AZURE_OPENAI_DEPLOYMENT=your-deployment-name
 ```
-3. Redmine を再起動
-4. 必要に応じて `.env.local` を配置（`init.rb` で読み込み）
 
 ## 3. LLM 設定
 

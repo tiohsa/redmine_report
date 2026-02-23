@@ -10,10 +10,20 @@ A Redmine plugin that provides:
 
 ### 1.1 Features
 
-- Shows ticket progress in the `Schedule Report` screen
-- Generates weekly reports per version with a 3-step flow: `prepare -> generate -> save`
-- Validates destination issue before save (existence/visibility/editability/project match)
-- Auto-increments weekly report `revision` when saving to the same destination issue/week
+- **Schedule Visualization and Gantt Chart**
+  - Shows ticket progress in the `Schedule Report` screen
+  - Hierarchical (tree-like) timeline display based on parent-child ticket relationships
+  - Inline display of ticket start dates and due dates on the timeline arrows with overlap prevention
+  - Customizable views, such as adjusting task row heights
+- **Advanced Ticket Operations and Editing**
+  - **Inline Editing**: Edit assignee, status, priority, and version directly from the ticket list (supports assigning to versions without due dates)
+  - **Detail Panel Editing**: View ticket details in a side panel and edit comments (notes) in-place
+  - **Bulk Child Issue Registration**: Efficiently register multiple child issues from a dedicated dialog
+  - Enhanced User Experience: Rich column filters, scrollable viewers, and pop-up notifications for errors
+- **LLM-Powered Weekly Report Generation**
+  - Generates weekly reports per version with a 3-step flow: `prepare -> generate -> save`
+  - Validates destination issue before save (existence/visibility/editability/project match)
+  - Auto-increments weekly report `revision` when saving to the same destination issue/week
 
 ### 1.2 Main Endpoints
 
@@ -33,12 +43,26 @@ A Redmine plugin that provides:
 ## 2. Setup
 
 1. Place this plugin under Redmine `plugins` directory.
-2. Run migrations if needed:
+2. Restart Redmine.
+3. Optionally create `.env.local` in plugin root (`init.rb` loads it).
+
+Example `.env.local`:
 ```bash
-bundle exec rake redmine:plugins:migrate NAME=redmine_report RAILS_ENV=production
+# For OpenAI
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o
+OPENAI_API_KEY=your_api_key_here
+
+# For Gemini
+# LLM_PROVIDER=gemini
+# GEMINI_API_KEY=your_gemini_api_key
+
+# For Azure OpenAI
+# LLM_PROVIDER=azure
+# AZURE_OPENAI_API_KEY=your_azure_api_key
+# AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+# AZURE_OPENAI_DEPLOYMENT=your-deployment-name
 ```
-3. Restart Redmine.
-4. Optionally create `.env.local` in plugin root (`init.rb` loads it).
 
 ## 3. LLM Configuration
 
