@@ -130,6 +130,13 @@ export const ProjectStatusReport = ({
         });
         return Array.from(versions).sort();
     }, [bars]);
+    const selectableProjectIdentifiers = useMemo(
+        () => availableProjects.filter((p) => p.selectable !== false).map((p) => p.identifier),
+        [availableProjects]
+    );
+    const allSelectableProjectsSelected = selectableProjectIdentifiers.length > 0
+        && selectableProjectIdentifiers.every((id) => selectedProjectIdentifiers.includes(id));
+    const allVersionsSelected = allVersions.length > 0 && selectedVersions.length === allVersions.length;
 
     const handleVersionReportClick = async (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => {
         setAiReportLabel(`${payload.projectName} / ${payload.versionName}`);
@@ -184,6 +191,11 @@ export const ProjectStatusReport = ({
     const iconButtonStyle = "p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative cursor-pointer";
     const activeIconButtonStyle = "p-2 rounded-lg text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 transition-colors relative shadow-sm cursor-pointer";
     const headerIconStyle = "w-5 h-5";
+    const filterDropdownPanelStyle = "absolute top-full left-0 mt-2 w-72 max-h-[420px] bg-white border border-slate-300 rounded-xl shadow-lg z-50 overflow-hidden";
+    const filterDropdownTitleStyle = "px-4 pt-4 pb-2 text-[13px] font-semibold text-slate-800";
+    const filterDropdownRowStyle = "px-4 py-2.5 flex items-center gap-3 text-[15px] text-slate-700 hover:bg-white/60 cursor-pointer";
+    const filterDropdownDividerStyle = "border-t border-slate-300/70 mx-4";
+    const filterDropdownClearLinkStyle = "text-blue-600 hover:text-blue-700 hover:underline text-sm cursor-pointer bg-transparent border-0 p-0 m-0 shadow-none appearance-none outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
 
     return (
         <div ref={fullScreenRef} className="bg-white flex-1 font-sans text-[#1e293b]">
@@ -208,32 +220,71 @@ export const ProjectStatusReport = ({
                                 )}
                             </button>
                             {isProjectOpen && (
-                                <div className="absolute top-full left-0 mt-2 w-72 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
-                                    <div className="p-3 border-b border-slate-50 bg-slate-50/50">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t('filter.project')}</h4>
+                                <div className={filterDropdownPanelStyle}>
+                                    <div className={filterDropdownTitleStyle}>{t('filter.project')}</div>
+                                    <div
+                                        className={filterDropdownRowStyle}
+                                        onClick={() => {
+                                            if (allSelectableProjectsSelected) {
+                                                setSelectedProjectIdentifiers([]);
+                                            } else {
+                                                setSelectedProjectIdentifiers(selectableProjectIdentifiers);
+                                            }
+                                        }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={allSelectableProjectsSelected}
+                                            readOnly
+                                            className="w-4 h-4 rounded border-slate-400 text-blue-600 accent-blue-600 pointer-events-none"
+                                        />
+                                        <span>{t('filter.selectAll')}</span>
                                     </div>
-                                    {availableProjects.map((p) => {
-                                        const isSelected = selectedProjectIdentifiers.includes(p.identifier);
-                                        const isDisabled = p.selectable === false;
-                                        return (
-                                            <div
-                                                key={p.project_id}
-                                                className={`px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                onClick={() => !isDisabled && toggleProject(p.identifier)}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    readOnly
-                                                    disabled={isDisabled}
-                                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
-                                                />
-                                                <span className={`text-sm ${isSelected ? 'font-semibold text-slate-900' : 'text-slate-600'}`} style={{ paddingLeft: `${p.level * 12}px` }}>
-                                                    {p.name}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                                    <div className={filterDropdownDividerStyle}></div>
+                                    <div className="max-h-[280px] overflow-y-auto py-1">
+                                        {availableProjects.map((p) => {
+                                            const isSelected = selectedProjectIdentifiers.includes(p.identifier);
+                                            const isDisabled = p.selectable === false;
+                                            return (
+                                                <div
+                                                    key={p.project_id}
+                                                    className={`${filterDropdownRowStyle} ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    onClick={() => !isDisabled && toggleProject(p.identifier)}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        readOnly
+                                                        disabled={isDisabled}
+                                                        className="w-4 h-4 rounded border-slate-400 text-blue-600 accent-blue-600 pointer-events-none"
+                                                    />
+                                                    <span
+                                                        className={`${isSelected ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+                                                        style={{ paddingLeft: `${p.level * 12}px` }}
+                                                    >
+                                                        {p.name}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className={filterDropdownDividerStyle}></div>
+                                    <div className="px-4 py-2.5">
+                                        <span
+                                            onClick={() => setSelectedProjectIdentifiers([])}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    setSelectedProjectIdentifiers([]);
+                                                }
+                                            }}
+                                            role="button"
+                                            tabIndex={0}
+                                            className={filterDropdownClearLinkStyle}
+                                        >
+                                            {t('filter.clear')}
+                                        </span>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -253,35 +304,61 @@ export const ProjectStatusReport = ({
                                 )}
                             </button>
                             {isVersionOpen && onVersionChange && (
-                                <div className="absolute top-full left-0 mt-2 w-64 max-h-[400px] overflow-y-auto bg-white border border-slate-100 rounded-xl shadow-xl z-50">
-                                    <div className="p-2 border-b border-slate-50 flex justify-between bg-slate-50/50 sticky top-0 z-10 items-center">
-                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-2">{t('filter.version')}</span>
-                                        <div className="flex gap-1">
-                                            <button className="text-xs text-blue-600 hover:text-blue-700 font-bold px-2 py-1 rounded hover:bg-blue-50" onClick={() => onVersionChange(allVersions)}>{t('filter.selectAll')}</button>
-                                            <button className="text-xs text-slate-500 hover:text-slate-700 font-bold px-2 py-1 rounded hover:bg-slate-100" onClick={() => onVersionChange([])}>{t('filter.clear')}</button>
-                                        </div>
+                                <div className={filterDropdownPanelStyle}>
+                                    <div className={filterDropdownTitleStyle}>{t('filter.version')}</div>
+                                    <div
+                                        className={filterDropdownRowStyle}
+                                        onClick={() => onVersionChange(allVersionsSelected ? [] : allVersions)}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={allVersionsSelected}
+                                            readOnly
+                                            className="w-4 h-4 rounded border-slate-400 text-blue-600 accent-blue-600 pointer-events-none"
+                                        />
+                                        <span>{t('filter.selectAll')}</span>
                                     </div>
-                                    {allVersions.map((version) => (
-                                        <div
-                                            key={version}
-                                            className="px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer"
-                                            onClick={() => {
-                                                if (selectedVersions.includes(version)) {
-                                                    onVersionChange(selectedVersions.filter(v => v !== version));
-                                                } else {
-                                                    onVersionChange([...selectedVersions, version]);
+                                    <div className={filterDropdownDividerStyle}></div>
+                                    <div className="max-h-[280px] overflow-y-auto py-1">
+                                        {allVersions.map((version) => (
+                                            <div
+                                                key={version}
+                                                className={filterDropdownRowStyle}
+                                                onClick={() => {
+                                                    if (selectedVersions.includes(version)) {
+                                                        onVersionChange(selectedVersions.filter(v => v !== version));
+                                                    } else {
+                                                        onVersionChange([...selectedVersions, version]);
+                                                    }
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedVersions.includes(version)}
+                                                    readOnly
+                                                    className="w-4 h-4 rounded border-slate-400 text-blue-600 accent-blue-600 pointer-events-none"
+                                                />
+                                                <span className="truncate font-medium">{version}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className={filterDropdownDividerStyle}></div>
+                                    <div className="px-4 py-2.5">
+                                        <span
+                                            onClick={() => onVersionChange([])}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    onVersionChange([]);
                                                 }
                                             }}
+                                            role="button"
+                                            tabIndex={0}
+                                            className={filterDropdownClearLinkStyle}
                                         >
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedVersions.includes(version)}
-                                                readOnly
-                                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600"
-                                            />
-                                            <span className="text-sm text-slate-600 truncate font-medium">{version}</span>
-                                        </div>
-                                    ))}
+                                            {t('filter.clear')}
+                                        </span>
+                                    </div>
                                 </div>
                             )}
                         </div>
