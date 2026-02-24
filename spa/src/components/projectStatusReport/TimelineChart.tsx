@@ -38,7 +38,9 @@ const ChevronPath = ({
     ? `M ${x} ${y} L ${x} ${y + height}`
     : `M ${x} ${y} L ${x + pointDepth} ${y + height / 2} L ${x} ${y + height}`;
 
-  const rightShape = `L ${x + width} ${y + height} L ${x + width + pointDepth} ${y + height / 2} L ${x + width} ${y}`;
+  const rightBaseX = x + Math.max(width - pointDepth, 0);
+  const rightTipX = x + width;
+  const rightShape = `L ${rightBaseX} ${y + height} L ${rightTipX} ${y + height / 2} L ${rightBaseX} ${y}`;
   const pathData = `${leftShape} ${rightShape} Z`;
 
   if (progress !== undefined && progress >= 0 && progress < 100 && id) {
@@ -90,6 +92,7 @@ type TimelineChartProps = {
   projectIdentifier: string;
   chartScale?: number;
   showAllDates?: boolean;
+  showTodayLine?: boolean;
   onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
   onVersionReportClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
   onTaskDatesUpdated?: () => void;
@@ -117,6 +120,7 @@ export function TimelineChart({
   projectIdentifier,
   chartScale = 1,
   showAllDates = false,
+  showTodayLine = true,
   onVersionAiClick,
   onVersionReportClick,
   onTaskDatesUpdated,
@@ -255,6 +259,7 @@ export function TimelineChart({
             laneHeight={laneHeight}
             chartScale={chartScale}
             showAllDates={showAllDates}
+            showTodayLine={showTodayLine}
           />
         </div>
       </div>
@@ -283,7 +288,8 @@ function TimelineSvg({
   activeReportLaneKey,
   laneHeight,
   chartScale = 1,
-  showAllDates
+  showAllDates,
+  showTodayLine = true
 }: {
   timelineData: TimelineLane[];
   timelineWidth: number;
@@ -295,6 +301,7 @@ function TimelineSvg({
   laneHeight: number;
   chartScale?: number;
   showAllDates?: boolean;
+  showTodayLine?: boolean;
 }) {
   const svgHeight = headerHeight + timelineData.length * laneHeight;
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
@@ -364,7 +371,7 @@ function TimelineSvg({
           </g>
         ))}
 
-        {todayX >= 0 && todayX <= timelineWidth && (
+        {showTodayLine && todayX >= 0 && todayX <= timelineWidth && (
           <g transform={`translate(${todayX}, 0)`}>
             <rect
               x={-TODAY_LABEL_WIDTH / 2}
@@ -496,7 +503,7 @@ function TimelineSvg({
               .sort((a, b) => a.zIndex - b.zIndex)
               .map((item) => item.element)}
 
-            {todayX >= 0 && todayX <= timelineWidth && (
+            {showTodayLine && todayX >= 0 && todayX <= timelineWidth && (
               <line
                 x1={todayX}
                 y1={projectIndex === 0 ? TODAY_LABEL_OFFSET_Y + TODAY_LABEL_HEIGHT + TODAY_LABEL_LINE_GAP : 0}

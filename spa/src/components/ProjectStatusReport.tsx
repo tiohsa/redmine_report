@@ -17,6 +17,7 @@ import { getDateFnsLocale, getLocale, t } from '../i18n';
 
 const CHART_SCALE_STORAGE_KEY = 'redmine_report.schedule.chartScale';
 const SHOW_ALL_DATES_STORAGE_KEY = 'redmine_report.schedule.showAllDates';
+const SHOW_TODAY_LINE_STORAGE_KEY = 'redmine_report.schedule.showTodayLine';
 
 const readStoredChartScale = (): number => {
     if (typeof window === 'undefined') return 1;
@@ -35,6 +36,16 @@ const readStoredShowAllDates = (): boolean => {
         return window.localStorage.getItem(SHOW_ALL_DATES_STORAGE_KEY) === 'true';
     } catch {
         return false;
+    }
+};
+
+const readStoredShowTodayLine = (): boolean => {
+    if (typeof window === 'undefined') return true;
+    try {
+        const raw = window.localStorage.getItem(SHOW_TODAY_LINE_STORAGE_KEY);
+        return raw === null ? true : raw === 'true';
+    } catch {
+        return true;
     }
 };
 
@@ -88,6 +99,7 @@ export const ProjectStatusReport = ({
     const [containerWidth, setContainerWidth] = useState<number>(0);
     const [chartScale, setChartScale] = useState<number>(() => readStoredChartScale());
     const [showAllDates, setShowAllDates] = useState<boolean>(() => readStoredShowAllDates());
+    const [showTodayLine, setShowTodayLine] = useState<boolean>(() => readStoredShowTodayLine());
     const statuses = useMemo(() => Object.values(buildStatusStyles()), []);
 
     const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
@@ -129,6 +141,10 @@ export const ProjectStatusReport = ({
     useEffect(() => {
         writeStoredScheduleViewSetting(SHOW_ALL_DATES_STORAGE_KEY, String(showAllDates));
     }, [showAllDates]);
+
+    useEffect(() => {
+        writeStoredScheduleViewSetting(SHOW_TODAY_LINE_STORAGE_KEY, String(showTodayLine));
+    }, [showTodayLine]);
 
     useLayoutEffect(() => {
         if (!containerRef.current) return;
@@ -512,6 +528,27 @@ export const ProjectStatusReport = ({
                             </span>
                         </button>
 
+                        {/* Today Line Toggle */}
+                        <button
+                            onClick={() => setShowTodayLine(!showTodayLine)}
+                            className={showTodayLine ? activeIconButtonStyle : iconButtonStyle}
+                            title={t('timeline.todayLineToggle', { defaultValue: 'Today line' })}
+                            aria-pressed={showTodayLine}
+                        >
+                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6h16M4 12h6m4 0h6M4 18h16" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16" />
+                            </svg>
+                            <span
+                                className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded border ${showTodayLine
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-slate-500 border-slate-200'
+                                }`}
+                            >
+                                {showTodayLine ? 'ON' : 'OFF'}
+                            </span>
+                        </button>
+
                         <div className="w-px h-6 bg-slate-200 mx-1"></div>
 
                         {/* Fullscreen */}
@@ -554,6 +591,7 @@ export const ProjectStatusReport = ({
                         projectIdentifier={rootProjectIdentifier || projectIdentifier}
                         chartScale={chartScale}
                         showAllDates={showAllDates}
+                        showTodayLine={showTodayLine}
                         onTaskDatesUpdated={onTaskDatesUpdated}
                         onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
                             setWeeklyDialog({
