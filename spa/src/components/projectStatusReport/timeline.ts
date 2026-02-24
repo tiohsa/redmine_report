@@ -95,7 +95,7 @@ export function buildTimelineViewModel({
   const getX = (dateStr?: string): number => {
     if (!dateStr) return 0;
     const date = parseISO(dateStr);
-    return Math.max(0, differenceInDays(date, minDate) * pixelsPerDay);
+    return differenceInDays(date, minDate) * pixelsPerDay;
   };
 
   const getWidth = (startStr?: string, endStr?: string): number => {
@@ -157,12 +157,9 @@ function getDateRangeWithBuffer(bars: CategoryBar[]): { minDate: Date; maxDate: 
   const bufferedMaxDate = new Date(maxDate);
   bufferedMaxDate.setDate(bufferedMaxDate.getDate() + 7);
 
-  const minMonthStart = startOfMonth(minDate);
-  const maxMonthEnd = endOfMonth(maxDate);
-
   return {
-    minDate: isBefore(bufferedMinDate, minMonthStart) ? minMonthStart : bufferedMinDate,
-    maxDate: isAfter(bufferedMaxDate, maxMonthEnd) ? maxMonthEnd : bufferedMaxDate
+    minDate: bufferedMinDate,
+    maxDate: bufferedMaxDate
   };
 }
 
