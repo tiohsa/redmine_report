@@ -76,6 +76,11 @@ export function buildTimelineViewModel({
   containerWidth
 }: TimelineCalculationInput): TimelineViewModel {
   const statusStyles = buildStatusStyles();
+  const visibleBars = bars.filter((bar) => {
+    const versionKey = bar.version_name || t('common.noVersion');
+    return selectedVersions.includes(versionKey);
+  });
+
   if (bars.length === 0) {
     return {
       timelineData: [],
@@ -87,7 +92,7 @@ export function buildTimelineViewModel({
     };
   }
 
-  const { minDate, maxDate } = getDateRangeWithBuffer(bars);
+  const { minDate, maxDate } = getDateRangeWithBuffer(visibleBars);
   const totalDays = differenceInDays(maxDate, minDate) + 1;
   const effectiveContainerWidth = containerWidth > 0 ? containerWidth : DEFAULT_TIMELINE_WIDTH;
   const pixelsPerDay = effectiveContainerWidth / totalDays;
@@ -122,40 +127,41 @@ export function buildTimelineViewModel({
     headerMonths,
     headerYears,
     totalDurationText: `${format(minDate, 'yyyy/MM/dd')} - ${format(maxDate, 'yyyy/MM/dd')}`,
-    todayX: getX(new Date().toISOString())
+    // Place the "today" line at the center of today's day-cell on the date axis.
+    todayX: getX(new Date().toISOString()) + pixelsPerDay / 2
   };
 }
 
 function getDateRangeWithBuffer(bars: CategoryBar[]): { minDate: Date; maxDate: Date } {
-  let minDate = new Date();
-  let maxDate = new Date();
-  let hasDates = false;
+  let minDate: Date | null = null;
+  let maxDate: Date | null = null;
 
   bars.forEach((bar) => {
     if (bar.start_date) {
       const startDate = parseISO(bar.start_date);
-      if (!hasDates || isBefore(startDate, minDate)) minDate = startDate;
-      hasDates = true;
+      if (!minDate || isBefore(startDate, minDate)) minDate = startDate;
     }
 
     if (bar.end_date) {
       const endDate = parseISO(bar.end_date);
-      if (!hasDates || isAfter(endDate, maxDate)) maxDate = endDate;
-      hasDates = true;
+      if (!maxDate || isAfter(endDate, maxDate)) maxDate = endDate;
     }
   });
 
-  if (!hasDates) {
+  if (!minDate && !maxDate) {
     return {
       minDate: startOfMonth(new Date()),
       maxDate: endOfMonth(addMonths(new Date(), 2))
     };
   }
 
-  const bufferedMinDate = new Date(minDate);
-  bufferedMinDate.setDate(bufferedMinDate.getDate() - 7);
-  const bufferedMaxDate = new Date(maxDate);
-  bufferedMaxDate.setDate(bufferedMaxDate.getDate() + 7);
+  const effectiveMinDate = minDate || maxDate!;
+  const effectiveMaxDate = maxDate || minDate!;
+
+  const bufferedMinDate = new Date(effectiveMinDate);
+  bufferedMinDate.setDate(bufferedMinDate.getDate() - 3);
+  const bufferedMaxDate = new Date(effectiveMaxDate);
+  bufferedMaxDate.setDate(bufferedMaxDate.getDate() + 3);
 
   return {
     minDate: bufferedMinDate,

@@ -38,7 +38,9 @@ const ChevronPath = ({
     ? `M ${x} ${y} L ${x} ${y + height}`
     : `M ${x} ${y} L ${x + pointDepth} ${y + height / 2} L ${x} ${y + height}`;
 
-  const rightShape = `L ${x + width} ${y + height} L ${x + width + pointDepth} ${y + height / 2} L ${x + width} ${y}`;
+  const rightBaseX = x + Math.max(width - pointDepth, 0);
+  const rightTipX = x + width;
+  const rightShape = `L ${rightBaseX} ${y + height} L ${rightTipX} ${y + height / 2} L ${rightBaseX} ${y}`;
   const pathData = `${leftShape} ${rightShape} Z`;
 
   if (progress !== undefined && progress >= 0 && progress < 100 && id) {
