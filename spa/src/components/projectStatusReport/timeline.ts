@@ -26,6 +26,7 @@ export type TimelineStep = {
   id: string;
   startDateStr?: string;
   endDateStr?: string;
+  joinsPrevious?: boolean;
 };
 
 export type TimelineLane = {
@@ -273,6 +274,12 @@ function buildTimelineData({
       const steps: TimelineStep[] = sortedBars.map((bar, idx) => {
         const { status, progress } = resolveStatus(bar.progress_rate, statusStyles);
         const width = getWidth(bar.start_date, bar.end_date);
+        const prevBar = idx > 0 ? sortedBars[idx - 1] : undefined;
+        const joinsPrevious = Boolean(
+          prevBar?.end_date &&
+          bar.start_date &&
+          differenceInDays(parseISO(bar.start_date), parseISO(prevBar.end_date)) === 1
+        );
 
         let startDateStr = '';
         if (bar.start_date) {
@@ -293,7 +300,8 @@ function buildTimelineData({
           progress,
           id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`,
           startDateStr,
-          endDateStr
+          endDateStr,
+          joinsPrevious
         };
       });
 

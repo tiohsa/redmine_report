@@ -12,6 +12,7 @@ type ChevronPathProps = {
   height: number;
   pointDepth: number;
   isFirst: boolean;
+  joinsPrevious?: boolean;
   fill: string;
   stroke: string;
   progress?: number;
@@ -27,6 +28,7 @@ const ChevronPath = ({
   height,
   pointDepth,
   isFirst,
+  joinsPrevious = false,
   fill,
   stroke,
   progress,
@@ -34,7 +36,8 @@ const ChevronPath = ({
   filter,
   separatorColor = 'white'
 }: ChevronPathProps) => {
-  const leftShape = isFirst
+  const hasLeftNotch = !isFirst;
+  const leftShape = !hasLeftNotch
     ? `M ${x} ${y} L ${x} ${y + height}`
     : `M ${x} ${y} L ${x + pointDepth} ${y + height / 2} L ${x} ${y + height}`;
 
@@ -54,7 +57,7 @@ const ChevronPath = ({
           </linearGradient>
         </defs>
         <path d={pathData} fill={`url(#${gradientId})`} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-        {!isFirst && <path d={leftShape} stroke={separatorColor} strokeWidth="2" fill="none" />}
+        {hasLeftNotch && <path d={leftShape} stroke={separatorColor} strokeWidth="2" fill="none" />}
       </g>
     );
   }
@@ -62,7 +65,7 @@ const ChevronPath = ({
   return (
     <g filter={filter}>
       <path d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-      {!isFirst && <path d={leftShape} stroke={separatorColor} strokeWidth="2" fill="none" />}
+      {hasLeftNotch && <path d={leftShape} stroke={separatorColor} strokeWidth="2" fill="none" />}
     </g>
   );
 };
@@ -426,6 +429,13 @@ function TimelineSvg({
                 const isPending = step.status.code === 'PENDING';
                 const isInProgress = step.status.code === 'IN_PROGRESS';
                 const fill = isPending ? 'url(#stripePattern)' : step.status.fill;
+                const barX = step.joinsPrevious ? step.x - pointDepth : step.x;
+                const barWidth = step.joinsPrevious ? step.width + pointDepth : step.width;
+                const taskCenterX = barX + barWidth / 2 + (isFirst ? 0 : pointDepth / 2);
+                const startLabelX = barX + (isFirst ? 12 : pointDepth + 12);
+                const endLabelX = step.startDateStr === step.endDateStr
+                  ? taskCenterX
+                  : barX + barWidth - 12;
 
                 return {
                   zIndex: isInProgress ? 1 : 0,
@@ -441,12 +451,13 @@ function TimelineSvg({
                         onClick={() => onStepClick(step.issueId, step.name)}
                       >
                         <ChevronPath
-                          x={step.x}
+                          x={barX}
                           y={0}
-                          width={step.width}
+                          width={barWidth}
                           height={barHeight}
                           pointDepth={pointDepth}
                           isFirst={isFirst}
+                          joinsPrevious={step.joinsPrevious}
                           fill={fill}
                           stroke={step.status.stroke}
                           progress={step.progress}
@@ -459,7 +470,7 @@ function TimelineSvg({
                       {/* Task Name */}
                       {step.width > 30 && (
                         <text
-                          x={step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2)}
+                          x={taskCenterX}
                           y={barHeight / 2}
                           fill={step.status.text}
                           fontSize={fontSize}
@@ -482,7 +493,7 @@ function TimelineSvg({
                       {/* Start Date Label */}
                       {step.startDateStr && (showAllDates || hoveredStepId === step.id) && step.startDateStr !== step.endDateStr && (
                         <DateLabel
-                          x={step.x + (isFirst ? 12 : pointDepth + 12)}
+                          x={startLabelX}
                           y={-12}
                           label={step.startDateStr}
                         />
@@ -491,7 +502,7 @@ function TimelineSvg({
                       {/* End Date Label */}
                       {step.endDateStr && (showAllDates || hoveredStepId === step.id) && (
                         <DateLabel
-                          x={step.startDateStr === step.endDateStr ? step.x + step.width / 2 + (isFirst ? 0 : pointDepth / 2) : step.x + step.width - 12}
+                          x={endLabelX}
                           y={-12}
                           label={step.endDateStr}
                         />
