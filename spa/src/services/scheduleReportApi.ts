@@ -401,3 +401,55 @@ export const fetchWeeklyAiResponses = async (
   }
   return (await res.json()) as AiResponseTabsPayload;
 };
+
+export const fetchChildIssues = async (
+  parentBars: CategoryBar[]
+): Promise<Map<number, CategoryBar[]>> => {
+  const childMap = new Map<number, CategoryBar[]>();
+
+  // Mock implementation for demonstration
+  // In a real scenario, this would fetch from an API endpoint
+  // Simulating network delay
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  parentBars.forEach((parent) => {
+    // skip if no valid dates
+    if (!parent.start_date || !parent.end_date) return;
+
+    // Generate 2-3 children
+    const numChildren = 2 + (parent.category_id % 2);
+    const children: CategoryBar[] = [];
+    const parentStart = new Date(parent.start_date);
+    const parentEnd = new Date(parent.end_date);
+    const totalDays = Math.max(1, (parentEnd.getTime() - parentStart.getTime()) / (1000 * 3600 * 24));
+    const stepDays = Math.max(1, Math.floor(totalDays / numChildren));
+
+    for (let i = 0; i < numChildren; i++) {
+      const start = new Date(parentStart);
+      start.setDate(parentStart.getDate() + i * stepDays);
+      const end = new Date(start);
+      end.setDate(start.getDate() + stepDays - 1);
+
+      // Ensure strictly within parent range for last item
+      if (i === numChildren - 1 || end > parentEnd) {
+        end.setTime(parentEnd.getTime());
+      }
+
+      children.push({
+        ...parent,
+        category_id: parent.category_id * 1000 + i, // Mock ID
+        category_name: `${parent.category_name} - Step ${i + 1}`,
+        ticket_subject: `${parent.ticket_subject || parent.category_name} - Step ${i + 1}`,
+        start_date: start.toISOString().split('T')[0],
+        end_date: end.toISOString().split('T')[0],
+        progress_rate: parent.progress_rate, // Inherit
+        issue_count: 0,
+        delayed_issue_count: 0,
+        is_delayed: false
+      });
+    }
+    childMap.set(parent.category_id, children);
+  });
+
+  return childMap;
+};

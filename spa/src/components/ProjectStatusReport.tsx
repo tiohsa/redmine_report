@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     fetchWeeklyAiResponses,
+    fetchChildIssues,
     CategoryBar,
     ProjectInfo,
     WeeklyApiError
@@ -100,6 +101,9 @@ export const ProjectStatusReport = ({
     const [chartScale, setChartScale] = useState<number>(() => readStoredChartScale());
     const [showAllDates, setShowAllDates] = useState<boolean>(() => readStoredShowAllDates());
     const [showTodayLine, setShowTodayLine] = useState<boolean>(() => readStoredShowTodayLine());
+    const [isProcessMode, setIsProcessMode] = useState(false);
+    const [childTicketsMap, setChildTicketsMap] = useState<Map<number, CategoryBar[]>>(new Map());
+    const [isLoadingChildren, setIsLoadingChildren] = useState(false);
     const statuses = useMemo(() => Object.values(buildStatusStyles()), []);
 
     const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
@@ -146,6 +150,16 @@ export const ProjectStatusReport = ({
         writeStoredScheduleViewSetting(SHOW_TODAY_LINE_STORAGE_KEY, String(showTodayLine));
     }, [showTodayLine]);
 
+    useEffect(() => {
+        if (isProcessMode && bars.length > 0) {
+            setIsLoadingChildren(true);
+            fetchChildIssues(bars).then((map) => {
+                setChildTicketsMap(map);
+                setIsLoadingChildren(false);
+            });
+        }
+    }, [isProcessMode, bars]);
+
     useLayoutEffect(() => {
         if (!containerRef.current) return;
 
@@ -174,9 +188,11 @@ export const ProjectStatusReport = ({
                 bars,
                 selectedVersions,
                 projectMap,
-                containerWidth
+                containerWidth,
+                isProcessMode,
+                childTicketsMap
             }),
-        [bars, selectedVersions, projectMap, containerWidth]
+        [bars, selectedVersions, projectMap, containerWidth, isProcessMode, childTicketsMap]
     );
 
     const allVersions = useMemo(() => {
@@ -507,6 +523,26 @@ export const ProjectStatusReport = ({
                                 </div>
                             )}
                         </div>
+
+                        {/* Process Mode Toggle */}
+                        <button
+                            onClick={() => setIsProcessMode(!isProcessMode)}
+                            className={isProcessMode ? activeIconButtonStyle : iconButtonStyle}
+                            title={t('filter.processMode', { defaultValue: 'Process Mode' })}
+                            aria-pressed={isProcessMode}
+                        >
+                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                            <span
+                                className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded border ${isProcessMode
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-slate-500 border-slate-200'
+                                }`}
+                            >
+                                {isLoadingChildren ? '...' : isProcessMode ? 'ON' : 'OFF'}
+                            </span>
+                        </button>
 
                         {/* Date Display Toggle */}
                         <button
