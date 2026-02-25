@@ -66,6 +66,7 @@ const makeBar = (overrides: Partial<CategoryBar> = {}): CategoryBar => ({
 describe('ProjectStatusReport Process Mode', () => {
   beforeEach(() => {
     fetchChildIssuesMock.mockReset();
+    window.localStorage.removeItem('redmine_report.schedule.processMode');
     useUiStore.setState({
       rootProjectIdentifier: 'ecookbook',
       currentProjectIdentifier: 'ecookbook',

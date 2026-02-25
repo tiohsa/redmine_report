@@ -19,6 +19,7 @@ import { getDateFnsLocale, getLocale, t } from '../i18n';
 const CHART_SCALE_STORAGE_KEY = 'redmine_report.schedule.chartScale';
 const SHOW_ALL_DATES_STORAGE_KEY = 'redmine_report.schedule.showAllDates';
 const SHOW_TODAY_LINE_STORAGE_KEY = 'redmine_report.schedule.showTodayLine';
+const PROCESS_MODE_STORAGE_KEY = 'redmine_report.schedule.processMode';
 
 const readStoredChartScale = (): number => {
     if (typeof window === 'undefined') return 1;
@@ -47,6 +48,15 @@ const readStoredShowTodayLine = (): boolean => {
         return raw === null ? true : raw === 'true';
     } catch {
         return true;
+    }
+};
+
+const readStoredProcessMode = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+        return window.localStorage.getItem(PROCESS_MODE_STORAGE_KEY) === 'true';
+    } catch {
+        return false;
     }
 };
 
@@ -101,7 +111,7 @@ export const ProjectStatusReport = ({
     const [chartScale, setChartScale] = useState<number>(() => readStoredChartScale());
     const [showAllDates, setShowAllDates] = useState<boolean>(() => readStoredShowAllDates());
     const [showTodayLine, setShowTodayLine] = useState<boolean>(() => readStoredShowTodayLine());
-    const [isProcessMode, setIsProcessMode] = useState(false);
+    const [isProcessMode, setIsProcessMode] = useState<boolean>(() => readStoredProcessMode());
     const [childTicketsMap, setChildTicketsMap] = useState<Map<number, CategoryBar[]>>(new Map());
     const [isLoadingChildren, setIsLoadingChildren] = useState(false);
     const [processModeError, setProcessModeError] = useState<string | null>(null);
@@ -151,6 +161,10 @@ export const ProjectStatusReport = ({
     useEffect(() => {
         writeStoredScheduleViewSetting(SHOW_TODAY_LINE_STORAGE_KEY, String(showTodayLine));
     }, [showTodayLine]);
+
+    useEffect(() => {
+        writeStoredScheduleViewSetting(PROCESS_MODE_STORAGE_KEY, String(isProcessMode));
+    }, [isProcessMode]);
 
     useEffect(() => {
         const requestId = processModeRequestSeqRef.current + 1;
