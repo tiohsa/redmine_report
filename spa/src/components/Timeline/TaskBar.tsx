@@ -31,7 +31,7 @@ export const TaskBar = ({ bar, projectIdentifier, height = 32, marginTop = 10, g
         top: `${top}px`,
         zIndex: 10,
       }}
-      title={`${bar.category_name}: ${Math.round(bar.progress_rate)}% complete`}
+      title={bar.ticket_subject || bar.category_name}
     >
       {/* Progress Overlay (Filled portion) */}
       <div

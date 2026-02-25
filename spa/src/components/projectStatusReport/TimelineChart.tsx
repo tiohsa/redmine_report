@@ -450,6 +450,7 @@ function TimelineSvg({
                         style={{ cursor: step.issueId ? 'pointer' : 'default' }}
                         onClick={() => onStepClick(step.issueId, step.name)}
                       >
+                        <title>{step.name}</title>
                         <ChevronPath
                           x={barX}
                           y={0}
