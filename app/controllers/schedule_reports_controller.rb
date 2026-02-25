@@ -87,6 +87,34 @@ class ScheduleReportsController < ApplicationController
     )
   end
 
+  def child_issues
+    service = RedmineReport::ScheduleReport::ChildIssuesService.new(
+      root_project: @project,
+      user: User.current
+    )
+    result = service.call(parent_issue_ids: child_issues_payload[:parent_issue_ids])
+
+    if result[:ok]
+      render json: { items: result[:items] }
+      return
+    end
+
+    render_schedule_report_error(
+      code: result[:code],
+      message: result[:message],
+      status: result[:status],
+      retryable: result[:retryable]
+    )
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] child_issues failed: #{e.class}: #{e.message}")
+    render_schedule_report_error(
+      code: 'UPSTREAM_FAILURE',
+      message: l(:label_schedule_report_unavailable),
+      status: :service_unavailable,
+      retryable: true
+    )
+  end
+
   def task_dates
     service = RedmineReport::ScheduleReport::TaskDateUpdateService.new(
       root_project: @project,
@@ -425,5 +453,14 @@ class ScheduleReportsController < ApplicationController
     raw.slice(*%w[subject tracker_id status_id priority_id assigned_to_id done_ratio description notes])
   rescue StandardError
     {}
+  end
+
+  def child_issues_payload
+    raw = request.request_parameters.presence || {}
+    merged = raw.to_h.merge(params.permit(parent_issue_ids: [])&.to_h || {})
+    ids = Array(merged['parent_issue_ids'] || merged[:parent_issue_ids])
+    { parent_issue_ids: ids }
+  rescue StandardError
+    { parent_issue_ids: [] }
   end
 end

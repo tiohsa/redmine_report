@@ -104,6 +104,8 @@ export const ProjectStatusReport = ({
     const [isProcessMode, setIsProcessMode] = useState(false);
     const [childTicketsMap, setChildTicketsMap] = useState<Map<number, CategoryBar[]>>(new Map());
     const [isLoadingChildren, setIsLoadingChildren] = useState(false);
+    const [processModeError, setProcessModeError] = useState<string | null>(null);
+    const processModeRequestSeqRef = useRef(0);
     const statuses = useMemo(() => Object.values(buildStatusStyles()), []);
 
     const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
@@ -151,14 +153,49 @@ export const ProjectStatusReport = ({
     }, [showTodayLine]);
 
     useEffect(() => {
-        if (isProcessMode && bars.length > 0) {
-            setIsLoadingChildren(true);
-            fetchChildIssues(bars).then((map) => {
-                setChildTicketsMap(map);
-                setIsLoadingChildren(false);
-            });
+        const requestId = processModeRequestSeqRef.current + 1;
+        processModeRequestSeqRef.current = requestId;
+
+        if (!isProcessMode || bars.length === 0) {
+            setChildTicketsMap(new Map());
+            setIsLoadingChildren(false);
+            setProcessModeError(null);
+            return;
         }
-    }, [isProcessMode, bars]);
+
+        const controller = new AbortController();
+        setIsLoadingChildren(true);
+        setChildTicketsMap(new Map());
+        setProcessModeError(null);
+
+        (async () => {
+            try {
+                const map = await fetchChildIssues(rootProjectIdentifier || projectIdentifier, bars, controller.signal);
+                if (requestId !== processModeRequestSeqRef.current) return;
+                setChildTicketsMap(map);
+            } catch (error) {
+                if (controller.signal.aborted) return;
+                if (requestId !== processModeRequestSeqRef.current) return;
+                console.error('[schedule_report] failed to fetch child issues for Process Mode', error);
+                setChildTicketsMap(new Map());
+                setProcessModeError(
+                    error instanceof Error && error.message
+                        ? error.message
+                        : t('api.fetchChildIssues', {
+                            status: 0,
+                            defaultValue: 'Failed to load child issues for Process Mode'
+                        })
+                );
+            } finally {
+                if (requestId !== processModeRequestSeqRef.current) return;
+                setIsLoadingChildren(false);
+            }
+        })();
+
+        return () => {
+            controller.abort();
+        };
+    }, [isProcessMode, bars, rootProjectIdentifier, projectIdentifier]);
 
     useLayoutEffect(() => {
         if (!containerRef.current) return;
@@ -613,6 +650,14 @@ export const ProjectStatusReport = ({
                 {fetchError && (
                     <div className="mb-6 bg-red-50 border border-red-100 text-red-600 px-5 py-4 rounded-xl relative" role="alert">
                         <span className="block sm:inline text-sm font-bold">{fetchError}</span>
+                    </div>
+                )}
+
+                {processModeError && isProcessMode && (
+                    <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800" role="alert">
+                        <span className="block text-sm font-semibold">
+                            {t('filter.processMode', { defaultValue: 'Process Mode' })}: {processModeError}
+                        </span>
                     </div>
                 )}
 
