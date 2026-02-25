@@ -401,3 +401,46 @@ export const fetchWeeklyAiResponses = async (
   }
   return (await res.json()) as AiResponseTabsPayload;
 };
+
+type ChildIssueBarsResponse = {
+  items?: Array<{
+    parent_issue_id: number;
+    children: CategoryBar[];
+  }>;
+};
+
+export const fetchChildIssues = async (
+  projectIdentifier: string,
+  parentBars: CategoryBar[],
+  signal?: AbortSignal
+): Promise<Map<number, CategoryBar[]>> => {
+  const parentIssueIds = Array.from(new Set(parentBars.map((bar) => bar.category_id).filter((id) => Number.isInteger(id))));
+  if (parentIssueIds.length === 0) return new Map();
+
+  const path = `/projects/${projectIdentifier}/schedule_report/child_issues`;
+  const res = await fetch(path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
+    },
+    body: JSON.stringify({ parent_issue_ids: parentIssueIds })
+  });
+
+  if (!res.ok) {
+    throw await parseWeeklyError(res, t('api.fetchChildIssues', {
+      status: res.status,
+      defaultValue: `Failed to load child issues (${res.status})`
+    }));
+  }
+
+  const json = (await res.json()) as ChildIssueBarsResponse;
+  const childMap = new Map<number, CategoryBar[]>();
+  (json.items || []).forEach((item) => {
+    if (!Number.isInteger(item.parent_issue_id) || !Array.isArray(item.children)) return;
+    childMap.set(item.parent_issue_id, item.children);
+  });
+  return childMap;
+};

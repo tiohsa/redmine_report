@@ -28,6 +28,7 @@ Redmine::Plugin.register :redmine_report do
                  task_masters
                  task_update
                  update_journal
+                 child_issues
                  weekly_versions
                  weekly_validate_destination
                  weekly_prepare

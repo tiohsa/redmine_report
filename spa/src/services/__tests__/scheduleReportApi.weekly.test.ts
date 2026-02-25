@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchChildIssues,
   fetchTaskDetails,
   fetchWeeklyAiResponses,
   generateWeeklyReport,
@@ -122,5 +123,81 @@ describe('scheduleReportApi weekly methods', () => {
     const issue = await updateTaskDates('ecookbook', 10, { start_date: '2026-02-02', due_date: '2026-02-11' });
     expect(issue.start_date).toBe('2026-02-02');
     expect(issue.due_date).toBe('2026-02-11');
+  });
+
+  it('maps child issues response into parent keyed map', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            parent_issue_id: 10,
+            children: [
+              {
+                bar_key: '1:issue:11',
+                project_id: 1,
+                category_id: 11,
+                category_name: 'Child',
+                version_id: 2,
+                version_name: 'v1',
+                ticket_subject: 'Child',
+                start_date: '2026-02-02',
+                end_date: '2026-02-03',
+                issue_count: 1,
+                delayed_issue_count: 0,
+                progress_rate: 20,
+                is_delayed: false,
+                dependencies: []
+              }
+            ]
+          }
+        ]
+      })
+    }));
+
+    const map = await fetchChildIssues('ecookbook', [{
+      bar_key: '1:issue:10',
+      project_id: 1,
+      category_id: 10,
+      category_name: 'Parent',
+      version_id: 2,
+      version_name: 'v1',
+      ticket_subject: 'Parent',
+      start_date: '2026-02-01',
+      end_date: '2026-02-10',
+      issue_count: 1,
+      delayed_issue_count: 0,
+      progress_rate: 0,
+      is_delayed: false,
+      dependencies: []
+    }]);
+
+    expect(map.get(10)).toHaveLength(1);
+    expect(map.get(10)?.[0].category_id).toBe(11);
+  });
+
+  it('throws WeeklyApiError when child issues fetch fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ code: 'UPSTREAM_FAILURE', message: 'unavailable' })
+    }));
+
+    await expect(
+      fetchChildIssues('ecookbook', [{
+        bar_key: '1:issue:10',
+        project_id: 1,
+        category_id: 10,
+        category_name: 'Parent',
+        ticket_subject: 'Parent',
+        start_date: '2026-02-01',
+        end_date: '2026-02-10',
+        issue_count: 1,
+        delayed_issue_count: 0,
+        progress_rate: 0,
+        is_delayed: false,
+        dependencies: []
+      }])
+    ).rejects.toBeInstanceOf(WeeklyApiError);
   });
 });

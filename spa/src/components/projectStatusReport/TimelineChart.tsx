@@ -102,7 +102,7 @@ type TimelineChartProps = {
   activeReportLaneKey?: string | null;
 };
 
-const BASE_LANE_HEIGHT = 130;
+const BASE_LANE_HEIGHT = 80;
 const BASE_POINT_DEPTH = 15;
 const BASE_BAR_HEIGHT = 40;
 const yearRowHeight = 25;
@@ -450,6 +450,7 @@ function TimelineSvg({
                         style={{ cursor: step.issueId ? 'pointer' : 'default' }}
                         onClick={() => onStepClick(step.issueId, step.name)}
                       >
+                        <title>{step.name}</title>
                         <ChevronPath
                           x={barX}
                           y={0}

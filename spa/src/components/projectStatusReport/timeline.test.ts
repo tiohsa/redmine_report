@@ -171,4 +171,92 @@ describe('buildTimelineViewModel', () => {
 
     vi.useRealTimers();
   });
+
+  it('should replace parent tickets with child tickets in Process Mode', () => {
+    const parentBar: CategoryBar = {
+      category_id: 100,
+      category_name: 'Parent Task',
+      start_date: '2026-03-01',
+      end_date: '2026-03-31',
+      progress_rate: 50,
+      project_id: 1,
+      version_name: 'v1',
+      issue_count: 0,
+      delayed_issue_count: 0,
+      is_delayed: false,
+      dependencies: [],
+      bar_key: 'key1'
+    };
+
+    const childBar1: CategoryBar = {
+      ...parentBar,
+      category_id: 101,
+      category_name: 'Child 1',
+      start_date: '2026-03-01',
+      end_date: '2026-03-15'
+    };
+    const childBar2: CategoryBar = {
+      ...parentBar,
+      category_id: 102,
+      category_name: 'Child 2',
+      start_date: '2026-03-16',
+      end_date: '2026-03-31'
+    };
+
+    const projectMap = new Map<number, ProjectInfo>();
+    projectMap.set(1, { project_id: 1, name: 'Project 1', identifier: 'p1', level: 0 });
+
+    const childTicketsMap = new Map<number, CategoryBar[]>();
+    childTicketsMap.set(100, [childBar1, childBar2]);
+
+    const viewModel = buildTimelineViewModel({
+      bars: [parentBar],
+      selectedVersions: ['v1'],
+      projectMap,
+      containerWidth: 1000,
+      isProcessMode: true,
+      childTicketsMap
+    });
+
+    const lane = viewModel.timelineData[0];
+    expect(lane.steps).toHaveLength(2);
+    expect(lane.steps[0].issueId).toBe(101); // Child 1
+    expect(lane.steps[1].issueId).toBe(102); // Child 2
+  });
+
+  it('should fallback to parent ticket if no children in Process Mode', () => {
+    const parentBar: CategoryBar = {
+      category_id: 200,
+      category_name: 'Parent Task 2',
+      start_date: '2026-04-01',
+      end_date: '2026-04-30',
+      progress_rate: 0,
+      project_id: 1,
+      version_name: 'v1',
+      issue_count: 0,
+      delayed_issue_count: 0,
+      is_delayed: false,
+      dependencies: [],
+      bar_key: 'key2'
+    };
+
+    const projectMap = new Map<number, ProjectInfo>();
+    projectMap.set(1, { project_id: 1, name: 'Project 1', identifier: 'p1', level: 0 });
+
+    // Empty child map
+    const childTicketsMap = new Map<number, CategoryBar[]>();
+
+    const viewModel = buildTimelineViewModel({
+      bars: [parentBar],
+      selectedVersions: ['v1'],
+      projectMap,
+      containerWidth: 1000,
+      isProcessMode: true,
+      childTicketsMap
+    });
+
+    const lane = viewModel.timelineData[0];
+    expect(lane.steps).toHaveLength(1);
+    expect(lane.steps[0].issueId).toBe(200); // Parent
+  });
 });

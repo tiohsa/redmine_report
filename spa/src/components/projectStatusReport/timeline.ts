@@ -65,6 +65,8 @@ type TimelineCalculationInput = {
   selectedVersions: string[];
   projectMap: Map<number, ProjectInfo>;
   containerWidth: number;
+  isProcessMode?: boolean;
+  childTicketsMap?: Map<number, CategoryBar[]>;
 };
 
 const DEFAULT_TIMELINE_WIDTH = 1000;
@@ -74,7 +76,9 @@ export function buildTimelineViewModel({
   bars,
   selectedVersions,
   projectMap,
-  containerWidth
+  containerWidth,
+  isProcessMode = false,
+  childTicketsMap = new Map()
 }: TimelineCalculationInput): TimelineViewModel {
   const statusStyles = buildStatusStyles();
   const visibleBars = bars.filter((bar) => {
@@ -119,7 +123,9 @@ export function buildTimelineViewModel({
     projectMap,
     getX,
     getWidth,
-    statusStyles
+    statusStyles,
+    isProcessMode,
+    childTicketsMap
   });
 
   return {
@@ -232,7 +238,9 @@ function buildTimelineData({
   projectMap,
   getX,
   getWidth,
-  statusStyles
+  statusStyles,
+  isProcessMode,
+  childTicketsMap
 }: {
   bars: CategoryBar[];
   selectedVersions: string[];
@@ -240,6 +248,8 @@ function buildTimelineData({
   getX: (dateStr?: string) => number;
   getWidth: (startStr?: string, endStr?: string) => number;
   statusStyles: Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDING', StatusStyle>;
+  isProcessMode: boolean;
+  childTicketsMap: Map<number, CategoryBar[]>;
 }): TimelineLane[] {
   const groupedByProject = new Map<number, Map<string, CategoryBar[]>>();
 
@@ -266,7 +276,22 @@ function buildTimelineData({
     const projectIdentifier = project?.identifier || '';
 
     Array.from(versionMap.entries()).forEach(([versionKey, versionBars]) => {
-      const sortedBars = [...versionBars]
+      let displayBars = [...versionBars];
+
+      if (isProcessMode) {
+        const processedBars: CategoryBar[] = [];
+        displayBars.forEach((parent) => {
+          const children = childTicketsMap.get(parent.category_id);
+          if (children && children.length > 0) {
+            processedBars.push(...children);
+          } else {
+            processedBars.push(parent);
+          }
+        });
+        displayBars = processedBars;
+      }
+
+      const sortedBars = displayBars
         .filter((bar) => bar.start_date && bar.end_date)
         .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
       const versionId = sortedBars.find((bar) => typeof bar.version_id === 'number')?.version_id;

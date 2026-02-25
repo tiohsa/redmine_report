@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     fetchWeeklyAiResponses,
+    fetchChildIssues,
     CategoryBar,
     ProjectInfo,
     WeeklyApiError
@@ -18,6 +19,7 @@ import { getDateFnsLocale, getLocale, t } from '../i18n';
 const CHART_SCALE_STORAGE_KEY = 'redmine_report.schedule.chartScale';
 const SHOW_ALL_DATES_STORAGE_KEY = 'redmine_report.schedule.showAllDates';
 const SHOW_TODAY_LINE_STORAGE_KEY = 'redmine_report.schedule.showTodayLine';
+const PROCESS_MODE_STORAGE_KEY = 'redmine_report.schedule.processMode';
 
 const readStoredChartScale = (): number => {
     if (typeof window === 'undefined') return 1;
@@ -46,6 +48,15 @@ const readStoredShowTodayLine = (): boolean => {
         return raw === null ? true : raw === 'true';
     } catch {
         return true;
+    }
+};
+
+const readStoredProcessMode = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+        return window.localStorage.getItem(PROCESS_MODE_STORAGE_KEY) === 'true';
+    } catch {
+        return false;
     }
 };
 
@@ -100,6 +111,11 @@ export const ProjectStatusReport = ({
     const [chartScale, setChartScale] = useState<number>(() => readStoredChartScale());
     const [showAllDates, setShowAllDates] = useState<boolean>(() => readStoredShowAllDates());
     const [showTodayLine, setShowTodayLine] = useState<boolean>(() => readStoredShowTodayLine());
+    const [isProcessMode, setIsProcessMode] = useState<boolean>(() => readStoredProcessMode());
+    const [childTicketsMap, setChildTicketsMap] = useState<Map<number, CategoryBar[]>>(new Map());
+    const [isLoadingChildren, setIsLoadingChildren] = useState(false);
+    const [processModeError, setProcessModeError] = useState<string | null>(null);
+    const processModeRequestSeqRef = useRef(0);
     const statuses = useMemo(() => Object.values(buildStatusStyles()), []);
 
     const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
@@ -146,6 +162,55 @@ export const ProjectStatusReport = ({
         writeStoredScheduleViewSetting(SHOW_TODAY_LINE_STORAGE_KEY, String(showTodayLine));
     }, [showTodayLine]);
 
+    useEffect(() => {
+        writeStoredScheduleViewSetting(PROCESS_MODE_STORAGE_KEY, String(isProcessMode));
+    }, [isProcessMode]);
+
+    useEffect(() => {
+        const requestId = processModeRequestSeqRef.current + 1;
+        processModeRequestSeqRef.current = requestId;
+
+        if (!isProcessMode || bars.length === 0) {
+            setChildTicketsMap(new Map());
+            setIsLoadingChildren(false);
+            setProcessModeError(null);
+            return;
+        }
+
+        const controller = new AbortController();
+        setIsLoadingChildren(true);
+        setChildTicketsMap(new Map());
+        setProcessModeError(null);
+
+        (async () => {
+            try {
+                const map = await fetchChildIssues(rootProjectIdentifier || projectIdentifier, bars, controller.signal);
+                if (requestId !== processModeRequestSeqRef.current) return;
+                setChildTicketsMap(map);
+            } catch (error) {
+                if (controller.signal.aborted) return;
+                if (requestId !== processModeRequestSeqRef.current) return;
+                console.error('[schedule_report] failed to fetch child issues for Process Mode', error);
+                setChildTicketsMap(new Map());
+                setProcessModeError(
+                    error instanceof Error && error.message
+                        ? error.message
+                        : t('api.fetchChildIssues', {
+                            status: 0,
+                            defaultValue: 'Failed to load child issues for Process Mode'
+                        })
+                );
+            } finally {
+                if (requestId !== processModeRequestSeqRef.current) return;
+                setIsLoadingChildren(false);
+            }
+        })();
+
+        return () => {
+            controller.abort();
+        };
+    }, [isProcessMode, bars, rootProjectIdentifier, projectIdentifier]);
+
     useLayoutEffect(() => {
         if (!containerRef.current) return;
 
@@ -174,9 +239,11 @@ export const ProjectStatusReport = ({
                 bars,
                 selectedVersions,
                 projectMap,
-                containerWidth
+                containerWidth,
+                isProcessMode,
+                childTicketsMap
             }),
-        [bars, selectedVersions, projectMap, containerWidth]
+        [bars, selectedVersions, projectMap, containerWidth, isProcessMode, childTicketsMap]
     );
 
     const allVersions = useMemo(() => {
@@ -508,6 +575,26 @@ export const ProjectStatusReport = ({
                             )}
                         </div>
 
+                        {/* Process Mode Toggle */}
+                        <button
+                            onClick={() => setIsProcessMode(!isProcessMode)}
+                            className={isProcessMode ? activeIconButtonStyle : iconButtonStyle}
+                            title={t('filter.processMode', { defaultValue: 'Process Mode' })}
+                            aria-pressed={isProcessMode}
+                        >
+                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                            <span
+                                className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded border ${isProcessMode
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-slate-500 border-slate-200'
+                                }`}
+                            >
+                                {isLoadingChildren ? '...' : isProcessMode ? 'ON' : 'OFF'}
+                            </span>
+                        </button>
+
                         {/* Date Display Toggle */}
                         <button
                             onClick={() => setShowAllDates(!showAllDates)}
@@ -577,6 +664,14 @@ export const ProjectStatusReport = ({
                 {fetchError && (
                     <div className="mb-6 bg-red-50 border border-red-100 text-red-600 px-5 py-4 rounded-xl relative" role="alert">
                         <span className="block sm:inline text-sm font-bold">{fetchError}</span>
+                    </div>
+                )}
+
+                {processModeError && isProcessMode && (
+                    <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800" role="alert">
+                        <span className="block text-sm font-semibold">
+                            {t('filter.processMode', { defaultValue: 'Process Mode' })}: {processModeError}
+                        </span>
                     </div>
                 )}
 
