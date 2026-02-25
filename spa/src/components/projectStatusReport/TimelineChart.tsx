@@ -102,7 +102,7 @@ type TimelineChartProps = {
   activeReportLaneKey?: string | null;
 };
 
-const BASE_LANE_HEIGHT = 130;
+const BASE_LANE_HEIGHT = 80;
 const BASE_POINT_DEPTH = 15;
 const BASE_BAR_HEIGHT = 40;
 const yearRowHeight = 25;
