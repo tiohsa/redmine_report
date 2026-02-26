@@ -1,8 +1,9 @@
-import { format } from 'date-fns';
-import { useState } from 'react';
-import type { RefObject } from 'react';
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { useEffect, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { t } from '../../i18n';
-import { HeaderMonth, HeaderYear, TimelineLane } from './timeline';
+import { updateTaskDates } from '../../services/scheduleReportApi';
+import { HeaderMonth, HeaderYear, TimelineLane, TimelineStep } from './timeline';
 import { TaskDetailsDialog } from './TaskDetailsDialog';
 
 type ChevronPathProps = {
@@ -91,8 +92,12 @@ type TimelineChartProps = {
   headerMonths: HeaderMonth[];
   headerYears: HeaderYear[];
   todayX: number;
+  axisStartDateIso: string;
+  axisEndDateIso: string;
+  pixelsPerDay: number;
   containerRef: RefObject<HTMLDivElement>;
   projectIdentifier: string;
+  isProcessMode?: boolean;
   chartScale?: number;
   showAllDates?: boolean;
   showTodayLine?: boolean;
@@ -100,6 +105,33 @@ type TimelineChartProps = {
   onVersionReportClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
   onTaskDatesUpdated?: () => void;
   activeReportLaneKey?: string | null;
+};
+
+type DragMode = 'move' | 'resize-left' | 'resize-right';
+
+type DragSession = {
+  stepId: string;
+  issueId: number;
+  pointerId: number;
+  mode: DragMode;
+  startClientX: number;
+  originalStartIso: string;
+  originalEndIso: string;
+  currentStartIso: string;
+  currentEndIso: string;
+  moved: boolean;
+};
+
+type DragPreview = Pick<DragSession, 'currentStartIso' | 'currentEndIso'>;
+type PendingPreview = DragPreview & { stepId: string; issueId: number };
+
+type StepRenderData = {
+  startIso?: string;
+  endIso?: string;
+  startLabel?: string;
+  endLabel?: string;
+  x: number;
+  width: number;
 };
 
 const BASE_LANE_HEIGHT = 80;
@@ -112,6 +144,75 @@ const TODAY_LABEL_WIDTH = 40;
 const TODAY_LABEL_HEIGHT = 16;
 const TODAY_LABEL_OFFSET_Y = 2;
 const TODAY_LABEL_LINE_GAP = 2;
+const DRAG_THRESHOLD_PX = 4;
+const RESIZE_HANDLE_PX = 10;
+const MIN_CENTER_CLICK_PX = 14;
+const MIN_HANDLE_ACTIVE_PX = 4;
+
+const formatShortDate = (isoDate: string) => format(parseISO(isoDate), 'M/d');
+
+const applyDateDrag = (session: DragSession, deltaDays: number): DragPreview => {
+  const originalStart = parseISO(session.originalStartIso);
+  const originalEnd = parseISO(session.originalEndIso);
+
+  if (session.mode === 'move') {
+    return {
+      currentStartIso: format(addDays(originalStart, deltaDays), 'yyyy-MM-dd'),
+      currentEndIso: format(addDays(originalEnd, deltaDays), 'yyyy-MM-dd')
+    };
+  }
+
+  if (session.mode === 'resize-left') {
+    const nextStart = addDays(originalStart, deltaDays);
+    const clampedStart = nextStart > originalEnd ? originalEnd : nextStart;
+    return {
+      currentStartIso: format(clampedStart, 'yyyy-MM-dd'),
+      currentEndIso: session.originalEndIso
+    };
+  }
+
+  const nextEnd = addDays(originalEnd, deltaDays);
+  const clampedEnd = nextEnd < originalStart ? originalStart : nextEnd;
+  return {
+    currentStartIso: session.originalStartIso,
+    currentEndIso: format(clampedEnd, 'yyyy-MM-dd')
+  };
+};
+
+const buildStepRenderData = (
+  step: TimelineStep,
+  preview: DragPreview | null,
+  axisStartDate: Date,
+  pixelsPerDay: number
+): StepRenderData => {
+  const startIso = preview?.currentStartIso || step.startDateIso;
+  const endIso = preview?.currentEndIso || step.endDateIso;
+
+  if (!startIso || !endIso || !Number.isFinite(pixelsPerDay) || pixelsPerDay <= 0) {
+    return {
+      x: step.x,
+      width: step.width,
+      startIso,
+      endIso,
+      startLabel: step.startDateStr,
+      endLabel: step.endDateStr
+    };
+  }
+
+  const start = parseISO(startIso);
+  const end = parseISO(endIso);
+  const x = differenceInCalendarDays(start, axisStartDate) * pixelsPerDay;
+  const width = Math.max(differenceInCalendarDays(end, start) + 1, 0.5) * pixelsPerDay;
+
+  return {
+    x,
+    width,
+    startIso,
+    endIso,
+    startLabel: formatShortDate(startIso),
+    endLabel: formatShortDate(endIso)
+  };
+};
 
 export function TimelineChart({
   timelineData,
@@ -119,8 +220,12 @@ export function TimelineChart({
   headerMonths,
   headerYears,
   todayX,
+  axisStartDateIso,
+  axisEndDateIso,
+  pixelsPerDay,
   containerRef,
   projectIdentifier,
+  isProcessMode = false,
   chartScale = 1,
   showAllDates = false,
   showTodayLine = true,
@@ -131,6 +236,7 @@ export function TimelineChart({
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
   const [activeIssue, setActiveIssue] = useState<{ id: number; title: string } | null>(null);
+  const [timelineEditError, setTimelineEditError] = useState<string | null>(null);
 
   const handleStepClick = (issueId?: number, title?: string) => {
     if (!issueId) return;
@@ -257,15 +363,28 @@ export function TimelineChart({
             headerMonths={headerMonths}
             headerYears={headerYears}
             todayX={todayX}
+            axisStartDateIso={axisStartDateIso}
+            axisEndDateIso={axisEndDateIso}
+            pixelsPerDay={pixelsPerDay}
+            projectIdentifier={projectIdentifier}
+            isProcessMode={isProcessMode}
             onStepClick={handleStepClick}
             activeReportLaneKey={activeReportLaneKey}
             laneHeight={laneHeight}
             chartScale={chartScale}
             showAllDates={showAllDates}
             showTodayLine={showTodayLine}
+            onTaskDatesUpdated={onTaskDatesUpdated}
+            onEditError={setTimelineEditError}
           />
         </div>
       </div>
+
+      {timelineEditError && (
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="alert">
+          {timelineEditError}
+        </div>
+      )}
 
       {activeIssue && (
         <TaskDetailsDialog
@@ -287,7 +406,14 @@ function TimelineSvg({
   headerMonths,
   headerYears,
   todayX,
+  axisStartDateIso,
+  axisEndDateIso,
+  pixelsPerDay,
+  projectIdentifier,
+  isProcessMode,
   onStepClick,
+  onTaskDatesUpdated,
+  onEditError,
   activeReportLaneKey,
   laneHeight,
   chartScale = 1,
@@ -299,7 +425,14 @@ function TimelineSvg({
   headerMonths: HeaderMonth[];
   headerYears: HeaderYear[];
   todayX: number;
+  axisStartDateIso: string;
+  axisEndDateIso: string;
+  pixelsPerDay: number;
+  projectIdentifier: string;
+  isProcessMode: boolean;
   onStepClick: (issueId?: number, title?: string) => void;
+  onTaskDatesUpdated?: () => void;
+  onEditError?: (message: string | null) => void;
   activeReportLaneKey?: string | null;
   laneHeight: number;
   chartScale?: number;
@@ -308,6 +441,97 @@ function TimelineSvg({
 }) {
   const svgHeight = headerHeight + timelineData.length * laneHeight;
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
+  const [dragSession, setDragSession] = useState<DragSession | null>(null);
+  const [savingIssueId, setSavingIssueId] = useState<number | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<PendingPreview | null>(null);
+  const [suppressClickStepId, setSuppressClickStepId] = useState<string | null>(null);
+  const dragSessionRef = useRef<DragSession | null>(null);
+  const axisStartDate = parseISO(axisStartDateIso);
+  useEffect(() => {
+    dragSessionRef.current = dragSession;
+  }, [dragSession]);
+
+  useEffect(() => {
+    if (!dragSession) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const current = dragSessionRef.current;
+      if (!current || event.pointerId !== current.pointerId) return;
+      if (!Number.isFinite(pixelsPerDay) || pixelsPerDay <= 0) return;
+
+      event.preventDefault();
+      const deltaX = event.clientX - current.startClientX;
+      const deltaDays = Math.round(deltaX / pixelsPerDay);
+      const preview = applyDateDrag(current, deltaDays);
+      const moved = current.moved || Math.abs(deltaX) >= DRAG_THRESHOLD_PX;
+      const next: DragSession = {
+        ...current,
+        currentStartIso: preview.currentStartIso,
+        currentEndIso: preview.currentEndIso,
+        moved
+      };
+      dragSessionRef.current = next;
+      setDragSession(next);
+    };
+
+    const finishDrag = (event: PointerEvent) => {
+      const current = dragSessionRef.current;
+      if (!current || event.pointerId !== current.pointerId) return;
+
+      dragSessionRef.current = null;
+      setDragSession(null);
+      setSuppressClickStepId(current.moved ? current.stepId : null);
+
+      const changed = current.originalStartIso !== current.currentStartIso || current.originalEndIso !== current.currentEndIso;
+      if (!changed) return;
+
+      onEditError?.(null);
+      setPendingPreview({
+        stepId: current.stepId,
+        issueId: current.issueId,
+        currentStartIso: current.currentStartIso,
+        currentEndIso: current.currentEndIso
+      });
+      setSavingIssueId(current.issueId);
+
+      void (async () => {
+        try {
+          await updateTaskDates(projectIdentifier, current.issueId, {
+            start_date: current.currentStartIso,
+            due_date: current.currentEndIso
+          });
+          onTaskDatesUpdated?.();
+        } catch (error) {
+          setPendingPreview((prev) => (prev?.stepId === current.stepId ? null : prev));
+          onEditError?.(
+            error instanceof Error && error.message
+              ? error.message
+              : t('api.updateTaskDates', { status: 0, defaultValue: 'Failed to update task dates' })
+          );
+        } finally {
+          setSavingIssueId((prev) => (prev === current.issueId ? null : prev));
+        }
+      })();
+    };
+
+    const handlePointerCancel = (event: PointerEvent) => finishDrag(event);
+    const handlePointerUp = (event: PointerEvent) => finishDrag(event);
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerCancel);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerCancel);
+    };
+  }, [dragSession, pixelsPerDay, projectIdentifier, onTaskDatesUpdated, onEditError]);
+
+  useEffect(() => {
+    setSuppressClickStepId(null);
+    setPendingPreview(null);
+  }, [timelineData]);
 
   if (timelineData.length === 0) {
     return <div className="flex items-center justify-center h-32 text-gray-400">{t('common.noData')}</div>;
@@ -336,9 +560,7 @@ function TimelineSvg({
       </defs>
 
       <g transform="translate(0, 0)">
-        {/* Year Row Background */}
         <rect x={0} y={0} width={timelineWidth} height={yearRowHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
-        {/* Month Row Background */}
         <rect x={0} y={yearRowHeight} width={timelineWidth} height={monthRowHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
         {headerYears.map((year, idx) => (
           <g key={`year-${year.year}-${idx}`} transform={`translate(${year.x}, 0)`}>
@@ -425,32 +647,101 @@ function TimelineSvg({
                 const barHeight = BASE_BAR_HEIGHT * chartScale;
                 const verticalOffset = (laneHeight - barHeight) / 2;
                 const fontSize = Math.max(10, Math.round(12 * chartScale));
-
                 const isPending = step.status.code === 'PENDING';
                 const isInProgress = step.status.code === 'IN_PROGRESS';
                 const fill = isPending ? 'url(#stripePattern)' : step.status.fill;
-                const barX = step.joinsPrevious ? step.x - pointDepth : step.x;
-                const barWidth = step.joinsPrevious ? step.width + pointDepth : step.width;
+                const isDraggingThis = dragSession?.stepId === step.id;
+                const isActiveDragThis = Boolean(isDraggingThis && dragSession?.moved);
+                const getStepPreview = (targetStep: TimelineStep): DragPreview | null => {
+                  if (dragSession?.stepId === targetStep.id) {
+                    return { currentStartIso: dragSession.currentStartIso, currentEndIso: dragSession.currentEndIso };
+                  }
+                  if (pendingPreview?.stepId === targetStep.id) {
+                    return { currentStartIso: pendingPreview.currentStartIso, currentEndIso: pendingPreview.currentEndIso };
+                  }
+                  return null;
+                };
+                const preview = getStepPreview(step);
+                const renderData = buildStepRenderData(step, preview, axisStartDate, pixelsPerDay);
+                const prevStep = stepIndex > 0 ? project.steps[stepIndex - 1] : null;
+                const prevRenderData = prevStep
+                  ? buildStepRenderData(prevStep, getStepPreview(prevStep), axisStartDate, pixelsPerDay)
+                  : null;
+                const joinsPrevious = Boolean(
+                  prevRenderData?.endIso &&
+                  renderData.startIso &&
+                  differenceInCalendarDays(parseISO(renderData.startIso), parseISO(prevRenderData.endIso)) === 1
+                );
+                const barX = joinsPrevious ? renderData.x - pointDepth : renderData.x;
+                const barWidth = joinsPrevious ? renderData.width + pointDepth : renderData.width;
+                const hitX = renderData.x;
+                const hitWidth = Math.max(renderData.width, 1);
                 const taskCenterX = barX + barWidth / 2 + (isFirst ? 0 : pointDepth / 2);
                 const startLabelX = barX + (isFirst ? 12 : pointDepth + 12);
-                const endLabelX = step.startDateStr === step.endDateStr
-                  ? taskCenterX
-                  : barX + barWidth - 12;
+                const endLabelX = renderData.startLabel === renderData.endLabel ? taskCenterX : barX + barWidth - 12;
+                const hasPendingPreview = pendingPreview?.stepId === step.id;
+                const canEdit = Boolean(
+                  isProcessMode &&
+                  step.editable &&
+                  step.issueId &&
+                  renderData.startIso &&
+                  renderData.endIso &&
+                  savingIssueId === null &&
+                  !pendingPreview &&
+                  !dragSessionRef.current
+                );
+                const isSavingThis = savingIssueId === step.issueId;
+                const rawHandleWidth = Math.min(RESIZE_HANDLE_PX, Math.max(4, hitWidth / 3));
+                const maxHandleWidthByCenter = Math.max(0, (hitWidth - MIN_CENTER_CLICK_PX) / 2);
+                const handleWidth = Math.min(rawHandleWidth, maxHandleWidthByCenter);
+                const enableResizeHandles = handleWidth >= MIN_HANDLE_ACTIVE_PX;
+                const leftHandleX = hitX;
+                const rightHandleX = Math.max(hitX + hitWidth - handleWidth, hitX);
+                const bodyCursor = isDraggingThis
+                  ? (isActiveDragThis ? 'grabbing' : 'grab')
+                  : canEdit
+                    ? 'grab'
+                    : step.issueId
+                      ? 'pointer'
+                      : 'default';
+
+                const startDrag = (event: ReactPointerEvent<SVGElement>, mode: DragMode) => {
+                  if (!canEdit || !step.issueId || !renderData.startIso || !renderData.endIso) return;
+                  if (mode !== 'move') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }
+                  onEditError?.(null);
+                  if (mode !== 'move') {
+                    setSuppressClickStepId(step.id);
+                  }
+                  const next: DragSession = {
+                    stepId: step.id,
+                    issueId: step.issueId,
+                    pointerId: event.pointerId,
+                    mode,
+                    startClientX: event.clientX,
+                    originalStartIso: renderData.startIso,
+                    originalEndIso: renderData.endIso,
+                    currentStartIso: renderData.startIso,
+                    currentEndIso: renderData.endIso,
+                    moved: false
+                  };
+                  dragSessionRef.current = next;
+                  setDragSession(next);
+                };
 
                 return {
-                  zIndex: isInProgress ? 1 : 0,
+                  zIndex: isActiveDragThis ? 10 : isSavingThis || hasPendingPreview ? 9 : isInProgress ? 1 : 0,
                   element: (
                     <g
                       key={step.id}
                       transform={`translate(0, ${verticalOffset})`}
                       onMouseEnter={() => setHoveredStepId(step.id)}
-                      onMouseLeave={() => setHoveredStepId(null)}
+                      onMouseLeave={() => setHoveredStepId((prev) => (prev === step.id ? null : prev))}
+                      opacity={isSavingThis ? 0.65 : 1}
                     >
-                      <g
-                        style={{ cursor: step.issueId ? 'pointer' : 'default' }}
-                        onClick={() => onStepClick(step.issueId, step.name)}
-                      >
-                        <title>{step.name}</title>
+                      <g pointerEvents="none">
                         <ChevronPath
                           x={barX}
                           y={0}
@@ -458,7 +749,7 @@ function TimelineSvg({
                           height={barHeight}
                           pointDepth={pointDepth}
                           isFirst={isFirst}
-                          joinsPrevious={step.joinsPrevious}
+                          joinsPrevious={joinsPrevious}
                           fill={fill}
                           stroke={step.status.stroke}
                           progress={step.progress}
@@ -467,9 +758,50 @@ function TimelineSvg({
                           separatorColor={isPending ? 'transparent' : 'white'}
                         />
                       </g>
+                      <rect
+                        x={hitX}
+                        y={0}
+                        width={hitWidth}
+                        height={barHeight}
+                        fill="transparent"
+                        style={{ cursor: bodyCursor, touchAction: 'none' }}
+                        onClick={() => {
+                          if (suppressClickStepId === step.id) {
+                            setSuppressClickStepId(null);
+                            return;
+                          }
+                          onStepClick(step.issueId, step.name);
+                        }}
+                        onPointerDown={(event) => startDrag(event, 'move')}
+                        data-step-id={step.id}
+                        data-step-issue-id={step.issueId || undefined}
+                      >
+                        <title>{step.name}</title>
+                      </rect>
+                      {isProcessMode && step.editable && enableResizeHandles && (
+                        <>
+                          <rect
+                            x={leftHandleX}
+                            y={0}
+                            width={handleWidth}
+                            height={barHeight}
+                            fill="transparent"
+                            style={{ cursor: canEdit ? 'ew-resize' : 'default', touchAction: 'none' }}
+                            onPointerDown={(event) => startDrag(event, 'resize-left')}
+                          />
+                          <rect
+                            x={rightHandleX}
+                            y={0}
+                            width={handleWidth}
+                            height={barHeight}
+                            fill="transparent"
+                            style={{ cursor: canEdit ? 'ew-resize' : 'default', touchAction: 'none' }}
+                            onPointerDown={(event) => startDrag(event, 'resize-right')}
+                          />
+                        </>
+                      )}
 
-                      {/* Task Name */}
-                      {step.width > 30 && (
+                      {renderData.width > 30 && (
                         <text
                           x={taskCenterX}
                           y={barHeight / 2}
@@ -491,21 +823,26 @@ function TimelineSvg({
                         </text>
                       )}
 
-                      {/* Start Date Label */}
-                      {step.startDateStr && (showAllDates || hoveredStepId === step.id) && step.startDateStr !== step.endDateStr && (
-                        <DateLabel
-                          x={startLabelX}
-                          y={-12}
-                          label={step.startDateStr}
-                        />
+                      {renderData.startLabel && (showAllDates || hoveredStepId === step.id || isActiveDragThis) && renderData.startLabel !== renderData.endLabel && (
+                        <DateLabel x={startLabelX} y={-12} label={renderData.startLabel} />
                       )}
 
-                      {/* End Date Label */}
-                      {step.endDateStr && (showAllDates || hoveredStepId === step.id) && (
-                        <DateLabel
-                          x={endLabelX}
-                          y={-12}
-                          label={step.endDateStr}
+                      {renderData.endLabel && (showAllDates || hoveredStepId === step.id || isActiveDragThis) && (
+                        <DateLabel x={endLabelX} y={-12} label={renderData.endLabel} />
+                      )}
+
+                      {(isActiveDragThis || isSavingThis || hasPendingPreview) && (
+                        <rect
+                          x={barX}
+                          y={0}
+                          width={Math.max(barWidth, 1)}
+                          height={barHeight}
+                          fill="none"
+                          stroke={isSavingThis ? '#2563eb' : hasPendingPreview ? '#0891b2' : '#0ea5e9'}
+                          strokeWidth="2"
+                          strokeDasharray={isSavingThis || hasPendingPreview ? '4 2' : undefined}
+                          rx="6"
+                          pointerEvents="none"
                         />
                       )}
                     </g>
@@ -529,6 +866,7 @@ function TimelineSvg({
           </g>
         );
       })}
+
     </svg>
   );
 }

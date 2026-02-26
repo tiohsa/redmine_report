@@ -24,8 +24,11 @@ export type TimelineStep = {
   status: StatusStyle;
   progress?: number;
   id: string;
+  startDateIso?: string;
+  endDateIso?: string;
   startDateStr?: string;
   endDateStr?: string;
+  editable?: boolean;
   joinsPrevious?: boolean;
 };
 
@@ -58,6 +61,9 @@ export type TimelineViewModel = {
   headerYears: HeaderYear[];
   totalDurationText: string;
   todayX: number;
+  axisStartDateIso: string;
+  axisEndDateIso: string;
+  pixelsPerDay: number;
 };
 
 type TimelineCalculationInput = {
@@ -87,13 +93,17 @@ export function buildTimelineViewModel({
   });
 
   if (bars.length === 0) {
+    const now = new Date();
     return {
       timelineData: [],
       timelineWidth: DEFAULT_TIMELINE_WIDTH,
       headerMonths: [],
       headerYears: [],
       totalDurationText: t('timeline.noDataDuration'),
-      todayX: -1
+      todayX: -1,
+      axisStartDateIso: format(now, 'yyyy-MM-dd'),
+      axisEndDateIso: format(now, 'yyyy-MM-dd'),
+      pixelsPerDay: 1
     };
   }
 
@@ -135,7 +145,10 @@ export function buildTimelineViewModel({
     headerYears,
     totalDurationText: `${format(minDate, 'yyyy/MM/dd')} - ${format(maxDate, 'yyyy/MM/dd')}`,
     // Place the "today" line at the center of today's day-cell on the date axis.
-    todayX: getX(new Date().toISOString()) + pixelsPerDay / 2
+    todayX: getX(new Date().toISOString()) + pixelsPerDay / 2,
+    axisStartDateIso: format(minDate, 'yyyy-MM-dd'),
+    axisEndDateIso: format(maxDate, 'yyyy-MM-dd'),
+    pixelsPerDay
   };
 }
 
@@ -324,8 +337,11 @@ function buildTimelineData({
           status,
           progress,
           id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`,
+          startDateIso: bar.start_date || undefined,
+          endDateIso: bar.end_date || undefined,
           startDateStr,
           endDateStr,
+          editable: Boolean(bar.category_id && bar.start_date && bar.end_date),
           joinsPrevious
         };
       });

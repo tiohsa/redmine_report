@@ -233,7 +233,7 @@ export const ProjectStatusReport = ({
         return map;
     }, [availableProjects]);
 
-    const { timelineData, timelineWidth, headerMonths, headerYears, todayX } = useMemo(
+    const { timelineData, timelineWidth, headerMonths, headerYears, todayX, axisStartDateIso, axisEndDateIso, pixelsPerDay } = useMemo(
         () =>
             buildTimelineViewModel({
                 bars,
@@ -682,8 +682,12 @@ export const ProjectStatusReport = ({
                         headerMonths={headerMonths}
                         headerYears={headerYears}
                         todayX={todayX}
+                        axisStartDateIso={axisStartDateIso}
+                        axisEndDateIso={axisEndDateIso}
+                        pixelsPerDay={pixelsPerDay}
                         containerRef={containerRef}
                         projectIdentifier={rootProjectIdentifier || projectIdentifier}
+                        isProcessMode={isProcessMode}
                         chartScale={chartScale}
                         showAllDates={showAllDates}
                         showTodayLine={showTodayLine}
