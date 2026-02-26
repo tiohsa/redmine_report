@@ -1,5 +1,5 @@
 ja:
-  label_schedule_report: "スケジュールレポート"
+  label_schedule_report: "Schedule Report"
   label_schedule_report_filters: "フィルター"
   label_schedule_report_empty: "選択したフィルターに該当するデータはありません。"
   label_schedule_report_limit_warning: "表示上限を超えました。"

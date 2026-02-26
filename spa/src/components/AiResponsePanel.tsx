@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { renderMarkdown } from '../utils/markdownRenderer';
 import type { AiResponseView } from '../types/weeklyReport';
 import { t } from '../i18n';
@@ -8,14 +9,28 @@ type AiResponsePanelProps = {
   errorMessage: string | null;
 };
 
+type EditableSectionKey = 'highlights_this_week' | 'next_week_actions' | 'risks_decisions';
+
+type EditableSections = Record<EditableSectionKey, string>;
+
 const Section = ({
   title,
   body,
-  headerColor
+  headerColor,
+  sectionKey,
+  isEditing,
+  onStartEdit,
+  onChange,
+  onFinishEdit
 }: {
   title: string;
-  body?: string | null;
+  body: string;
   headerColor: string;
+  sectionKey: EditableSectionKey;
+  isEditing: boolean;
+  onStartEdit: (key: EditableSectionKey) => void;
+  onChange: (key: EditableSectionKey, value: string) => void;
+  onFinishEdit: () => void;
 }) => {
   const html = renderMarkdown(body);
 
@@ -27,13 +42,47 @@ const Section = ({
         {title}
       </div>
       <div className="p-5 flex-1">
-        {html ? (
-          <div
-            className="markdown-body text-sm text-gray-700 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: html }}
+        {isEditing ? (
+          <textarea
+            value={body}
+            onChange={(event) => onChange(sectionKey, event.target.value)}
+            onBlur={onFinishEdit}
+            onKeyDown={(event) => {
+              if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                onFinishEdit();
+              }
+              if (event.key === 'Escape') {
+                onFinishEdit();
+              }
+            }}
+            autoFocus
+            rows={8}
+            className="w-full min-h-[180px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-gray-700 leading-relaxed outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-200"
+            data-testid={`ai-section-editor-${sectionKey}`}
           />
         ) : (
-          <p className="text-sm text-gray-400 text-center py-4">{t('common.noInfo')}</p>
+          <div
+            role="button"
+            tabIndex={0}
+            className="rounded-md -m-1 p-1 cursor-text hover:bg-slate-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-200"
+            onClick={() => onStartEdit(sectionKey)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onStartEdit(sectionKey);
+              }
+            }}
+            data-testid={`ai-section-view-${sectionKey}`}
+          >
+            {html ? (
+              <div
+                className="markdown-body text-sm text-gray-700 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-4">{t('common.noInfo')}</p>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -41,6 +90,32 @@ const Section = ({
 };
 
 export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiResponsePanelProps) => {
+  const [editingSection, setEditingSection] = useState<EditableSectionKey | null>(null);
+  const [editableSections, setEditableSections] = useState<EditableSections>({
+    highlights_this_week: '',
+    next_week_actions: '',
+    risks_decisions: ''
+  });
+
+  useEffect(() => {
+    if (!response || (response.status !== 'AVAILABLE' && response.status !== 'PARTIAL')) {
+      setEditingSection(null);
+      setEditableSections({
+        highlights_this_week: '',
+        next_week_actions: '',
+        risks_decisions: ''
+      });
+      return;
+    }
+
+    setEditingSection(null);
+    setEditableSections({
+      highlights_this_week: response.highlights_this_week ?? '',
+      next_week_actions: response.next_week_actions ?? '',
+      risks_decisions: response.risks_decisions ?? ''
+    });
+  }, [response]);
+
   if (isLoading) {
     return (
       <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">
@@ -97,18 +172,48 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         <Section
           title={t('aiPanel.sectionHighlights')}
-          body={response.highlights_this_week}
+          body={editableSections.highlights_this_week}
           headerColor="bg-[#1e5fa0]"
+          sectionKey="highlights_this_week"
+          isEditing={editingSection === 'highlights_this_week'}
+          onStartEdit={setEditingSection}
+          onChange={(key, value) =>
+            setEditableSections((prev) => ({
+              ...prev,
+              [key]: value
+            }))
+          }
+          onFinishEdit={() => setEditingSection(null)}
         />
         <Section
           title={t('aiPanel.sectionNextActions')}
-          body={response.next_week_actions}
+          body={editableSections.next_week_actions}
           headerColor="bg-[#5b9bd5]"
+          sectionKey="next_week_actions"
+          isEditing={editingSection === 'next_week_actions'}
+          onStartEdit={setEditingSection}
+          onChange={(key, value) =>
+            setEditableSections((prev) => ({
+              ...prev,
+              [key]: value
+            }))
+          }
+          onFinishEdit={() => setEditingSection(null)}
         />
         <Section
           title={t('aiPanel.sectionRisks')}
-          body={response.risks_decisions}
+          body={editableSections.risks_decisions}
           headerColor="bg-[#ef4444]"
+          sectionKey="risks_decisions"
+          isEditing={editingSection === 'risks_decisions'}
+          onStartEdit={setEditingSection}
+          onChange={(key, value) =>
+            setEditableSections((prev) => ({
+              ...prev,
+              [key]: value
+            }))
+          }
+          onFinishEdit={() => setEditingSection(null)}
         />
       </div>
     </div>

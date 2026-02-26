@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { AiResponsePanel } from '../AiResponsePanel';
 
@@ -110,5 +110,31 @@ describe('AiResponsePanel', () => {
     expect(screen.getByRole('alert').textContent).toContain('取得に失敗しました');
     expect(screen.queryByText('old value')).toBeNull();
   });
-});
 
+  it('allows inline editing by clicking a section box', () => {
+    render(
+      <AiResponsePanel
+        isLoading={false}
+        errorMessage={null}
+        response={{
+          status: 'AVAILABLE',
+          destination_issue_id: 10,
+          highlights_this_week: '- 項目A',
+          next_week_actions: null,
+          risks_decisions: null
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('ai-section-view-highlights_this_week'));
+
+    const editor = screen.getByTestId('ai-section-editor-highlights_this_week') as HTMLTextAreaElement;
+    expect(editor.value).toBe('- 項目A');
+
+    fireEvent.change(editor, { target: { value: '- 項目A\n- 項目B' } });
+    fireEvent.blur(editor);
+
+    expect(screen.queryByTestId('ai-section-editor-highlights_this_week')).toBeNull();
+    expect(screen.getByText('項目B')).toBeTruthy();
+  });
+});
