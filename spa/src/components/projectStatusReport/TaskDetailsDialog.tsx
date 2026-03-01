@@ -31,6 +31,7 @@ type IssueTreeNodeProps = {
   savingIssueIds: Record<number, boolean>;
   handleDateChange: (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => void;
   onAddSubIssue: (parentIssue: TaskDetailIssue) => void;
+  onEditIssue: (issue: TaskDetailIssue) => void;
   onSelectIssue?: (node: TreeNodeType) => void;
   selectedIssueId?: number | null;
   masters: TaskMasters | null;
@@ -48,6 +49,7 @@ const IssueTreeNode = ({
   savingIssueIds,
   handleDateChange,
   onAddSubIssue,
+  onEditIssue,
   onSelectIssue,
   selectedIssueId,
   masters,
@@ -222,6 +224,17 @@ const IssueTreeNode = ({
                 >
                   <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded cursor-pointer"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEditIssue(node); }}
+                  title={t('timeline.editIssue')}
+                  aria-label={t('timeline.editIssue')}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
                   </svg>
                 </button>
               </div>
@@ -408,6 +421,7 @@ const IssueTreeNode = ({
           savingIssueIds={savingIssueIds}
           handleDateChange={handleDateChange}
           onAddSubIssue={onAddSubIssue}
+          onEditIssue={onEditIssue}
           onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
           masters={masters}
@@ -865,6 +879,16 @@ function IssueEditDialog({
     return { doc, form };
   };
 
+  const hasEmbeddedIssueForm = (doc: Document): boolean =>
+    Boolean(
+      doc.querySelector<HTMLFormElement>('form#issue-form') ||
+      doc.querySelector<HTMLFormElement>('form#edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form#new_issue') ||
+      doc.querySelector<HTMLFormElement>('#issue-form form') ||
+      doc.querySelector<HTMLFormElement>('form.edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form.new_issue')
+    );
+
   const submitDefaultIssueForm = () => {
     try {
       const { form } = findEmbeddedIssueForm();
@@ -941,7 +965,7 @@ function IssueEditDialog({
             <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
               #{issueId}
             </span>
-            <span className="text-[13px] font-semibold text-slate-700">{t('timeline.editIssueDialogTitle', { defaultValue: 'Edit Issue' })}</span>
+            <span className="text-[13px] font-semibold text-slate-700">{t('timeline.editIssueDialogTitle')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <a
@@ -949,7 +973,7 @@ function IssueEditDialog({
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
-              title={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
+              title={t('timeline.editIssue')}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14 4h6v6" />
@@ -959,7 +983,7 @@ function IssueEditDialog({
             </a>
             <button
               type="button"
-              aria-label={t('timeline.closeEditIssueDialogAria', { defaultValue: 'Close edit issue dialog' })}
+              aria-label={t('timeline.closeEditIssueDialogAria')}
               className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
               onClick={onClose}
             >
@@ -973,7 +997,7 @@ function IssueEditDialog({
         <div className="relative flex-1 min-h-[400px] bg-white">
           <iframe
             ref={iframeRef}
-            title={t('timeline.editIssueDialogTitle', { defaultValue: 'Edit Issue' })}
+            title={t('timeline.editIssueDialogTitle')}
             src={iframeUrl}
             className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
             onLoad={(e) => {
@@ -1032,7 +1056,11 @@ function IssueEditDialog({
                 normalizeEmbeddedFormActions(doc);
 
                 const pathname = doc.location?.pathname || '';
-                if (!handledSaveRef.current && new RegExp(`^/issues/${issueId}(?:/)?$`).test(pathname)) {
+                if (
+                  !handledSaveRef.current &&
+                  new RegExp(`^/issues/${issueId}(?:/)?$`).test(pathname) &&
+                  !hasEmbeddedIssueForm(doc)
+                ) {
                   handledSaveRef.current = true;
                   onSaved?.(issueId);
                   onClose();
@@ -1389,11 +1417,6 @@ export function TaskDetailsDialog({
         {/* Header */}
         <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-white relative z-10 border-b border-slate-200 flex-shrink-0 h-12 box-border">
           <div className="flex flex-row items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.25}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
             <h3 className="text-[16px] font-semibold text-slate-800 flex items-center gap-2 min-w-0">
               {issueTitle ? <><span className="truncate">{issueTitle}</span> <span className="text-slate-300 font-semibold text-sm shrink-0">#{issueId}</span></> : `#${issueId}`}
             </h3>
@@ -1481,6 +1504,10 @@ export function TaskDetailsDialog({
                         startDate: parentIssue.start_date,
                         dueDate: parentIssue.due_date
                       })}
+                      onEditIssue={(issue) => setEditIssueContext({
+                        issueId: issue.issue_id,
+                        issueUrl: issue.issue_url
+                      })}
                       onSelectIssue={(issue) => {
                         setSelectedIssue(issue);
                         setEditingDescription(false);
@@ -1528,8 +1555,8 @@ export function TaskDetailsDialog({
                       <button
                         type="button"
                         className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm cursor-pointer transition-colors"
-                        title={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
-                        aria-label={t('timeline.editIssue', { defaultValue: 'Edit in Redmine' })}
+                        title={t('timeline.editIssue')}
+                        aria-label={t('timeline.editIssue')}
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditIssueContext({

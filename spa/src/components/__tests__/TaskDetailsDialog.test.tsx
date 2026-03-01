@@ -139,6 +139,83 @@ describe('TaskDetailsDialog', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('opens edit issue dialog from the hovered row edit icon', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTitle(/Edit in Redmine|チケットを編集/));
+
+    const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
+    expect(iframe).toBeTruthy();
+    expect(iframe.getAttribute('src')).toBe('/issues/10/edit');
+  });
+
+  it('keeps edit issue dialog open when validation error returns edit form on /issues/:id', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTitle(/Edit in Redmine|チケットを編集/));
+
+    const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
+    const styleElement = { textContent: '' } as unknown as HTMLStyleElement;
+    const fakeDoc = {
+      head: { appendChild: vi.fn() },
+      createElement: vi.fn(() => styleElement),
+      querySelectorAll: vi.fn(() => []),
+      querySelector: vi.fn((selector: string) => (selector === 'form#issue-form' ? ({}) : null)),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      location: { pathname: '/issues/10' }
+    } as unknown as Document;
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: fakeDoc
+    });
+
+    fireEvent.load(iframe);
+
+    expect(screen.queryByTitle(/Edit Issue|チケット編集/)).toBeTruthy();
+  });
+
   it('reloads task details after a sub-issue is created', async () => {
     fetchTaskDetailsMock
       .mockResolvedValueOnce([
