@@ -343,7 +343,7 @@ export const ProjectStatusReport = ({
                                 )}
                             </button>
                             {isProjectOpen && (
-                                <div className={filterDropdownPanelStyle}>
+                                <div className={filterDropdownPanelStyle} onMouseDown={(event) => event.stopPropagation()}>
                                     <div className={filterDropdownTitleStyle}>{t('filter.project')}</div>
                                     <div
                                         className={filterDropdownRowStyle}
@@ -427,7 +427,7 @@ export const ProjectStatusReport = ({
                                 )}
                             </button>
                             {isVersionOpen && onVersionChange && (
-                                <div className={filterDropdownPanelStyle}>
+                                <div className={filterDropdownPanelStyle} onMouseDown={(event) => event.stopPropagation()}>
                                     <div className={filterDropdownTitleStyle}>{t('filter.version')}</div>
                                     <div
                                         className={filterDropdownRowStyle}

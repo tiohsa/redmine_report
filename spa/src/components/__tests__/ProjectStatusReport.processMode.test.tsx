@@ -83,6 +83,37 @@ describe('ProjectStatusReport Process Mode', () => {
     }
   });
 
+
+
+  it('keeps project and version dropdowns open when selecting options', async () => {
+    render(
+      <ProjectStatusReport
+        bars={[makeBar({ category_id: 100 })]}
+        projectIdentifier="ecookbook"
+        availableProjects={[
+          { project_id: 1, identifier: 'ecookbook', name: 'eCookbook', level: 0, selectable: true },
+          { project_id: 2, identifier: 'child', name: 'Child', level: 1, selectable: true }
+        ]}
+        selectedVersions={['v1']}
+        onVersionChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle(/project|プロジェクト/i));
+    const childOption = screen.getByText('Child');
+    fireEvent.mouseDown(childOption);
+    fireEvent.click(childOption);
+
+    expect(screen.getByText('Child')).toBeTruthy();
+
+    fireEvent.click(screen.getByTitle(/version|バージョン/i));
+    const versionOption = screen.getAllByText('v1')[0];
+    fireEvent.mouseDown(versionOption);
+    fireEvent.click(versionOption);
+
+    expect(screen.getAllByText('v1').length).toBeGreaterThan(0);
+  });
+
   it('clears loading and keeps parent steps when child fetch fails', async () => {
     fetchChildIssuesMock.mockRejectedValueOnce(new Error('boom'));
 
