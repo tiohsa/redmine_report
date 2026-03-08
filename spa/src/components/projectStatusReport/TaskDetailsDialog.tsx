@@ -40,6 +40,109 @@ type IssueTreeNodeProps = {
 
 type EditingCell = { field: string; value: string };
 
+type ProcessFlowStep = {
+  id: number;
+  title: string;
+  rangeLabel: string;
+  startDate: string;
+  dueDate: string;
+  status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
+  progress: number;
+};
+
+const processStatusStyles: Record<ProcessFlowStep['status'], { fill: string; text: string; stroke: string }> = {
+  COMPLETED: { fill: '#1e3a8a', text: '#ffffff', stroke: '#1e3a8a' },
+  IN_PROGRESS: { fill: '#2563eb', text: '#1e3a8a', stroke: '#2563eb' },
+  PENDING: { fill: '#f1f5f9', text: '#475569', stroke: '#94a3b8' }
+};
+
+const ProcessChevron = ({
+  x,
+  y,
+  width,
+  height,
+  pointDepth,
+  isFirst,
+  fill,
+  stroke,
+  progress,
+  id
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pointDepth: number;
+  isFirst: boolean;
+  fill: string;
+  stroke: string;
+  progress: number;
+  id: number;
+}) => {
+  const hasLeftNotch = !isFirst;
+  const leftShape = !hasLeftNotch
+    ? `M ${x} ${y} L ${x} ${y + height}`
+    : `M ${x} ${y} L ${x + pointDepth} ${y + height / 2} L ${x} ${y + height}`;
+  const rightBaseX = x + Math.max(width - pointDepth, 0);
+  const rightTipX = x + width;
+  const rightShape = `L ${rightBaseX} ${y + height} L ${rightTipX} ${y + height / 2} L ${rightBaseX} ${y}`;
+  const pathData = `${leftShape} ${rightShape} Z`;
+
+  if (progress > 0 && progress < 100) {
+    const gradientId = `task-details-grad-${id}`;
+    return (
+      <g>
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset={`${progress}%`} stopColor={fill} />
+            <stop offset={`${progress}%`} stopColor="#cbd5e1" />
+          </linearGradient>
+        </defs>
+        <path d={pathData} fill={`url(#${gradientId})`} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+        {hasLeftNotch && <path d={leftShape} stroke="#ffffff" strokeWidth="2" fill="none" />}
+      </g>
+    );
+  }
+
+  return (
+    <g>
+      <path d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+      {hasLeftNotch && <path d={leftShape} stroke="#ffffff" strokeWidth="2" fill="none" />}
+    </g>
+  );
+};
+
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseIsoDate = (isoDate: string) => {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+};
+
+const addDaysToIsoDate = (isoDate: string, deltaDays: number) => {
+  const next = parseIsoDate(isoDate);
+  next.setDate(next.getDate() + deltaDays);
+  return toIsoDate(next);
+};
+
+type ProcessDragMode = 'move' | 'resize-left' | 'resize-right';
+
+type ProcessDragSession = {
+  issueId: number;
+  pointerId: number;
+  mode: ProcessDragMode;
+  startClientX: number;
+  originalStartDate: string;
+  originalDueDate: string;
+  currentStartDate: string;
+  currentDueDate: string;
+};
+
 const IssueTreeNode = ({
   node,
   depth,
@@ -1176,6 +1279,8 @@ export function TaskDetailsDialog({
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const hasDateChangesRef = useRef(false);
+  const [processDragSession, setProcessDragSession] = useState<ProcessDragSession | null>(null);
+  const processDragRef = useRef<ProcessDragSession | null>(null);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -1264,6 +1369,66 @@ export function TaskDetailsDialog({
     savingIssueIdsRef.current = savingIssueIds;
   }, [savingIssueIds]);
 
+  useEffect(() => {
+    processDragRef.current = processDragSession;
+  }, [processDragSession]);
+
+  useEffect(() => {
+    if (!processDragSession) return;
+
+    const onPointerMove = (event: PointerEvent) => {
+      const current = processDragRef.current;
+      if (!current) return;
+      if (typeof event.pointerId === 'number' && current.pointerId !== event.pointerId) return;
+      const deltaDays = Math.round((event.clientX - current.startClientX) / 20);
+      if (!Number.isFinite(deltaDays)) return;
+
+      let nextStart = current.originalStartDate;
+      let nextDue = current.originalDueDate;
+
+      if (current.mode === 'move') {
+        nextStart = addDaysToIsoDate(current.originalStartDate, deltaDays);
+        nextDue = addDaysToIsoDate(current.originalDueDate, deltaDays);
+      } else if (current.mode === 'resize-left') {
+        const candidateStart = addDaysToIsoDate(current.originalStartDate, deltaDays);
+        nextStart = candidateStart > current.originalDueDate ? current.originalDueDate : candidateStart;
+      } else {
+        const candidateDue = addDaysToIsoDate(current.originalDueDate, deltaDays);
+        nextDue = candidateDue < current.originalStartDate ? current.originalStartDate : candidateDue;
+      }
+
+      if (nextStart === current.currentStartDate && nextDue === current.currentDueDate) return;
+      const updated = { ...current, currentStartDate: nextStart, currentDueDate: nextDue };
+      processDragRef.current = updated;
+      setProcessDragSession(updated);
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      const current = processDragRef.current;
+      if (!current) return;
+      if (typeof event.pointerId === 'number' && current.pointerId !== event.pointerId) return;
+
+      const issue = issuesRef.current.find((item) => item.issue_id === current.issueId);
+      const hasChanged = current.currentStartDate !== current.originalStartDate || current.currentDueDate !== current.originalDueDate;
+      if (issue && hasChanged) {
+        void saveProcessFlowDates(issue, current.currentStartDate, current.currentDueDate);
+      }
+
+      processDragRef.current = null;
+      setProcessDragSession(null);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+    };
+  }, [processDragSession]);
+
   useEffect(() => () => {
     Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
     saveTimersRef.current = {};
@@ -1286,6 +1451,32 @@ export function TaskDetailsDialog({
     });
     return roots;
   }, [issues]);
+
+  const processFlowSteps = useMemo<ProcessFlowStep[]>(() => {
+    const parentIds = new Set<number>(issues.filter((issue) => issue.parent_id).map((issue) => issue.parent_id as number));
+
+    return issues
+      .filter((issue) => Boolean(issue.start_date && issue.due_date))
+      .filter((issue) => issue.issue_id !== issueId)
+      .filter((issue) => !parentIds.has(issue.issue_id))
+      .map((issue) => {
+        const progress = Math.max(0, Math.min(100, Number(issue.done_ratio ?? 0)));
+        const status: ProcessFlowStep['status'] = issue.status_is_closed || progress === 100
+          ? 'COMPLETED'
+          : progress > 0
+            ? 'IN_PROGRESS'
+            : 'PENDING';
+        return {
+          id: issue.issue_id,
+          title: issue.subject,
+          startDate: issue.start_date as string,
+          dueDate: issue.due_date as string,
+          rangeLabel: `${issue.start_date} - ${issue.due_date}`,
+          status,
+          progress
+        };
+      });
+  }, [issues, issueId]);
 
   const dialogTitle = useMemo(() => {
     if (!issueTitle) return t('timeline.ticketTitle', { id: issueId, suffix: '' });
@@ -1324,6 +1515,42 @@ export function TaskDetailsDialog({
       setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
     }
   };
+
+  const saveProcessFlowDates = useCallback(async (row: TaskDetailIssue, startDate: string, dueDate: string) => {
+    if (saveTimersRef.current[row.issue_id]) {
+      clearTimeout(saveTimersRef.current[row.issue_id]);
+      delete saveTimersRef.current[row.issue_id];
+    }
+
+    setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: true }));
+    setIssues((prev) => prev.map((item) => (
+      item.issue_id === row.issue_id ? { ...item, start_date: startDate, due_date: dueDate } : item
+    )));
+
+    try {
+      const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
+        start_date: startDate,
+        due_date: dueDate
+      });
+      updated.parent_id = row.parent_id;
+      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
+      setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
+      setSelectedIssue((prev) => (
+        prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
+      ));
+      hasDateChangesRef.current = true;
+    } catch (error: unknown) {
+      const message =
+        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
+      alert(message);
+      const baseline = baselineByIdRef.current[row.issue_id];
+      if (baseline) {
+        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
+      }
+    } finally {
+      setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
+    }
+  }, [projectIdentifier]);
 
   const handleDateChange = (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => {
     setIssues((prev) => {
@@ -1406,6 +1633,30 @@ export function TaskDetailsDialog({
     }
   };
 
+  const startProcessFlowDrag = (
+    event: React.PointerEvent<SVGRectElement>,
+    step: ProcessFlowStep,
+    mode: ProcessDragMode
+  ) => {
+    if (savingIssueIdsRef.current[step.id]) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const session: ProcessDragSession = {
+      issueId: step.id,
+      pointerId: event.pointerId,
+      mode,
+      startClientX: event.clientX,
+      originalStartDate: step.startDate,
+      originalDueDate: step.dueDate,
+      currentStartDate: step.startDate,
+      currentDueDate: step.dueDate
+    };
+
+    processDragRef.current = session;
+    setProcessDragSession(session);
+  };
+
   if (!open) return null;
 
   return (
@@ -1457,7 +1708,7 @@ export function TaskDetailsDialog({
         </div>
 
         {/* Split Panel Body */}
-        <div className="flex-1 flex min-h-0 bg-slate-100 relative">
+        <div className="flex-1 flex flex-col min-h-0 bg-slate-100 relative">
           {loading && (
             <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-30">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -1472,10 +1723,115 @@ export function TaskDetailsDialog({
 
           {!loading && issues.length > 0 && (
             <>
+              <div className="mx-6 mt-5 mb-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="px-4 py-2.5 text-[12px] font-semibold text-slate-600 border-b border-slate-100">
+                  {t('timeline.processMode', { defaultValue: 'Process Flow' })}
+                </div>
+                <div className="overflow-x-auto px-4 py-3" data-testid="task-details-process-flow">
+                  {processFlowSteps.length > 0 ? (
+                    <svg
+                      data-testid="task-details-process-flow-svg"
+                      width={Math.max(480, processFlowSteps.length * 170 + 56)}
+                      height={108}
+                      role="img"
+                      aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
+                    >
+                      {processFlowSteps.map((step, index) => {
+                        const isFirst = index === 0;
+                        const x = 18 + index * 162;
+                        const y = 8;
+                        const width = 154;
+                        const height = 42;
+                        const pointDepth = 18;
+                        const style = processStatusStyles[step.status];
+                        const textX = x + width / 2 + (isFirst ? 0 : pointDepth / 2);
+                        const currentSession = processDragSession?.issueId === step.id ? processDragSession : null;
+                        const startDate = currentSession?.currentStartDate ?? step.startDate;
+                        const dueDate = currentSession?.currentDueDate ?? step.dueDate;
+                        const rangeLabel = `${startDate} - ${dueDate}`;
+
+                        return (
+                          <g key={step.id} data-testid="task-details-process-step" opacity={savingIssueIds[step.id] ? 0.6 : 1}>
+                            <ProcessChevron
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              pointDepth={pointDepth}
+                              isFirst={isFirst}
+                              fill={style.fill}
+                              stroke={style.stroke}
+                              progress={step.progress}
+                              id={step.id}
+                            />
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              fill="transparent"
+                              style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'grab' }}
+                              onPointerDown={(event) => startProcessFlowDrag(event, step, 'move')}
+                              data-testid={`task-details-process-step-hit-${step.id}`}
+                            />
+                            <rect
+                              x={x}
+                              y={y}
+                              width={10}
+                              height={height}
+                              fill="transparent"
+                              style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
+                              onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-left')}
+                              data-testid={`task-details-process-step-left-${step.id}`}
+                            />
+                            <rect
+                              x={x + width - 10}
+                              y={y}
+                              width={10}
+                              height={height}
+                              fill="transparent"
+                              style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
+                              onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-right')}
+                              data-testid={`task-details-process-step-right-${step.id}`}
+                            />
+                            <text
+                              x={textX}
+                              y={y + 22}
+                              fill={style.text}
+                              fontSize="11"
+                              fontWeight="700"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                              pointerEvents="none"
+                            >
+                              {step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title}
+                            </text>
+                            <text
+                              x={textX}
+                              y={y + 64}
+                              fill="#64748b"
+                              fontSize="10"
+                              fontWeight="600"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              {rangeLabel}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  ) : (
+                    <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
+                  )}
+                </div>
+              </div>
+
               {/* Left Panel - Task List */}
-              <div className={`flex flex-col min-h-0 border-r border-slate-200 bg-white ${selectedIssue ? 'w-[68%]' : 'w-full'} transition-all`}>
+              <div className="flex-1 flex min-h-0 px-6 pb-6">
+                <div className={`flex flex-col min-h-0 border border-slate-200 rounded-xl bg-white ${selectedIssue ? 'w-[68%]' : 'w-full'} transition-all`}>
                 {/* Column Headers */}
-                <div className="overflow-auto flex-1 bg-white">
+                  <div className="overflow-auto flex-1 bg-white rounded-l-xl">
                   <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0">
                     <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
                       <div className="w-5 mr-1" /> {/* Spacer for expand button */}
@@ -1521,12 +1877,13 @@ export function TaskDetailsDialog({
                       onFieldUpdate={handleFieldUpdate}
                     />
                   ))}
+                  </div>
                 </div>
-              </div>
+              
 
               {/* Right Panel - Detail View */}
               {selectedIssue && (
-                <div className="w-[34%] min-w-[340px] flex flex-col min-h-0 overflow-auto bg-[#f4f6fb]">
+                <div className="w-[34%] min-w-[340px] flex flex-col min-h-0 overflow-auto bg-[#f4f6fb] border border-slate-200 rounded-xl ml-3">
                   {/* Detail Header */}
                   <div className="px-4 pt-3.5 pb-3 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-10">
                     <div className="min-w-0">
@@ -1772,6 +2129,7 @@ export function TaskDetailsDialog({
                   <div className="pb-2" />
                 </div>
               )}
+              </div>
             </>
           )}
         </div>
