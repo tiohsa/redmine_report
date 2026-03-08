@@ -149,14 +149,14 @@ const DRAG_THRESHOLD_PX = 4;
 const RESIZE_HANDLE_PX = 10;
 const MIN_CENTER_CLICK_PX = 14;
 const MIN_HANDLE_ACTIVE_PX = 4;
-const ACTIVE_LANE_BACKGROUND_FILL = '#eff6ff';
-const ALT_LANE_BACKGROUND_FILL = '#f8fafc';
+const ACTIVE_LANE_BACKGROUND_FILL = '#e0f2fe';
+const ALT_LANE_BACKGROUND_FILL = '#ffffff';
 
 const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
 const CUSTOM_GRABBING = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23475569' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grabbing`;
 
 const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
-  labelClassName: isActive ? 'bg-blue-50/70' : laneIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/80',
+  labelClassName: isActive ? 'bg-sky-200/80' : 'bg-white',
   baseFill: laneIndex % 2 === 0 ? '#ffffff' : ALT_LANE_BACKGROUND_FILL
 });
 
@@ -299,8 +299,18 @@ export function TimelineChart({
               <div
                 key={project.laneKey}
                 data-testid={`timeline-lane-label-${projectIndex}`}
-                className={`flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap transition-colors duration-300 ${laneBackground.labelClassName}`}
+                className={`flex flex-col justify-center px-6 border-b border-slate-300 box-border whitespace-nowrap transition-colors duration-300 ${laneBackground.labelClassName} ${project.versionId ? 'cursor-pointer hover:bg-sky-50/50' : ''}`}
                 style={{ height: project.height, minHeight: 60 }}
+                onClick={() =>
+                  project.versionId &&
+                  onVersionReportClick?.({
+                    versionId: project.versionId as number,
+                    versionName: project.versionName,
+                    projectId: project.projectId,
+                    projectName: project.projectName,
+                    projectIdentifier: project.projectIdentifier
+                  })
+                }
               >
                 {project.versionId ? (
                   <div className="flex items-center gap-2">
@@ -696,7 +706,7 @@ function TimelineSvg({
                 opacity="0.7"
               />
             )}
-            <line x1={0} y1={project.height} x2={timelineWidth} y2={project.height} stroke="#f3f4f6" strokeWidth="1" />
+            <line x1={0} y1={project.height} x2={timelineWidth} y2={project.height} stroke="#cbd5e1" strokeWidth="1" />
             {headerMonths.map((month, monthIndex) => (
               <line
                 key={`${project.laneKey}-month-${monthIndex}`}
