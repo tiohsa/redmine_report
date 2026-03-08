@@ -226,7 +226,7 @@ export function CreateDestinationIssueDialog({
                   #new_issue input[type="submit"] {
                     display: none !important;
                   }
-                `;
+                                `;
                                 doc.head.appendChild(style);
                                 normalizeEmbeddedFormActions(doc);
 

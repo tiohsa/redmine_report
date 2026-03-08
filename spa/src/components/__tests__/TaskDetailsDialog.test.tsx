@@ -18,6 +18,13 @@ describe('TaskDetailsDialog', () => {
   beforeEach(() => {
     fetchTaskDetailsMock.mockReset();
     updateTaskDatesMock.mockReset();
+
+    if (!(globalThis as any).ResizeObserver) {
+      (globalThis as any).ResizeObserver = class {
+        observe() {}
+        disconnect() {}
+      };
+    }
   });
 
   it('triggers timeline refresh only when dialog closes after date changes', async () => {
@@ -30,6 +37,15 @@ describe('TaskDetailsDialog', () => {
         due_date: '2026-02-10',
         done_ratio: 65,
         issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
       }
     ]);
     updateTaskDatesMock.mockResolvedValue({
@@ -57,6 +73,8 @@ describe('TaskDetailsDialog', () => {
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
     expect(screen.getByTestId('task-details-process-flow-svg')).toBeTruthy();
     expect(screen.getAllByTestId('task-details-process-step')).toHaveLength(1);
+    expect(screen.queryByTestId('task-details-process-step-hit-10')).toBeNull();
+    expect(screen.getByTestId('task-details-process-step-hit-11')).toBeTruthy();
 
     const startDateInput = screen.getAllByTestId('start-date-input')[0];
     expect(startDateInput).toBeTruthy();
@@ -76,6 +94,169 @@ describe('TaskDetailsDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+
+  it('renders draggable process flow handles for leaf tasks', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByTestId('task-details-process-step-hit-11')).toBeTruthy();
+    expect(screen.getByTestId('task-details-process-step-left-11')).toBeTruthy();
+    expect(screen.getByTestId('task-details-process-step-right-11')).toBeTruthy();
+  });
+
+  it('shows version and project in the dialog title instead of the task name', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        issueTitle="Leaf issue"
+        versionName="Sprint 1"
+        projectName="eCookbook"
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const title = screen.getByTestId('task-details-title');
+    expect(title.textContent).toContain('Sprint 1 / eCookbook');
+    expect(title.textContent).toContain('#10');
+    expect(title.textContent).not.toContain('Leaf issue');
+  });
+
+  it('renders year and month headers and updates bar width when leaf dates change', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-03-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Design',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      },
+      {
+        issue_id: 12,
+        parent_id: 10,
+        subject: 'Build',
+        start_date: '2026-03-01',
+        due_date: '2026-03-06',
+        done_ratio: 10,
+        issue_url: '/issues/12'
+      }
+    ]);
+    updateTaskDatesMock.mockResolvedValue({
+      issue_id: 11,
+      parent_id: 10,
+      subject: 'Design',
+      start_date: '2026-02-03',
+      due_date: '2026-02-10',
+      issue_url: '/issues/11'
+    });
+
+    const { container } = render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const yearHeaders = container.querySelectorAll('[data-testid^="task-details-process-year-"]');
+    const monthHeaders = container.querySelectorAll('[data-testid^="task-details-process-month-"]');
+    expect(yearHeaders.length).toBeGreaterThan(0);
+    expect(monthHeaders.length).toBeGreaterThanOrEqual(2);
+
+    const designBar = screen.getByTestId('task-details-process-step-hit-11');
+    const buildBar = screen.getByTestId('task-details-process-step-hit-12');
+    const initialWidth = Number(designBar.getAttribute('width'));
+    const designX = Number(designBar.getAttribute('x'));
+    const buildX = Number(buildBar.getAttribute('x'));
+    expect(buildX).toBeGreaterThan(designX);
+
+    fireEvent.change(screen.getAllByTestId('due-date-input')[1] as HTMLInputElement, {
+      target: { value: '2026-02-10' }
+    });
+
+    await waitFor(() => {
+      expect(Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('width'))).toBeGreaterThan(initialWidth);
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+
+    await waitFor(() => {
+      expect(updateTaskDatesMock).toHaveBeenCalledWith('ecookbook', 11, {
+        start_date: '2026-02-03',
+        due_date: '2026-02-10'
+      });
+    });
+  });
+
   it('opens create issue dialog with redmine default new issue screen', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
@@ -86,6 +267,15 @@ describe('TaskDetailsDialog', () => {
         due_date: '2026-02-10',
         done_ratio: 65,
         issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
       }
     ]);
     const onClose = vi.fn();
@@ -102,7 +292,7 @@ describe('TaskDetailsDialog', () => {
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
     // Click the add sub-issue button (appears on row hover)
-    const addButton = screen.getByTitle('子チケットを追加');
+    const addButton = screen.getAllByTitle('子チケットを追加')[0];
     fireEvent.click(addButton);
 
     const iframe = screen.getByTitle('子チケット新規登録') as HTMLIFrameElement;
@@ -151,6 +341,15 @@ describe('TaskDetailsDialog', () => {
         due_date: '2026-02-10',
         done_ratio: 65,
         issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
       }
     ]);
 
@@ -165,7 +364,7 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
-    fireEvent.click(screen.getByTitle(/Edit in Redmine|チケットを編集/));
+    fireEvent.click(screen.getAllByTitle(/Edit in Redmine|チケットを編集/)[0]);
 
     const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
     expect(iframe).toBeTruthy();
@@ -182,6 +381,15 @@ describe('TaskDetailsDialog', () => {
         due_date: '2026-02-10',
         done_ratio: 65,
         issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
       }
     ]);
 
@@ -195,7 +403,7 @@ describe('TaskDetailsDialog', () => {
     );
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByTitle(/Edit in Redmine|チケットを編集/));
+    fireEvent.click(screen.getAllByTitle(/Edit in Redmine|チケットを編集/)[0]);
 
     const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
     const styleElement = { textContent: '' } as unknown as HTMLStyleElement;

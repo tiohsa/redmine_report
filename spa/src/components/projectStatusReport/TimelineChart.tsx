@@ -242,12 +242,22 @@ export function TimelineChart({
   activeReportLaneKey
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
-  const [activeIssue, setActiveIssue] = useState<{ id: number; title: string } | null>(null);
+  const [activeIssue, setActiveIssue] = useState<{
+    id: number;
+    title: string;
+    projectName: string;
+    versionName: string;
+  } | null>(null);
   const [timelineEditError, setTimelineEditError] = useState<string | null>(null);
 
-  const handleStepClick = (issueId?: number, title?: string) => {
+  const handleStepClick = (issueId?: number, title?: string, projectName?: string, versionName?: string) => {
     if (!issueId) return;
-    setActiveIssue({ id: issueId, title: title || '' });
+    setActiveIssue({
+      id: issueId,
+      title: title || '',
+      projectName: projectName || '',
+      versionName: versionName || ''
+    });
   };
 
   return (
@@ -404,6 +414,8 @@ export function TimelineChart({
           projectIdentifier={projectIdentifier}
           issueId={activeIssue.id}
           issueTitle={activeIssue.title}
+          projectName={activeIssue.projectName}
+          versionName={activeIssue.versionName}
           onTaskDatesUpdated={onTaskDatesUpdated}
           onClose={() => setActiveIssue(null)}
         />
@@ -442,7 +454,7 @@ function TimelineSvg({
   pixelsPerDay: number;
   projectIdentifier: string;
   isProcessMode: boolean;
-  onStepClick: (issueId?: number, title?: string) => void;
+  onStepClick: (issueId?: number, title?: string, projectName?: string, versionName?: string) => void;
   onTaskDatesUpdated?: () => void;
   onEditError?: (message: string | null) => void;
   activeReportLaneKey?: string | null;
@@ -799,7 +811,7 @@ function TimelineSvg({
                             setSuppressClickStepId(null);
                             return;
                           }
-                          onStepClick(step.issueId, step.name);
+                          onStepClick(step.issueId, step.name, project.projectName, project.versionName);
                         }}
                         onPointerDown={(event) => startDrag(event, 'move')}
                         data-step-id={step.id}
