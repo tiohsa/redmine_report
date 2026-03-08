@@ -38,7 +38,12 @@ export const messages = {
       noVersions: 'No versions available',
       dateDisplay: 'Dates:',
       dateHover: 'Hover',
-      dateAll: 'All'
+      dateAll: 'All',
+      dateRange: 'Date Range',
+      dateRangeDescription: 'Set the period to display on the timeline.',
+      dateRangeRequired: 'Start and end dates are required.',
+      dateRangeInvalid: 'Start date must be earlier than or equal to end date.',
+      clearDateRange: 'Reset range'
     },
     report: {
       reportDate: 'Report Date',
@@ -226,7 +231,12 @@ export const messages = {
       noVersions: '利用可能なバージョンがありません',
       dateDisplay: '日付表示:',
       dateHover: 'ホバーのみ',
-      dateAll: '全表示'
+      dateAll: '全表示',
+      dateRange: '表示期間',
+      dateRangeDescription: 'タイムラインに表示する期間を設定します。',
+      dateRangeRequired: '開始日と終了日を入力してください。',
+      dateRangeInvalid: '開始日は終了日以前の日付を指定してください。',
+      clearDateRange: '範囲をリセット'
     },
     report: {
       reportDate: '報告日',
