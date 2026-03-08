@@ -54,10 +54,10 @@ type ProcessFlowStep = {
   progress: number;
 };
 
-const processStatusStyles: Record<ProcessFlowStep['status'], { fill: string; text: string; stroke: string; hatch?: boolean; dashed?: boolean }> = {
-  COMPLETED: { fill: '#f8fafc', text: '#1e3a8a', stroke: '#cbd5e1', hatch: true, dashed: true },
-  IN_PROGRESS: { fill: '#2563eb', text: '#ffffff', stroke: '#2563eb' },
-  PENDING: { fill: '#f8fafc', text: '#475569', stroke: '#cbd5e1', hatch: true, dashed: true }
+const processStatusStyles: Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDING', { fill: string; text: string; stroke: string; textStroke?: string; textStrokeWidth?: string }> = {
+  COMPLETED: { fill: '#1e3a8a', text: '#ffffff', stroke: '#1e3a8a', textStroke: 'transparent', textStrokeWidth: '0px' },
+  IN_PROGRESS: { fill: '#2563eb', text: '#1e3a8a', stroke: '#2563eb', textStroke: '#ffffff', textStrokeWidth: '3px' },
+  PENDING: { fill: 'url(#stripePattern)', text: '#475569', stroke: '#94a3b8', textStroke: '#ffffff', textStrokeWidth: '3px' }
 };
 
 const PROCESS_FLOW_MIN_WIDTH = 640;
@@ -83,9 +83,7 @@ const ProcessChevron = ({
   fill,
   stroke,
   progress,
-  id,
-  hatch,
-  dashed
+  id
 }: {
   x: number;
   y: number;
@@ -97,8 +95,6 @@ const ProcessChevron = ({
   stroke: string;
   progress: number;
   id: number;
-  hatch?: boolean;
-  dashed?: boolean;
 }) => {
   const leftShape = !hasLeftNotch
     ? `M ${x} ${y} L ${x} ${y + height}`
@@ -107,33 +103,27 @@ const ProcessChevron = ({
   const rightTipX = x + width;
   const rightShape = `L ${rightBaseX} ${y + height} L ${rightTipX} ${y + height / 2} L ${rightBaseX} ${y}`;
   const pathData = `${leftShape} ${rightShape} Z`;
-  const patternId = `task-hatch-${id}`;
+  const separatorColor = fill === 'url(#stripePattern)' ? 'transparent' : 'white';
+
+  if (progress > 0 && progress < 100) {
+    return (
+      <g>
+        <defs>
+          <linearGradient id={`grad-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset={`${progress}%`} stopColor={fill} />
+            <stop offset={`${progress}%`} stopColor="#cbd5e1" />
+          </linearGradient>
+        </defs>
+        <path d={pathData} fill={`url(#grad-${id})`} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+        {hasLeftNotch && <path d={leftShape} stroke="white" strokeWidth="2" fill="none" />}
+      </g>
+    );
+  }
 
   return (
     <g>
-      <defs>
-        {hatch && (
-          <pattern id={patternId} patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="8" stroke={stroke} strokeWidth="1" opacity="0.3" />
-          </pattern>
-        )}
-        {progress > 0 && progress < 100 && (
-          <linearGradient id={`grad-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset={`${progress}%`} stopColor={fill} />
-            <stop offset={`${progress}%`} stopColor="#f1f5f9" />
-          </linearGradient>
-        )}
-      </defs>
-      <path
-        d={pathData}
-        fill={hatch ? `url(#${patternId})` : (progress > 0 && progress < 100 ? `url(#grad-${id})` : fill)}
-        stroke={stroke}
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-        strokeDasharray={dashed ? "4 2" : "none"}
-      />
-      {hatch && <path d={pathData} fill={fill} opacity="0.4" pointerEvents="none" />}
-      {hasLeftNotch && <path d={leftShape} stroke="#ffffff" strokeWidth="2" fill="none" />}
+      <path d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+      {hasLeftNotch && <path d={leftShape} stroke={separatorColor} strokeWidth="2" fill="none" />}
     </g>
   );
 };
@@ -1856,6 +1846,12 @@ export function TaskDetailsDialog({
                       role="img"
                       aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
                     >
+                      <defs>
+                        <pattern id="stripePattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                          <rect width="6" height="6" fill="#f8fafc" />
+                          <line x1="0" y1="0" x2="0" y2="6" stroke="#e2e8f0" strokeWidth="2" />
+                        </pattern>
+                      </defs>
                       <rect
                         x={0}
                         y={0}
@@ -1946,9 +1942,9 @@ export function TaskDetailsDialog({
                               <text
                                 x={step.hitX}
                                 y={PROCESS_FLOW_BAR_Y - 4}
-                                fill="#64748b"
+                                fill="#374151"
                                 fontSize="10"
-                                fontWeight="600"
+                                fontWeight="bold"
                                 textAnchor="start"
                               >
                                 {extractMD(step.startDate)}
@@ -1956,9 +1952,9 @@ export function TaskDetailsDialog({
                               <text
                                 x={step.hitX + step.hitWidth}
                                 y={PROCESS_FLOW_BAR_Y - 4}
-                                fill="#64748b"
+                                fill="#374151"
                                 fontSize="10"
-                                fontWeight="600"
+                                fontWeight="bold"
                                 textAnchor="end"
                               >
                                 {extractMD(step.dueDate)}
@@ -1975,8 +1971,6 @@ export function TaskDetailsDialog({
                                 stroke={style.stroke}
                                 progress={step.progress}
                                 id={step.id}
-                                hatch={style.hatch}
-                                dashed={style.dashed}
                               />
                               <rect
                                 x={step.hitX}
@@ -2017,6 +2011,13 @@ export function TaskDetailsDialog({
                                 textAnchor="middle"
                                 dominantBaseline="middle"
                                 pointerEvents="none"
+                                style={{
+                                  paintOrder: 'stroke',
+                                  stroke: style.textStroke || '#ffffff',
+                                  strokeWidth: style.textStrokeWidth || '3px',
+                                  strokeLinecap: 'round',
+                                  strokeLinejoin: 'round'
+                                }}
                               >
                                 {step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title}
                               </text>
