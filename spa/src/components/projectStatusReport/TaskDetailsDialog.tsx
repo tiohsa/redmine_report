@@ -40,6 +40,76 @@ type IssueTreeNodeProps = {
 
 type EditingCell = { field: string; value: string };
 
+type ProcessFlowStep = {
+  id: number;
+  title: string;
+  rangeLabel: string;
+  status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
+  progress: number;
+};
+
+const processStatusStyles: Record<ProcessFlowStep['status'], { fill: string; text: string; stroke: string }> = {
+  COMPLETED: { fill: '#1e3a8a', text: '#ffffff', stroke: '#1e3a8a' },
+  IN_PROGRESS: { fill: '#2563eb', text: '#1e3a8a', stroke: '#2563eb' },
+  PENDING: { fill: '#f1f5f9', text: '#475569', stroke: '#94a3b8' }
+};
+
+const ProcessChevron = ({
+  x,
+  y,
+  width,
+  height,
+  pointDepth,
+  isFirst,
+  fill,
+  stroke,
+  progress,
+  id
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pointDepth: number;
+  isFirst: boolean;
+  fill: string;
+  stroke: string;
+  progress: number;
+  id: number;
+}) => {
+  const hasLeftNotch = !isFirst;
+  const leftShape = !hasLeftNotch
+    ? `M ${x} ${y} L ${x} ${y + height}`
+    : `M ${x} ${y} L ${x + pointDepth} ${y + height / 2} L ${x} ${y + height}`;
+  const rightBaseX = x + Math.max(width - pointDepth, 0);
+  const rightTipX = x + width;
+  const rightShape = `L ${rightBaseX} ${y + height} L ${rightTipX} ${y + height / 2} L ${rightBaseX} ${y}`;
+  const pathData = `${leftShape} ${rightShape} Z`;
+
+  if (progress > 0 && progress < 100) {
+    const gradientId = `task-details-grad-${id}`;
+    return (
+      <g>
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset={`${progress}%`} stopColor={fill} />
+            <stop offset={`${progress}%`} stopColor="#cbd5e1" />
+          </linearGradient>
+        </defs>
+        <path d={pathData} fill={`url(#${gradientId})`} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+        {hasLeftNotch && <path d={leftShape} stroke="#ffffff" strokeWidth="2" fill="none" />}
+      </g>
+    );
+  }
+
+  return (
+    <g>
+      <path d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+      {hasLeftNotch && <path d={leftShape} stroke="#ffffff" strokeWidth="2" fill="none" />}
+    </g>
+  );
+};
+
 const IssueTreeNode = ({
   node,
   depth,
@@ -1287,6 +1357,26 @@ export function TaskDetailsDialog({
     return roots;
   }, [issues]);
 
+  const processFlowSteps = useMemo<ProcessFlowStep[]>(() => (
+    issues
+      .filter((issue) => Boolean(issue.start_date && issue.due_date))
+      .map((issue) => {
+        const progress = Math.max(0, Math.min(100, Number(issue.done_ratio ?? 0)));
+        const status: ProcessFlowStep['status'] = issue.status_is_closed || progress === 100
+          ? 'COMPLETED'
+          : progress > 0
+            ? 'IN_PROGRESS'
+            : 'PENDING';
+        return {
+          id: issue.issue_id,
+          title: issue.subject,
+          rangeLabel: `${issue.start_date} - ${issue.due_date}`,
+          status,
+          progress
+        };
+      })
+  ), [issues]);
+
   const dialogTitle = useMemo(() => {
     if (!issueTitle) return t('timeline.ticketTitle', { id: issueId, suffix: '' });
     return t('timeline.ticketTitle', { id: issueId, suffix: `: ${issueTitle}` });
@@ -1457,7 +1547,7 @@ export function TaskDetailsDialog({
         </div>
 
         {/* Split Panel Body */}
-        <div className="flex-1 flex min-h-0 bg-slate-100 relative">
+        <div className="flex-1 flex flex-col min-h-0 bg-slate-100 relative">
           {loading && (
             <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-30">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -1472,10 +1562,80 @@ export function TaskDetailsDialog({
 
           {!loading && issues.length > 0 && (
             <>
+              <div className="mx-6 mt-5 mb-3 rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="px-4 py-2.5 text-[12px] font-semibold text-slate-600 border-b border-slate-100">
+                  {t('timeline.processMode', { defaultValue: 'Process Flow' })}
+                </div>
+                <div className="overflow-x-auto px-4 py-3" data-testid="task-details-process-flow">
+                  {processFlowSteps.length > 0 ? (
+                    <svg
+                      data-testid="task-details-process-flow-svg"
+                      width={Math.max(480, processFlowSteps.length * 170 + 56)}
+                      height={108}
+                      role="img"
+                      aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
+                    >
+                      {processFlowSteps.map((step, index) => {
+                        const isFirst = index === 0;
+                        const x = 18 + index * 162;
+                        const y = 8;
+                        const width = 154;
+                        const height = 42;
+                        const pointDepth = 18;
+                        const style = processStatusStyles[step.status];
+                        const textX = x + width / 2 + (isFirst ? 0 : pointDepth / 2);
+
+                        return (
+                          <g key={step.id} data-testid="task-details-process-step">
+                            <ProcessChevron
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              pointDepth={pointDepth}
+                              isFirst={isFirst}
+                              fill={style.fill}
+                              stroke={style.stroke}
+                              progress={step.progress}
+                              id={step.id}
+                            />
+                            <text
+                              x={textX}
+                              y={y + 22}
+                              fill={style.text}
+                              fontSize="11"
+                              fontWeight="700"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              {step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title}
+                            </text>
+                            <text
+                              x={textX}
+                              y={y + 64}
+                              fill="#64748b"
+                              fontSize="10"
+                              fontWeight="600"
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              {step.rangeLabel}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  ) : (
+                    <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
+                  )}
+                </div>
+              </div>
+
               {/* Left Panel - Task List */}
-              <div className={`flex flex-col min-h-0 border-r border-slate-200 bg-white ${selectedIssue ? 'w-[68%]' : 'w-full'} transition-all`}>
+              <div className="flex-1 flex min-h-0 px-6 pb-6">
+                <div className={`flex flex-col min-h-0 border border-slate-200 rounded-xl bg-white ${selectedIssue ? 'w-[68%]' : 'w-full'} transition-all`}>
                 {/* Column Headers */}
-                <div className="overflow-auto flex-1 bg-white">
+                  <div className="overflow-auto flex-1 bg-white rounded-l-xl">
                   <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0">
                     <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
                       <div className="w-5 mr-1" /> {/* Spacer for expand button */}
@@ -1521,12 +1681,13 @@ export function TaskDetailsDialog({
                       onFieldUpdate={handleFieldUpdate}
                     />
                   ))}
+                  </div>
                 </div>
-              </div>
+              
 
               {/* Right Panel - Detail View */}
               {selectedIssue && (
-                <div className="w-[34%] min-w-[340px] flex flex-col min-h-0 overflow-auto bg-[#f4f6fb]">
+                <div className="w-[34%] min-w-[340px] flex flex-col min-h-0 overflow-auto bg-[#f4f6fb] border border-slate-200 rounded-xl ml-3">
                   {/* Detail Header */}
                   <div className="px-4 pt-3.5 pb-3 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-10">
                     <div className="min-w-0">
@@ -1772,6 +1933,7 @@ export function TaskDetailsDialog({
                   <div className="pb-2" />
                 </div>
               )}
+              </div>
             </>
           )}
         </div>

@@ -55,6 +55,8 @@ describe('TaskDetailsDialog', () => {
     );
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('task-details-process-flow-svg')).toBeTruthy();
+    expect(screen.getAllByTestId('task-details-process-step')).toHaveLength(1);
 
     const startDateInput = screen.getAllByTestId('start-date-input')[0];
     expect(startDateInput).toBeTruthy();
