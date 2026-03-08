@@ -13,6 +13,47 @@ import {
 } from 'date-fns';
 import { getDateFnsLocale, getLocale, t } from '../../i18n';
 
+export function calculateStaggeredLanes<T>(
+  items: T[],
+  getStartDate: (item: T) => string | undefined | null,
+  getEndDate: (item: T) => string | undefined | null
+): (T & { laneIndex: number })[] {
+  const sortedItems = [...items].sort((a, b) => {
+    const aStart = getStartDate(a) || '9999-12-31';
+    const bStart = getStartDate(b) || '9999-12-31';
+    const aEnd = getEndDate(a) || '9999-12-31';
+    const bEnd = getEndDate(b) || '9999-12-31';
+    const startCmp = aStart.localeCompare(bStart);
+    return startCmp !== 0 ? startCmp : aEnd.localeCompare(bEnd);
+  });
+
+  const lanesEndDate: Date[] = [];
+
+  return sortedItems.map(item => {
+    const startStr = getStartDate(item) || '9999-12-31';
+    const endStr = getEndDate(item) || '9999-12-31';
+    const start = parseISO(startStr);
+    const end = parseISO(endStr);
+
+    let assignedLane = -1;
+    for (let i = 0; i < lanesEndDate.length; i++) {
+      if (isAfter(start, lanesEndDate[i])) {
+        assignedLane = i;
+        break;
+      }
+    }
+
+    if (assignedLane === -1) {
+      assignedLane = lanesEndDate.length;
+      lanesEndDate.push(end);
+    } else {
+      lanesEndDate[assignedLane] = end;
+    }
+
+    return { ...item, laneIndex: assignedLane };
+  });
+}
+
 export type TimelineAxisItem = {
   start_date?: string | null;
   end_date?: string | null;

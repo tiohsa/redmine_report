@@ -1,9 +1,10 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { t } from '../../i18n';
 import { updateTaskDates } from '../../services/scheduleReportApi';
 import { HeaderMonth, HeaderYear, TimelineLane, TimelineStep } from './timeline';
+import { calculateStaggeredLanes } from './timelineAxis';
 import { TaskDetailsDialog } from './TaskDetailsDialog';
 
 type ChevronPathProps = {
@@ -245,6 +246,27 @@ export function TimelineChart({
   activeReportLaneKey
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
+  const barHeight = BASE_BAR_HEIGHT * chartScale;
+  const barSpacingY = 10 * chartScale;
+
+  const layoutData = useMemo(() => {
+    let currentY = 0;
+    return timelineData.map((project) => {
+      const staggeredSteps = calculateStaggeredLanes(
+        project.steps,
+        (step) => step.startDateIso,
+        (step) => step.endDateIso
+      );
+      const maxLane = staggeredSteps.length > 0 ? Math.max(...staggeredSteps.map((s) => s.laneIndex)) : 0;
+      const height = laneHeight + maxLane * (barHeight + barSpacingY);
+      const yOffset = currentY;
+      currentY += height;
+      return { ...project, steps: staggeredSteps, height, yOffset, maxLane };
+    });
+  }, [timelineData, laneHeight, barHeight, barSpacingY]);
+
+  const totalTimelineHeight = layoutData.length > 0 ? layoutData[layoutData.length - 1].yOffset + layoutData[layoutData.length - 1].height : 0;
+
   const [activeIssue, setActiveIssue] = useState<{
     id: number;
     title: string;
@@ -270,7 +292,7 @@ export function TimelineChart({
           <div className="flex items-center px-6 font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
             {t('timeline.laneHeader')}
           </div>
-          {timelineData.map((project, projectIndex) => {
+          {layoutData.map((project, projectIndex) => {
             const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
 
             return (
@@ -278,7 +300,7 @@ export function TimelineChart({
                 key={project.laneKey}
                 data-testid={`timeline-lane-label-${projectIndex}`}
                 className={`flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap transition-colors duration-300 ${laneBackground.labelClassName}`}
-                style={{ height: laneHeight, minHeight: 60 }}
+                style={{ height: project.height, minHeight: 60 }}
               >
                 {project.versionId ? (
                   <div className="flex items-center gap-2">
@@ -383,7 +405,8 @@ export function TimelineChart({
 
         <div className="flex-1 overflow-x-auto bg-white relative" ref={containerRef}>
           <TimelineSvg
-            timelineData={timelineData}
+            layoutData={layoutData}
+            totalTimelineHeight={totalTimelineHeight}
             timelineWidth={timelineWidth}
             headerMonths={headerMonths}
             headerYears={headerYears}
@@ -428,7 +451,8 @@ export function TimelineChart({
 }
 
 function TimelineSvg({
-  timelineData,
+  layoutData,
+  totalTimelineHeight,
   timelineWidth,
   headerMonths,
   headerYears,
@@ -447,7 +471,8 @@ function TimelineSvg({
   showAllDates,
   showTodayLine = true
 }: {
-  timelineData: TimelineLane[];
+  layoutData: (TimelineLane & { steps: (TimelineStep & { laneIndex: number })[]; height: number; yOffset: number; maxLane: number })[];
+  totalTimelineHeight: number;
   timelineWidth: number;
   headerMonths: HeaderMonth[];
   headerYears: HeaderYear[];
@@ -466,7 +491,7 @@ function TimelineSvg({
   showAllDates?: boolean;
   showTodayLine?: boolean;
 }) {
-  const svgHeight = headerHeight + timelineData.length * laneHeight;
+  const svgHeight = headerHeight + totalTimelineHeight;
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
   const [dragSession, setDragSession] = useState<DragSession | null>(null);
   const [savingIssueId, setSavingIssueId] = useState<number | null>(null);
@@ -558,9 +583,9 @@ function TimelineSvg({
   useEffect(() => {
     setSuppressClickStepId(null);
     setPendingPreview(null);
-  }, [timelineData]);
+  }, [layoutData]);
 
-  if (timelineData.length === 0) {
+  if (layoutData.length === 0) {
     return <div className="flex items-center justify-center h-32 text-gray-400">{t('common.noData')}</div>;
   }
 
@@ -646,8 +671,8 @@ function TimelineSvg({
         )}
       </g>
 
-      {timelineData.map((project, projectIndex) => {
-        const yOffset = headerHeight + projectIndex * laneHeight;
+      {layoutData.map((project, projectIndex) => {
+        const yOffset = headerHeight + project.yOffset;
         const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
 
         return (
@@ -657,7 +682,7 @@ function TimelineSvg({
               x={0}
               y={0}
               width={timelineWidth}
-              height={laneHeight}
+              height={project.height}
               fill={laneBackground.baseFill}
             />
             {project.laneKey === activeReportLaneKey && (
@@ -666,19 +691,19 @@ function TimelineSvg({
                 x={0}
                 y={0}
                 width={timelineWidth}
-                height={laneHeight}
+                height={project.height}
                 fill={ACTIVE_LANE_BACKGROUND_FILL}
                 opacity="0.7"
               />
             )}
-            <line x1={0} y1={laneHeight} x2={timelineWidth} y2={laneHeight} stroke="#f3f4f6" strokeWidth="1" />
+            <line x1={0} y1={project.height} x2={timelineWidth} y2={project.height} stroke="#f3f4f6" strokeWidth="1" />
             {headerMonths.map((month, monthIndex) => (
               <line
                 key={`${project.laneKey}-month-${monthIndex}`}
                 x1={month.x}
                 y1={0}
                 x2={month.x}
-                y2={laneHeight}
+                y2={project.height}
                 stroke="#f3f4f6"
                 strokeDasharray="4 2"
               />
@@ -689,7 +714,10 @@ function TimelineSvg({
                 const isFirst = stepIndex === 0;
                 const pointDepth = BASE_POINT_DEPTH * chartScale;
                 const barHeight = BASE_BAR_HEIGHT * chartScale;
-                const verticalOffset = (laneHeight - barHeight) / 2;
+                const barSpacingY = 10 * chartScale;
+                const totalBarsHeight = (project.maxLane + 1) * barHeight + project.maxLane * barSpacingY;
+                const baseTopPadding = (project.height - totalBarsHeight) / 2;
+                const verticalOffset = baseTopPadding + step.laneIndex * (barHeight + barSpacingY);
                 const fontSize = Math.max(10, Math.round(12 * chartScale));
                 const isPending = step.status.code === 'PENDING';
                 const isInProgress = step.status.code === 'IN_PROGRESS';
