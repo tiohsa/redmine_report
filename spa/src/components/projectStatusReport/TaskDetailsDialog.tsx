@@ -11,7 +11,7 @@ import {
   WeeklyApiError
 } from '../../services/scheduleReportApi';
 import { createIssue, BulkIssuePayload } from '../bulkIssueRegistration/bulkIssueApi';
-import { buildTimelineAxis, createDateToX, createRangeToWidth } from './timelineAxis';
+import { buildTimelineAxis, calculateStaggeredLanes, createDateToX, createRangeToWidth } from './timelineAxis';
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -1479,26 +1479,26 @@ export function TaskDetailsDialog({
     const getX = createDateToX(processFlowAxis.minDate, processFlowAxis.pixelsPerDay);
     const getWidth = createRangeToWidth(processFlowAxis.pixelsPerDay);
 
-    const positionedSteps = processFlowSteps
-      .map((step) => {
-        const currentSession = processDragSession?.issueId === step.id ? processDragSession : null;
-        const startDate = currentSession?.currentStartDate ?? step.startDate;
-        const dueDate = currentSession?.currentDueDate ?? step.dueDate;
+    const rawSteps = processFlowSteps.map((step) => {
+      const currentSession = processDragSession?.issueId === step.id ? processDragSession : null;
+      const startDate = currentSession?.currentStartDate ?? step.startDate;
+      const dueDate = currentSession?.currentDueDate ?? step.dueDate;
 
-        return {
-          ...step,
-          startDate,
-          dueDate,
-          rangeLabel: `${startDate} - ${dueDate}`,
-          hitX: getX(startDate),
-          hitWidth: getWidth(startDate, dueDate)
-        };
-      })
-      .sort((left, right) =>
-        left.startDate.localeCompare(right.startDate) ||
-        left.dueDate.localeCompare(right.dueDate) ||
-        left.id - right.id
-      );
+      return {
+        ...step,
+        startDate,
+        dueDate,
+        rangeLabel: `${startDate} - ${dueDate}`,
+        hitX: getX(startDate),
+        hitWidth: getWidth(startDate, dueDate)
+      };
+    });
+
+    const positionedSteps = calculateStaggeredLanes(
+      rawSteps,
+      (step) => step.startDate,
+      (step) => step.dueDate
+    );
 
     return positionedSteps.map((step, index) => {
       const isFirst = index === 0;
@@ -1506,7 +1506,8 @@ export function TaskDetailsDialog({
       const previousStep = index > 0 ? positionedSteps[index - 1] : null;
       const joinsPrevious = Boolean(
         previousStep &&
-        differenceInCalendarDays(parseISO(step.startDate), parseISO(previousStep.dueDate)) === 1
+        differenceInCalendarDays(parseISO(step.startDate), parseISO(previousStep.dueDate)) === 1 &&
+        step.laneIndex === previousStep.laneIndex
       );
       const x = hasLeftNotch ? step.hitX - PROCESS_FLOW_POINT_DEPTH : step.hitX;
       const width = hasLeftNotch ? step.hitWidth + PROCESS_FLOW_POINT_DEPTH : step.hitWidth;
@@ -1522,6 +1523,17 @@ export function TaskDetailsDialog({
       };
     });
   }, [processFlowAxis, processFlowSteps, processDragSession]);
+
+  const maxProcessFlowLane = useMemo(() => {
+    return processFlowRenderSteps.length > 0 ? Math.max(...processFlowRenderSteps.map(s => s.laneIndex)) : 0;
+  }, [processFlowRenderSteps]);
+
+  const processFlowBarSpacingY = 12;
+  const processFlowLaneHeight = Math.max(
+    PROCESS_FLOW_LANE_HEIGHT,
+    24 + (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * processFlowBarSpacingY + 30
+  );
+  const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
 
   const titleContext = useMemo(
     () => [versionName, projectName].filter(Boolean).join(' / '),
@@ -1842,7 +1854,7 @@ export function TaskDetailsDialog({
                     <svg
                       data-testid="task-details-process-flow-svg"
                       width={processFlowAxis.timelineWidth}
-                      height={PROCESS_FLOW_SVG_HEIGHT}
+                      height={processFlowSvgHeight}
                       role="img"
                       aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
                     >
@@ -1910,7 +1922,7 @@ export function TaskDetailsDialog({
                           x={0}
                           y={0}
                           width={processFlowAxis.timelineWidth}
-                          height={PROCESS_FLOW_LANE_HEIGHT}
+                          height={processFlowLaneHeight}
                           fill="#ffffff"
                         />
                         {processFlowAxis.headerMonths.map((month, index) => (
@@ -1919,29 +1931,30 @@ export function TaskDetailsDialog({
                             x1={month.x}
                             y1={0}
                             x2={month.x}
-                            y2={PROCESS_FLOW_LANE_HEIGHT}
+                            y2={processFlowLaneHeight}
                             stroke="#e2e8f0"
                             strokeDasharray="4 3"
                           />
                         ))}
                         <line
                           x1={0}
-                          y1={PROCESS_FLOW_LANE_HEIGHT}
+                          y1={processFlowLaneHeight}
                           x2={processFlowAxis.timelineWidth}
-                          y2={PROCESS_FLOW_LANE_HEIGHT}
+                          y2={processFlowLaneHeight}
                           stroke="#e2e8f0"
                           strokeWidth="1"
                         />
 
                         {processFlowRenderSteps.map((step) => {
                           const style = processStatusStyles[step.status];
+                          const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + processFlowBarSpacingY);
 
                           return (
                             <g key={step.id} data-testid="task-details-process-step" opacity={savingIssueIds[step.id] ? 0.6 : 1}>
                               {/* Date labels above the bar */}
                               <text
                                 x={step.hitX}
-                                y={PROCESS_FLOW_BAR_Y - 4}
+                                y={stepY - 4}
                                 fill="#374151"
                                 fontSize="10"
                                 fontWeight="bold"
@@ -1951,7 +1964,7 @@ export function TaskDetailsDialog({
                               </text>
                               <text
                                 x={step.hitX + step.hitWidth}
-                                y={PROCESS_FLOW_BAR_Y - 4}
+                                y={stepY - 4}
                                 fill="#374151"
                                 fontSize="10"
                                 fontWeight="bold"
@@ -1962,7 +1975,7 @@ export function TaskDetailsDialog({
 
                               <ProcessChevron
                                 x={step.x}
-                                y={PROCESS_FLOW_BAR_Y}
+                                y={stepY}
                                 width={step.width}
                                 height={PROCESS_FLOW_BAR_HEIGHT}
                                 pointDepth={PROCESS_FLOW_POINT_DEPTH}
@@ -1974,7 +1987,7 @@ export function TaskDetailsDialog({
                               />
                               <rect
                                 x={step.hitX}
-                                y={PROCESS_FLOW_BAR_Y}
+                                y={stepY}
                                 width={step.hitWidth}
                                 height={PROCESS_FLOW_BAR_HEIGHT}
                                 fill="transparent"
@@ -1984,7 +1997,7 @@ export function TaskDetailsDialog({
                               />
                               <rect
                                 x={step.hitX}
-                                y={PROCESS_FLOW_BAR_Y}
+                                y={stepY}
                                 width={10}
                                 height={PROCESS_FLOW_BAR_HEIGHT}
                                 fill="transparent"
@@ -1994,7 +2007,7 @@ export function TaskDetailsDialog({
                               />
                               <rect
                                 x={Math.max(step.hitX + step.hitWidth - 10, step.hitX)}
-                                y={PROCESS_FLOW_BAR_Y}
+                                y={stepY}
                                 width={10}
                                 height={PROCESS_FLOW_BAR_HEIGHT}
                                 fill="transparent"
@@ -2004,7 +2017,7 @@ export function TaskDetailsDialog({
                               />
                               <text
                                 x={step.textX}
-                                y={PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT / 2 + 1}
+                                y={stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1}
                                 fill={style.text}
                                 fontSize="11"
                                 fontWeight="700"
