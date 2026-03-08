@@ -141,6 +141,34 @@ describe('buildTimelineViewModel', () => {
     expect(viewModel.timelineData[0].steps).toHaveLength(1);
   });
 
+
+  it('should use configured display date range when provided', () => {
+    const bars: CategoryBar[] = [
+      {
+        category_id: 1,
+        category_name: 'Task 1',
+        start_date: '2026-03-01',
+        end_date: '2026-03-31',
+        progress_rate: 0,
+        project_id: 1,
+        version_name: 'v1'
+      }
+    ];
+
+    const viewModel = buildTimelineViewModel({
+      bars,
+      selectedVersions: ['v1'],
+      projectMap: new Map<number, ProjectInfo>(),
+      containerWidth: 1000,
+      displayStartDateIso: '2026-04-01',
+      displayEndDateIso: '2026-04-30'
+    });
+
+    expect(viewModel.totalDurationText).toBe('2026/04/01 - 2026/04/30');
+    expect(viewModel.axisStartDateIso).toBe('2026-04-01');
+    expect(viewModel.axisEndDateIso).toBe('2026-04-30');
+  });
+
   it('should not extend max date to today when all ticket dates are in the past', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-02-24'));

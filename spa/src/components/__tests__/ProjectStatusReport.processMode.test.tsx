@@ -111,6 +111,38 @@ describe('ProjectStatusReport Process Mode', () => {
     expect(screen.getByRole('alert').textContent || '').toContain('boom');
   });
 
+
+  it('opens date range dialog from header icon and applies selected dates', async () => {
+    render(
+      <ProjectStatusReport
+        bars={[makeBar({ category_id: 100 })]}
+        projectIdentifier="ecookbook"
+        availableProjects={[{ project_id: 1, identifier: 'ecookbook', name: 'eCookbook', level: 0, selectable: true }]}
+        selectedVersions={['v1']}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle(/Date Range|表示期間/i));
+
+    const dialog = screen.getByRole('dialog');
+    const inputs = dialog.querySelectorAll('input[type="date"]');
+    expect(inputs).toHaveLength(2);
+
+    fireEvent.change(inputs[0], { target: { value: '2026-03-01' } });
+    fireEvent.change(inputs[1], { target: { value: '2026-03-20' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save|保存/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    fireEvent.click(screen.getByTitle(/Date Range|表示期間/i));
+    const updatedDialog = screen.getByRole('dialog');
+    const updatedInputs = updatedDialog.querySelectorAll('input[type="date"]');
+    expect((updatedInputs[0] as HTMLInputElement).value).toBe('2026-03-01');
+    expect((updatedInputs[1] as HTMLInputElement).value).toBe('2026-03-20');
+  });
+
   it('ignores stale child issue response when bars update during Process Mode', async () => {
     const first = createDeferred<Map<number, CategoryBar[]>>();
     const second = createDeferred<Map<number, CategoryBar[]>>();

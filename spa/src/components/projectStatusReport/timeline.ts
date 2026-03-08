@@ -71,6 +71,8 @@ type TimelineCalculationInput = {
   selectedVersions: string[];
   projectMap: Map<number, ProjectInfo>;
   containerWidth: number;
+  displayStartDateIso?: string;
+  displayEndDateIso?: string;
   isProcessMode?: boolean;
   childTicketsMap?: Map<number, CategoryBar[]>;
 };
@@ -83,6 +85,8 @@ export function buildTimelineViewModel({
   selectedVersions,
   projectMap,
   containerWidth,
+  displayStartDateIso,
+  displayEndDateIso,
   isProcessMode = false,
   childTicketsMap = new Map()
 }: TimelineCalculationInput): TimelineViewModel {
@@ -107,7 +111,10 @@ export function buildTimelineViewModel({
     };
   }
 
-  const { minDate, maxDate } = getDateRangeWithBuffer(visibleBars);
+  const { minDate, maxDate } = getDateRangeWithBuffer(visibleBars, {
+    displayStartDateIso,
+    displayEndDateIso
+  });
   const totalDays = differenceInDays(maxDate, minDate) + 1;
   const effectiveContainerWidth = containerWidth > 0 ? containerWidth : DEFAULT_TIMELINE_WIDTH;
   const pixelsPerDay = effectiveContainerWidth / totalDays;
@@ -152,7 +159,15 @@ export function buildTimelineViewModel({
   };
 }
 
-function getDateRangeWithBuffer(bars: CategoryBar[]): { minDate: Date; maxDate: Date } {
+function getDateRangeWithBuffer(
+  bars: CategoryBar[],
+  displayRange: { displayStartDateIso?: string; displayEndDateIso?: string }
+): { minDate: Date; maxDate: Date } {
+  const configuredRange = resolveConfiguredDateRange(displayRange.displayStartDateIso, displayRange.displayEndDateIso);
+  if (configuredRange) {
+    return configuredRange;
+  }
+
   let minDate: Date | null = null;
   let maxDate: Date | null = null;
 
@@ -187,6 +202,22 @@ function getDateRangeWithBuffer(bars: CategoryBar[]): { minDate: Date; maxDate: 
     minDate: bufferedMinDate,
     maxDate: bufferedMaxDate
   };
+}
+
+function resolveConfiguredDateRange(
+  displayStartDateIso?: string,
+  displayEndDateIso?: string
+): { minDate: Date; maxDate: Date } | null {
+  if (!displayStartDateIso || !displayEndDateIso) return null;
+
+  const minDate = parseISO(displayStartDateIso);
+  const maxDate = parseISO(displayEndDateIso);
+
+  if (Number.isNaN(minDate.getTime()) || Number.isNaN(maxDate.getTime()) || isAfter(minDate, maxDate)) {
+    return null;
+  }
+
+  return { minDate, maxDate };
 }
 
 function buildHeaderMonths(minDate: Date, maxDate: Date, pixelsPerDay: number): HeaderMonth[] {

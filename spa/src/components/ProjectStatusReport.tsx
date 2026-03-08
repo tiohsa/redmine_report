@@ -6,7 +6,6 @@ import {
     ProjectInfo,
     WeeklyApiError
 } from '../services/scheduleReportApi';
-import { format } from 'date-fns';
 import { buildStatusStyles } from './projectStatusReport/constants';
 import { buildTimelineViewModel } from './projectStatusReport/timeline';
 import { TimelineChart } from './projectStatusReport/TimelineChart';
@@ -123,6 +122,12 @@ export const ProjectStatusReport = ({
     const [isVersionOpen, setIsVersionOpen] = useState(false);
     const [isSizeOpen, setIsSizeOpen] = useState(false);
     const [isLegendOpen, setIsLegendOpen] = useState(false);
+    const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = useState(false);
+    const [displayStartDateIso, setDisplayStartDateIso] = useState<string | undefined>(undefined);
+    const [displayEndDateIso, setDisplayEndDateIso] = useState<string | undefined>(undefined);
+    const [pendingStartDate, setPendingStartDate] = useState('');
+    const [pendingEndDate, setPendingEndDate] = useState('');
+    const [dateRangeError, setDateRangeError] = useState<string | null>(null);
 
     const projectDropdownRef = useRef<HTMLDivElement>(null);
     const versionDropdownRef = useRef<HTMLDivElement>(null);
@@ -240,10 +245,12 @@ export const ProjectStatusReport = ({
                 selectedVersions,
                 projectMap,
                 containerWidth,
+                displayStartDateIso,
+                displayEndDateIso,
                 isProcessMode,
                 childTicketsMap
             }),
-        [bars, selectedVersions, projectMap, containerWidth, isProcessMode, childTicketsMap]
+        [bars, selectedVersions, projectMap, containerWidth, displayStartDateIso, displayEndDateIso, isProcessMode, childTicketsMap]
     );
 
     const allVersions = useMemo(() => {
@@ -260,6 +267,37 @@ export const ProjectStatusReport = ({
     const allSelectableProjectsSelected = selectableProjectIdentifiers.length > 0
         && selectableProjectIdentifiers.every((id) => selectedProjectIdentifiers.includes(id));
     const allVersionsSelected = allVersions.length > 0 && selectedVersions.length === allVersions.length;
+
+    const isCustomDateRangeActive = Boolean(displayStartDateIso && displayEndDateIso);
+
+    const openDateRangeDialog = () => {
+        setPendingStartDate(displayStartDateIso || axisStartDateIso);
+        setPendingEndDate(displayEndDateIso || axisEndDateIso);
+        setDateRangeError(null);
+        setIsDateRangeDialogOpen(true);
+    };
+
+    const applyDateRange = () => {
+        if (!pendingStartDate || !pendingEndDate) {
+            setDateRangeError(t('filter.dateRangeRequired'));
+            return;
+        }
+        if (pendingStartDate > pendingEndDate) {
+            setDateRangeError(t('filter.dateRangeInvalid'));
+            return;
+        }
+        setDisplayStartDateIso(pendingStartDate);
+        setDisplayEndDateIso(pendingEndDate);
+        setDateRangeError(null);
+        setIsDateRangeDialogOpen(false);
+    };
+
+    const clearDateRange = () => {
+        setDisplayStartDateIso(undefined);
+        setDisplayEndDateIso(undefined);
+        setDateRangeError(null);
+        setIsDateRangeDialogOpen(false);
+    };
 
     const handleVersionReportClick = async (payload: { versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => {
         setAiReportLabel(`${payload.projectName} / ${payload.versionName}`);
@@ -595,6 +633,22 @@ export const ProjectStatusReport = ({
                             </span>
                         </button>
 
+                        {/* Date Range Setting */}
+                        <button
+                            onClick={openDateRangeDialog}
+                            className={isCustomDateRangeActive ? activeIconButtonStyle : iconButtonStyle}
+                            title={t('filter.dateRange')}
+                            aria-haspopup="dialog"
+                            aria-expanded={isDateRangeDialogOpen}
+                        >
+                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            {isCustomDateRangeActive && (
+                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full border border-white"></span>
+                            )}
+                        </button>
+
                         {/* Date Display Toggle */}
                         <button
                             onClick={() => setShowAllDates(!showAllDates)}
@@ -718,6 +772,62 @@ export const ProjectStatusReport = ({
                         <AiResponsePanel response={aiResponse} isLoading={aiLoading} errorMessage={aiError} />
                     </section>
                 </div>
+
+
+                {isDateRangeDialogOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4" role="dialog" aria-modal="true" aria-label={t('filter.dateRange')}>
+                        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+                            <h2 className="text-lg font-bold text-slate-800">{t('filter.dateRange')}</h2>
+                            <p className="mt-1 text-sm text-slate-500">{t('filter.dateRangeDescription')}</p>
+                            <div className="mt-4 grid grid-cols-1 gap-4">
+                                <label className="text-sm font-medium text-slate-700">
+                                    {t('weeklyDialog.startDate')}
+                                    <input
+                                        type="date"
+                                        value={pendingStartDate}
+                                        onChange={(event) => setPendingStartDate(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                    />
+                                </label>
+                                <label className="text-sm font-medium text-slate-700">
+                                    {t('weeklyDialog.endDate')}
+                                    <input
+                                        type="date"
+                                        value={pendingEndDate}
+                                        onChange={(event) => setPendingEndDate(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                    />
+                                </label>
+                            </div>
+                            {dateRangeError && (
+                                <p className="mt-3 text-sm font-semibold text-red-600" role="alert">{dateRangeError}</p>
+                            )}
+                            <div className="mt-5 flex items-center justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsDateRangeDialogOpen(false)}
+                                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                                >
+                                    {t('common.cancel')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={clearDateRange}
+                                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                                >
+                                    {t('filter.clearDateRange')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={applyDateRange}
+                                    className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                >
+                                    {t('common.save')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <VersionAiDialog
                     open={weeklyDialog.open}
