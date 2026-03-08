@@ -151,6 +151,9 @@ const MIN_HANDLE_ACTIVE_PX = 4;
 const ACTIVE_LANE_BACKGROUND_FILL = '#eff6ff';
 const ALT_LANE_BACKGROUND_FILL = '#f8fafc';
 
+const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
+const CUSTOM_GRABBING = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23475569' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grabbing`;
+
 const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
   labelClassName: isActive ? 'bg-blue-50/70' : laneIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/80',
   baseFill: laneIndex % 2 === 0 ? '#ffffff' : ALT_LANE_BACKGROUND_FILL
@@ -739,9 +742,9 @@ function TimelineSvg({
                 const leftHandleX = hitX;
                 const rightHandleX = Math.max(hitX + hitWidth - handleWidth, hitX);
                 const bodyCursor = isDraggingThis
-                  ? (isActiveDragThis ? 'grabbing' : 'grab')
+                  ? (isActiveDragThis ? CUSTOM_GRABBING : CUSTOM_GRAB)
                   : canEdit
-                    ? 'grab'
+                    ? CUSTOM_GRAB
                     : step.issueId
                       ? 'pointer'
                       : 'default';
