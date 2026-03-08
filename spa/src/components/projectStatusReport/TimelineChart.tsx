@@ -148,6 +148,13 @@ const DRAG_THRESHOLD_PX = 4;
 const RESIZE_HANDLE_PX = 10;
 const MIN_CENTER_CLICK_PX = 14;
 const MIN_HANDLE_ACTIVE_PX = 4;
+const ACTIVE_LANE_BACKGROUND_FILL = '#eff6ff';
+const ALT_LANE_BACKGROUND_FILL = '#f8fafc';
+
+const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
+  labelClassName: isActive ? 'bg-blue-50/70' : laneIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/80',
+  baseFill: laneIndex % 2 === 0 ? '#ffffff' : ALT_LANE_BACKGROUND_FILL
+});
 
 const formatShortDate = (isoDate: string) => format(parseISO(isoDate), 'M/d');
 
@@ -250,109 +257,114 @@ export function TimelineChart({
           <div className="flex items-center px-6 font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
             {t('timeline.laneHeader')}
           </div>
-          {timelineData.map((project) => (
-            <div
-              key={project.laneKey}
-              className={`flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap transition-colors duration-300 ${project.laneKey === activeReportLaneKey ? 'bg-blue-50/70' : ''}`}
-              style={{ height: laneHeight, minHeight: 60 }}
-            >
-              {project.versionId ? (
-                <div className="flex items-center gap-2">
-                  <a
-                    href={`/versions/${project.versionId}`}
-                    className="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline"
-                    title={project.versionName}
-                  >
+          {timelineData.map((project, projectIndex) => {
+            const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
+
+            return (
+              <div
+                key={project.laneKey}
+                data-testid={`timeline-lane-label-${projectIndex}`}
+                className={`flex flex-col justify-center px-6 border-b border-gray-100 box-border whitespace-nowrap transition-colors duration-300 ${laneBackground.labelClassName}`}
+                style={{ height: laneHeight, minHeight: 60 }}
+              >
+                {project.versionId ? (
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`/versions/${project.versionId}`}
+                      className="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline"
+                      title={project.versionName}
+                    >
+                      {project.versionName}
+                    </a>
+                    <button
+                      type="button"
+                      aria-label={t('timeline.startAiAria', { versionName: project.versionName })}
+                      className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-indigo-200 hover:bg-indigo-50/30 transition-all duration-300 shadow-sm hover:shadow-indigo-100/50 cursor-pointer overflow-hidden relative"
+                      onClick={() =>
+                        onVersionAiClick?.({
+                          versionId: project.versionId as number,
+                          versionName: project.versionName,
+                          projectId: project.projectId,
+                          projectName: project.projectName
+                        })
+                      }
+                    >
+                      <svg
+                        className="w-4 h-4 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <defs>
+                          <linearGradient id={`ai-grad-${project.versionId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#6366f1" />
+                            <stop offset="100%" stopColor="#a855f7" />
+                          </linearGradient>
+                        </defs>
+                        <path
+                          d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z"
+                          fill={`url(#ai-grad-${project.versionId})`}
+                        />
+                        <path
+                          d="M6 4L7 5M17 19L18 20M4 6L6 7M18 4L20 5M6 20L4 18M20 18L18 19"
+                          stroke={`url(#ai-grad-${project.versionId})`}
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          opacity="0.5"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('timeline.showDetailAria', { versionName: project.versionName })}
+                      className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-300 shadow-sm hover:shadow-blue-100/50 cursor-pointer overflow-hidden relative"
+                      onClick={() =>
+                        onVersionReportClick?.({
+                          versionId: project.versionId as number,
+                          versionName: project.versionName,
+                          projectId: project.projectId,
+                          projectName: project.projectName,
+                          projectIdentifier: project.projectIdentifier
+                        })
+                      }
+                    >
+                      <svg
+                        className="w-4 h-4 relative z-10 transition-transform duration-300 group-hover:scale-110"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          stroke="#3b82f6"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-sm font-bold text-gray-800" title={project.versionName}>
                     {project.versionName}
+                  </div>
+                )}
+                {project.projectIdentifier ? (
+                  <a
+                    href={`/projects/${project.projectIdentifier}`}
+                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                    title={project.projectName}
+                  >
+                    {project.projectName}
                   </a>
-                  <button
-                    type="button"
-                    aria-label={t('timeline.startAiAria', { versionName: project.versionName })}
-                    className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-indigo-200 hover:bg-indigo-50/30 transition-all duration-300 shadow-sm hover:shadow-indigo-100/50 cursor-pointer overflow-hidden relative"
-                    onClick={() =>
-                      onVersionAiClick?.({
-                        versionId: project.versionId as number,
-                        versionName: project.versionName,
-                        projectId: project.projectId,
-                        projectName: project.projectName
-                      })
-                    }
-                  >
-                    <svg
-                      className="w-4 h-4 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <defs>
-                        <linearGradient id={`ai-grad-${project.versionId}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#6366f1" />
-                          <stop offset="100%" stopColor="#a855f7" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z"
-                        fill={`url(#ai-grad-${project.versionId})`}
-                      />
-                      <path
-                        d="M6 4L7 5M17 19L18 20M4 6L6 7M18 4L20 5M6 20L4 18M20 18L18 19"
-                        stroke={`url(#ai-grad-${project.versionId})`}
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        opacity="0.5"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t('timeline.showDetailAria', { versionName: project.versionName })}
-                    className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-300 shadow-sm hover:shadow-blue-100/50 cursor-pointer overflow-hidden relative"
-                    onClick={() =>
-                      onVersionReportClick?.({
-                        versionId: project.versionId as number,
-                        versionName: project.versionName,
-                        projectId: project.projectId,
-                        projectName: project.projectName,
-                        projectIdentifier: project.projectIdentifier
-                      })
-                    }
-                  >
-                    <svg
-                      className="w-4 h-4 relative z-10 transition-transform duration-300 group-hover:scale-110"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        stroke="#3b82f6"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              ) : (
-                <div className="text-sm font-bold text-gray-800" title={project.versionName}>
-                  {project.versionName}
-                </div>
-              )}
-              {project.projectIdentifier ? (
-                <a
-                  href={`/projects/${project.projectIdentifier}`}
-                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
-                  title={project.projectName}
-                >
-                  {project.projectName}
-                </a>
-              ) : (
-                <div className="text-xs text-gray-500 mt-1" title={project.projectName}>
-                  {project.projectName}
-                </div>
-              )}
-            </div>
-          ))}
+                ) : (
+                  <div className="text-xs text-gray-500 mt-1" title={project.projectName}>
+                    {project.projectName}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {timelineData.length === 0 && <div className="h-32"></div>}
         </div>
 
@@ -621,11 +633,28 @@ function TimelineSvg({
 
       {timelineData.map((project, projectIndex) => {
         const yOffset = headerHeight + projectIndex * laneHeight;
+        const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
 
         return (
           <g key={project.laneKey} transform={`translate(0, ${yOffset})`}>
+            <rect
+              data-testid={`timeline-lane-bg-${projectIndex}`}
+              x={0}
+              y={0}
+              width={timelineWidth}
+              height={laneHeight}
+              fill={laneBackground.baseFill}
+            />
             {project.laneKey === activeReportLaneKey && (
-              <rect x={0} y={0} width={timelineWidth} height={laneHeight} fill="#eff6ff" opacity="0.7" />
+              <rect
+                data-testid={`timeline-lane-active-bg-${projectIndex}`}
+                x={0}
+                y={0}
+                width={timelineWidth}
+                height={laneHeight}
+                fill={ACTIVE_LANE_BACKGROUND_FILL}
+                opacity="0.7"
+              />
             )}
             <line x1={0} y1={laneHeight} x2={timelineWidth} y2={laneHeight} stroke="#f3f4f6" strokeWidth="1" />
             {headerMonths.map((month, monthIndex) => (
