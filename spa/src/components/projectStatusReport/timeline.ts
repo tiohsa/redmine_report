@@ -1,20 +1,17 @@
-import {
-  addMonths,
-  addYears,
-  differenceInDays,
-  endOfMonth,
-  endOfYear,
-  format,
-  isAfter,
-  isBefore,
-  parseISO,
-  startOfMonth,
-  startOfYear,
-  getDate
-} from 'date-fns';
+import { differenceInDays, format, parseISO } from 'date-fns';
 import { CategoryBar, ProjectInfo } from '../../services/scheduleReportApi';
-import { getDateFnsLocale, getLocale, t } from '../../i18n';
+import { t } from '../../i18n';
 import { buildStatusStyles, StatusStyle } from './constants';
+import {
+  buildTimelineAxis,
+  createDateToX,
+  createRangeToWidth,
+  DEFAULT_TIMELINE_WIDTH,
+  HeaderMonth,
+  HeaderYear
+} from './timelineAxis';
+
+export type { HeaderMonth, HeaderYear } from './timelineAxis';
 
 export type TimelineStep = {
   issueId?: number;
@@ -42,18 +39,6 @@ export type TimelineLane = {
   steps: TimelineStep[];
 };
 
-export type HeaderMonth = {
-  label: string;
-  x: number;
-  width: number;
-};
-
-export type HeaderYear = {
-  year: string;
-  x: number;
-  width: number;
-};
-
 export type TimelineViewModel = {
   timelineData: TimelineLane[];
   timelineWidth: number;
@@ -76,9 +61,6 @@ type TimelineCalculationInput = {
   isProcessMode?: boolean;
   childTicketsMap?: Map<number, CategoryBar[]>;
 };
-
-const DEFAULT_TIMELINE_WIDTH = 1000;
-const POINT_DEPTH = 15; // Visual depth of the arrow point
 
 export function buildTimelineViewModel({
   bars,
@@ -111,29 +93,15 @@ export function buildTimelineViewModel({
     };
   }
 
-  const { minDate, maxDate } = getDateRangeWithBuffer(visibleBars, {
+  const axis = buildTimelineAxis({
+    items: visibleBars,
+    containerWidth,
     displayStartDateIso,
-    displayEndDateIso
+    displayEndDateIso,
+    defaultTimelineWidth: DEFAULT_TIMELINE_WIDTH
   });
-  const totalDays = differenceInDays(maxDate, minDate) + 1;
-  const effectiveContainerWidth = containerWidth > 0 ? containerWidth : DEFAULT_TIMELINE_WIDTH;
-  const pixelsPerDay = effectiveContainerWidth / totalDays;
-
-  const getX = (dateStr?: string): number => {
-    if (!dateStr) return 0;
-    const date = parseISO(dateStr);
-    return differenceInDays(date, minDate) * pixelsPerDay;
-  };
-
-  const getWidth = (startStr?: string, endStr?: string): number => {
-    if (!startStr || !endStr) return 0;
-    const start = parseISO(startStr);
-    const end = parseISO(endStr);
-    return Math.max(differenceInDays(end, start) + 1, 0.5) * pixelsPerDay;
-  };
-
-  const headerMonths = buildHeaderMonths(minDate, maxDate, pixelsPerDay);
-  const headerYears = buildHeaderYears(minDate, maxDate, pixelsPerDay);
+  const getX = createDateToX(axis.minDate, axis.pixelsPerDay);
+  const getWidth = createRangeToWidth(axis.pixelsPerDay);
   const timelineData = buildTimelineData({
     bars,
     selectedVersions,
@@ -147,133 +115,15 @@ export function buildTimelineViewModel({
 
   return {
     timelineData,
-    timelineWidth: effectiveContainerWidth,
-    headerMonths,
-    headerYears,
-    totalDurationText: `${format(minDate, 'yyyy/MM/dd')} - ${format(maxDate, 'yyyy/MM/dd')}`,
-    // Place the "today" line at the center of today's day-cell on the date axis.
-    todayX: getX(new Date().toISOString()) + pixelsPerDay / 2,
-    axisStartDateIso: format(minDate, 'yyyy-MM-dd'),
-    axisEndDateIso: format(maxDate, 'yyyy-MM-dd'),
-    pixelsPerDay
+    timelineWidth: axis.timelineWidth,
+    headerMonths: axis.headerMonths,
+    headerYears: axis.headerYears,
+    totalDurationText: axis.totalDurationText,
+    todayX: axis.todayX,
+    axisStartDateIso: axis.axisStartDateIso,
+    axisEndDateIso: axis.axisEndDateIso,
+    pixelsPerDay: axis.pixelsPerDay
   };
-}
-
-function getDateRangeWithBuffer(
-  bars: CategoryBar[],
-  displayRange: { displayStartDateIso?: string; displayEndDateIso?: string }
-): { minDate: Date; maxDate: Date } {
-  const configuredRange = resolveConfiguredDateRange(displayRange.displayStartDateIso, displayRange.displayEndDateIso);
-  if (configuredRange) {
-    return configuredRange;
-  }
-
-  let minDate: Date | null = null;
-  let maxDate: Date | null = null;
-
-  bars.forEach((bar) => {
-    if (bar.start_date) {
-      const startDate = parseISO(bar.start_date);
-      if (!minDate || isBefore(startDate, minDate)) minDate = startDate;
-    }
-
-    if (bar.end_date) {
-      const endDate = parseISO(bar.end_date);
-      if (!maxDate || isAfter(endDate, maxDate)) maxDate = endDate;
-    }
-  });
-
-  if (!minDate && !maxDate) {
-    return {
-      minDate: startOfMonth(new Date()),
-      maxDate: endOfMonth(addMonths(new Date(), 2))
-    };
-  }
-
-  const effectiveMinDate = minDate || maxDate!;
-  const effectiveMaxDate = maxDate || minDate!;
-
-  const bufferedMinDate = new Date(effectiveMinDate);
-  bufferedMinDate.setDate(bufferedMinDate.getDate() - 3);
-  const bufferedMaxDate = new Date(effectiveMaxDate);
-  bufferedMaxDate.setDate(bufferedMaxDate.getDate() + 3);
-
-  return {
-    minDate: bufferedMinDate,
-    maxDate: bufferedMaxDate
-  };
-}
-
-function resolveConfiguredDateRange(
-  displayStartDateIso?: string,
-  displayEndDateIso?: string
-): { minDate: Date; maxDate: Date } | null {
-  if (!displayStartDateIso || !displayEndDateIso) return null;
-
-  const minDate = parseISO(displayStartDateIso);
-  const maxDate = parseISO(displayEndDateIso);
-
-  if (Number.isNaN(minDate.getTime()) || Number.isNaN(maxDate.getTime()) || isAfter(minDate, maxDate)) {
-    return null;
-  }
-
-  return { minDate, maxDate };
-}
-
-function buildHeaderMonths(minDate: Date, maxDate: Date, pixelsPerDay: number): HeaderMonth[] {
-  const headerMonths: HeaderMonth[] = [];
-  const locale = getDateFnsLocale();
-  const monthFormat = getLocale() === 'ja' ? 'M月' : 'MMM';
-  let currentMonth = startOfMonth(minDate);
-
-  while (isBefore(currentMonth, maxDate) || currentMonth.getTime() === maxDate.getTime()) {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-
-    const visibleStart = isBefore(monthStart, minDate) ? minDate : monthStart;
-    const visibleEnd = isAfter(monthEnd, maxDate) ? maxDate : monthEnd;
-
-    const monthDays = differenceInDays(visibleEnd, visibleStart) + 1;
-
-    headerMonths.push({
-      label: format(currentMonth, monthFormat, { locale }),
-      x: differenceInDays(visibleStart, minDate) * pixelsPerDay,
-      width: monthDays * pixelsPerDay
-    });
-
-    currentMonth = addMonths(currentMonth, 1);
-  }
-
-  return headerMonths;
-}
-
-function buildHeaderYears(minDate: Date, maxDate: Date, pixelsPerDay: number): HeaderYear[] {
-  const headerYears: HeaderYear[] = [];
-  const locale = getDateFnsLocale();
-  const yearFormat = getLocale() === 'ja' ? 'yyyy年' : 'yyyy';
-  let currentYearDate = startOfYear(minDate);
-
-  while (isBefore(currentYearDate, maxDate) || currentYearDate.getTime() <= maxDate.getTime()) {
-    const yearStart = startOfYear(currentYearDate);
-    const yearEnd = endOfYear(currentYearDate);
-
-    const visibleStart = isBefore(yearStart, minDate) ? minDate : yearStart;
-    const visibleEnd = isAfter(yearEnd, maxDate) ? maxDate : yearEnd;
-
-    if (isBefore(visibleStart, visibleEnd) || visibleStart.getTime() === visibleEnd.getTime()) {
-      const yearDays = differenceInDays(visibleEnd, visibleStart) + 1;
-
-      headerYears.push({
-        year: format(currentYearDate, yearFormat, { locale }),
-        x: differenceInDays(visibleStart, minDate) * pixelsPerDay,
-        width: yearDays * pixelsPerDay
-      });
-    }
-
-    currentYearDate = addYears(currentYearDate, 1);
-  }
-
-  return headerYears;
 }
 
 function buildTimelineData({

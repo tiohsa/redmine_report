@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../../i18n';
 import {
   fetchTaskDetails,
@@ -10,12 +11,15 @@ import {
   WeeklyApiError
 } from '../../services/scheduleReportApi';
 import { createIssue, BulkIssuePayload } from '../bulkIssueRegistration/bulkIssueApi';
+import { buildTimelineAxis, createDateToX, createRangeToWidth } from './timelineAxis';
 
 type TaskDetailsDialogProps = {
   open: boolean;
   projectIdentifier: string;
   issueId: number;
   issueTitle?: string;
+  projectName?: string;
+  versionName?: string;
   onTaskDatesUpdated?: () => void;
   onClose: () => void;
 };
@@ -44,6 +48,8 @@ type ProcessFlowStep = {
   id: number;
   title: string;
   rangeLabel: string;
+  startDate: string;
+  dueDate: string;
   status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
   progress: number;
 };
@@ -53,6 +59,17 @@ const processStatusStyles: Record<ProcessFlowStep['status'], { fill: string; tex
   IN_PROGRESS: { fill: '#2563eb', text: '#1e3a8a', stroke: '#2563eb' },
   PENDING: { fill: '#f1f5f9', text: '#475569', stroke: '#94a3b8' }
 };
+
+const PROCESS_FLOW_MIN_WIDTH = 640;
+const PROCESS_FLOW_YEAR_ROW_HEIGHT = 24;
+const PROCESS_FLOW_MONTH_ROW_HEIGHT = 24;
+const PROCESS_FLOW_HEADER_HEIGHT = PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT;
+const PROCESS_FLOW_LANE_HEIGHT = 70;
+const PROCESS_FLOW_BAR_HEIGHT = 36;
+const PROCESS_FLOW_BAR_Y = 12;
+const PROCESS_FLOW_POINT_DEPTH = 18;
+const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 16;
+const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
 
 const ProcessChevron = ({
   x,
@@ -108,6 +125,21 @@ const ProcessChevron = ({
       {hasLeftNotch && <path d={leftShape} stroke="#ffffff" strokeWidth="2" fill="none" />}
     </g>
   );
+};
+
+const shiftIsoDate = (isoDate: string, deltaDays: number) => format(addDays(parseISO(isoDate), deltaDays), 'yyyy-MM-dd');
+
+type ProcessDragMode = 'move' | 'resize-left' | 'resize-right';
+
+type ProcessDragSession = {
+  issueId: number;
+  pointerId: number;
+  mode: ProcessDragMode;
+  startClientX: number;
+  originalStartDate: string;
+  originalDueDate: string;
+  currentStartDate: string;
+  currentDueDate: string;
 };
 
 const IssueTreeNode = ({
@@ -1217,6 +1249,8 @@ export function TaskDetailsDialog({
   projectIdentifier,
   issueId,
   issueTitle,
+  projectName,
+  versionName,
   onTaskDatesUpdated,
   onClose
 }: TaskDetailsDialogProps) {
@@ -1246,6 +1280,10 @@ export function TaskDetailsDialog({
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const hasDateChangesRef = useRef(false);
+  const [processDragSession, setProcessDragSession] = useState<ProcessDragSession | null>(null);
+  const processDragRef = useRef<ProcessDragSession | null>(null);
+  const processFlowContainerRef = useRef<HTMLDivElement | null>(null);
+  const [processFlowContainerWidth, setProcessFlowContainerWidth] = useState(0);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -1254,6 +1292,26 @@ export function TaskDetailsDialog({
     if (!open) return;
     fetchTaskMasters(projectIdentifier).then(setMasters).catch(() => { /* best-effort */ });
   }, [open, projectIdentifier]);
+
+  useLayoutEffect(() => {
+    if (!open || loading || issues.length === 0 || !processFlowContainerRef.current) return;
+
+    const element = processFlowContainerRef.current;
+    const updateWidth = () => {
+      setProcessFlowContainerWidth(element.clientWidth);
+    };
+
+    updateWidth();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [open, loading, issues.length]);
 
   const reloadTaskDetails = useCallback(async (expectedIssueId?: number) => {
     setLoading(true);
@@ -1334,6 +1392,10 @@ export function TaskDetailsDialog({
     savingIssueIdsRef.current = savingIssueIds;
   }, [savingIssueIds]);
 
+  useEffect(() => {
+    processDragRef.current = processDragSession;
+  }, [processDragSession]);
+
   useEffect(() => () => {
     Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
     saveTimersRef.current = {};
@@ -1357,9 +1419,13 @@ export function TaskDetailsDialog({
     return roots;
   }, [issues]);
 
-  const processFlowSteps = useMemo<ProcessFlowStep[]>(() => (
-    issues
+  const processFlowSteps = useMemo<ProcessFlowStep[]>(() => {
+    const parentIds = new Set<number>(issues.filter((issue) => issue.parent_id).map((issue) => issue.parent_id as number));
+
+    return issues
       .filter((issue) => Boolean(issue.start_date && issue.due_date))
+      .filter((issue) => issue.issue_id !== issueId)
+      .filter((issue) => !parentIds.has(issue.issue_id))
       .map((issue) => {
         const progress = Math.max(0, Math.min(100, Number(issue.done_ratio ?? 0)));
         const status: ProcessFlowStep['status'] = issue.status_is_closed || progress === 100
@@ -1370,17 +1436,91 @@ export function TaskDetailsDialog({
         return {
           id: issue.issue_id,
           title: issue.subject,
+          startDate: issue.start_date as string,
+          dueDate: issue.due_date as string,
           rangeLabel: `${issue.start_date} - ${issue.due_date}`,
           status,
           progress
         };
       })
-  ), [issues]);
+      .sort((left, right) =>
+        left.startDate.localeCompare(right.startDate) ||
+        left.dueDate.localeCompare(right.dueDate) ||
+        left.id - right.id
+      );
+  }, [issues, issueId]);
 
-  const dialogTitle = useMemo(() => {
-    if (!issueTitle) return t('timeline.ticketTitle', { id: issueId, suffix: '' });
-    return t('timeline.ticketTitle', { id: issueId, suffix: `: ${issueTitle}` });
-  }, [issueId, issueTitle]);
+  const processFlowTimelineWidth = processFlowContainerWidth > 0
+    ? Math.max(processFlowContainerWidth, PROCESS_FLOW_MIN_WIDTH)
+    : Math.max(PROCESS_FLOW_MIN_WIDTH, processFlowSteps.length * 180);
+
+  const processFlowAxis = useMemo(() => {
+    if (processFlowSteps.length === 0) return null;
+
+    return buildTimelineAxis({
+      items: processFlowSteps.map((step) => ({
+        start_date: step.startDate,
+        end_date: step.dueDate
+      })),
+      containerWidth: processFlowTimelineWidth,
+      defaultTimelineWidth: processFlowTimelineWidth
+    });
+  }, [processFlowSteps, processFlowTimelineWidth]);
+
+  const processFlowPixelsPerDay = processFlowAxis?.pixelsPerDay ?? 1;
+
+  const processFlowRenderSteps = useMemo(() => {
+    if (!processFlowAxis) return [];
+
+    const getX = createDateToX(processFlowAxis.minDate, processFlowAxis.pixelsPerDay);
+    const getWidth = createRangeToWidth(processFlowAxis.pixelsPerDay);
+
+    const positionedSteps = processFlowSteps
+      .map((step) => {
+        const currentSession = processDragSession?.issueId === step.id ? processDragSession : null;
+        const startDate = currentSession?.currentStartDate ?? step.startDate;
+        const dueDate = currentSession?.currentDueDate ?? step.dueDate;
+
+        return {
+          ...step,
+          startDate,
+          dueDate,
+          rangeLabel: `${startDate} - ${dueDate}`,
+          hitX: getX(startDate),
+          hitWidth: getWidth(startDate, dueDate)
+        };
+      })
+      .sort((left, right) =>
+        left.startDate.localeCompare(right.startDate) ||
+        left.dueDate.localeCompare(right.dueDate) ||
+        left.id - right.id
+      );
+
+    return positionedSteps.map((step, index) => {
+      const previousStep = index > 0 ? positionedSteps[index - 1] : null;
+      const joinsPrevious = Boolean(
+        previousStep &&
+        differenceInCalendarDays(parseISO(step.startDate), parseISO(previousStep.dueDate)) === 1
+      );
+      const x = joinsPrevious ? step.hitX - PROCESS_FLOW_POINT_DEPTH : step.hitX;
+      const width = joinsPrevious ? step.hitWidth + PROCESS_FLOW_POINT_DEPTH : step.hitWidth;
+
+      return {
+        ...step,
+        isFirst: index === 0,
+        joinsPrevious,
+        x,
+        width,
+        textX: x + width / 2 + (index === 0 ? 0 : PROCESS_FLOW_POINT_DEPTH / 2)
+      };
+    });
+  }, [processFlowAxis, processFlowSteps, processDragSession]);
+
+  const titleContext = useMemo(
+    () => [versionName, projectName].filter(Boolean).join(' / '),
+    [projectName, versionName]
+  );
+  const dialogHeaderTitle = titleContext || issueTitle || `#${issueId}`;
 
   const isRowDirty = (row: TaskDetailIssue) => {
     const baseline = baselineByIdRef.current[row.issue_id];
@@ -1414,6 +1554,101 @@ export function TaskDetailsDialog({
       setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
     }
   };
+
+  const saveProcessFlowDates = useCallback(async (row: TaskDetailIssue, startDate: string, dueDate: string) => {
+    if (saveTimersRef.current[row.issue_id]) {
+      clearTimeout(saveTimersRef.current[row.issue_id]);
+      delete saveTimersRef.current[row.issue_id];
+    }
+
+    setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: true }));
+    setIssues((prev) => prev.map((item) => (
+      item.issue_id === row.issue_id ? { ...item, start_date: startDate, due_date: dueDate } : item
+    )));
+
+    try {
+      const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
+        start_date: startDate,
+        due_date: dueDate
+      });
+      updated.parent_id = row.parent_id;
+      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
+      setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
+      setSelectedIssue((prev) => (
+        prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
+      ));
+      hasDateChangesRef.current = true;
+    } catch (error: unknown) {
+      const message =
+        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
+      alert(message);
+      const baseline = baselineByIdRef.current[row.issue_id];
+      if (baseline) {
+        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
+      }
+    } finally {
+      setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
+    }
+  }, [projectIdentifier]);
+
+  useEffect(() => {
+    if (!processDragSession) return;
+
+    const onPointerMove = (event: PointerEvent) => {
+      const current = processDragRef.current;
+      if (!current) return;
+      if (typeof event.pointerId === 'number' && current.pointerId !== event.pointerId) return;
+      if (!Number.isFinite(processFlowPixelsPerDay) || processFlowPixelsPerDay <= 0) return;
+
+      const deltaDays = Math.round((event.clientX - current.startClientX) / processFlowPixelsPerDay);
+      if (!Number.isFinite(deltaDays)) return;
+
+      let nextStart = current.originalStartDate;
+      let nextDue = current.originalDueDate;
+
+      if (current.mode === 'move') {
+        nextStart = shiftIsoDate(current.originalStartDate, deltaDays);
+        nextDue = shiftIsoDate(current.originalDueDate, deltaDays);
+      } else if (current.mode === 'resize-left') {
+        const candidateStart = shiftIsoDate(current.originalStartDate, deltaDays);
+        nextStart = candidateStart > current.originalDueDate ? current.originalDueDate : candidateStart;
+      } else {
+        const candidateDue = shiftIsoDate(current.originalDueDate, deltaDays);
+        nextDue = candidateDue < current.originalStartDate ? current.originalStartDate : candidateDue;
+      }
+
+      if (nextStart === current.currentStartDate && nextDue === current.currentDueDate) return;
+
+      const updated = { ...current, currentStartDate: nextStart, currentDueDate: nextDue };
+      processDragRef.current = updated;
+      setProcessDragSession(updated);
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      const current = processDragRef.current;
+      if (!current) return;
+      if (typeof event.pointerId === 'number' && current.pointerId !== event.pointerId) return;
+
+      const issue = issuesRef.current.find((item) => item.issue_id === current.issueId);
+      const hasChanged = current.currentStartDate !== current.originalStartDate || current.currentDueDate !== current.originalDueDate;
+      if (issue && hasChanged) {
+        void saveProcessFlowDates(issue, current.currentStartDate, current.currentDueDate);
+      }
+
+      processDragRef.current = null;
+      setProcessDragSession(null);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+    };
+  }, [processDragSession, processFlowPixelsPerDay, saveProcessFlowDates]);
 
   const handleDateChange = (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => {
     setIssues((prev) => {
@@ -1496,6 +1731,30 @@ export function TaskDetailsDialog({
     }
   };
 
+  const startProcessFlowDrag = (
+    event: React.PointerEvent<SVGRectElement>,
+    step: ProcessFlowStep,
+    mode: ProcessDragMode
+  ) => {
+    if (savingIssueIdsRef.current[step.id]) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const session: ProcessDragSession = {
+      issueId: step.id,
+      pointerId: event.pointerId,
+      mode,
+      startClientX: event.clientX,
+      originalStartDate: step.startDate,
+      originalDueDate: step.dueDate,
+      currentStartDate: step.startDate,
+      currentDueDate: step.dueDate
+    };
+
+    processDragRef.current = session;
+    setProcessDragSession(session);
+  };
+
   if (!open) return null;
 
   return (
@@ -1505,11 +1764,16 @@ export function TaskDetailsDialog({
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-white relative z-10 border-b border-slate-200 flex-shrink-0 h-12 box-border">
+        <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-white relative z-10 border-b border-slate-200 flex-shrink-0 min-h-12 box-border">
           <div className="flex flex-row items-center gap-2.5 min-w-0">
-            <h3 className="text-[16px] font-semibold text-slate-800 flex items-center gap-2 min-w-0">
-              {issueTitle ? <><span className="truncate">{issueTitle}</span> <span className="text-slate-300 font-semibold text-sm shrink-0">#{issueId}</span></> : `#${issueId}`}
-            </h3>
+            <div className="min-w-0">
+              <h3 className="text-[16px] font-semibold text-slate-800 flex items-center gap-2 min-w-0" data-testid="task-details-title">
+                <span className="truncate">{dialogHeaderTitle}</span>
+                {dialogHeaderTitle !== `#${issueId}` && (
+                  <span className="text-slate-300 font-semibold text-sm shrink-0">#{issueId}</span>
+                )}
+              </h3>
+            </div>
             <button
               onClick={() => void reloadTaskDetails(issueId)}
               title={t('timeline.reloadTasks')}
@@ -1566,64 +1830,170 @@ export function TaskDetailsDialog({
                 <div className="px-4 py-2.5 text-[12px] font-semibold text-slate-600 border-b border-slate-100">
                   {t('timeline.processMode', { defaultValue: 'Process Flow' })}
                 </div>
-                <div className="overflow-x-auto px-4 py-3" data-testid="task-details-process-flow">
-                  {processFlowSteps.length > 0 ? (
+                <div className="overflow-x-auto px-4 py-3" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
+                  {processFlowAxis && processFlowRenderSteps.length > 0 ? (
                     <svg
                       data-testid="task-details-process-flow-svg"
-                      width={Math.max(480, processFlowSteps.length * 170 + 56)}
-                      height={108}
+                      width={processFlowAxis.timelineWidth}
+                      height={PROCESS_FLOW_SVG_HEIGHT}
                       role="img"
                       aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
                     >
-                      {processFlowSteps.map((step, index) => {
-                        const isFirst = index === 0;
-                        const x = 18 + index * 162;
-                        const y = 8;
-                        const width = 154;
-                        const height = 42;
-                        const pointDepth = 18;
-                        const style = processStatusStyles[step.status];
-                        const textX = x + width / 2 + (isFirst ? 0 : pointDepth / 2);
+                      <rect
+                        x={0}
+                        y={0}
+                        width={processFlowAxis.timelineWidth}
+                        height={PROCESS_FLOW_YEAR_ROW_HEIGHT}
+                        fill="#f8fafc"
+                        stroke="#e2e8f0"
+                        strokeWidth="1"
+                      />
+                      <rect
+                        x={0}
+                        y={PROCESS_FLOW_YEAR_ROW_HEIGHT}
+                        width={processFlowAxis.timelineWidth}
+                        height={PROCESS_FLOW_MONTH_ROW_HEIGHT}
+                        fill="#f8fafc"
+                        stroke="#e2e8f0"
+                        strokeWidth="1"
+                      />
+                      {processFlowAxis.headerYears.map((year, index) => (
+                        <g key={`process-year-${year.year}-${index}`} transform={`translate(${year.x}, 0)`}>
+                          <rect x={0} y={0} width={year.width} height={PROCESS_FLOW_YEAR_ROW_HEIGHT} fill="none" stroke="#e2e8f0" strokeWidth="1" />
+                          <text
+                            data-testid={`task-details-process-year-${index}`}
+                            x={year.width / 2}
+                            y={PROCESS_FLOW_YEAR_ROW_HEIGHT / 2}
+                            fill="#334155"
+                            fontSize="11"
+                            fontWeight="700"
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                          >
+                            {year.year}
+                          </text>
+                        </g>
+                      ))}
+                      {processFlowAxis.headerMonths.map((month, index) => (
+                        <g key={`process-month-${month.label}-${index}`} transform={`translate(${month.x}, ${PROCESS_FLOW_YEAR_ROW_HEIGHT})`}>
+                          <rect x={0} y={0} width={month.width} height={PROCESS_FLOW_MONTH_ROW_HEIGHT} fill="none" stroke="#e2e8f0" strokeWidth="1" />
+                          <text
+                            data-testid={`task-details-process-month-${index}`}
+                            x={month.width / 2}
+                            y={PROCESS_FLOW_MONTH_ROW_HEIGHT / 2}
+                            fill="#334155"
+                            fontSize="11"
+                            fontWeight="700"
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                          >
+                            {month.label}
+                          </text>
+                        </g>
+                      ))}
 
-                        return (
-                          <g key={step.id} data-testid="task-details-process-step">
-                            <ProcessChevron
-                              x={x}
-                              y={y}
-                              width={width}
-                              height={height}
-                              pointDepth={pointDepth}
-                              isFirst={isFirst}
-                              fill={style.fill}
-                              stroke={style.stroke}
-                              progress={step.progress}
-                              id={step.id}
-                            />
-                            <text
-                              x={textX}
-                              y={y + 22}
-                              fill={style.text}
-                              fontSize="11"
-                              fontWeight="700"
-                              textAnchor="middle"
-                              dominantBaseline="middle"
-                            >
-                              {step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title}
-                            </text>
-                            <text
-                              x={textX}
-                              y={y + 64}
-                              fill="#64748b"
-                              fontSize="10"
-                              fontWeight="600"
-                              textAnchor="middle"
-                              dominantBaseline="middle"
-                            >
-                              {step.rangeLabel}
-                            </text>
-                          </g>
-                        );
-                      })}
+                      <g transform={`translate(0, ${PROCESS_FLOW_HEADER_HEIGHT})`}>
+                        <rect
+                          x={0}
+                          y={0}
+                          width={processFlowAxis.timelineWidth}
+                          height={PROCESS_FLOW_LANE_HEIGHT}
+                          fill="#ffffff"
+                        />
+                        {processFlowAxis.headerMonths.map((month, index) => (
+                          <line
+                            key={`process-month-line-${index}`}
+                            x1={month.x}
+                            y1={0}
+                            x2={month.x}
+                            y2={PROCESS_FLOW_LANE_HEIGHT}
+                            stroke="#e2e8f0"
+                            strokeDasharray="4 3"
+                          />
+                        ))}
+                        <line
+                          x1={0}
+                          y1={PROCESS_FLOW_LANE_HEIGHT}
+                          x2={processFlowAxis.timelineWidth}
+                          y2={PROCESS_FLOW_LANE_HEIGHT}
+                          stroke="#e2e8f0"
+                          strokeWidth="1"
+                        />
+
+                        {processFlowRenderSteps.map((step) => {
+                          const style = processStatusStyles[step.status];
+
+                          return (
+                            <g key={step.id} data-testid="task-details-process-step" opacity={savingIssueIds[step.id] ? 0.6 : 1}>
+                              <ProcessChevron
+                                x={step.x}
+                                y={PROCESS_FLOW_BAR_Y}
+                                width={step.width}
+                                height={PROCESS_FLOW_BAR_HEIGHT}
+                                pointDepth={PROCESS_FLOW_POINT_DEPTH}
+                                isFirst={step.isFirst}
+                                fill={style.fill}
+                                stroke={style.stroke}
+                                progress={step.progress}
+                                id={step.id}
+                              />
+                              <rect
+                                x={step.hitX}
+                                y={PROCESS_FLOW_BAR_Y}
+                                width={step.hitWidth}
+                                height={PROCESS_FLOW_BAR_HEIGHT}
+                                fill="transparent"
+                                style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'grab' }}
+                                onPointerDown={(event) => startProcessFlowDrag(event, step, 'move')}
+                                data-testid={`task-details-process-step-hit-${step.id}`}
+                              />
+                              <rect
+                                x={step.hitX}
+                                y={PROCESS_FLOW_BAR_Y}
+                                width={10}
+                                height={PROCESS_FLOW_BAR_HEIGHT}
+                                fill="transparent"
+                                style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
+                                onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-left')}
+                                data-testid={`task-details-process-step-left-${step.id}`}
+                              />
+                              <rect
+                                x={Math.max(step.hitX + step.hitWidth - 10, step.hitX)}
+                                y={PROCESS_FLOW_BAR_Y}
+                                width={10}
+                                height={PROCESS_FLOW_BAR_HEIGHT}
+                                fill="transparent"
+                                style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
+                                onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-right')}
+                                data-testid={`task-details-process-step-right-${step.id}`}
+                              />
+                              <text
+                                x={step.textX}
+                                y={PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT / 2 + 1}
+                                fill={style.text}
+                                fontSize="11"
+                                fontWeight="700"
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                pointerEvents="none"
+                              >
+                                {step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title}
+                              </text>
+                              <text
+                                x={step.textX}
+                                y={PROCESS_FLOW_RANGE_LABEL_Y}
+                                fill="#64748b"
+                                fontSize="10"
+                                fontWeight="600"
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                              >
+                                {step.rangeLabel}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </g>
                     </svg>
                   ) : (
                     <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
