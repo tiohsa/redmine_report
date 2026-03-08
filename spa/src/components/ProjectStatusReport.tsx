@@ -642,7 +642,7 @@ export const ProjectStatusReport = ({
                             aria-expanded={isDateRangeDialogOpen}
                         >
                             <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 2v4m8-4v4M3 10h18M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm3 10h6m-2-2 2 2-2 2"></path>
                             </svg>
                             {isCustomDateRangeActive && (
                                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full border border-white"></span>
