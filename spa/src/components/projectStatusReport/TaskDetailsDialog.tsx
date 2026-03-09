@@ -1845,11 +1845,8 @@ export function TaskDetailsDialog({
 
           {!loading && issues.length > 0 && (
             <>
-              <div className="mx-6 mt-5 mb-3 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="px-4 py-2.5 text-[12px] font-semibold text-slate-600 border-b border-slate-100">
-                  {t('timeline.processMode', { defaultValue: 'Process Flow' })}
-                </div>
-                <div className="overflow-x-auto px-4 py-3" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
+              <div className="border-b border-slate-200 bg-white shadow-sm relative z-10 pb-1 px-[5px]">
+                <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
                   {processFlowAxis && processFlowRenderSteps.length > 0 ? (
                     <svg
                       data-testid="task-details-process-flow-svg"
@@ -2046,10 +2043,10 @@ export function TaskDetailsDialog({
               </div>
 
               {/* Left Panel - Task List */}
-              <div className="flex-1 flex min-h-0 px-6 pb-6">
-                <div className={`flex flex-col min-h-0 border border-slate-200 rounded-xl bg-white ${selectedIssue ? 'w-[68%]' : 'w-full'} transition-all`}>
+              <div className="flex-1 flex min-h-0 px-[5px] pt-4 pb-[5px] relative bg-slate-50/40">
+                <div className="flex flex-col min-h-0 border border-slate-200 rounded-2xl shadow-sm bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
-                  <div className="overflow-auto flex-1 bg-white rounded-l-xl">
+                  <div className="overflow-auto flex-1 bg-white">
                     <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0">
                       <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
@@ -2101,7 +2098,7 @@ export function TaskDetailsDialog({
 
                 {/* Right Panel - Detail View */}
                 {selectedIssue && (
-                  <div className="w-[34%] min-w-[340px] flex flex-col min-h-0 overflow-auto bg-[#f4f6fb] border border-slate-200 rounded-xl ml-3">
+                  <div className="absolute right-[5px] top-4 bottom-[5px] w-[calc(50%-5px)] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-slate-50/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-30">
                     {/* Detail Header */}
                     <div className="px-4 pt-3.5 pb-3 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-10">
                       <div className="min-w-0">
