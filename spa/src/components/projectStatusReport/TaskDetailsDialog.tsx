@@ -850,7 +850,7 @@ function SubIssueCreationDialog({
         </div>
 
         {/* Bulk Ticket Creation Section */}
-        <div className="border-t border-slate-200 px-5 py-3 flex-shrink-0">
+        <div className="border-t border-slate-200 px-5 py-1.5 flex-shrink-0">
           <button
             type="button"
             className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
@@ -876,13 +876,13 @@ function SubIssueCreationDialog({
             </div>
           )}
 
-          <div className="flex justify-end gap-3 mt-3">
+          <div className="flex justify-start gap-3 mt-1.5">
             <button
               type="button"
               className="rounded-[6px] border bg-white px-6 text-[14px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
-                width: '118px',
-                height: '40px',
+                width: '112px',
+                height: '34px',
                 borderColor: '#cbd5e1',
                 color: '#334155',
                 fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
@@ -895,8 +895,8 @@ function SubIssueCreationDialog({
               type="button"
               className="rounded-[6px] px-6 text-[14px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
-                width: '114px',
-                height: '40px',
+                width: '110px',
+                height: '34px',
                 backgroundColor: '#1b69e3',
                 color: '#fff',
                 fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
@@ -1186,7 +1186,7 @@ function IssueEditDialog({
           )}
         </div>
 
-        <div className="border-t border-slate-200 px-5 py-3 flex-shrink-0">
+        <div className="border-t border-slate-200 px-5 py-1.5 flex-shrink-0">
           <button
             type="button"
             className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
@@ -1212,13 +1212,13 @@ function IssueEditDialog({
             </div>
           )}
 
-          <div className="flex justify-end gap-3 mt-3">
+          <div className="flex justify-start gap-3 mt-1.5">
             <button
               type="button"
               className="rounded-[6px] border bg-white px-6 text-[14px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
-                width: '118px',
-                height: '40px',
+                width: '112px',
+                height: '34px',
                 borderColor: '#cbd5e1',
                 color: '#334155',
                 fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
@@ -1231,8 +1231,8 @@ function IssueEditDialog({
               type="button"
               className="rounded-[6px] px-6 text-[14px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
-                width: '114px',
-                height: '40px',
+                width: '110px',
+                height: '34px',
                 backgroundColor: '#1b69e3',
                 color: '#fff',
                 fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
@@ -1845,11 +1845,8 @@ export function TaskDetailsDialog({
 
           {!loading && issues.length > 0 && (
             <>
-              <div className="mx-6 mt-5 mb-3 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="px-4 py-2.5 text-[12px] font-semibold text-slate-600 border-b border-slate-100">
-                  {t('timeline.processMode', { defaultValue: 'Process Flow' })}
-                </div>
-                <div className="overflow-x-auto px-4 py-3" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
+              <div className="border-b border-slate-200 bg-white shadow-sm relative z-10 pb-1 px-[5px]">
+                <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
                   {processFlowAxis && processFlowRenderSteps.length > 0 ? (
                     <svg
                       data-testid="task-details-process-flow-svg"
@@ -2046,10 +2043,10 @@ export function TaskDetailsDialog({
               </div>
 
               {/* Left Panel - Task List */}
-              <div className="flex-1 flex min-h-0 px-6 pb-6">
-                <div className={`flex flex-col min-h-0 border border-slate-200 rounded-xl bg-white ${selectedIssue ? 'w-[68%]' : 'w-full'} transition-all`}>
+              <div className="flex-1 flex min-h-0 px-[5px] pt-4 pb-[5px] relative bg-slate-50/40">
+                <div className="flex flex-col min-h-0 border border-slate-200 rounded-2xl shadow-sm bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
-                  <div className="overflow-auto flex-1 bg-white rounded-l-xl">
+                  <div className="overflow-auto flex-1 bg-white">
                     <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0">
                       <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
@@ -2101,7 +2098,7 @@ export function TaskDetailsDialog({
 
                 {/* Right Panel - Detail View */}
                 {selectedIssue && (
-                  <div className="w-[34%] min-w-[340px] flex flex-col min-h-0 overflow-auto bg-[#f4f6fb] border border-slate-200 rounded-xl ml-3">
+                  <div className="absolute right-[5px] top-4 bottom-[5px] w-[calc(50%-5px)] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-slate-50/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-30">
                     {/* Detail Header */}
                     <div className="px-4 pt-3.5 pb-3 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-10">
                       <div className="min-w-0">
@@ -2180,10 +2177,10 @@ export function TaskDetailsDialog({
                             placeholder={t('timeline.noDescription')}
                             autoFocus
                           />
-                          <div className="bg-slate-50 px-3 py-2 border-t border-slate-100 flex justify-end gap-2">
+                          <div className="bg-slate-50 px-3 py-1 border-t border-slate-100 flex justify-start gap-2">
                             <button
                               type="button"
-                              className="px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer"
+                              className="h-[34px] min-w-[112px] px-4 text-[14px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded-[6px] hover:bg-slate-50 transition-colors cursor-pointer inline-flex items-center justify-center"
                               onClick={() => {
                                 setEditingDescription(false);
                                 setDescriptionDraft(selectedIssue.description || '');
@@ -2193,7 +2190,7 @@ export function TaskDetailsDialog({
                             </button>
                             <button
                               type="button"
-                              className="px-3 py-1.5 text-[12px] font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors cursor-pointer"
+                              className="h-[34px] min-w-[110px] px-4 text-[14px] font-bold text-white bg-blue-600 rounded-[6px] hover:bg-blue-700 transition-colors cursor-pointer inline-flex items-center justify-center"
                               onClick={() => { void handleSaveDescription(); }}
                             >
                               {t('common.save')}
@@ -2250,10 +2247,10 @@ export function TaskDetailsDialog({
                                   onChange={(e) => setEditingCommentDraft(e.target.value)}
                                   autoFocus
                                 />
-                                <div className="bg-slate-50 px-3 py-2 border-t border-slate-100 flex justify-end gap-2">
+                                <div className="bg-slate-50 px-3 py-1 border-t border-slate-100 flex justify-start gap-2">
                                   <button
                                     type="button"
-                                    className="px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors cursor-pointer"
+                                    className="h-[34px] min-w-[112px] px-4 text-[14px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded-[6px] hover:bg-slate-50 transition-colors cursor-pointer inline-flex items-center justify-center"
                                     onClick={() => {
                                       setEditingCommentId(null);
                                       setEditingCommentDraft('');
@@ -2263,7 +2260,7 @@ export function TaskDetailsDialog({
                                   </button>
                                   <button
                                     type="button"
-                                    className="px-3 py-1.5 text-[12px] font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors cursor-pointer flex items-center gap-1"
+                                    className="h-[34px] min-w-[110px] px-4 text-[14px] font-bold text-white bg-blue-600 rounded-[6px] hover:bg-blue-700 transition-colors cursor-pointer inline-flex items-center justify-center gap-1"
                                     onClick={() => {
                                       void handleUpdateComment(comment.id!, editingCommentDraft);
                                       setEditingCommentId(null);
