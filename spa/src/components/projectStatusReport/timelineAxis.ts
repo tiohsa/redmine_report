@@ -35,16 +35,16 @@ export function calculateStaggeredLanes<T>(
     const start = parseISO(startStr);
     const end = parseISO(endStr);
 
-    let assignedLane = -1;
+    let maxOverlappingLane = -1;
     for (let i = 0; i < lanesEndDate.length; i++) {
-      if (isAfter(start, lanesEndDate[i])) {
-        assignedLane = i;
-        break;
+      if (!isAfter(start, lanesEndDate[i])) {
+        maxOverlappingLane = Math.max(maxOverlappingLane, i);
       }
     }
 
-    if (assignedLane === -1) {
-      assignedLane = lanesEndDate.length;
+    const assignedLane = maxOverlappingLane + 1;
+
+    if (assignedLane >= lanesEndDate.length) {
       lanesEndDate.push(end);
     } else {
       lanesEndDate[assignedLane] = end;
