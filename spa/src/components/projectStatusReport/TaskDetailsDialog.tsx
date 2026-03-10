@@ -75,7 +75,7 @@ const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/200
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
 const EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE = {
   fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
-  height: '28px'
+  height: '24px'
 } as const;
 const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   #issue-form p:has(#issue_subject),
@@ -611,6 +611,8 @@ function SubIssueCreationDialog({
   const [bulkText, setBulkText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
+  const [iframeHeader, setIframeHeader] = useState('');
+  const [iframeSubject, setIframeSubject] = useState('');
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const handledCreationRef = useRef(false);
   const cleanupIframeEscRef = useRef<(() => void) | null>(null);
@@ -756,10 +758,18 @@ function SubIssueCreationDialog({
         {/* Header */}
         <div className="px-5 py-1.5 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
-              #{parentIssueId}
-            </span>
-            <span className="text-[13px] font-semibold text-slate-700">{t('subIssueDialog.iframeTitle')}</span>
+            {iframeHeader ? (
+              <span className="text-[13px] font-semibold text-slate-800 truncate" title={`${iframeHeader} #${parentIssueId} ${iframeSubject}`}>
+                {iframeHeader} #{parentIssueId} {iframeSubject}
+              </span>
+            ) : (
+              <React.Fragment>
+                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
+                  #{parentIssueId}
+                </span>
+                <span className="text-[13px] font-semibold text-slate-700">{t('subIssueDialog.iframeTitle')}</span>
+              </React.Fragment>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <a
@@ -823,6 +833,9 @@ function SubIssueCreationDialog({
                   #content {
                     padding: 12px 16px !important;
                   }
+                  h2 {
+                    display: none !important;
+                  }
 ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                   #issue-form input[name="commit"],
                   #issue-form button[name="commit"],
@@ -857,6 +870,18 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                   doc.removeEventListener('keydown', onIframeEsc);
                 };
                 normalizeEmbeddedFormActions(doc);
+
+                try {
+                  const h2Ele = doc.querySelector('h2');
+                  if (h2Ele) setIframeHeader(h2Ele.textContent || '');
+                  const subjectInput = doc.querySelector<HTMLInputElement>('#issue_subject');
+                  if (subjectInput) {
+                    setIframeSubject(subjectInput.value);
+                    subjectInput.addEventListener('input', (event) => {
+                      setIframeSubject((event.target as HTMLInputElement).value);
+                    });
+                  }
+                } catch { /* ignore cross-origin errors */ }
 
                 const pathname = doc.location?.pathname || '';
                 if (!handledCreationRef.current && /^\/issues\/\d+(?:\/)?$/.test(pathname)) {
@@ -907,10 +932,10 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
           <div className="flex justify-start gap-2 mt-1">
             <button
               type="button"
-              className="rounded-[6px] border bg-white px-4 text-[12px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
+              className="rounded-[6px] border bg-white px-3 text-[11px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
                 ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
-                width: '88px',
+                width: '72px',
                 borderColor: '#cbd5e1',
                 color: '#334155'
               }}
@@ -920,10 +945,10 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
             </button>
             <button
               type="button"
-              className="rounded-[6px] px-4 text-[12px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
+              className="rounded-[6px] px-3 text-[11px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
                 ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
-                width: '86px',
+                width: '70px',
                 backgroundColor: '#1b69e3',
                 color: '#fff'
               }}
@@ -952,6 +977,8 @@ function IssueEditDialog({
   const [bulkText, setBulkText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
+  const [iframeHeader, setIframeHeader] = useState('');
+  const [iframeSubject, setIframeSubject] = useState('');
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const handledSaveRef = useRef(false);
   const cleanupIframeEscRef = useRef<(() => void) | null>(null);
@@ -1095,10 +1122,18 @@ function IssueEditDialog({
       <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-1.5 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
-              #{issueId}
-            </span>
-            <span className="text-[13px] font-semibold text-slate-700">{t('timeline.editIssueDialogTitle')}</span>
+            {iframeHeader ? (
+              <span className="text-[13px] font-semibold text-slate-800 truncate" title={`${iframeHeader} ${iframeSubject}`}>
+                {iframeHeader} {iframeSubject}
+              </span>
+            ) : (
+              <React.Fragment>
+                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
+                  #{issueId}
+                </span>
+                <span className="text-[13px] font-semibold text-slate-700">{t('timeline.editIssueDialogTitle')}</span>
+              </React.Fragment>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <a
@@ -1162,6 +1197,9 @@ function IssueEditDialog({
                   #content {
                     padding: 12px 16px !important;
                   }
+                  h2 {
+                    display: none !important;
+                  }
 ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                   #issue-form input[name="commit"],
                   #issue-form button[name="commit"],
@@ -1177,6 +1215,21 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                   }
                 `;
                 doc.head.appendChild(style);
+
+                try {
+                  const h2Ele = doc.querySelector('h2');
+                  if (h2Ele) setIframeHeader(h2Ele.textContent || '');
+                  const subjectInput = doc.querySelector<HTMLInputElement>('#issue_subject');
+                  if (subjectInput) {
+                    setIframeSubject(subjectInput.value);
+                    subjectInput.addEventListener('input', (event) => {
+                      setIframeSubject((event.target as HTMLInputElement).value);
+                    });
+                  } else {
+                    const subjectDiv = doc.querySelector('.subject h3');
+                    if (subjectDiv) setIframeSubject(subjectDiv.textContent || '');
+                  }
+                } catch { /* ignore cross-origin errors */ }
                 cleanupIframeEscRef.current?.();
                 const onIframeEsc = (event: KeyboardEvent) => {
                   if (event.key === 'Escape') {
@@ -1242,10 +1295,10 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
           <div className="flex justify-start gap-2 mt-1">
             <button
               type="button"
-              className="rounded-[6px] border bg-white px-4 text-[12px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
+              className="rounded-[6px] border bg-white px-3 text-[11px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
                 ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
-                width: '88px',
+                width: '72px',
                 borderColor: '#cbd5e1',
                 color: '#334155'
               }}
@@ -1255,10 +1308,10 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
             </button>
             <button
               type="button"
-              className="rounded-[6px] px-4 text-[12px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
+              className="rounded-[6px] px-3 text-[11px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
                 ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
-                width: '86px',
+                width: '70px',
                 backgroundColor: '#1b69e3',
                 color: '#fff'
               }}
@@ -1279,8 +1332,6 @@ export function TaskDetailsDialog({
   projectIdentifier,
   issueId,
   issueTitle,
-  projectName,
-  versionName,
   onTaskDatesUpdated,
   onClose
 }: TaskDetailsDialogProps) {
@@ -1560,11 +1611,7 @@ export function TaskDetailsDialog({
   );
   const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
 
-  const titleContext = useMemo(
-    () => [versionName, projectName].filter(Boolean).join(' / '),
-    [projectName, versionName]
-  );
-  const dialogHeaderTitle = titleContext || issueTitle || `#${issueId}`;
+  const dialogHeaderTitle = issueTitle ? `${issueTitle} #${issueId}` : `#${issueId}`;
 
   const isRowDirty = (row: TaskDetailIssue) => {
     const baseline = baselineByIdRef.current[row.issue_id];
@@ -1573,7 +1620,7 @@ export function TaskDetailsDialog({
   };
 
   const saveRow = async (row: TaskDetailIssue) => {
-    setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: true }));
+    setSavingIssueIds((prev: Record<number, boolean>) => ({ ...prev, [row.issue_id]: true }));
     try {
       const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
         start_date: row.start_date,
@@ -1595,7 +1642,7 @@ export function TaskDetailsDialog({
         hasDateChangesRef.current = true; // Need to refresh Gantt chart if they actually saved previously, but for now we just revert our local list
       }
     } finally {
-      setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
+      setSavingIssueIds((prev: Record<number, boolean>) => ({ ...prev, [row.issue_id]: false }));
     }
   };
 
@@ -1605,7 +1652,7 @@ export function TaskDetailsDialog({
       delete saveTimersRef.current[row.issue_id];
     }
 
-    setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: true }));
+    setSavingIssueIds((prev: Record<number, boolean>) => ({ ...prev, [row.issue_id]: true }));
     setIssues((prev) => prev.map((item) => (
       item.issue_id === row.issue_id ? { ...item, start_date: startDate, due_date: dueDate } : item
     )));
@@ -1631,7 +1678,7 @@ export function TaskDetailsDialog({
         setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
       }
     } finally {
-      setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
+      setSavingIssueIds((prev: Record<number, boolean>) => ({ ...prev, [row.issue_id]: false }));
     }
   }, [projectIdentifier]);
 
@@ -1813,9 +1860,6 @@ export function TaskDetailsDialog({
             <div className="min-w-0">
               <h3 className="text-[16px] font-semibold text-slate-800 flex items-center gap-2 min-w-0" data-testid="task-details-title">
                 <span className="truncate">{dialogHeaderTitle}</span>
-                {dialogHeaderTitle !== `#${issueId}` && (
-                  <span className="text-slate-300 font-semibold text-sm shrink-0">#{issueId}</span>
-                )}
               </h3>
             </div>
             <button

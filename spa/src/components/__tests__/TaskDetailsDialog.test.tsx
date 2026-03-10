@@ -133,7 +133,7 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('task-details-process-step-right-11')).toBeTruthy();
   });
 
-  it('shows version and project in the dialog title instead of the task name', async () => {
+  it('shows issue subject and id in the dialog title', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -170,9 +170,8 @@ describe('TaskDetailsDialog', () => {
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
     const title = screen.getByTestId('task-details-title');
-    expect(title.textContent).toContain('Sprint 1 / eCookbook');
-    expect(title.textContent).toContain('#10');
-    expect(title.textContent).not.toContain('Leaf issue');
+    expect(title.textContent).toBe('Leaf issue #10');
+    expect(title.textContent).not.toContain('Sprint 1 / eCookbook');
   });
 
   it('renders year and month headers and updates bar width when leaf dates change', async () => {
