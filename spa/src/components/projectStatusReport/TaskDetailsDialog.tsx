@@ -67,6 +67,7 @@ const PROCESS_FLOW_HEADER_HEIGHT = PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_M
 const PROCESS_FLOW_LANE_HEIGHT = 90;
 const PROCESS_FLOW_BAR_HEIGHT = 36;
 const PROCESS_FLOW_BAR_Y = 12;
+const PROCESS_FLOW_BAR_SPACING_Y = 17;
 const PROCESS_FLOW_POINT_DEPTH = 18;
 const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 16;
 const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
@@ -1604,10 +1605,9 @@ export function TaskDetailsDialog({
     return processFlowRenderSteps.length > 0 ? Math.max(...processFlowRenderSteps.map(s => s.laneIndex)) : 0;
   }, [processFlowRenderSteps]);
 
-  const processFlowBarSpacingY = 12;
   const processFlowLaneHeight = Math.max(
     PROCESS_FLOW_LANE_HEIGHT,
-    24 + (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * processFlowBarSpacingY + 30
+    24 + (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y + 30
   );
   const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
 
@@ -2013,7 +2013,7 @@ export function TaskDetailsDialog({
 
                         {processFlowRenderSteps.map((step) => {
                           const style = processStatusStyles[step.status];
-                          const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + processFlowBarSpacingY);
+                          const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
 
                           return (
                             <g key={step.id} data-testid="task-details-process-step" opacity={savingIssueIds[step.id] ? 0.6 : 1}>
