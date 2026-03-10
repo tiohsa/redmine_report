@@ -1,6 +1,34 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { t } from '../../i18n';
 
+const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
+const EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE = {
+    fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+    height: '28px'
+} as const;
+const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
+                  #issue-form p:has(#issue_subject),
+                  #new_issue p:has(#issue_subject),
+                  #edit_issue p:has(#issue_subject) {
+                    margin-bottom: 8px !important;
+                  }
+                  #issue-form label[for="issue_subject"],
+                  #new_issue label[for="issue_subject"],
+                  #edit_issue label[for="issue_subject"] {
+                    margin-bottom: 2px !important;
+                    font-size: 12px !important;
+                    line-height: 1.2 !important;
+                  }
+                  #issue_subject {
+                    min-height: 28px !important;
+                    height: 28px !important;
+                    padding-top: 3px !important;
+                    padding-bottom: 3px !important;
+                    font-size: 13px !important;
+                    line-height: 1.2 !important;
+                  }
+`;
+
 type CreateDestinationIssueDialogProps = {
     projectIdentifier: string;
     onCreated?: (createdIssueId?: number) => void;
@@ -135,10 +163,10 @@ export function CreateDestinationIssueDialog({
         <div className="fixed inset-0 z-[70] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
             <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
-                <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-slate-50">
+                <div className="px-5 py-1.5 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-slate-50">
                     <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-indigo-100 rounded-md">
-                            <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <div className="p-1 bg-indigo-100 rounded-md">
+                            <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                             </svg>
                         </div>
@@ -151,20 +179,20 @@ export function CreateDestinationIssueDialog({
                             href={externalUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
                             title={t('common.openInNewTab')}
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
                             </svg>
                         </a>
                         <button
                             type="button"
                             aria-label={t('destinationIssueDialog.closeAria')}
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors cursor-pointer"
                             onClick={onClose}
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
@@ -207,9 +235,10 @@ export function CreateDestinationIssueDialog({
                     width: 100% !important;
                     background-color: white !important;
                   }
-                  #content {
-                    padding: 24px 32px !important;
-                  }
+	                  #content {
+	                    padding: 24px 32px !important;
+	                  }
+${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                   
                   /* Hide default redmine submit buttons, to replace with our custom dialog buttons */
                   #issue-form input[name="commit"],
@@ -255,17 +284,16 @@ export function CreateDestinationIssueDialog({
                 </div>
 
                 {/* Footer Actions */}
-                <div className="border-t border-slate-200 px-6 py-4 flex-shrink-0 bg-slate-50 border-t-1">
-                    <div className="flex justify-end gap-3">
+                <div className="border-t border-slate-200 px-6 py-1.5 flex-shrink-0 bg-slate-50 border-t-1">
+                    <div className="flex justify-end gap-2">
                         <button
                             type="button"
-                            className="rounded-[6px] border bg-white px-6 text-[14px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased hover:bg-slate-50"
+                            className="rounded-[6px] border bg-white px-4 text-[12px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased hover:bg-slate-50"
                             style={{
-                                width: '118px',
-                                height: '40px',
+                                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
+                                width: '88px',
                                 borderColor: '#cbd5e1',
-                                color: '#334155',
-                                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+                                color: '#334155'
                             }}
                             onClick={onClose}
                         >
@@ -273,13 +301,12 @@ export function CreateDestinationIssueDialog({
                         </button>
                         <button
                             type="button"
-                            className="rounded-[6px] px-6 text-[14px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased hover:bg-blue-700"
+                            className="rounded-[6px] px-4 text-[12px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased hover:bg-blue-700"
                             style={{
-                                width: '114px',
-                                height: '40px',
+                                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
+                                width: '86px',
                                 backgroundColor: '#1b69e3',
-                                color: '#fff',
-                                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+                                color: '#fff'
                             }}
                             disabled={isSubmitting || !iframeReady}
                             onClick={handleSave}

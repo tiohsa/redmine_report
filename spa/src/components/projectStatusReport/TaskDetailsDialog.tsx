@@ -72,6 +72,33 @@ const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT 
 const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
 
 const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
+const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
+const EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE = {
+  fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+  height: '28px'
+} as const;
+const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
+                  #issue-form p:has(#issue_subject),
+                  #new_issue p:has(#issue_subject),
+                  #edit_issue p:has(#issue_subject) {
+                    margin-bottom: 8px !important;
+                  }
+                  #issue-form label[for="issue_subject"],
+                  #new_issue label[for="issue_subject"],
+                  #edit_issue label[for="issue_subject"] {
+                    margin-bottom: 2px !important;
+                    font-size: 12px !important;
+                    line-height: 1.2 !important;
+                  }
+                  #issue_subject {
+                    min-height: 28px !important;
+                    height: 28px !important;
+                    padding-top: 3px !important;
+                    padding-bottom: 3px !important;
+                    font-size: 13px !important;
+                    line-height: 1.2 !important;
+                  }
+`;
 
 const ProcessChevron = ({
   x,
@@ -727,9 +754,9 @@ function SubIssueCreationDialog({
     <div className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
       <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
+        <div className="px-5 py-1.5 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
               #{parentIssueId}
             </span>
             <span className="text-[13px] font-semibold text-slate-700">{t('subIssueDialog.iframeTitle')}</span>
@@ -739,20 +766,20 @@ function SubIssueCreationDialog({
               href={externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
               title={t('common.openInNewTab')}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
               </svg>
             </a>
             <button
               type="button"
               aria-label={t('timeline.closeCreateIssueDialogAria')}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
               onClick={onClose}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -796,6 +823,7 @@ function SubIssueCreationDialog({
                   #content {
                     padding: 12px 16px !important;
                   }
+${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                   #issue-form input[name="commit"],
                   #issue-form button[name="commit"],
                   #issue-form input[name="continue"],
@@ -850,7 +878,7 @@ function SubIssueCreationDialog({
         </div>
 
         {/* Bulk Ticket Creation Section */}
-        <div className="border-t border-slate-200 px-5 py-1.5 flex-shrink-0">
+        <div className="border-t border-slate-200 px-5 py-0.5 flex-shrink-0">
           <button
             type="button"
             className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
@@ -876,16 +904,15 @@ function SubIssueCreationDialog({
             </div>
           )}
 
-          <div className="flex justify-start gap-3 mt-1.5">
+          <div className="flex justify-start gap-2 mt-1">
             <button
               type="button"
-              className="rounded-[6px] border bg-white px-6 text-[14px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
+              className="rounded-[6px] border bg-white px-4 text-[12px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
-                width: '112px',
-                height: '34px',
+                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
+                width: '88px',
                 borderColor: '#cbd5e1',
-                color: '#334155',
-                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+                color: '#334155'
               }}
               onClick={onClose}
             >
@@ -893,13 +920,12 @@ function SubIssueCreationDialog({
             </button>
             <button
               type="button"
-              className="rounded-[6px] px-6 text-[14px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
+              className="rounded-[6px] px-4 text-[12px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
-                width: '110px',
-                height: '34px',
+                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
+                width: '86px',
                 backgroundColor: '#1b69e3',
-                color: '#fff',
-                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+                color: '#fff'
               }}
               disabled={isSubmitting || !iframeReady}
               onClick={handleSave}
@@ -1067,9 +1093,9 @@ function IssueEditDialog({
   return (
     <div className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
       <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
+        <div className="px-5 py-1.5 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+            <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
               #{issueId}
             </span>
             <span className="text-[13px] font-semibold text-slate-700">{t('timeline.editIssueDialogTitle')}</span>
@@ -1079,10 +1105,10 @@ function IssueEditDialog({
               href={externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
               title={t('timeline.editIssue')}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14 4h6v6" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10 14L20 4" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h4" />
@@ -1091,10 +1117,10 @@ function IssueEditDialog({
             <button
               type="button"
               aria-label={t('timeline.closeEditIssueDialogAria')}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
               onClick={onClose}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -1136,6 +1162,7 @@ function IssueEditDialog({
                   #content {
                     padding: 12px 16px !important;
                   }
+${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                   #issue-form input[name="commit"],
                   #issue-form button[name="commit"],
                   #issue-form input[name="continue"],
@@ -1186,7 +1213,7 @@ function IssueEditDialog({
           )}
         </div>
 
-        <div className="border-t border-slate-200 px-5 py-1.5 flex-shrink-0">
+        <div className="border-t border-slate-200 px-5 py-0.5 flex-shrink-0">
           <button
             type="button"
             className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
@@ -1212,16 +1239,15 @@ function IssueEditDialog({
             </div>
           )}
 
-          <div className="flex justify-start gap-3 mt-1.5">
+          <div className="flex justify-start gap-2 mt-1">
             <button
               type="button"
-              className="rounded-[6px] border bg-white px-6 text-[14px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
+              className="rounded-[6px] border bg-white px-4 text-[12px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
-                width: '112px',
-                height: '34px',
+                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
+                width: '88px',
                 borderColor: '#cbd5e1',
-                color: '#334155',
-                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+                color: '#334155'
               }}
               onClick={onClose}
             >
@@ -1229,13 +1255,12 @@ function IssueEditDialog({
             </button>
             <button
               type="button"
-              className="rounded-[6px] px-6 text-[14px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
+              className="rounded-[6px] px-4 text-[12px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
               style={{
-                width: '110px',
-                height: '34px',
+                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
+                width: '86px',
                 backgroundColor: '#1b69e3',
-                color: '#fff',
-                fontFamily: "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif"
+                color: '#fff'
               }}
               disabled={isSubmitting || !iframeReady}
               onClick={handleSave}
@@ -2278,28 +2303,26 @@ export function TaskDetailsDialog({
                                   setEditingCommentDraft(comment.notes || '');
                                 }}
                               >
-                                <div className="flex items-center justify-end gap-2 mb-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[11px] text-slate-400 shrink-0">
-                                      {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
-                                    </span>
-                                    {comment.id !== undefined && (
-                                      <button
-                                        type="button"
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setEditingCommentId(comment.id!);
-                                          setEditingCommentDraft(comment.notes || '');
-                                        }}
-                                        title={t('common.edit', { defaultValue: 'Edit' })}
-                                      >
-                                        <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
-                                        </svg>
-                                      </button>
-                                    )}
-                                  </div>
+                                {comment.id !== undefined && (
+                                  <button
+                                    type="button"
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingCommentId(comment.id!);
+                                      setEditingCommentDraft(comment.notes || '');
+                                    }}
+                                    title={t('common.edit', { defaultValue: 'Edit' })}
+                                  >
+                                    <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
+                                    </svg>
+                                  </button>
+                                )}
+                                <div className="mb-2 flex justify-end pr-7">
+                                  <span className="text-[11px] text-slate-400 shrink-0">
+                                    {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
+                                  </span>
                                 </div>
                                 <div className="text-[12px] leading-[1.45] text-slate-600 whitespace-pre-wrap break-words">
                                   {comment.notes}
