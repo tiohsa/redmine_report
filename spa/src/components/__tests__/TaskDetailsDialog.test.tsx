@@ -256,6 +256,54 @@ describe('TaskDetailsDialog', () => {
     });
   });
 
+  it('adds extra vertical spacing between staggered process arrows', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'First',
+        start_date: '2026-03-03',
+        due_date: '2026-03-08',
+        done_ratio: 0,
+        issue_url: '/issues/11'
+      },
+      {
+        issue_id: 12,
+        parent_id: 10,
+        subject: 'Second',
+        start_date: '2026-03-04',
+        due_date: '2026-03-10',
+        done_ratio: 0,
+        issue_url: '/issues/12'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const firstBarY = Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('y'));
+    const secondBarY = Number(screen.getByTestId('task-details-process-step-hit-12').getAttribute('y'));
+
+    expect(secondBarY - firstBarY).toBe(53);
+  });
+
   it('opens create issue dialog with redmine default new issue screen', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
