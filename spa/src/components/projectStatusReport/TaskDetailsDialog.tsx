@@ -52,6 +52,12 @@ type ProcessFlowStep = {
   dueDate: string;
   status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
   progress: number;
+  hasChildren: boolean;
+};
+
+type DrilldownCrumb = {
+  issueId: number;
+  title?: string;
 };
 
 const processStatusStyles: Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDING', { fill: string; text: string; stroke: string; textStroke?: string; textStrokeWidth?: string }> = {
@@ -71,6 +77,7 @@ const PROCESS_FLOW_BAR_SPACING_Y = 17;
 const PROCESS_FLOW_POINT_DEPTH = 18;
 const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 16;
 const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
+const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
 
 const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
@@ -173,6 +180,7 @@ type ProcessDragSession = {
   originalDueDate: string;
   currentStartDate: string;
   currentDueDate: string;
+  moved: boolean;
 };
 
 const IssueTreeNode = ({
@@ -1357,17 +1365,34 @@ export function TaskDetailsDialog({
   const [isSavingComment, setIsSavingComment] = useState<boolean>(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentDraft, setEditingCommentDraft] = useState<string>('');
+  const [drilldownPath, setDrilldownPath] = useState<DrilldownCrumb[]>([]);
   const issuesRef = useRef<TaskDetailIssue[]>([]);
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const hasDateChangesRef = useRef(false);
   const [processDragSession, setProcessDragSession] = useState<ProcessDragSession | null>(null);
+  const [suppressProcessClickIssueId, setSuppressProcessClickIssueId] = useState<number | null>(null);
   const processDragRef = useRef<ProcessDragSession | null>(null);
   const processFlowContainerRef = useRef<HTMLDivElement | null>(null);
   const [processFlowContainerWidth, setProcessFlowContainerWidth] = useState(0);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const currentRoot = drilldownPath[drilldownPath.length - 1] || { issueId, title: issueTitle };
+  const currentRootIssueId = currentRoot.issueId;
+  const currentRootIssueTitle = currentRoot.title;
+
+  const selectIssue = useCallback((issue: TaskDetailIssue | TreeNodeType | null) => {
+    const nextIssue = issue
+      ? { ...issue, children: 'children' in issue ? issue.children : [] }
+      : null;
+    setSelectedIssue(nextIssue);
+    setEditingDescription(false);
+    setDescriptionDraft(nextIssue?.description || '');
+    setNewCommentDraft('');
+    setEditingCommentId(null);
+    setEditingCommentDraft('');
+  }, []);
 
   // Load master data when dialog opens
   useEffect(() => {
@@ -1395,14 +1420,20 @@ export function TaskDetailsDialog({
     return () => observer.disconnect();
   }, [open, loading, issues.length]);
 
-  const reloadTaskDetails = useCallback(async (expectedIssueId?: number) => {
+  const reloadTaskDetails = useCallback(async (
+    targetIssueId: number,
+    options: {
+      expectedIssueId?: number;
+      selectedIssueId?: number | null;
+    } = {}
+  ) => {
     setLoading(true);
     try {
       let latestRows: TaskDetailIssue[] = [];
-      const maxAttempts = expectedIssueId ? 3 : 1;
+      const maxAttempts = options.expectedIssueId ? 3 : 1;
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        latestRows = await fetchTaskDetails(projectIdentifier, issueId);
-        const found = !expectedIssueId || latestRows.some((row) => row.issue_id === expectedIssueId);
+        latestRows = await fetchTaskDetails(projectIdentifier, targetIssueId);
+        const found = !options.expectedIssueId || latestRows.some((row) => row.issue_id === options.expectedIssueId);
         if (found) break;
         if (attempt < maxAttempts - 1) {
           await sleep(250);
@@ -1414,18 +1445,30 @@ export function TaskDetailsDialog({
         acc[row.issue_id] = row;
         return acc;
       }, {}));
-      setSelectedIssue((prev) => {
-        const targetIssueId = expectedIssueId ?? prev?.issue_id;
-        if (!targetIssueId) return prev;
-        const found = latestRows.find((row) => row.issue_id === targetIssueId);
-        return found ? { ...found, children: [] } : prev;
-      });
+
+      const rootRow = latestRows.find((row) => row.issue_id === targetIssueId);
+      if (rootRow) {
+        setDrilldownPath((prev) => {
+          if (prev.length === 0) {
+            return [{ issueId: targetIssueId, title: rootRow.subject }];
+          }
+          const next = [...prev];
+          next[next.length - 1] = { ...next[next.length - 1], issueId: targetIssueId, title: rootRow.subject };
+          return next;
+        });
+      }
+
+      const nextSelectedIssueId = options.selectedIssueId;
+      const nextSelectedIssue = nextSelectedIssueId
+        ? latestRows.find((row) => row.issue_id === nextSelectedIssueId) || null
+        : null;
+      selectIssue(nextSelectedIssue);
     } catch (error: unknown) {
       alert(error instanceof Error ? error.message : t('timeline.detailsLoadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [issueId, projectIdentifier]);
+  }, [projectIdentifier, selectIssue]);
 
   const handleClose = useCallback(() => {
     if (hasDateChangesRef.current) {
@@ -1457,10 +1500,18 @@ export function TaskDetailsDialog({
 
   useEffect(() => {
     if (!open) return;
-    void reloadTaskDetails().catch(() => {
+    setDrilldownPath([{ issueId, title: issueTitle }]);
+    setIssues([]);
+    setBaselineById({});
+    setSavingIssueIds({});
+    setProcessDragSession(null);
+    processDragRef.current = null;
+    setSuppressProcessClickIssueId(null);
+    selectIssue(null);
+    void reloadTaskDetails(issueId, { selectedIssueId: null }).catch(() => {
       // Errors are handled in reloadTaskDetails.
     });
-  }, [open, reloadTaskDetails]);
+  }, [open, issueId, issueTitle, reloadTaskDetails, selectIssue]);
 
   useEffect(() => {
     issuesRef.current = issues;
@@ -1502,11 +1553,15 @@ export function TaskDetailsDialog({
   }, [issues]);
 
   const processFlowSteps = useMemo<ProcessFlowStep[]>(() => {
-    const issueIds = new Set(issues.map(i => i.issue_id));
+    const parentIssueIds = new Set(
+      issues
+        .map((issue) => issue.parent_id)
+        .filter((parentId): parentId is number => Number.isInteger(parentId))
+    );
     return issues
       .filter((issue) => Boolean(issue.start_date && issue.due_date))
       // Use the immediate children of the opened task as the top-level segments
-      .filter((issue) => issue.parent_id === issueId)
+      .filter((issue) => issue.parent_id === currentRootIssueId)
       .map((issue) => {
         const progress = Math.max(0, Math.min(100, Number(issue.done_ratio ?? 0)));
         const status: ProcessFlowStep['status'] = issue.status_is_closed || progress === 100
@@ -1521,7 +1576,8 @@ export function TaskDetailsDialog({
           dueDate: issue.due_date as string,
           rangeLabel: `${issue.start_date} - ${issue.due_date}`,
           status,
-          progress
+          progress,
+          hasChildren: parentIssueIds.has(issue.issue_id)
         };
       })
       .sort((left, right) =>
@@ -1529,7 +1585,7 @@ export function TaskDetailsDialog({
         left.dueDate.localeCompare(right.dueDate) ||
         left.id - right.id
       );
-  }, [issues, issueId]);
+  }, [issues, currentRootIssueId]);
 
   const processFlowTimelineWidth = processFlowContainerWidth > 0
     ? Math.max(processFlowContainerWidth, PROCESS_FLOW_MIN_WIDTH)
@@ -1611,7 +1667,7 @@ export function TaskDetailsDialog({
   );
   const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
 
-  const dialogHeaderTitle = issueTitle ? `${issueTitle} #${issueId}` : `#${issueId}`;
+  const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
 
   const isRowDirty = (row: TaskDetailIssue) => {
     const baseline = baselineByIdRef.current[row.issue_id];
@@ -1693,6 +1749,7 @@ export function TaskDetailsDialog({
 
       const deltaDays = Math.round((event.clientX - current.startClientX) / processFlowPixelsPerDay);
       if (!Number.isFinite(deltaDays)) return;
+      const moved = current.moved || Math.abs(event.clientX - current.startClientX) >= PROCESS_FLOW_DRAG_THRESHOLD_PX;
 
       let nextStart = current.originalStartDate;
       let nextDue = current.originalDueDate;
@@ -1708,9 +1765,9 @@ export function TaskDetailsDialog({
         nextDue = candidateDue < current.originalStartDate ? current.originalStartDate : candidateDue;
       }
 
-      if (nextStart === current.currentStartDate && nextDue === current.currentDueDate) return;
+      if (nextStart === current.currentStartDate && nextDue === current.currentDueDate && moved === current.moved) return;
 
-      const updated = { ...current, currentStartDate: nextStart, currentDueDate: nextDue };
+      const updated = { ...current, currentStartDate: nextStart, currentDueDate: nextDue, moved };
       processDragRef.current = updated;
       setProcessDragSession(updated);
     };
@@ -1719,6 +1776,7 @@ export function TaskDetailsDialog({
       const current = processDragRef.current;
       if (!current) return;
       if (typeof event.pointerId === 'number' && current.pointerId !== event.pointerId) return;
+      setSuppressProcessClickIssueId(current.moved || current.mode !== 'move' ? current.issueId : null);
 
       const issue = issuesRef.current.find((item) => item.issue_id === current.issueId);
       const hasChanged = current.currentStartDate !== current.originalStartDate || current.currentDueDate !== current.originalDueDate;
@@ -1815,7 +1873,7 @@ export function TaskDetailsDialog({
     if (!selectedIssue) return;
     try {
       await import('../../services/scheduleReportApi').then(m => m.updateTaskJournal(projectIdentifier, journalId, notes));
-      void reloadTaskDetails(selectedIssue.issue_id);
+      void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue.issue_id });
     } catch (error: unknown) {
       const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
       alert(message);
@@ -1839,12 +1897,42 @@ export function TaskDetailsDialog({
       originalStartDate: step.startDate,
       originalDueDate: step.dueDate,
       currentStartDate: step.startDate,
-      currentDueDate: step.dueDate
+      currentDueDate: step.dueDate,
+      moved: false
     };
 
     processDragRef.current = session;
     setProcessDragSession(session);
   };
+
+  const handleProcessStepClick = useCallback((step: ProcessFlowStep) => {
+    if (suppressProcessClickIssueId === step.id) {
+      setSuppressProcessClickIssueId(null);
+      return;
+    }
+
+    const issue = issuesRef.current.find((item) => item.issue_id === step.id) || null;
+    if (!issue) return;
+
+    if (step.hasChildren) {
+      setDrilldownPath((prev) => [...prev, { issueId: step.id, title: issue.subject }]);
+      void reloadTaskDetails(step.id, { selectedIssueId: step.id });
+      return;
+    }
+
+    selectIssue(issue);
+  }, [reloadTaskDetails, selectIssue, suppressProcessClickIssueId]);
+
+  const handleBreadcrumbClick = useCallback((index: number) => {
+    setDrilldownPath((prev) => {
+      const next = prev.slice(0, index + 1);
+      const target = next[next.length - 1];
+      if (target) {
+        void reloadTaskDetails(target.issueId, { selectedIssueId: target.issueId });
+      }
+      return next;
+    });
+  }, [reloadTaskDetails]);
 
   if (!open) return null;
 
@@ -1858,12 +1946,40 @@ export function TaskDetailsDialog({
         <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-white relative z-10 border-b border-slate-200 flex-shrink-0 min-h-12 box-border">
           <div className="flex flex-row items-center gap-2.5 min-w-0">
             <div className="min-w-0">
+              {drilldownPath.length > 1 && (
+                <nav
+                  className="mb-1 flex items-center gap-1 overflow-x-auto whitespace-nowrap text-[11px] font-medium text-slate-400"
+                  aria-label={t('timeline.breadcrumbAria', { defaultValue: 'Issue hierarchy' })}
+                  data-testid="task-details-breadcrumb"
+                >
+                  {drilldownPath.map((crumb, index) => {
+                    const crumbLabel = crumb.title ? `${crumb.title} #${crumb.issueId}` : `#${crumb.issueId}`;
+                    const isCurrent = index === drilldownPath.length - 1;
+                    return (
+                      <React.Fragment key={`${crumb.issueId}-${index}`}>
+                        {index > 0 && <span className="text-slate-300">/</span>}
+                        {isCurrent ? (
+                          <span className="truncate text-slate-500">{crumbLabel}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="truncate cursor-pointer text-slate-400 hover:text-blue-600"
+                            onClick={() => handleBreadcrumbClick(index)}
+                          >
+                            {crumbLabel}
+                          </button>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </nav>
+              )}
               <h3 className="text-[16px] font-semibold text-slate-800 flex items-center gap-2 min-w-0" data-testid="task-details-title">
                 <span className="truncate">{dialogHeaderTitle}</span>
               </h3>
             </div>
             <button
-              onClick={() => void reloadTaskDetails(issueId)}
+              onClick={() => void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue?.issue_id ?? null })}
               title={t('timeline.reloadTasks')}
               className="inline-flex items-center justify-center w-8 h-8 ml-1 border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
@@ -2059,6 +2175,7 @@ export function TaskDetailsDialog({
                                 fill="transparent"
                                 style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : CUSTOM_GRAB }}
                                 onPointerDown={(event) => startProcessFlowDrag(event, step, 'move')}
+                                onClick={() => handleProcessStepClick(step)}
                                 data-testid={`task-details-process-step-hit-${step.id}`}
                               />
                               <rect
@@ -2148,14 +2265,7 @@ export function TaskDetailsDialog({
                           issueId: issue.issue_id,
                           issueUrl: issue.issue_url
                         })}
-                        onSelectIssue={(issue) => {
-                          setSelectedIssue(issue);
-                          setEditingDescription(false);
-                          setDescriptionDraft(issue.description || '');
-                          setNewCommentDraft('');
-                          setEditingCommentId(null);
-                          setEditingCommentDraft('');
-                        }}
+                        onSelectIssue={selectIssue}
                         selectedIssueId={selectedIssue?.issue_id}
                         masters={masters}
                         onFieldUpdate={handleFieldUpdate}
@@ -2213,13 +2323,7 @@ export function TaskDetailsDialog({
                         <button
                           type="button"
                           className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors"
-                          onClick={() => {
-                            setSelectedIssue(null);
-                            setEditingDescription(false);
-                            setNewCommentDraft('');
-                            setEditingCommentId(null);
-                            setEditingCommentDraft('');
-                          }}
+                          onClick={() => selectIssue(null)}
                           title={t('common.close', { defaultValue: 'Close' })}
                           aria-label={t('common.close', { defaultValue: 'Close' })}
                         >
@@ -2425,7 +2529,10 @@ export function TaskDetailsDialog({
             parentStartDate={createIssueContext.startDate}
             parentDueDate={createIssueContext.dueDate}
             onCreated={(createdIssueId) => {
-              void reloadTaskDetails(createdIssueId);
+              void reloadTaskDetails(currentRootIssueId, {
+                expectedIssueId: createdIssueId,
+                selectedIssueId: createdIssueId ?? currentRootIssueId
+              });
             }}
             onClose={() => setCreateIssueContext(null)}
           />
@@ -2438,7 +2545,10 @@ export function TaskDetailsDialog({
             issueId={editIssueContext.issueId}
             issueUrl={editIssueContext.issueUrl}
             onSaved={(updatedIssueId) => {
-              void reloadTaskDetails(updatedIssueId ?? editIssueContext.issueId);
+              void reloadTaskDetails(currentRootIssueId, {
+                expectedIssueId: updatedIssueId ?? editIssueContext.issueId,
+                selectedIssueId: updatedIssueId ?? editIssueContext.issueId
+              });
             }}
             onClose={() => setEditIssueContext(null)}
           />

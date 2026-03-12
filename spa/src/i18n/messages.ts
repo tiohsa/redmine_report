@@ -117,7 +117,8 @@ export const messages = {
       seeAll: 'See All',
       historyLabel: 'History',
       noDescription: 'No description',
-      selectTicket: 'Select a ticket to view details'
+      selectTicket: 'Select a ticket to view details',
+      breadcrumbAria: 'Issue hierarchy'
     },
     status: {
       completed: 'Completed',
@@ -310,7 +311,8 @@ export const messages = {
       seeAll: 'すべて表示',
       historyLabel: '更新履歴',
       noDescription: '説明なし',
-      selectTicket: 'チケットを選択して詳細を表示'
+      selectTicket: 'チケットを選択して詳細を表示',
+      breadcrumbAria: 'チケット階層'
     },
     status: {
       completed: '完了',
