@@ -3,6 +3,7 @@ import { WeeklyApiError } from '../../services/scheduleReportApi';
 
 export type BulkIssuePayload = {
     subject: string;
+    tracker_id?: number;
     status_id?: number;
     priority_id?: number;
     assigned_to_id?: number;
@@ -24,6 +25,7 @@ export const createIssue = async (
     formData.set('issue[parent_issue_id]', String(parentIssueId));
     formData.set('issue[subject]', payload.subject);
 
+    if (payload.tracker_id !== undefined) formData.set('issue[tracker_id]', String(payload.tracker_id));
     if (payload.status_id !== undefined) formData.set('issue[status_id]', String(payload.status_id));
     if (payload.priority_id !== undefined) formData.set('issue[priority_id]', String(payload.priority_id));
     if (payload.assigned_to_id !== undefined) formData.set('issue[assigned_to_id]', String(payload.assigned_to_id));
