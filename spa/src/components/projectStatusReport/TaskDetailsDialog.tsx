@@ -578,8 +578,7 @@ const IssueTreeNode = ({
 type SubIssueCreationDialogProps = {
   projectIdentifier: string;
   parentIssueId: number;
-  parentStartDate?: string | null;
-  parentDueDate?: string | null;
+  inheritedFields: InheritedSubIssueFields;
   onCreated?: (createdIssueId?: number) => void;
   onClose: () => void;
 };
@@ -592,27 +591,80 @@ type IssueEditDialogProps = {
   onClose: () => void;
 };
 
+type InheritedSubIssueFields = Pick<BulkIssuePayload, 'tracker_id' | 'priority_id' | 'assigned_to_id' | 'start_date' | 'due_date'>;
+
+const readNumericField = (formData: FormData, fieldName: string): number | undefined => {
+  const raw = formData.get(fieldName);
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  if (trimmed === '') return undefined;
+
+  const parsed = Number(trimmed);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+};
+
+const readDateField = (formData: FormData, fieldName: string): string | undefined => {
+  const raw = formData.get(fieldName);
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  return trimmed === '' ? undefined : trimmed;
+};
+
+const buildInheritedSubIssueFields = (source: {
+  trackerId?: number | null;
+  priorityId?: number | null;
+  assignedToId?: number | null;
+  startDate?: string | null;
+  dueDate?: string | null;
+}): InheritedSubIssueFields => ({
+  tracker_id: source.trackerId && source.trackerId > 0 ? source.trackerId : undefined,
+  priority_id: source.priorityId && source.priorityId > 0 ? source.priorityId : undefined,
+  assigned_to_id: source.assignedToId && source.assignedToId > 0 ? source.assignedToId : undefined,
+  start_date: source.startDate || undefined,
+  due_date: source.dueDate || undefined
+});
+
+const extractInheritedSubIssueFieldsFromForm = (form: HTMLFormElement): InheritedSubIssueFields => {
+  const formData = new FormData(form);
+  return {
+    tracker_id: readNumericField(formData, 'issue[tracker_id]'),
+    priority_id: readNumericField(formData, 'issue[priority_id]'),
+    assigned_to_id: readNumericField(formData, 'issue[assigned_to_id]'),
+    start_date: readDateField(formData, 'issue[start_date]'),
+    due_date: readDateField(formData, 'issue[due_date]')
+  };
+};
+
+const buildSubIssueQuery = (parentIssueId: number, inheritedFields: InheritedSubIssueFields): string => {
+  const params = new URLSearchParams();
+  params.set('issue[parent_issue_id]', String(parentIssueId));
+
+  if (inheritedFields.tracker_id) params.set('issue[tracker_id]', String(inheritedFields.tracker_id));
+  if (inheritedFields.priority_id) params.set('issue[priority_id]', String(inheritedFields.priority_id));
+  if (inheritedFields.assigned_to_id) params.set('issue[assigned_to_id]', String(inheritedFields.assigned_to_id));
+  if (inheritedFields.start_date) {
+    params.set('issue[start_date]', inheritedFields.start_date);
+    params.set('start_date', inheritedFields.start_date);
+  }
+  if (inheritedFields.due_date) {
+    params.set('issue[due_date]', inheritedFields.due_date);
+    params.set('due_date', inheritedFields.due_date);
+  }
+
+  return params.toString();
+};
+
 function SubIssueCreationDialog({
   projectIdentifier,
   parentIssueId,
-  parentStartDate,
-  parentDueDate,
+  inheritedFields,
   onCreated,
   onClose
 }: SubIssueCreationDialogProps) {
-  const issueQuery = useMemo(() => {
-    const params = new URLSearchParams();
-    params.set('issue[parent_issue_id]', String(parentIssueId));
-    if (parentStartDate) {
-      params.set('issue[start_date]', parentStartDate);
-      params.set('start_date', parentStartDate);
-    }
-    if (parentDueDate) {
-      params.set('issue[due_date]', parentDueDate);
-      params.set('due_date', parentDueDate);
-    }
-    return params.toString();
-  }, [parentDueDate, parentIssueId, parentStartDate]);
+  const issueQuery = useMemo(
+    () => buildSubIssueQuery(parentIssueId, inheritedFields),
+    [inheritedFields, parentIssueId]
+  );
 
   const iframeUrl = `/projects/${projectIdentifier}/issues/new?${issueQuery}`;
   const externalUrl = `/projects/${projectIdentifier}/issues/new?${issueQuery}`;
@@ -649,23 +701,30 @@ function SubIssueCreationDialog({
     cleanupIframeEscRef.current = null;
   }, []);
 
-  const createBulkIssues = async (newParentIssueId: number, lines: string[]) => {
+  const findEmbeddedNewIssueForm = () => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
+
+    const form =
+      doc.querySelector<HTMLFormElement>('form#issue-form') ||
+      doc.querySelector<HTMLFormElement>('form#new_issue') ||
+      doc.querySelector<HTMLFormElement>('#issue-form form') ||
+      doc.querySelector<HTMLFormElement>('form.new_issue');
+    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
+
+    return { doc, form };
+  };
+
+  const createBulkIssues = async (newParentIssueId: number, lines: string[], defaults: InheritedSubIssueFields) => {
     for (const subject of lines) {
-      const payload: BulkIssuePayload = { subject };
+      const payload: BulkIssuePayload = { subject, ...defaults };
       await createIssue(projectIdentifier, newParentIssueId, payload);
     }
   };
 
   const submitDefaultIssueForm = () => {
     try {
-      const doc = iframeRef.current?.contentDocument;
-      if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
-      const form =
-        doc.querySelector<HTMLFormElement>('form#issue-form') ||
-        doc.querySelector<HTMLFormElement>('form#new_issue') ||
-        doc.querySelector<HTMLFormElement>('#issue-form form') ||
-        doc.querySelector<HTMLFormElement>('form.new_issue');
-      if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
+      const { form } = findEmbeddedNewIssueForm();
       const submitter =
         form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
         form.querySelector<HTMLElement>('button[name="commit"]:not([disabled])') ||
@@ -688,17 +747,7 @@ function SubIssueCreationDialog({
     }
   };
 
-  const createParentIssueFromEmbeddedForm = async (): Promise<number> => {
-    const doc = iframeRef.current?.contentDocument;
-    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
-
-    const form =
-      doc.querySelector<HTMLFormElement>('form#issue-form') ||
-      doc.querySelector<HTMLFormElement>('form#new_issue') ||
-      doc.querySelector<HTMLFormElement>('#issue-form form') ||
-      doc.querySelector<HTMLFormElement>('form.new_issue');
-    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
-
+  const createParentIssueFromEmbeddedForm = async (form: HTMLFormElement): Promise<number> => {
     const action = form.getAttribute('action') || '/issues';
     const method = (form.getAttribute('method') || 'post').toUpperCase();
     const formData = new FormData(form);
@@ -732,8 +781,10 @@ function SubIssueCreationDialog({
 
     setIsSubmitting(true);
     try {
-      const newParentIssueId = await createParentIssueFromEmbeddedForm();
-      await createBulkIssues(newParentIssueId, lines);
+      const { form } = findEmbeddedNewIssueForm();
+      const defaults = extractInheritedSubIssueFieldsFromForm(form);
+      const newParentIssueId = await createParentIssueFromEmbeddedForm(form);
+      await createBulkIssues(newParentIssueId, lines, defaults);
       setBulkText('');
       setBulkOpen(false);
       onCreated?.(newParentIssueId);
@@ -1012,9 +1063,9 @@ function IssueEditDialog({
     cleanupIframeEscRef.current = null;
   }, []);
 
-  const createBulkIssues = async (parentIssueId: number, lines: string[]) => {
+  const createBulkIssues = async (parentIssueId: number, lines: string[], defaults: InheritedSubIssueFields) => {
     for (const subject of lines) {
-      const payload: BulkIssuePayload = { subject };
+      const payload: BulkIssuePayload = { subject, ...defaults };
       await createIssue(projectIdentifier, parentIssueId, payload);
     }
   };
@@ -1113,8 +1164,10 @@ function IssueEditDialog({
 
     setIsSubmitting(true);
     try {
+      const { form } = findEmbeddedIssueForm();
+      const defaults = extractInheritedSubIssueFieldsFromForm(form);
       const updatedIssueId = await saveEditedIssueFromEmbeddedForm();
-      await createBulkIssues(updatedIssueId, lines);
+      await createBulkIssues(updatedIssueId, lines, defaults);
       setBulkText('');
       setBulkOpen(false);
       onSaved?.(updatedIssueId);
@@ -1351,8 +1404,7 @@ export function TaskDetailsDialog({
   const [masters, setMasters] = useState<import('../../services/scheduleReportApi').TaskMasters | null>(null);
   const [createIssueContext, setCreateIssueContext] = useState<{
     issueId: number;
-    startDate: string | null;
-    dueDate: string | null;
+    inheritedFields: InheritedSubIssueFields;
   } | null>(null);
   const [editIssueContext, setEditIssueContext] = useState<{
     issueId: number;
@@ -1668,6 +1720,7 @@ export function TaskDetailsDialog({
   const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
+  const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
 
   const isRowDirty = (row: TaskDetailIssue) => {
     const baseline = baselineByIdRef.current[row.issue_id];
@@ -1914,13 +1967,12 @@ export function TaskDetailsDialog({
     const issue = issuesRef.current.find((item) => item.issue_id === step.id) || null;
     if (!issue) return;
 
+    selectIssue(null);
+
     if (step.hasChildren) {
       setDrilldownPath((prev) => [...prev, { issueId: step.id, title: issue.subject }]);
-      void reloadTaskDetails(step.id, { selectedIssueId: step.id });
-      return;
+      void reloadTaskDetails(step.id, { selectedIssueId: null });
     }
-
-    selectIssue(issue);
   }, [reloadTaskDetails, selectIssue, suppressProcessClickIssueId]);
 
   const handleBreadcrumbClick = useCallback((index: number) => {
@@ -2258,8 +2310,13 @@ export function TaskDetailsDialog({
                         handleDateChange={handleDateChange}
                         onAddSubIssue={(parentIssue) => setCreateIssueContext({
                           issueId: parentIssue.issue_id,
-                          startDate: parentIssue.start_date,
-                          dueDate: parentIssue.due_date
+                          inheritedFields: buildInheritedSubIssueFields({
+                            trackerId: parentIssue.tracker_id,
+                            priorityId: parentIssue.priority_id,
+                            assignedToId: parentIssue.assignee_id,
+                            startDate: parentIssue.start_date,
+                            dueDate: parentIssue.due_date
+                          })
                         })}
                         onEditIssue={(issue) => setEditIssueContext({
                           issueId: issue.issue_id,
@@ -2276,7 +2333,7 @@ export function TaskDetailsDialog({
 
 
                 {/* Right Panel - Detail View */}
-                {selectedIssue && (
+                {shouldShowSelectedIssuePanel && selectedIssue && (
                   <div className="absolute right-[5px] top-4 bottom-[5px] w-[calc(50%-5px)] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-slate-50/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-30">
                     {/* Detail Header */}
                     <div className="px-4 pt-3.5 pb-3 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-10">
@@ -2526,8 +2583,7 @@ export function TaskDetailsDialog({
           <SubIssueCreationDialog
             projectIdentifier={projectIdentifier}
             parentIssueId={createIssueContext.issueId}
-            parentStartDate={createIssueContext.startDate}
-            parentDueDate={createIssueContext.dueDate}
+            inheritedFields={createIssueContext.inheritedFields}
             onCreated={(createdIssueId) => {
               void reloadTaskDetails(currentRootIssueId, {
                 expectedIssueId: createdIssueId,

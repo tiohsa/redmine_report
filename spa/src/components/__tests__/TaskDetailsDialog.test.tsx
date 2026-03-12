@@ -4,6 +4,7 @@ import { TaskDetailsDialog } from '../projectStatusReport/TaskDetailsDialog';
 
 const fetchTaskDetailsMock = vi.fn();
 const updateTaskDatesMock = vi.fn();
+const createIssueMock = vi.fn();
 
 vi.mock('../../services/scheduleReportApi', async () => {
   const actual = await vi.importActual<typeof import('../../services/scheduleReportApi')>('../../services/scheduleReportApi');
@@ -14,10 +15,64 @@ vi.mock('../../services/scheduleReportApi', async () => {
   };
 });
 
+vi.mock('../bulkIssueRegistration/bulkIssueApi', () => ({
+  createIssue: (...args: unknown[]) => createIssueMock(...args)
+}));
+
+const buildEmbeddedIssueDocument = ({
+  formId = 'issue-form',
+  action = '/issues',
+  method = 'post',
+  subject = 'Embedded issue',
+  trackerId,
+  priorityId,
+  assignedToId,
+  startDate,
+  dueDate
+}: {
+  formId?: string;
+  action?: string;
+  method?: string;
+  subject?: string;
+  trackerId?: string;
+  priorityId?: string;
+  assignedToId?: string;
+  startDate?: string;
+  dueDate?: string;
+}) => {
+  const doc = document.implementation.createHTMLDocument('iframe');
+  const form = doc.createElement('form');
+  form.setAttribute('id', formId);
+  form.setAttribute('action', action);
+  form.setAttribute('method', method);
+
+  const appendInput = (name: string, value?: string, id?: string) => {
+    if (value === undefined) return;
+    const input = doc.createElement('input');
+    input.setAttribute('name', name);
+    input.value = value;
+    if (id) input.id = id;
+    form.appendChild(input);
+  };
+
+  appendInput('issue[subject]', subject);
+  appendInput('issue[tracker_id]', trackerId);
+  appendInput('issue[priority_id]', priorityId);
+  appendInput('issue[assigned_to_id]', assignedToId);
+  appendInput('issue[start_date]', startDate);
+  appendInput('issue[due_date]', dueDate);
+  appendInput('issue_subject', subject, 'issue_subject');
+
+  doc.body.appendChild(form);
+  return { doc, form };
+};
+
 describe('TaskDetailsDialog', () => {
   beforeEach(() => {
     fetchTaskDetailsMock.mockReset();
     updateTaskDatesMock.mockReset();
+    createIssueMock.mockReset();
+    vi.restoreAllMocks();
 
     if (!(globalThis as any).ResizeObserver) {
       (globalThis as any).ResizeObserver = class {
@@ -375,6 +430,8 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('task-details-breadcrumb').textContent).toContain('Root issue #10');
     expect(screen.getByTestId('task-details-process-step-hit-12')).toBeTruthy();
     expect(screen.queryByTestId('task-details-process-step-hit-11')).toBeNull();
+    expect(screen.queryByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeNull();
+    expect(document.querySelector('h4')).toBeNull();
   });
 
   it('returns to an ancestor subtree from the breadcrumb', async () => {
@@ -516,7 +573,81 @@ describe('TaskDetailsDialog', () => {
     fireEvent.click(screen.getByTestId('task-details-process-step-hit-11'));
 
     expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('h4')?.textContent).toBe('Leaf issue');
+    expect(container.querySelector('h4')).toBeNull();
+  });
+
+  it('shows the right panel when clicking the top row after drilldown', async () => {
+    fetchTaskDetailsMock
+      .mockResolvedValueOnce([
+        {
+          issue_id: 10,
+          parent_id: null,
+          subject: 'Root issue',
+          start_date: '2026-03-01',
+          due_date: '2026-03-20',
+          done_ratio: 0,
+          issue_url: '/issues/10'
+        },
+        {
+          issue_id: 11,
+          parent_id: 10,
+          subject: 'Child issue',
+          start_date: '2026-03-03',
+          due_date: '2026-03-08',
+          done_ratio: 25,
+          issue_url: '/issues/11'
+        },
+        {
+          issue_id: 12,
+          parent_id: 11,
+          subject: 'Grandchild issue',
+          start_date: '2026-03-09',
+          due_date: '2026-03-11',
+          done_ratio: 10,
+          issue_url: '/issues/12'
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          issue_id: 11,
+          parent_id: 10,
+          subject: 'Child issue',
+          start_date: '2026-03-03',
+          due_date: '2026-03-08',
+          done_ratio: 25,
+          issue_url: '/issues/11'
+        },
+        {
+          issue_id: 12,
+          parent_id: 11,
+          subject: 'Grandchild issue',
+          start_date: '2026-03-09',
+          due_date: '2026-03-11',
+          done_ratio: 10,
+          issue_url: '/issues/12'
+        }
+      ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('task-details-process-step-hit-11'));
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeNull();
+    expect(document.querySelector('h4')).toBeNull();
+
+    fireEvent.click(screen.getByText('#11'));
+
+    expect(document.querySelector('h4')?.textContent).toBe('Child issue');
+    expect(screen.getByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeTruthy();
   });
 
   it('suppresses process bar click after a resize interaction', async () => {
@@ -577,7 +708,10 @@ describe('TaskDetailsDialog', () => {
         start_date: '2026-02-01',
         due_date: '2026-02-10',
         done_ratio: 65,
-        issue_url: '/issues/10'
+        issue_url: '/issues/10',
+        tracker_id: 3,
+        priority_id: 4,
+        assignee_id: 8
       },
       {
         issue_id: 11,
@@ -613,6 +747,9 @@ describe('TaskDetailsDialog', () => {
     const srcUrl = new URL(iframeSrc as string, 'http://localhost');
     expect(srcUrl.pathname).toBe('/projects/ecookbook/issues/new');
     expect(srcUrl.searchParams.get('issue[parent_issue_id]')).toBe('10');
+    expect(srcUrl.searchParams.get('issue[tracker_id]')).toBe('3');
+    expect(srcUrl.searchParams.get('issue[priority_id]')).toBe('4');
+    expect(srcUrl.searchParams.get('issue[assigned_to_id]')).toBe('8');
     expect(srcUrl.searchParams.get('issue[start_date]')).toBe('2026-02-01');
     expect(srcUrl.searchParams.get('issue[due_date]')).toBe('2026-02-10');
     expect(srcUrl.searchParams.get('start_date')).toBe('2026-02-01');
@@ -640,6 +777,55 @@ describe('TaskDetailsDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /新規チケット作成ダイアログを閉じる/ }));
     expect(screen.queryByTitle('子チケット新規登録')).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('omits empty inherited fields from the create issue dialog URL', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10',
+        tracker_id: 3,
+        priority_id: 4,
+        assignee_id: 8
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: null,
+        due_date: null,
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const addButton = screen.getAllByTitle('子チケットを追加')[1];
+    fireEvent.click(addButton);
+
+    const iframe = screen.getByTitle('子チケット新規登録') as HTMLIFrameElement;
+    const srcUrl = new URL(iframe.getAttribute('src') as string, 'http://localhost');
+
+    expect(srcUrl.searchParams.get('issue[tracker_id]')).toBeNull();
+    expect(srcUrl.searchParams.get('issue[priority_id]')).toBeNull();
+    expect(srcUrl.searchParams.get('issue[assigned_to_id]')).toBeNull();
+    expect(srcUrl.searchParams.get('issue[start_date]')).toBeNull();
+    expect(srcUrl.searchParams.get('issue[due_date]')).toBeNull();
   });
 
   it('opens edit issue dialog from the hovered row edit icon', async () => {
@@ -811,5 +997,151 @@ describe('TaskDetailsDialog', () => {
     const subjects = screen.getAllByTestId('task-subject');
     expect(subjects.some(s => s.textContent === 'New child issue')).toBeTruthy();
     expect(screen.queryByTitle('子チケット新規登録')).toBeNull();
+  });
+
+  it('inherits current embedded form fields for bulk child creation from the create dialog', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        issue_url: '/issues/10'
+      }
+    ]);
+    createIssueMock.mockResolvedValue({ success: true });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      url: 'http://localhost/issues/21',
+      headers: { get: () => null }
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTitle('子チケットを追加'));
+
+    const iframe = screen.getByTitle('子チケット新規登録') as HTMLIFrameElement;
+    const { doc } = buildEmbeddedIssueDocument({
+      trackerId: '7',
+      priorityId: '5',
+      assignedToId: '9',
+      startDate: '2026-02-05',
+      dueDate: '2026-02-12',
+      subject: 'New parent issue'
+    });
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: doc
+    });
+
+    fireEvent.load(iframe);
+
+    fireEvent.click(screen.getByText('チケット一括登録'));
+    fireEvent.change(screen.getByPlaceholderText('作成するチケットの件名を1行に1つずつ入力してください...'), {
+      target: { value: 'Child A\nChild B' }
+    });
+    await waitFor(() => expect((screen.getByRole('button', { name: '保存' }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => expect(createIssueMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls.some(([url]) => url === '/issues')).toBe(true);
+    expect(createIssueMock).toHaveBeenNthCalledWith(1, 'ecookbook', 21, {
+      subject: 'Child A',
+      tracker_id: 7,
+      priority_id: 5,
+      assigned_to_id: 9,
+      start_date: '2026-02-05',
+      due_date: '2026-02-12'
+    });
+    expect(createIssueMock).toHaveBeenNthCalledWith(2, 'ecookbook', 21, {
+      subject: 'Child B',
+      tracker_id: 7,
+      priority_id: 5,
+      assigned_to_id: 9,
+      start_date: '2026-02-05',
+      due_date: '2026-02-12'
+    });
+  });
+
+  it('inherits current embedded form fields for bulk child creation from the edit dialog', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        issue_url: '/issues/10'
+      }
+    ]);
+    createIssueMock.mockResolvedValue({ success: true });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      url: 'http://localhost/issues/10',
+      headers: { get: () => null }
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTitle(/Edit in Redmine|チケットを編集/));
+
+    const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
+    const { doc } = buildEmbeddedIssueDocument({
+      formId: 'edit_issue',
+      action: '/issues/10',
+      trackerId: '8',
+      priorityId: '2',
+      assignedToId: '15',
+      startDate: '2026-02-07',
+      dueDate: '2026-02-18',
+      subject: 'Edited parent issue'
+    });
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: doc
+    });
+
+    fireEvent.load(iframe);
+
+    fireEvent.click(screen.getByText('チケット一括登録'));
+    fireEvent.change(screen.getByPlaceholderText('作成するチケットの件名を1行に1つずつ入力してください...'), {
+      target: { value: 'Child C' }
+    });
+    await waitFor(() => expect((screen.getByRole('button', { name: '保存' }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => expect(createIssueMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls.some(([url]) => url === '/issues/10')).toBe(true);
+    expect(createIssueMock).toHaveBeenCalledWith('ecookbook', 10, {
+      subject: 'Child C',
+      tracker_id: 8,
+      priority_id: 2,
+      assigned_to_id: 15,
+      start_date: '2026-02-07',
+      due_date: '2026-02-18'
+    });
   });
 });
