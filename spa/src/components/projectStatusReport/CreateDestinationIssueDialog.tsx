@@ -285,7 +285,7 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
 
                 {/* Footer Actions */}
                 <div className="border-t border-slate-200 px-6 py-1.5 flex-shrink-0 bg-slate-50 border-t-1">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-start gap-2">
                         <button
                             type="button"
                             className="rounded-[6px] border bg-white px-4 text-[12px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased hover:bg-slate-50"
