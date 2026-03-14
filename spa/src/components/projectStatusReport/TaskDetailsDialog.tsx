@@ -2039,7 +2039,7 @@ export function TaskDetailsDialog({
             <button
               onClick={() => void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue?.issue_id ?? null })}
               title={t('timeline.reloadTasks')}
-              className="inline-flex items-center justify-center w-8 h-8 ml-1 border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center w-8 h-8 ml-1 border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -2063,7 +2063,7 @@ export function TaskDetailsDialog({
 
           <button
             aria-label={t('timeline.closeDialogAria')}
-            className="inline-flex items-center justify-center w-8 h-8 border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg shadow-sm transition-colors flex-shrink-0 cursor-pointer"
+            className="inline-flex items-center justify-center w-8 h-8 border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors flex-shrink-0 cursor-pointer"
             onClick={handleClose}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -2088,7 +2088,7 @@ export function TaskDetailsDialog({
 
           {!loading && issues.length > 0 && (
             <>
-              <div className="border-b border-slate-200 bg-white shadow-sm relative z-10 pb-1 px-[5px]">
+              <div className="border-b border-slate-200 bg-white relative z-10">
                 <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
                   {processFlowAxis && processFlowRenderSteps.length > 0 ? (
                     <svg
@@ -2287,8 +2287,8 @@ export function TaskDetailsDialog({
               </div>
 
               {/* Left Panel - Task List */}
-              <div className="flex-1 flex min-h-0 px-[5px] pt-4 pb-[5px] relative bg-slate-50/40">
-                <div className="flex flex-col min-h-0 border border-slate-200 rounded-2xl shadow-sm bg-white w-full transition-all overflow-hidden">
+              <div className="flex-1 flex min-h-0 relative bg-white">
+                <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
                     <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0">
@@ -2340,7 +2340,7 @@ export function TaskDetailsDialog({
 
                 {/* Right Panel - Detail View */}
                 {shouldShowSelectedIssuePanel && selectedIssue && (
-                  <div className="absolute right-[5px] top-4 bottom-[5px] w-[calc(50%-5px)] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-slate-50/95 backdrop-blur-xl border border-slate-200/80 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-30">
+                  <div className="absolute right-0 top-0 bottom-0 w-[50%] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-white border-l border-slate-200 z-30">
                     {/* Detail Header */}
                     <div className="px-4 pt-3.5 pb-3 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-10">
                       <div className="min-w-0">
