@@ -4,6 +4,7 @@ import { TaskDetailsDialog } from '../projectStatusReport/TaskDetailsDialog';
 
 const fetchTaskDetailsMock = vi.fn();
 const updateTaskDatesMock = vi.fn();
+const updateTaskFieldsMock = vi.fn();
 const createIssueMock = vi.fn();
 
 vi.mock('../../services/scheduleReportApi', async () => {
@@ -11,7 +12,8 @@ vi.mock('../../services/scheduleReportApi', async () => {
   return {
     ...actual,
     fetchTaskDetails: (...args: unknown[]) => fetchTaskDetailsMock(...args),
-    updateTaskDates: (...args: unknown[]) => updateTaskDatesMock(...args)
+    updateTaskDates: (...args: unknown[]) => updateTaskDatesMock(...args),
+    updateTaskFields: (...args: unknown[]) => updateTaskFieldsMock(...args)
   };
 });
 
@@ -71,6 +73,7 @@ describe('TaskDetailsDialog', () => {
   beforeEach(() => {
     fetchTaskDetailsMock.mockReset();
     updateTaskDatesMock.mockReset();
+    updateTaskFieldsMock.mockReset();
     createIssueMock.mockReset();
     vi.restoreAllMocks();
 
@@ -697,6 +700,94 @@ describe('TaskDetailsDialog', () => {
 
     expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1);
     expect(container.querySelector('h4')).toBeNull();
+  });
+
+  it('commits the live progress input value on blur even when React state is stale', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      }
+    ]);
+    updateTaskFieldsMock.mockResolvedValue({
+      issue_id: 10,
+      parent_id: null,
+      subject: 'Root issue',
+      start_date: '2026-03-01',
+      due_date: '2026-03-20',
+      done_ratio: 10,
+      issue_url: '/issues/10'
+    });
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.doubleClick(screen.getByTestId('progress-text'));
+
+    const progressInput = screen.getByRole('spinbutton') as HTMLInputElement;
+    progressInput.value = '10';
+    fireEvent.blur(progressInput);
+
+    await waitFor(() => {
+      expect(updateTaskFieldsMock).toHaveBeenCalledWith('ecookbook', 10, { done_ratio: 10 });
+    });
+  });
+
+  it('keeps the previous progress when the progress input is blurred empty', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 25,
+        issue_url: '/issues/10'
+      }
+    ]);
+    updateTaskFieldsMock.mockResolvedValue({
+      issue_id: 10,
+      parent_id: null,
+      subject: 'Root issue',
+      start_date: '2026-03-01',
+      due_date: '2026-03-20',
+      done_ratio: 25,
+      issue_url: '/issues/10'
+    });
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.doubleClick(screen.getByTestId('progress-text'));
+
+    const progressInput = screen.getByRole('spinbutton') as HTMLInputElement;
+    progressInput.value = '';
+    fireEvent.blur(progressInput);
+
+    await waitFor(() => {
+      expect(updateTaskFieldsMock).toHaveBeenCalledWith('ecookbook', 10, { done_ratio: 25 });
+    });
   });
 
   it('opens create issue dialog with redmine default new issue screen', async () => {
