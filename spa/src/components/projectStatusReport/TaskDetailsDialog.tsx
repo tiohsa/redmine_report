@@ -209,7 +209,7 @@ const IssueTreeNode = ({
   useEffect(() => {
     if (editingCell && inputRef.current) {
       inputRef.current.focus();
-      if (inputRef.current.type === 'text' || inputRef.current.type === 'number') {
+      if (inputRef.current.type === 'text') {
         inputRef.current.select();
       }
     }
@@ -252,7 +252,13 @@ const IssueTreeNode = ({
   const commitEdit = async (field: string, rawValue: string) => {
     setEditingCell(null);
     let value: string | number | null = rawValue;
-    if (['tracker_id', 'status_id', 'priority_id', 'done_ratio'].includes(field)) {
+    if (field === 'done_ratio') {
+      if (rawValue === '') {
+        await onFieldUpdate(node.issue_id, field, progressRatio);
+        return;
+      }
+      value = Math.max(0, Math.min(100, Number(rawValue)));
+    } else if (['tracker_id', 'status_id', 'priority_id'].includes(field)) {
       value = rawValue === '' ? null : Number(rawValue);
     } else if (field === 'assigned_to_id') {
       value = rawValue === '' || rawValue === '0' ? null : Number(rawValue);
@@ -268,7 +274,7 @@ const IssueTreeNode = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      void commitEdit(editingCell!.field, editingCell!.value);
+      void commitEdit(editingCell!.field, e.currentTarget.value);
     } else if (e.key === 'Escape') {
       e.preventDefault();
       cancelEdit();
@@ -477,10 +483,10 @@ const IssueTreeNode = ({
               type="number"
               min={0}
               max={100}
+              step={10}
               className="w-[70px] text-[11px] h-7 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-700"
-              value={editingCell!.value}
-              onChange={(e) => setEditingCell({ field: 'done_ratio', value: e.target.value })}
-              onBlur={() => { void commitEdit('done_ratio', editingCell!.value); }}
+              defaultValue={editingCell!.value}
+              onBlur={(e) => { void commitEdit('done_ratio', e.currentTarget.value); }}
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
             />
