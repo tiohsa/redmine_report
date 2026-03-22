@@ -229,6 +229,8 @@ const IssueTreeNode = ({
   const isInProgress = !isClosed && progressRatio > 0;
   const statusBg = isClosed ? 'bg-emerald-500' : isInProgress ? 'bg-blue-500' : 'bg-slate-300';
   const statusText = isClosed ? 'text-white' : isInProgress ? 'text-white' : 'text-slate-600';
+  const commentCount = node.comments?.length ?? 0;
+  const hasComments = commentCount > 0;
 
   const dateRange = (() => {
     const s = node.start_date ? node.start_date.replace(/-/g, '/') : '';
@@ -400,6 +402,29 @@ const IssueTreeNode = ({
           </div>
         </div>
 
+        {/* COMMENTS Column */}
+        <div className="w-[56px] min-w-[56px] shrink-0 flex items-center justify-center px-2">
+          {hasComments ? (
+            <span
+              data-testid="task-comment-indicator"
+              role="img"
+              className="inline-flex items-center justify-center text-blue-600"
+              title={t('timeline.hasCommentsCount', {
+                count: commentCount,
+                defaultValue: `${commentCount} comments`
+              })}
+              aria-label={t('timeline.hasCommentsCount', {
+                count: commentCount,
+                defaultValue: `${commentCount} comments`
+              })}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-9 6l2.8-2.1a2 2 0 011.2-.4H19a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h.5a2 2 0 011.2.4L8 20z" />
+              </svg>
+            </span>
+          ) : null}
+        </div>
+
         {/* TRACKER Column */}
         <div
           className={`w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
@@ -566,6 +591,7 @@ const IssueTreeNode = ({
             )
           )}
         </div>
+
       </div>
 
       {!collapsed && node.children.map((child, idx) => (
@@ -2345,6 +2371,7 @@ export function TaskDetailsDialog({
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
                         {t('timeline.task', { defaultValue: 'Task' })}
                       </div>
+                      <div className="w-[56px] min-w-[56px] shrink-0 text-center px-2">{t('timeline.commentsCol', { defaultValue: 'Comments' })}</div>
                       <div className="w-[90px] min-w-[90px] shrink-0 text-left px-2">{t('timeline.trackerCol', { defaultValue: 'Tracker' })}</div>
                       <div className="w-[90px] min-w-[90px] shrink-0 text-left px-2">{t('timeline.priorityCol', { defaultValue: 'Priority' })}</div>
                       <div className="w-[80px] min-w-[80px] shrink-0 text-left px-2">{t('timeline.statusCol', { defaultValue: 'Status' })}</div>
