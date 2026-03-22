@@ -166,6 +166,7 @@ export const messages = {
       fetchWeeklyAiResponses: 'Failed to fetch weekly AI responses: {status}'
     },
     embeddedIssueForm: {
+      defaultSubject: 'AI Comment',
       descriptionForAiResponse: 'This issue is used to store generated AI responses.',
       formNotLoaded: 'The form has not finished loading yet.',
       formNotFound: 'Could not find the Redmine issue creation form.',
@@ -360,6 +361,7 @@ export const messages = {
       fetchWeeklyAiResponses: '週次AIレスポンスの取得に失敗しました: {status}'
     },
     embeddedIssueForm: {
+      defaultSubject: '生成AIコメント',
       descriptionForAiResponse: '生成AIのレスポンス保存用のチケットです。',
       formNotLoaded: 'フォームがまだ読み込まれていません。',
       formNotFound: 'Redmineの作成フォームが見つかりません。',

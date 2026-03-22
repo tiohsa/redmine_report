@@ -1014,6 +1014,94 @@ describe('TaskDetailsDialog', () => {
     expect(screen.queryByTitle(/Edit Issue|チケット編集/)).toBeTruthy();
   });
 
+  it('uses compact canvas-gantt dialog chrome for sub-issue dialog', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10',
+      },
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTitle('子チケットを追加'));
+
+    const header = screen.getByTestId('sub-issue-dialog-header');
+    const footer = screen.getByTestId('sub-issue-dialog-footer');
+    const openButton = screen.getByRole('link', { name: '新しいタブで開く' });
+    const closeButton = screen.getByRole('button', { name: /新規チケット作成ダイアログを閉じる/ });
+    const cancelButton = screen.getByRole('button', { name: 'キャンセル' });
+    const saveButton = screen.getByRole('button', { name: '保存' });
+
+    expect(header).toBeTruthy();
+    expect(footer.className).toContain('justify-start');
+    expect(openButton.getAttribute('style')).toContain('width: 24px');
+    expect(openButton.getAttribute('style')).toContain('height: 24px');
+    expect(closeButton.getAttribute('style')).toContain('width: 24px');
+    expect(closeButton.getAttribute('style')).toContain('height: 24px');
+    expect(cancelButton.getAttribute('style')).toContain('height: 28px');
+    expect(cancelButton.getAttribute('style')).toContain('min-width: 88px');
+    expect(saveButton.getAttribute('style')).toContain('height: 28px');
+    expect(saveButton.getAttribute('style')).toContain('min-width: 88px');
+  });
+
+  it('uses compact canvas-gantt dialog chrome for edit issue dialog', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10',
+      },
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTitle(/Edit in Redmine|チケットを編集/));
+
+    const header = screen.getByTestId('edit-issue-dialog-header');
+    const footer = screen.getByTestId('edit-issue-dialog-footer');
+    const openButton = screen.getByRole('link', { name: '新しいタブで開く' });
+    const closeButton = screen.getByRole('button', { name: /編集ダイアログを閉じる/ });
+    const cancelButton = screen.getByRole('button', { name: 'キャンセル' });
+    const saveButton = screen.getByRole('button', { name: '保存' });
+
+    expect(header).toBeTruthy();
+    expect(footer.className).toContain('justify-start');
+    expect(openButton.getAttribute('style')).toContain('width: 24px');
+    expect(openButton.getAttribute('style')).toContain('height: 24px');
+    expect(closeButton.getAttribute('style')).toContain('width: 24px');
+    expect(closeButton.getAttribute('style')).toContain('height: 24px');
+    expect(cancelButton.getAttribute('style')).toContain('height: 28px');
+    expect(cancelButton.getAttribute('style')).toContain('min-width: 88px');
+    expect(saveButton.getAttribute('style')).toContain('height: 28px');
+    expect(saveButton.getAttribute('style')).toContain('min-width: 88px');
+  });
+
   it('reloads task details after a sub-issue is created', async () => {
     fetchTaskDetailsMock
       .mockResolvedValueOnce([
