@@ -73,4 +73,17 @@ class RequestValidatorTest < ActiveSupport::TestCase
 
     assert_equal 'destination_issue_id is required', error.message
   end
+
+  def test_validate_generate_rejects_inverted_week_range
+    error = assert_raises(RedmineReport::WeeklyReport::RequestValidator::ValidationError) do
+      @validator.validate_generate!(
+        project_id: 1,
+        version_id: 2,
+        week_from: '2026-02-16',
+        week_to: '2026-02-15'
+      )
+    end
+
+    assert_equal 'week_from must be before week_to', error.message
+  end
 end

@@ -45,10 +45,12 @@ export function CreateDestinationIssueDialog({
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const handledCreationRef = useRef(false);
 
-    // Pre-fill description
+    // Pre-fill default subject/description for AI-generated report storage issues.
+    const defaultSubject = t('embeddedIssueForm.defaultSubject');
     const descriptionText = t('embeddedIssueForm.descriptionForAiResponse');
 
     const issueQuery = new URLSearchParams();
+    issueQuery.set('issue[subject]', defaultSubject);
     issueQuery.set('issue[description]', descriptionText);
 
     const iframeUrl = `/projects/${projectIdentifier}/issues/new?${issueQuery.toString()}`;
