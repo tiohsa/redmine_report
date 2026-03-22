@@ -11,6 +11,19 @@ import {
   WeeklyApiError
 } from '../../services/scheduleReportApi';
 import { createIssue, BulkIssuePayload } from '../bulkIssueRegistration/bulkIssueApi';
+import {
+  applyEmbeddedIssueDialogStyles,
+  bindIframeEscapeHandler,
+  COMPACT_ACTION_BUTTON_HEIGHT,
+  COMPACT_ACTION_BUTTON_MIN_WIDTH,
+  COMPACT_ICON_BUTTON_SIZE,
+  DEFAULT_DIALOG_WIDTH_PX,
+  getEmbeddedDialogDefaultHeight,
+  getEmbeddedIssueDialogErrorMessage,
+  ISSUE_DIALOG_STYLE_ID,
+  MAX_DIALOG_VIEWPORT_HEIGHT_RATIO,
+  useEmbeddedIssueDialogLayout,
+} from './embeddedIssueDialog';
 import { buildTimelineAxis, calculateStaggeredLanes, createDateToX, createRangeToWidth } from './timelineAxis';
 
 type TaskDetailsDialogProps = {
@@ -81,10 +94,6 @@ const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
 
 const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
-const EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE = {
-  fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
-  height: '24px'
-} as const;
 const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   #issue-form p:has(#issue_subject),
                   #new_issue p:has(#issue_subject),
@@ -671,35 +680,49 @@ function SubIssueCreationDialog({
     () => buildSubIssueQuery(parentIssueId, inheritedFields),
     [inheritedFields, parentIssueId]
   );
-
   const iframeUrl = `/projects/${projectIdentifier}/issues/new?${issueQuery}`;
-  const externalUrl = `/projects/${projectIdentifier}/issues/new?${issueQuery}`;
+  const externalUrl = iframeUrl;
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
   const [iframeHeader, setIframeHeader] = useState('');
   const [iframeSubject, setIframeSubject] = useState('');
+  const [iframeError, setIframeError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const footerRef = useRef<HTMLDivElement | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
   const handledCreationRef = useRef(false);
   const cleanupIframeEscRef = useRef<(() => void) | null>(null);
+  const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
+    isOpen: true,
+    iframeRef,
+    headerRef,
+    footerRef,
+    sectionRef,
+    errorRef,
+  });
 
   useEffect(() => {
     setIframeReady(false);
+    setIframeError(null);
+    setIframeHeader('');
+    setIframeSubject('');
     handledCreationRef.current = false;
     cleanupIframeEscRef.current?.();
     cleanupIframeEscRef.current = null;
-  }, [iframeUrl]);
+    resetLayout();
+  }, [iframeUrl, resetLayout]);
 
   useEffect(() => {
     const onEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
+      if (event.key === 'Escape') onClose();
     };
 
-    window.addEventListener('keydown', onEsc);
-    return () => window.removeEventListener('keydown', onEsc);
+    window.addEventListener('keydown', onEsc, true);
+    return () => window.removeEventListener('keydown', onEsc, true);
   }, [onClose]);
 
   useEffect(() => () => {
@@ -745,9 +768,7 @@ function SubIssueCreationDialog({
         return;
       }
       const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-      if (form.dispatchEvent(submitEvent)) {
-        form.submit();
-      }
+      if (form.dispatchEvent(submitEvent)) form.submit();
     } catch (err: any) {
       alert(t('common.alertError', { message: err.message }));
     }
@@ -760,7 +781,7 @@ function SubIssueCreationDialog({
     const res = await fetch(action, {
       method,
       credentials: 'same-origin',
-      body: formData
+      body: formData,
     });
     if (!res.ok) {
       throw new Error(t('embeddedIssueForm.createParentIssueFailed', { status: res.status }));
@@ -819,31 +840,51 @@ function SubIssueCreationDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
-      <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="px-5 py-1.5 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
-          <div className="flex items-center gap-2 min-w-0">
+    <div
+      className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-white rounded-[6px] shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden"
+        style={{
+          width: `${DEFAULT_DIALOG_WIDTH_PX}px`,
+          maxWidth: '98vw',
+          height: `${dialogHeightPx ?? getEmbeddedDialogDefaultHeight()}px`,
+          maxHeight: `${Math.floor(window.innerHeight * MAX_DIALOG_VIEWPORT_HEIGHT_RATIO)}px`,
+          boxSizing: 'border-box',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          ref={headerRef}
+          data-testid="sub-issue-dialog-header"
+          className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white"
+          style={{ padding: '2px 12px' }}
+        >
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
             {iframeHeader ? (
-              <span className="text-[13px] font-semibold text-slate-800 truncate" title={`${iframeHeader} #${parentIssueId} ${iframeSubject}`}>
+              <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} #${parentIssueId} ${iframeSubject}`}>
                 {iframeHeader} #{parentIssueId} {iframeSubject}
               </span>
             ) : (
               <React.Fragment>
-                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
-                  #{parentIssueId}
+                <span className="text-[14px] font-bold text-slate-800 truncate">
+                  {t('subIssueDialog.iframeTitle')} #{parentIssueId}
                 </span>
-                <span className="text-[13px] font-semibold text-slate-700">{t('subIssueDialog.iframeTitle')}</span>
               </React.Fragment>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-[6px] flex-shrink-0">
             <a
               href={externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
+              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
               title={t('common.openInNewTab')}
+              aria-label={t('common.openInNewTab')}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
@@ -852,7 +893,8 @@ function SubIssueCreationDialog({
             <button
               type="button"
               aria-label={t('timeline.closeCreateIssueDialogAria')}
-              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
               onClick={onClose}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -862,8 +904,23 @@ function SubIssueCreationDialog({
           </div>
         </div>
 
-        {/* Iframe showing Redmine's default new issue form */}
-        <div className="relative flex-1 min-h-[400px] bg-white">
+        <div className="relative flex-1 min-h-0 bg-white overflow-hidden">
+          {iframeError ? (
+            <div
+              ref={errorRef}
+              data-testid="sub-issue-dialog-error"
+              style={{
+                flex: '0 0 auto',
+                padding: '12px 16px',
+                backgroundColor: '#fdecea',
+                color: '#b71c1c',
+                borderBottom: '1px solid #f5c6cb',
+                fontSize: 13,
+              }}
+            >
+              {iframeError}
+            </div>
+          ) : null}
           <iframe
             ref={iframeRef}
             title={t('subIssueDialog.iframeTitle')}
@@ -874,67 +931,15 @@ function SubIssueCreationDialog({
                 const doc = (e.target as HTMLIFrameElement).contentDocument;
                 if (!doc) return;
 
-                // Keep Redmine's issue form visible and hide only outer chrome.
-                const style = doc.createElement('style');
-                style.textContent = `
-                  #header,
-                  #top-menu,
-                  #main-menu,
-                  #sidebar,
-                  #footer,
-                  #redmine-report-bulk-issue-creation-root {
-                    display: none !important;
-                  }
-                  html,
-                  body {
-                    overflow-x: hidden !important;
-                  }
-                  #wrapper,
-                  #main,
-                  #content {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    width: 100% !important;
-                  }
-                  #content {
-                    padding: 12px 16px !important;
-                  }
-                  h2 {
-                    display: none !important;
-                  }
-${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
-                  #issue-form input[name="commit"],
-                  #issue-form button[name="commit"],
-                  #issue-form input[name="continue"],
-                  #issue-form button[name="continue"],
-                  #new_issue input[name="commit"],
-                  #new_issue button[name="commit"],
-                  #new_issue input[name="continue"],
-                  #new_issue button[name="continue"],
-                  #issue-form input[type="submit"][value="作成"],
-                  #issue-form input[type="submit"][value="連続作成"],
-                  #issue-form input[type="submit"][value="Create"],
-                  #issue-form input[type="submit"][value="Create and continue"],
-                  #new_issue input[type="submit"][value="作成"],
-                  #new_issue input[type="submit"][value="連続作成"],
-                  #new_issue input[type="submit"][value="Create"],
-                  #new_issue input[type="submit"][value="Create and continue"] {
-                    display: none !important;
-                  }
-                `;
-                doc.head.appendChild(style);
+                applyEmbeddedIssueDialogStyles(doc, {
+                  contentPadding: '16px',
+                  extraCss: EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
+                  styleId: `${ISSUE_DIALOG_STYLE_ID}-subissue`,
+                });
+                setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
+                bindIframeSizeObservers(doc);
                 cleanupIframeEscRef.current?.();
-                const onIframeEsc = (event: KeyboardEvent) => {
-                  if (event.key === 'Escape') {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onClose();
-                  }
-                };
-                doc.addEventListener('keydown', onIframeEsc);
-                cleanupIframeEscRef.current = () => {
-                  doc.removeEventListener('keydown', onIframeEsc);
-                };
+                cleanupIframeEscRef.current = bindIframeEscapeHandler(doc, onClose);
                 normalizeEmbeddedFormActions(doc);
 
                 try {
@@ -947,7 +952,9 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                       setIframeSubject((event.target as HTMLInputElement).value);
                     });
                   }
-                } catch { /* ignore cross-origin errors */ }
+                } catch {
+                  // Ignore iframe parsing failures.
+                }
 
                 const pathname = doc.location?.pathname || '';
                 if (!handledCreationRef.current && /^\/issues\/\d+(?:\/)?$/.test(pathname)) {
@@ -957,19 +964,27 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                   onClose();
                   return;
                 }
-              } catch { /* cross-origin fallback: do nothing */ }
-              requestAnimationFrame(() => setIframeReady(true));
+              } catch {
+                setIframeError(null);
+              }
+              requestAnimationFrame(() => {
+                setIframeReady(true);
+                measureDialogHeight();
+              });
             }}
           />
-          {!iframeReady && (
+          {!iframeReady ? (
             <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
               <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div>
             </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Bulk Ticket Creation Section */}
-        <div className="border-t border-slate-200 px-5 py-0.5 flex-shrink-0">
+        <div
+          ref={sectionRef}
+          className="border-t border-slate-200 bg-white flex-shrink-0"
+          style={{ padding: '8px 12px 0 12px' }}
+        >
           <button
             type="button"
             className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
@@ -984,7 +999,7 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
             <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
           </button>
 
-          {bulkOpen && (
+          {bulkOpen ? (
             <div className="mt-3">
               <textarea
                 className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y"
@@ -993,37 +1008,44 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                 onChange={(e) => setBulkText(e.target.value)}
               />
             </div>
-          )}
+          ) : null}
+        </div>
 
-          <div className="flex justify-start gap-2 mt-1">
-            <button
-              type="button"
-              className="rounded-[6px] border bg-white px-3 text-[11px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
-              style={{
-                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
-                width: '72px',
-                borderColor: '#cbd5e1',
-                color: '#334155'
-              }}
-              onClick={onClose}
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              type="button"
-              className="rounded-[6px] px-3 text-[11px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
-              style={{
-                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
-                width: '70px',
-                backgroundColor: '#1b69e3',
-                color: '#fff'
-              }}
-              disabled={isSubmitting || !iframeReady}
-              onClick={handleSave}
-            >
-              {isSubmitting ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
+        <div
+          ref={footerRef}
+          data-testid="sub-issue-dialog-footer"
+          className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center"
+          style={{ padding: '2px 12px 4px 12px' }}
+        >
+          <button
+            type="button"
+            className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
+            style={{
+              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
+              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+              borderColor: '#cbd5e1',
+              color: '#334155',
+            }}
+            onClick={onClose}
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            className="rounded-[6px] text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
+            style={{
+              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
+              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+              backgroundColor: '#1b69e3',
+              color: '#fff',
+            }}
+            disabled={isSubmitting || !iframeReady}
+            onClick={handleSave}
+          >
+            {isSubmitting ? t('common.saving') : t('common.save')}
+          </button>
         </div>
       </div>
     </div>
@@ -1043,25 +1065,42 @@ function IssueEditDialog({
   const [bulkText, setBulkText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
+  const [iframeError, setIframeError] = useState<string | null>(null);
   const [iframeHeader, setIframeHeader] = useState('');
   const [iframeSubject, setIframeSubject] = useState('');
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const footerRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
   const handledSaveRef = useRef(false);
   const cleanupIframeEscRef = useRef<(() => void) | null>(null);
+  const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
+    isOpen: true,
+    iframeRef,
+    headerRef,
+    footerRef,
+    sectionRef,
+    errorRef,
+  });
 
   useEffect(() => {
     setIframeReady(false);
+    setIframeError(null);
+    setIframeHeader('');
+    setIframeSubject('');
     handledSaveRef.current = false;
     cleanupIframeEscRef.current?.();
     cleanupIframeEscRef.current = null;
-  }, [iframeUrl]);
+    resetLayout();
+  }, [iframeUrl, resetLayout]);
 
   useEffect(() => {
     const onEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
-    window.addEventListener('keydown', onEsc);
-    return () => window.removeEventListener('keydown', onEsc);
+    window.addEventListener('keydown', onEsc, true);
+    return () => window.removeEventListener('keydown', onEsc, true);
   }, [onClose]);
 
   useEffect(() => () => {
@@ -1186,12 +1225,32 @@ function IssueEditDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
-      <div className="bg-white w-full max-w-[95vw] h-[95vh] rounded-2xl shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="px-5 py-1.5 border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white">
-          <div className="flex items-center gap-2 min-w-0">
+    <div
+      className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-white rounded-[6px] shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden"
+        style={{
+          width: `${DEFAULT_DIALOG_WIDTH_PX}px`,
+          maxWidth: '98vw',
+          height: `${dialogHeightPx ?? getEmbeddedDialogDefaultHeight()}px`,
+          maxHeight: `${Math.floor(window.innerHeight * MAX_DIALOG_VIEWPORT_HEIGHT_RATIO)}px`,
+          boxSizing: 'border-box',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          ref={headerRef}
+          data-testid="edit-issue-dialog-header"
+          className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white"
+          style={{ padding: '2px 12px' }}
+        >
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
             {iframeHeader ? (
-              <span className="text-[13px] font-semibold text-slate-800 truncate" title={`${iframeHeader} ${iframeSubject}`}>
+              <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} ${iframeSubject}`}>
                 {iframeHeader} {iframeSubject}
               </span>
             ) : (
@@ -1199,28 +1258,29 @@ function IssueEditDialog({
                 <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
                   #{issueId}
                 </span>
-                <span className="text-[13px] font-semibold text-slate-700">{t('timeline.editIssueDialogTitle')}</span>
+                <span className="text-[14px] font-bold text-slate-800 truncate">{t('timeline.editIssueDialogTitle')}</span>
               </React.Fragment>
             )}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-[6px] flex-shrink-0">
             <a
               href={externalUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
-              title={t('timeline.editIssue')}
+              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
+              title={t('common.openInNewTab')}
+              aria-label={t('common.openInNewTab')}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14 4h6v6" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 14L20 4" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20 14v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h4" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
               </svg>
             </a>
             <button
               type="button"
               aria-label={t('timeline.closeEditIssueDialogAria')}
-              className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
               onClick={onClose}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -1230,7 +1290,23 @@ function IssueEditDialog({
           </div>
         </div>
 
-        <div className="relative flex-1 min-h-[400px] bg-white">
+        <div className="relative flex-1 min-h-0 bg-white overflow-hidden">
+          {iframeError ? (
+            <div
+              ref={errorRef}
+              data-testid="edit-issue-dialog-error"
+              style={{
+                flex: '0 0 auto',
+                padding: '12px 16px',
+                backgroundColor: '#fdecea',
+                color: '#b71c1c',
+                borderBottom: '1px solid #f5c6cb',
+                fontSize: 13,
+              }}
+            >
+              {iframeError}
+            </div>
+          ) : null}
           <iframe
             ref={iframeRef}
             title={t('timeline.editIssueDialogTitle')}
@@ -1241,48 +1317,13 @@ function IssueEditDialog({
                 const doc = (e.target as HTMLIFrameElement).contentDocument;
                 if (!doc) return;
 
-                const style = doc.createElement('style');
-                style.textContent = `
-                  #header,
-                  #top-menu,
-                  #main-menu,
-                  #sidebar,
-                  #footer,
-                  #redmine-report-bulk-issue-creation-root {
-                    display: none !important;
-                  }
-                  html,
-                  body {
-                    overflow-x: hidden !important;
-                  }
-                  #wrapper,
-                  #main,
-                  #content {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    width: 100% !important;
-                  }
-                  #content {
-                    padding: 12px 16px !important;
-                  }
-                  h2 {
-                    display: none !important;
-                  }
-${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
-                  #issue-form input[name="commit"],
-                  #issue-form button[name="commit"],
-                  #issue-form input[name="continue"],
-                  #issue-form button[name="continue"],
-                  #edit_issue input[name="commit"],
-                  #edit_issue button[name="commit"],
-                  #new_issue input[name="commit"],
-                  #new_issue button[name="commit"],
-                  input[type="submit"][value="保存"],
-                  input[type="submit"][value="Save"] {
-                    display: none !important;
-                  }
-                `;
-                doc.head.appendChild(style);
+                applyEmbeddedIssueDialogStyles(doc, {
+                  contentPadding: '16px',
+                  extraCss: EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
+                  styleId: `${ISSUE_DIALOG_STYLE_ID}-edit`,
+                });
+                setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
+                bindIframeSizeObservers(doc);
 
                 try {
                   const h2Ele = doc.querySelector('h2');
@@ -1297,17 +1338,11 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                     const subjectDiv = doc.querySelector('.subject h3');
                     if (subjectDiv) setIframeSubject(subjectDiv.textContent || '');
                   }
-                } catch { /* ignore cross-origin errors */ }
+                } catch {
+                  // Ignore iframe parsing failures.
+                }
                 cleanupIframeEscRef.current?.();
-                const onIframeEsc = (event: KeyboardEvent) => {
-                  if (event.key === 'Escape') {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onClose();
-                  }
-                };
-                doc.addEventListener('keydown', onIframeEsc);
-                cleanupIframeEscRef.current = () => doc.removeEventListener('keydown', onIframeEsc);
+                cleanupIframeEscRef.current = bindIframeEscapeHandler(doc, onClose);
                 normalizeEmbeddedFormActions(doc);
 
                 const pathname = doc.location?.pathname || '';
@@ -1322,9 +1357,12 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
                   return;
                 }
               } catch {
-                // Ignore cross-origin / iframe access issues.
+                setIframeError(null);
               }
-              requestAnimationFrame(() => setIframeReady(true));
+              requestAnimationFrame(() => {
+                setIframeReady(true);
+                measureDialogHeight();
+              });
             }}
           />
           {!iframeReady && (
@@ -1334,7 +1372,11 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
           )}
         </div>
 
-        <div className="border-t border-slate-200 px-5 py-0.5 flex-shrink-0">
+        <div
+          ref={sectionRef}
+          className="border-t border-slate-200 bg-white flex-shrink-0"
+          style={{ padding: '8px 12px 0 12px' }}
+        >
           <button
             type="button"
             className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
@@ -1359,36 +1401,43 @@ ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
               />
             </div>
           )}
+        </div>
 
-          <div className="flex justify-start gap-2 mt-1">
-            <button
-              type="button"
-              className="rounded-[6px] border bg-white px-3 text-[11px] font-medium transition-colors cursor-pointer flex items-center justify-center antialiased"
-              style={{
-                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
-                width: '72px',
-                borderColor: '#cbd5e1',
-                color: '#334155'
-              }}
-              onClick={onClose}
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              type="button"
-              className="rounded-[6px] px-3 text-[11px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
-              style={{
-                ...EMBEDDED_DIALOG_FOOTER_BUTTON_STYLE,
-                width: '70px',
-                backgroundColor: '#1b69e3',
-                color: '#fff'
-              }}
-              disabled={isSubmitting || !iframeReady}
-              onClick={handleSave}
-            >
-              {isSubmitting ? t('common.saving') : t('common.save')}
-            </button>
-          </div>
+        <div
+          ref={footerRef}
+          data-testid="edit-issue-dialog-footer"
+          className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center"
+          style={{ padding: '2px 12px 4px 12px' }}
+        >
+          <button
+            type="button"
+            className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
+            style={{
+              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
+              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+              borderColor: '#cbd5e1',
+              color: '#334155',
+            }}
+            onClick={onClose}
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            className="rounded-[6px] text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
+            style={{
+              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
+              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+              backgroundColor: '#1b69e3',
+              color: '#fff',
+            }}
+            disabled={isSubmitting || !iframeReady}
+            onClick={handleSave}
+          >
+            {isSubmitting ? t('common.saving') : t('common.save')}
+          </button>
         </div>
       </div>
     </div>
