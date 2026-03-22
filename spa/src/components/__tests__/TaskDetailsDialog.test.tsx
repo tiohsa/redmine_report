@@ -232,6 +232,56 @@ describe('TaskDetailsDialog', () => {
     expect(title.textContent).not.toContain('Sprint 1 / eCookbook');
   });
 
+  it('shows comment icons only for issues that have comments in the ticket list', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10',
+        comments: [
+          {
+            id: 901,
+            author_name: 'Alice',
+            notes: 'Reviewed',
+            created_on: '2026-02-05T10:00:00Z'
+          }
+        ]
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11',
+        comments: []
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByText(/Comments|コメント/)).toBeTruthy();
+    expect(screen.getByText(/Tracker|トラッカー/)).toBeTruthy();
+
+    const indicators = screen.getAllByTestId('task-comment-indicator');
+    expect(indicators).toHaveLength(1);
+    expect(indicators[0].getAttribute('aria-label')).toMatch(/1 comments|1件のコメント/);
+  });
+
   it('renders year and month headers and updates bar width when leaf dates change', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
