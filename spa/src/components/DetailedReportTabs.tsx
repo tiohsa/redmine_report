@@ -25,9 +25,8 @@ export const DetailedReportTabs = ({
 
   return (
     <div className="space-y-4 mb-6">
-      {/* Project Tabs - Outlined Style */}
-      <div>
-        <nav className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200" aria-label={t('detailedTabs.projectsAria')}>
+      <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3 shadow-sm">
+        <nav className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200" aria-label={t('detailedTabs.projectsAria')}>
           {projectTabs.map((tab) => {
             const active = tab.project_identifier === activeProject.project_identifier;
             return (
@@ -35,9 +34,9 @@ export const DetailedReportTabs = ({
                 key={tab.project_identifier}
                 onClick={() => onProjectChange(tab.project_identifier)}
                 className={`
-                  whitespace-nowrap px-4 py-2 rounded-md font-medium text-sm transition-all duration-200 border
+                  whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 border
                   ${active
-                    ? 'bg-white border-blue-500 text-blue-600 shadow-sm'
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
                     : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                   }
                 `}
@@ -49,9 +48,8 @@ export const DetailedReportTabs = ({
         </nav>
       </div>
 
-      {/* Version Tabs - Outlined Style with Badge Label */}
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center justify-center mr-2 px-2 py-1 bg-slate-100 rounded text-xs font-bold text-slate-500 uppercase tracking-wide">
+        <div className="flex items-center justify-center mr-2 px-2.5 py-1 bg-slate-900 rounded-full text-[11px] font-semibold text-white uppercase tracking-wide shadow-sm">
           {t('detailedTabs.versionsLabel')}
         </div>
 
@@ -62,9 +60,9 @@ export const DetailedReportTabs = ({
               key={`${activeProject.project_identifier}-${version.version_id}`}
               onClick={() => onVersionChange(version.version_id)}
               className={`
-                group relative px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 border
+                group relative px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 border
                 ${active
-                  ? 'bg-white border-blue-500 text-blue-600 shadow-sm'
+                  ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
                   : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                 }
               `}
@@ -72,7 +70,7 @@ export const DetailedReportTabs = ({
               <div className="flex items-center gap-1.5">
                 {version.version_name}
                 {version.has_saved_response && (
-                  <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-blue-500' : 'bg-slate-300 group-hover:bg-blue-400'} transition-colors`}></span>
+                  <span className={`w-2 h-2 rounded-full ${active ? 'bg-blue-600' : 'bg-slate-300 group-hover:bg-blue-400'} transition-colors`}></span>
                 )}
               </div>
             </button>

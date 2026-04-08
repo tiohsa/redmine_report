@@ -134,8 +134,13 @@ describe('TaskDetailsDialog', () => {
     expect(screen.queryByTestId('task-details-process-step-hit-10')).toBeNull();
     expect(screen.getByTestId('task-details-process-step-hit-11')).toBeTruthy();
 
-    const startDateInput = screen.getAllByTestId('start-date-input')[0];
-    expect(startDateInput).toBeTruthy();
+    expect(screen.queryAllByTestId('start-date-input')).toHaveLength(0);
+
+    const startDateDisplay = screen.getByTestId('start-date-display-10');
+    fireEvent.doubleClick(startDateDisplay);
+
+    const startDateInput = await screen.findByTestId('start-date-input-10');
+    expect(screen.getByTestId('start-date-display-10').textContent).toBe('2026/02/01');
 
     fireEvent.change(startDateInput as HTMLInputElement, { target: { value: '2026-02-03' } });
 
@@ -150,6 +155,150 @@ describe('TaskDetailsDialog', () => {
 
     expect(onTaskDatesUpdated).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows date range as text until double click enables inline date editing', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/02/03');
+    expect(screen.getByTestId('due-date-display-11').textContent).toBe('2026/02/08');
+    expect(screen.queryAllByTestId('start-date-input')).toHaveLength(0);
+    expect(screen.queryAllByTestId('due-date-input')).toHaveLength(0);
+  });
+
+  it('constrains start date and due date inputs by each other in the inline date editor', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
+
+    const startDateInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
+    const dueDateInput = await screen.findByTestId('due-date-input-11') as HTMLInputElement;
+
+    expect(startDateInput.max).toBe('2026-02-08');
+    expect(dueDateInput.min).toBe('2026-02-03');
+  });
+
+  it('keeps date input constraints unset when the counterpart date is missing', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: null,
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      },
+      {
+        issue_id: 12,
+        parent_id: 10,
+        subject: 'Another leaf issue',
+        start_date: null,
+        due_date: '2026-02-12',
+        done_ratio: 20,
+        issue_url: '/issues/12'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByTestId('due-date-display-11').textContent).toBe('-');
+    expect(screen.getByTestId('start-date-display-12').textContent).toBe('-');
+
+    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
+
+    const firstStartDateInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
+    const firstDueDateInput = await screen.findByTestId('due-date-input-11') as HTMLInputElement;
+
+    expect(firstStartDateInput.max).toBe('');
+    expect(firstDueDateInput.min).toBe('2026-02-03');
+
+    fireEvent.blur(firstStartDateInput);
+    fireEvent.doubleClick(screen.getByTestId('start-date-display-12'));
+
+    const secondStartDateInput = await screen.findByTestId('start-date-input-12') as HTMLInputElement;
+    const secondDueDateInput = await screen.findByTestId('due-date-input-12') as HTMLInputElement;
+
+    expect(secondStartDateInput.max).toBe('2026-02-12');
+    expect(secondDueDateInput.min).toBe('');
   });
 
 
@@ -344,7 +493,9 @@ describe('TaskDetailsDialog', () => {
     const buildX = Number(buildBar.getAttribute('x'));
     expect(buildX).toBeGreaterThan(designX);
 
-    fireEvent.change(screen.getAllByTestId('due-date-input')[1] as HTMLInputElement, {
+    fireEvent.doubleClick(screen.getByTestId('due-date-display-11'));
+
+    fireEvent.change(screen.getByTestId('due-date-input-11') as HTMLInputElement, {
       target: { value: '2026-02-10' }
     });
 

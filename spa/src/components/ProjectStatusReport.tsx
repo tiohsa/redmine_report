@@ -759,12 +759,12 @@ export const ProjectStatusReport = ({
                         activeReportLaneKey={activeReportLaneKey}
                     />
 
-                    <section className="space-y-2">
-                        <h3 className="flex items-baseline gap-2 mb-2">
-                            <span className="text-xl font-bold text-slate-800">{t('report.detailTitle')}</span>
+                    <section className="space-y-3 rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+                        <h3 className="flex items-baseline gap-2">
+                            <span className="text-[15px] font-semibold uppercase tracking-[0.18em] text-slate-900">{t('report.detailTitle')}</span>
                             <span className="text-sm font-normal text-slate-500">{t('report.aiSuffix')}</span>
                             {aiReportLabel && (
-                                <span className="ml-2 px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-medium rounded border border-blue-100">
+                                <span className="ml-2 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-semibold rounded-full shadow-sm">
                                     {aiReportLabel}
                                 </span>
                             )}
