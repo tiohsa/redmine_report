@@ -56,6 +56,7 @@ type IssueTreeNodeProps = {
 };
 
 type EditingCell = { field: string; value: string };
+type EditingDateRange = { issueId: number; focusField: 'start_date' | 'due_date' };
 
 type ProcessFlowStep = {
   id: number;
@@ -94,6 +95,9 @@ const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
 
 const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
+const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-200/80';
+const TASK_CELL_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
+const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold truncate shadow-sm';
 const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   #issue-form p:has(#issue_subject),
                   #new_issue p:has(#issue_subject),
@@ -212,8 +216,12 @@ const IssueTreeNode = ({
   const isSelected = selectedIssueId === node.issue_id;
   const [collapsed, setCollapsed] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [editingDateRange, setEditingDateRange] = useState<EditingDateRange | null>(null);
   const [isSavingField, setIsSavingField] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const dateRangeRef = useRef<HTMLDivElement | null>(null);
+  const startDateInputRef = useRef<HTMLInputElement | null>(null);
+  const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
@@ -223,6 +231,29 @@ const IssueTreeNode = ({
       }
     }
   }, [editingCell]);
+
+  useEffect(() => {
+    if (!editingDateRange || editingDateRange.issueId !== node.issue_id) return;
+
+    const targetInput = editingDateRange.focusField === 'start_date'
+      ? startDateInputRef.current
+      : dueDateInputRef.current;
+
+    if (!targetInput) return;
+
+    const timer = window.setTimeout(() => {
+      try {
+        if (typeof targetInput.showPicker === 'function') {
+          targetInput.showPicker();
+        }
+      } catch {
+        // ignore browsers that block scripted picker opening
+      }
+      targetInput.focus();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [editingDateRange, node.issue_id]);
 
   const statusLabel = node.status_name || t('status.pending');
   const isClosed = node.status_is_closed ?? false;
@@ -256,9 +287,16 @@ const IssueTreeNode = ({
   const startEdit = (field: string, currentValue: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setEditingCell({ field, value: currentValue });
+    setEditingDateRange(null);
   };
 
   const cancelEdit = () => setEditingCell(null);
+  const cancelDateRangeEdit = () => setEditingDateRange(null);
+  const startDateRangeEdit = (field: 'start_date' | 'due_date', e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCell(null);
+    setEditingDateRange({ issueId: node.issue_id, focusField: field });
+  };
 
   const commitEdit = async (field: string, rawValue: string) => {
     setEditingCell(null);
@@ -293,6 +331,7 @@ const IssueTreeNode = ({
   };
 
   const isEditing = (field: string) => editingCell?.field === field;
+  const isEditingDateRange = editingDateRange?.issueId === node.issue_id;
   const isSaving = savingIssueIds[node.issue_id] || isSavingField;
 
   const cellClass = 'group/cell cursor-pointer';
@@ -300,7 +339,7 @@ const IssueTreeNode = ({
   return (
     <>
       <div
-        className={`flex items-center min-h-[44px] transition-colors relative group px-4 border-b border-slate-100/90 ${isSelected ? 'bg-slate-100/90' : 'hover:bg-slate-50/80'}`}
+        className={`${TASK_ROW_BASE_CLASS} ${isSelected ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-200/70' : 'bg-white hover:bg-slate-50/90'}`}
       >
         {/* Tree connectors */}
         <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
@@ -335,7 +374,7 @@ const IssueTreeNode = ({
             {node.children.length > 0 && (
               <button
                 type="button"
-                className="p-0.5 !border-0 ring-0 shadow-none bg-transparent appearance-none rounded-sm text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus:outline-none cursor-pointer flex-shrink-0 z-10"
+                className="p-0.5 !border-0 ring-0 shadow-none bg-transparent appearance-none rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 focus:outline-none cursor-pointer flex-shrink-0 z-10"
                 onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
@@ -356,7 +395,7 @@ const IssueTreeNode = ({
               <input
                 ref={inputRef}
                 type="text"
-                className="flex-1 text-[13px] h-7 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-700 min-w-0"
+                className="flex-1 text-[13px] h-8 px-2 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-800 min-w-0 shadow-sm"
                 value={editingCell!.value}
                 onChange={(e) => setEditingCell({ field: 'subject', value: e.target.value })}
                 onBlur={() => { void commitEdit('subject', editingCell!.value); }}
@@ -366,7 +405,7 @@ const IssueTreeNode = ({
             ) : (
               <span
                 data-testid="task-subject"
-                className={`text-[13px] ${depth === 0 ? 'font-semibold' : 'font-medium'} text-slate-700 truncate hover:text-blue-600 block cursor-pointer`}
+                className={`text-[14px] leading-5 ${depth === 0 ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'} truncate hover:text-blue-700 block cursor-pointer`}
                 onClick={(e) => { e.stopPropagation(); onSelectIssue?.(node); }}
                 onDoubleClick={(e) => startEdit('subject', node.subject, e)}
                 title={node.subject}
@@ -378,7 +417,7 @@ const IssueTreeNode = ({
               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1 flex-shrink-0">
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded cursor-pointer"
+                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddSubIssue(node); }}
                   title={t('timeline.addSubIssue')}
                 >
@@ -388,7 +427,7 @@ const IssueTreeNode = ({
                 </button>
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded cursor-pointer"
+                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEditIssue(node); }}
                   title={t('timeline.editIssue')}
                   aria-label={t('timeline.editIssue')}
@@ -418,7 +457,7 @@ const IssueTreeNode = ({
                 defaultValue: `${commentCount} comments`
               })}
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" aria-hidden="true">
+              <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-9 6l2.8-2.1a2 2 0 011.2-.4H19a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h.5a2 2 0 011.2.4L8 20z" />
               </svg>
             </span>
@@ -432,7 +471,7 @@ const IssueTreeNode = ({
         >
           {isEditing('tracker_id') && masters ? (
             <select
-              className="w-full text-[11px] h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700"
+              className="w-full text-[11px] h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm"
               value={editingCell!.value}
               onChange={(e) => { void commitEdit('tracker_id', e.target.value); }}
               onBlur={() => cancelEdit()}
@@ -445,7 +484,7 @@ const IssueTreeNode = ({
             </select>
           ) : (
             <span
-              className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${trackerBadgeClass} group/cell:hover:ring-blue-300`}
+              className={`${TASK_BADGE_BASE_CLASS} ${trackerBadgeClass} group/cell:hover:ring-1 group/cell:hover:ring-blue-300`}
               title={node.tracker_name || ''}
             >
               {node.tracker_name || '-'}
@@ -460,7 +499,7 @@ const IssueTreeNode = ({
         >
           {isEditing('priority_id') && masters ? (
             <select
-              className="w-full text-[11px] h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700"
+              className="w-full text-[11px] h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm"
               value={editingCell!.value}
               onChange={(e) => { void commitEdit('priority_id', e.target.value); }}
               onBlur={() => cancelEdit()}
@@ -473,7 +512,7 @@ const IssueTreeNode = ({
             </select>
           ) : (
             <span
-              className={`inline-flex max-w-full items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${priorityBadgeClass}`}
+              className={`${TASK_BADGE_BASE_CLASS} ${priorityBadgeClass}`}
               title={node.priority_name || ''}
             >
               {node.priority_name || '-'}
@@ -488,7 +527,7 @@ const IssueTreeNode = ({
         >
           {isEditing('status_id') && masters ? (
             <select
-              className="w-full text-[11px] h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700"
+              className="w-full text-[11px] h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm"
               value={editingCell!.value}
               onChange={(e) => { void commitEdit('status_id', e.target.value); }}
               onBlur={() => cancelEdit()}
@@ -500,7 +539,7 @@ const IssueTreeNode = ({
               ))}
             </select>
           ) : (
-            <span className={`inline-flex items-center justify-center min-w-[52px] text-[10px] font-bold px-2 py-[3px] rounded-full ${statusBg} ${statusText}`}>
+            <span className={`inline-flex items-center justify-center min-w-[56px] text-[11px] font-bold px-2.5 py-1 rounded-full ${statusBg} ${statusText} shadow-sm`}>
               {statusLabel}
             </span>
           )}
@@ -518,7 +557,7 @@ const IssueTreeNode = ({
               min={0}
               max={100}
               step={10}
-              className="w-[70px] text-[11px] h-7 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-slate-700"
+              className="w-[72px] text-[11px] h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm"
               defaultValue={editingCell!.value}
               onBlur={(e) => { void commitEdit('done_ratio', e.currentTarget.value); }}
               onKeyDown={handleKeyDown}
@@ -526,33 +565,91 @@ const IssueTreeNode = ({
             />
           ) : (
             <>
-              <div className="h-1.5 w-full max-w-[70px] overflow-hidden rounded-full bg-slate-200 relative">
+              <div className="h-2 w-full max-w-[72px] overflow-hidden rounded-full bg-slate-200/90 relative">
                 <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
               </div>
-              <span className="text-[10px] text-slate-500 font-medium tabular-nums" data-testid="progress-text">{progressRatio}%</span>
+              <span className="text-[11px] text-slate-600 font-semibold tabular-nums" data-testid="progress-text">{progressRatio}%</span>
             </>
           )}
         </div>
 
         {/* DATE RANGE Column */}
         <div className="w-[260px] min-w-[260px] shrink-0 flex items-center gap-1.5 px-2 justify-start">
-          <input
-            type="date"
-            data-testid="start-date-input"
-            className="w-[110px] text-[11px] h-7 px-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 tabular-nums text-slate-600 bg-white cursor-pointer"
-            value={node.start_date || ''}
-            onChange={(e) => handleDateChange(node, 'start_date', e.target.value)}
+          <div
+            ref={dateRangeRef}
+            className="flex items-center gap-1.5"
             onClick={(e) => e.stopPropagation()}
-          />
-          <span className="text-slate-400 text-[10px]">-</span>
-          <input
-            type="date"
-            data-testid="due-date-input"
-            className="w-[110px] text-[11px] h-7 px-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 tabular-nums text-slate-600 bg-white cursor-pointer"
-            value={node.due_date || ''}
-            onChange={(e) => handleDateChange(node, 'due_date', e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-          />
+          >
+            <div className="relative w-[110px] h-8">
+              <span
+                data-testid={`start-date-display-${node.issue_id}`}
+                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer hover:border-blue-200 hover:bg-blue-50/70"
+                onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
+              >
+                {node.start_date ? node.start_date.replace(/-/g, '/') : '-'}
+              </span>
+              {isEditingDateRange ? (
+                <input
+                  ref={startDateInputRef}
+                  type="date"
+                  data-testid={`start-date-input-${node.issue_id}`}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  value={node.start_date || ''}
+                  max={node.due_date || undefined}
+                  onChange={(e) => {
+                    handleDateChange(node, 'start_date', e.target.value);
+                    cancelDateRangeEdit();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape' || e.key === 'Enter') {
+                      e.preventDefault();
+                      cancelDateRangeEdit();
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const nextTarget = e.relatedTarget as Node | null;
+                    if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
+                    cancelDateRangeEdit();
+                  }}
+                />
+              ) : null}
+            </div>
+            <span className="text-slate-300 text-[10px] font-bold">-</span>
+            <div className="relative w-[110px] h-8">
+              <span
+                data-testid={`due-date-display-${node.issue_id}`}
+                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer hover:border-blue-200 hover:bg-blue-50/70"
+                onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
+              >
+                {node.due_date ? node.due_date.replace(/-/g, '/') : '-'}
+              </span>
+              {isEditingDateRange ? (
+                <input
+                  ref={dueDateInputRef}
+                  type="date"
+                  data-testid={`due-date-input-${node.issue_id}`}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  value={node.due_date || ''}
+                  min={node.start_date || undefined}
+                  onChange={(e) => {
+                    handleDateChange(node, 'due_date', e.target.value);
+                    cancelDateRangeEdit();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape' || e.key === 'Enter') {
+                      e.preventDefault();
+                      cancelDateRangeEdit();
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const nextTarget = e.relatedTarget as Node | null;
+                    if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
+                    cancelDateRangeEdit();
+                  }}
+                />
+              ) : null}
+            </div>
+          </div>
           {isSaving && (
             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 ml-1"></div>
           )}
@@ -584,7 +681,7 @@ const IssueTreeNode = ({
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
                   </svg>
                 </div>
-                <span className="text-[12px] text-slate-600 truncate">{node.assignee_name}</span>
+                <span className="text-[12px] font-medium text-slate-700 truncate">{node.assignee_name}</span>
               </>
             ) : (
               <span className="text-[11px] text-slate-400">-</span>
@@ -2366,7 +2463,7 @@ export function TaskDetailsDialog({
                 <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
-                    <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0">
+                      <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
                       <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
                         {t('timeline.task', { defaultValue: 'Task' })}
