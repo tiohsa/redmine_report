@@ -92,6 +92,10 @@ const PROCESS_FLOW_POINT_DEPTH = 18;
 const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 16;
 const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
 const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
+const DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX = 320;
+const DETAILS_TOP_PANE_MIN_HEIGHT_PX = 180;
+const DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX = 240;
+const DETAILS_LAYOUT_FALLBACK_HEIGHT_PX = 760;
 
 const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
@@ -183,6 +187,12 @@ const extractMD = (isoDate: string) => {
 };
 
 type ProcessDragMode = 'move' | 'resize-left' | 'resize-right';
+type DetailsVerticalResizeSession = {
+  pointerId: number;
+  startClientY: number;
+  startTopPaneHeight: number;
+  containerHeight: number;
+};
 
 type ProcessDragSession = {
   issueId: number;
@@ -1606,6 +1616,10 @@ export function TaskDetailsDialog({
   const processDragRef = useRef<ProcessDragSession | null>(null);
   const processFlowContainerRef = useRef<HTMLDivElement | null>(null);
   const [processFlowContainerWidth, setProcessFlowContainerWidth] = useState(0);
+  const detailsLayoutRef = useRef<HTMLDivElement | null>(null);
+  const [topPaneHeight, setTopPaneHeight] = useState(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
+  const [verticalResizeSession, setVerticalResizeSession] = useState<DetailsVerticalResizeSession | null>(null);
+  const verticalResizeRef = useRef<DetailsVerticalResizeSession | null>(null);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const currentRoot = drilldownPath[drilldownPath.length - 1] || { issueId, title: issueTitle };
@@ -1736,6 +1750,9 @@ export function TaskDetailsDialog({
     setSavingIssueIds({});
     setProcessDragSession(null);
     processDragRef.current = null;
+    setTopPaneHeight(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
+    setVerticalResizeSession(null);
+    verticalResizeRef.current = null;
     setSuppressProcessClickIssueId(null);
     selectIssue(null);
     void reloadTaskDetails(issueId, { selectedIssueId: null }).catch(() => {
@@ -1758,6 +1775,10 @@ export function TaskDetailsDialog({
   useEffect(() => {
     processDragRef.current = processDragSession;
   }, [processDragSession]);
+
+  useEffect(() => {
+    verticalResizeRef.current = verticalResizeSession;
+  }, [verticalResizeSession]);
 
   useEffect(() => () => {
     Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
@@ -1899,6 +1920,37 @@ export function TaskDetailsDialog({
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
   const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
+  const clampTopPaneHeight = useCallback((nextHeight: number, containerHeight: number) => {
+    const safeContainerHeight = Number.isFinite(containerHeight) && containerHeight > 0
+      ? containerHeight
+      : DETAILS_LAYOUT_FALLBACK_HEIGHT_PX;
+    const maxHeight = Math.max(
+      DETAILS_TOP_PANE_MIN_HEIGHT_PX,
+      safeContainerHeight - DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX
+    );
+    return Math.min(Math.max(nextHeight, DETAILS_TOP_PANE_MIN_HEIGHT_PX), maxHeight);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open || loading || issues.length === 0 || !detailsLayoutRef.current) return;
+
+    const element = detailsLayoutRef.current;
+    const updateHeight = () => {
+      const nextHeight = clampTopPaneHeight(topPaneHeight, element.clientHeight);
+      setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [clampTopPaneHeight, issues.length, loading, open, topPaneHeight]);
 
   const isRowDirty = (row: TaskDetailIssue) => {
     const baseline = baselineByIdRef.current[row.issue_id];
@@ -2029,6 +2081,88 @@ export function TaskDetailsDialog({
       window.removeEventListener('pointercancel', onPointerUp);
     };
   }, [processDragSession, processFlowPixelsPerDay, saveProcessFlowDates]);
+
+  const updateVerticalResize = useCallback((clientY: number, pointerId?: number) => {
+    const current = verticalResizeRef.current;
+    if (!current) return;
+    if (typeof pointerId === 'number' && pointerId > 0 && current.pointerId !== pointerId) return;
+
+    const deltaY = clientY - current.startClientY;
+    const nextHeight = clampTopPaneHeight(current.startTopPaneHeight + deltaY, current.containerHeight);
+    setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  }, [clampTopPaneHeight]);
+
+  const stopVerticalResize = useCallback((pointerId?: number) => {
+    const current = verticalResizeRef.current;
+    if (!current) return;
+    if (typeof pointerId === 'number' && pointerId > 0 && current.pointerId !== pointerId) return;
+
+    verticalResizeRef.current = null;
+    setVerticalResizeSession(null);
+  }, []);
+
+  useEffect(() => {
+    if (!verticalResizeSession) return;
+
+    const onPointerMove = (event: PointerEvent) => updateVerticalResize(event.clientY, event.pointerId);
+    const onPointerUp = (event: PointerEvent) => stopVerticalResize(event.pointerId);
+    const onMouseMove = (event: MouseEvent) => updateVerticalResize(event.clientY);
+    const onMouseUp = () => stopVerticalResize();
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [stopVerticalResize, updateVerticalResize, verticalResizeSession]);
+
+  const beginVerticalResize = useCallback((clientY: number, pointerId: number) => {
+    const containerRect = detailsLayoutRef.current?.getBoundingClientRect();
+    const containerHeight = containerRect?.height ?? detailsLayoutRef.current?.clientHeight ?? 0;
+    const nextSession = {
+      pointerId,
+      startClientY: clientY,
+      startTopPaneHeight: topPaneHeight,
+      containerHeight
+    };
+
+    verticalResizeRef.current = nextSession;
+    setVerticalResizeSession(nextSession);
+  }, [topPaneHeight]);
+
+  const startVerticalResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    beginVerticalResize(event.clientY, event.pointerId);
+  }, [beginVerticalResize]);
+
+  const startVerticalResizeWithMouse = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    beginVerticalResize(event.clientY, 1);
+  }, [beginVerticalResize]);
+
+  const handleVerticalResizeKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    let delta = 0;
+    if (event.key === 'ArrowDown') delta = 24;
+    if (event.key === 'ArrowUp') delta = -24;
+    if (event.key === 'PageDown') delta = 80;
+    if (event.key === 'PageUp') delta = -80;
+    if (delta === 0) return;
+
+    event.preventDefault();
+    const containerRect = detailsLayoutRef.current?.getBoundingClientRect();
+    const containerHeight = containerRect?.height ?? detailsLayoutRef.current?.clientHeight ?? 0;
+    setTopPaneHeight((prev) => clampTopPaneHeight(prev + delta, containerHeight));
+  }, [clampTopPaneHeight]);
 
   const handleDateChange = (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => {
     setIssues((prev) => {
@@ -2245,7 +2379,7 @@ export function TaskDetailsDialog({
         </div>
 
         {/* Split Panel Body */}
-        <div className="flex-1 flex flex-col min-h-0 bg-slate-100 relative">
+        <div className="flex-1 flex flex-col min-h-0 bg-slate-100 relative" ref={detailsLayoutRef}>
           {loading && (
             <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-30">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -2260,8 +2394,13 @@ export function TaskDetailsDialog({
 
           {!loading && issues.length > 0 && (
             <>
-              <div className="border-b border-slate-200 bg-white relative z-10">
-                <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
+              <div
+                className="border-b border-slate-200 bg-white relative z-10 shrink-0 overflow-hidden"
+                data-testid="task-details-top-pane"
+                style={{ height: `${topPaneHeight}px` }}
+              >
+                <div className="h-full overflow-auto">
+                  <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
                   {processFlowAxis && processFlowRenderSteps.length > 0 ? (
                     <svg
                       data-testid="task-details-process-flow-svg"
@@ -2455,11 +2594,33 @@ export function TaskDetailsDialog({
                   ) : (
                     <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
                   )}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label={t('timeline.resizeDetailAreasAria')}
+                tabIndex={0}
+                data-testid="task-details-horizontal-resizer"
+                data-resizing={verticalResizeSession ? 'true' : 'false'}
+                className={`relative z-20 shrink-0 cursor-row-resize bg-slate-200 transition-colors ${verticalResizeSession ? 'h-2 bg-blue-200' : 'h-1.5 hover:bg-blue-100'}`}
+                onPointerDown={startVerticalResize}
+                onMouseDown={startVerticalResizeWithMouse}
+                onPointerMove={(event) => updateVerticalResize(event.clientY, event.pointerId)}
+                onPointerUp={(event) => stopVerticalResize(event.pointerId)}
+                onMouseMove={(event) => updateVerticalResize(event.clientY)}
+                onMouseUp={() => stopVerticalResize()}
+                onKeyDown={handleVerticalResizeKeyDown}
+              >
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+                  <span className="h-1 w-14 rounded-full bg-slate-400/70" />
                 </div>
               </div>
 
               {/* Left Panel - Task List */}
-              <div className="flex-1 flex min-h-0 relative bg-white">
+              <div className="flex-1 flex min-h-0 relative bg-white" data-testid="task-details-bottom-pane">
                 <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">

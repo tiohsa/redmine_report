@@ -854,6 +854,54 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeTruthy();
   });
 
+  it('resizes the top and bottom areas from the horizontal divider control', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const topPane = screen.getByTestId('task-details-top-pane');
+    const resizer = screen.getByTestId('task-details-horizontal-resizer');
+
+    expect(topPane.style.height).toBe('320px');
+
+    resizer.focus();
+    fireEvent.keyDown(resizer, { key: 'ArrowDown' });
+
+    await waitFor(() => expect(topPane.style.height).toBe('344px'));
+
+    fireEvent.keyDown(resizer, { key: 'PageUp' });
+
+    await waitFor(() => expect(topPane.style.height).toBe('264px'));
+  });
+
   it('suppresses process bar click after a resize interaction', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
