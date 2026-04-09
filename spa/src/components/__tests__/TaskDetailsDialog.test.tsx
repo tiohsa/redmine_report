@@ -148,6 +148,14 @@ describe('TaskDetailsDialog', () => {
       await new Promise((resolve) => setTimeout(resolve, 600));
     });
 
+    expect(updateTaskDatesMock).not.toHaveBeenCalled();
+
+    fireEvent.blur(startDateInput);
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+
     await waitFor(() => expect(updateTaskDatesMock).toHaveBeenCalledTimes(1));
     expect(onTaskDatesUpdated).not.toHaveBeenCalled();
 
@@ -194,6 +202,134 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('due-date-display-11').textContent).toBe('2026/02/08');
     expect(screen.queryAllByTestId('start-date-input')).toHaveLength(0);
     expect(screen.queryAllByTestId('due-date-input')).toHaveLength(0);
+  });
+
+  it('keeps the date editor open after a date value changes until blur', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const showPickerMock = vi.fn();
+    Object.defineProperty(HTMLInputElement.prototype, 'showPicker', {
+      configurable: true,
+      value: showPickerMock
+    });
+
+    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
+
+    const startDateInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
+    await waitFor(() => expect(showPickerMock).toHaveBeenCalledTimes(1));
+    fireEvent.change(startDateInput, { target: { value: '2026-02-04' } });
+
+    expect(screen.getByTestId('start-date-input-11')).toBeTruthy();
+    expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/02/04');
+
+    fireEvent.doubleClick(startDateInput);
+
+    expect(showPickerMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+
+    expect(updateTaskDatesMock).not.toHaveBeenCalled();
+
+    fireEvent.blur(startDateInput);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('start-date-input-11')).toBeNull();
+    });
+  });
+
+  it('reopens the date editor immediately after committing a date change', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+    updateTaskDatesMock.mockResolvedValue({
+      issue_id: 11,
+      parent_id: 10,
+      subject: 'Leaf issue',
+      start_date: '2026-02-04',
+      due_date: '2026-02-08',
+      issue_url: '/issues/11'
+    });
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
+
+    const firstInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
+    fireEvent.change(firstInput, { target: { value: '2026-02-04' } });
+    fireEvent.blur(firstInput);
+
+    await waitFor(() => {
+      expect(updateTaskDatesMock).toHaveBeenCalledWith('ecookbook', 11, {
+        start_date: '2026-02-04',
+        due_date: '2026-02-08'
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('start-date-input-11')).toBeNull();
+    });
+
+    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
+
+    expect(await screen.findByTestId('start-date-input-11')).toBeTruthy();
   });
 
   it('constrains start date and due date inputs by each other in the inline date editor', async () => {
@@ -299,6 +435,52 @@ describe('TaskDetailsDialog', () => {
 
     expect(secondStartDateInput.max).toBe('2026-02-12');
     expect(secondDueDateInput.min).toBe('');
+  });
+
+  it('prevents the browser default action when double clicking a date display', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const startDateDisplay = screen.getByTestId('start-date-display-11');
+    const dblClickEvent = new MouseEvent('dblclick', { bubbles: true, cancelable: true });
+
+    let dispatchResult = true;
+    await act(async () => {
+      dispatchResult = startDateDisplay.dispatchEvent(dblClickEvent);
+    });
+
+    expect(dispatchResult).toBe(false);
+    expect(dblClickEvent.defaultPrevented).toBe(true);
+    expect(await screen.findByTestId('start-date-input-11')).toBeTruthy();
   });
 
 
@@ -499,6 +681,10 @@ describe('TaskDetailsDialog', () => {
       target: { value: '2026-02-10' }
     });
 
+    expect(Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('width'))).toBe(initialWidth);
+
+    fireEvent.blur(screen.getByTestId('due-date-input-11'));
+
     await waitFor(() => {
       expect(Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('width'))).toBeGreaterThan(initialWidth);
     });
@@ -561,6 +747,56 @@ describe('TaskDetailsDialog', () => {
     const secondBarY = Number(screen.getByTestId('task-details-process-step-hit-12').getAttribute('y'));
 
     expect(secondBarY - firstBarY).toBe(53);
+  });
+
+  it('renders single-date process steps as diamonds', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Start only',
+        start_date: '2026-03-03',
+        due_date: null,
+        done_ratio: 0,
+        issue_url: '/issues/11'
+      },
+      {
+        issue_id: 12,
+        parent_id: 10,
+        subject: 'Due only',
+        start_date: null,
+        due_date: '2026-03-10',
+        done_ratio: 0,
+        issue_url: '/issues/12'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByTestId('task-details-process-step-hit-11')).toBeTruthy();
+    expect(screen.getByTestId('task-details-process-step-hit-12')).toBeTruthy();
+    expect(screen.getByTestId('task-details-process-step-diamond-11')).toBeTruthy();
+    expect(screen.getByTestId('task-details-process-step-diamond-12')).toBeTruthy();
+    expect(screen.getByText('3/3')).toBeTruthy();
+    expect(screen.getByText('3/10')).toBeTruthy();
   });
 
   it('drills down into a child subtree when the process bar has children', async () => {

@@ -56,14 +56,21 @@ type IssueTreeNodeProps = {
 };
 
 type EditingCell = { field: string; value: string };
-type EditingDateRange = { issueId: number; focusField: 'start_date' | 'due_date' };
+type EditingDateRange = {
+  issueId: number;
+  focusField: 'start_date' | 'due_date';
+  startDate: string;
+  dueDate: string;
+};
 
 type ProcessFlowStep = {
   id: number;
   title: string;
   rangeLabel: string;
-  startDate: string;
-  dueDate: string;
+  startDate: string | null;
+  dueDate: string | null;
+  anchorDate: string;
+  isMilestone: boolean;
   status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
   progress: number;
   hasChildren: boolean;
@@ -89,6 +96,7 @@ const PROCESS_FLOW_BAR_HEIGHT = 36;
 const PROCESS_FLOW_BAR_Y = 22;
 const PROCESS_FLOW_BAR_SPACING_Y = 17;
 const PROCESS_FLOW_POINT_DEPTH = 18;
+const PROCESS_FLOW_DIAMOND_WIDTH = 24;
 const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 16;
 const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
 const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
@@ -180,6 +188,36 @@ const ProcessChevron = ({
   );
 };
 
+const ProcessDiamond = ({
+  centerX,
+  y,
+  width,
+  height,
+  fill,
+  stroke,
+  id
+}: {
+  centerX: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+  id: number;
+}) => {
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  const pathData = [
+    `M ${centerX} ${y}`,
+    `L ${centerX + halfWidth} ${y + halfHeight}`,
+    `L ${centerX} ${y + height}`,
+    `L ${centerX - halfWidth} ${y + halfHeight}`,
+    'Z'
+  ].join(' ');
+
+  return <path data-testid={`task-details-process-step-diamond-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
+};
+
 const shiftIsoDate = (isoDate: string, deltaDays: number) => format(addDays(parseISO(isoDate), deltaDays), 'yyyy-MM-dd');
 const extractMD = (isoDate: string) => {
   const parts = isoDate.split('-');
@@ -233,6 +271,20 @@ const IssueTreeNode = ({
   const startDateInputRef = useRef<HTMLInputElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
+  const openDatePicker = (input: HTMLInputElement | null) => {
+    if (!input) return;
+
+    try {
+      if (typeof input.showPicker === 'function') {
+        input.showPicker();
+      }
+    } catch {
+      // ignore browsers that block scripted picker opening
+    }
+
+    input.focus();
+  };
+
   useEffect(() => {
     if (editingCell && inputRef.current) {
       inputRef.current.focus();
@@ -252,14 +304,7 @@ const IssueTreeNode = ({
     if (!targetInput) return;
 
     const timer = window.setTimeout(() => {
-      try {
-        if (typeof targetInput.showPicker === 'function') {
-          targetInput.showPicker();
-        }
-      } catch {
-        // ignore browsers that block scripted picker opening
-      }
-      targetInput.focus();
+      openDatePicker(targetInput);
     }, 0);
 
     return () => window.clearTimeout(timer);
@@ -303,9 +348,34 @@ const IssueTreeNode = ({
   const cancelEdit = () => setEditingCell(null);
   const cancelDateRangeEdit = () => setEditingDateRange(null);
   const startDateRangeEdit = (field: 'start_date' | 'due_date', e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setEditingCell(null);
-    setEditingDateRange({ issueId: node.issue_id, focusField: field });
+    setEditingDateRange({
+      issueId: node.issue_id,
+      focusField: field,
+      startDate: node.start_date || '',
+      dueDate: node.due_date || ''
+    });
+  };
+  const updateDateRangeDraft = (key: 'startDate' | 'dueDate', value: string) => {
+    setEditingDateRange((prev) => {
+      if (!prev || prev.issueId !== node.issue_id) return prev;
+      return { ...prev, [key]: value };
+    });
+  };
+  const commitDateRangeEdit = () => {
+    if (!editingDateRange || editingDateRange.issueId !== node.issue_id) return;
+
+    if ((node.start_date || '') !== editingDateRange.startDate) {
+      handleDateChange(node, 'start_date', editingDateRange.startDate);
+    }
+
+    if ((node.due_date || '') !== editingDateRange.dueDate) {
+      handleDateChange(node, 'due_date', editingDateRange.dueDate);
+    }
+
+    cancelDateRangeEdit();
   };
 
   const commitEdit = async (field: string, rawValue: string) => {
@@ -343,6 +413,9 @@ const IssueTreeNode = ({
   const isEditing = (field: string) => editingCell?.field === field;
   const isEditingDateRange = editingDateRange?.issueId === node.issue_id;
   const isSaving = savingIssueIds[node.issue_id] || isSavingField;
+  const dateRangeDraft = isEditingDateRange ? editingDateRange : null;
+  const displayStartDate = dateRangeDraft?.startDate || node.start_date || '';
+  const displayDueDate = dateRangeDraft?.dueDate || node.due_date || '';
 
   const cellClass = 'group/cell cursor-pointer';
 
@@ -593,10 +666,11 @@ const IssueTreeNode = ({
             <div className="relative w-[110px] h-8">
               <span
                 data-testid={`start-date-display-${node.issue_id}`}
-                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer hover:border-blue-200 hover:bg-blue-50/70"
+                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
+                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                 onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
               >
-                {node.start_date ? node.start_date.replace(/-/g, '/') : '-'}
+                {displayStartDate ? displayStartDate.replace(/-/g, '/') : '-'}
               </span>
               {isEditingDateRange ? (
                 <input
@@ -604,22 +678,29 @@ const IssueTreeNode = ({
                   type="date"
                   data-testid={`start-date-input-${node.issue_id}`}
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  value={node.start_date || ''}
-                  max={node.due_date || undefined}
+                  value={dateRangeDraft?.startDate || ''}
+                  max={dateRangeDraft?.dueDate || undefined}
                   onChange={(e) => {
-                    handleDateChange(node, 'start_date', e.target.value);
-                    cancelDateRangeEdit();
+                    updateDateRangeDraft('startDate', e.target.value);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Escape' || e.key === 'Enter') {
+                    if (e.key === 'Escape') {
                       e.preventDefault();
                       cancelDateRangeEdit();
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      commitDateRangeEdit();
                     }
                   }}
                   onBlur={(e) => {
                     const nextTarget = e.relatedTarget as Node | null;
                     if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
-                    cancelDateRangeEdit();
+                    commitDateRangeEdit();
+                  }}
+                  onDoubleClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openDatePicker(e.currentTarget);
                   }}
                 />
               ) : null}
@@ -628,10 +709,11 @@ const IssueTreeNode = ({
             <div className="relative w-[110px] h-8">
               <span
                 data-testid={`due-date-display-${node.issue_id}`}
-                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer hover:border-blue-200 hover:bg-blue-50/70"
+                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
+                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                 onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
               >
-                {node.due_date ? node.due_date.replace(/-/g, '/') : '-'}
+                {displayDueDate ? displayDueDate.replace(/-/g, '/') : '-'}
               </span>
               {isEditingDateRange ? (
                 <input
@@ -639,22 +721,29 @@ const IssueTreeNode = ({
                   type="date"
                   data-testid={`due-date-input-${node.issue_id}`}
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  value={node.due_date || ''}
-                  min={node.start_date || undefined}
+                  value={dateRangeDraft?.dueDate || ''}
+                  min={dateRangeDraft?.startDate || undefined}
                   onChange={(e) => {
-                    handleDateChange(node, 'due_date', e.target.value);
-                    cancelDateRangeEdit();
+                    updateDateRangeDraft('dueDate', e.target.value);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Escape' || e.key === 'Enter') {
+                    if (e.key === 'Escape') {
                       e.preventDefault();
                       cancelDateRangeEdit();
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      commitDateRangeEdit();
                     }
                   }}
                   onBlur={(e) => {
                     const nextTarget = e.relatedTarget as Node | null;
                     if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
-                    cancelDateRangeEdit();
+                    commitDateRangeEdit();
+                  }}
+                  onDoubleClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openDatePicker(e.currentTarget);
                   }}
                 />
               ) : null}
@@ -1810,7 +1899,7 @@ export function TaskDetailsDialog({
         .filter((parentId): parentId is number => Number.isInteger(parentId))
     );
     return issues
-      .filter((issue) => Boolean(issue.start_date && issue.due_date))
+      .filter((issue) => Boolean(issue.start_date || issue.due_date))
       // Use the immediate children of the opened task as the top-level segments
       .filter((issue) => issue.parent_id === currentRootIssueId)
       .map((issue) => {
@@ -1820,20 +1909,28 @@ export function TaskDetailsDialog({
           : progress > 0
             ? 'IN_PROGRESS'
             : 'PENDING';
+        const startDate = issue.start_date ?? null;
+        const dueDate = issue.due_date ?? null;
+        const anchorDate = startDate ?? dueDate;
+        if (!anchorDate) return null;
+        const isMilestone = !(startDate && dueDate);
         return {
           id: issue.issue_id,
           title: issue.subject,
-          startDate: issue.start_date as string,
-          dueDate: issue.due_date as string,
-          rangeLabel: `${issue.start_date} - ${issue.due_date}`,
+          startDate,
+          dueDate,
+          anchorDate,
+          isMilestone,
+          rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : anchorDate,
           status,
           progress,
           hasChildren: parentIssueIds.has(issue.issue_id)
         };
       })
+      .filter((step): step is ProcessFlowStep => step !== null)
       .sort((left, right) =>
-        left.startDate.localeCompare(right.startDate) ||
-        left.dueDate.localeCompare(right.dueDate) ||
+        left.anchorDate.localeCompare(right.anchorDate) ||
+        (left.dueDate ?? left.anchorDate).localeCompare(right.dueDate ?? right.anchorDate) ||
         left.id - right.id
       );
   }, [issues, currentRootIssueId]);
@@ -1847,8 +1944,8 @@ export function TaskDetailsDialog({
 
     return buildTimelineAxis({
       items: processFlowSteps.map((step) => ({
-        start_date: step.startDate,
-        end_date: step.dueDate
+        start_date: step.startDate ?? step.anchorDate,
+        end_date: step.dueDate ?? step.anchorDate
       })),
       containerWidth: processFlowTimelineWidth,
       defaultTimelineWidth: processFlowTimelineWidth
@@ -1864,32 +1961,42 @@ export function TaskDetailsDialog({
     const getWidth = createRangeToWidth(processFlowAxis.pixelsPerDay);
 
     const rawSteps = processFlowSteps.map((step) => {
-      const currentSession = processDragSession?.issueId === step.id ? processDragSession : null;
+      const currentSession = !step.isMilestone && processDragSession?.issueId === step.id ? processDragSession : null;
       const startDate = currentSession?.currentStartDate ?? step.startDate;
       const dueDate = currentSession?.currentDueDate ?? step.dueDate;
+      const anchorDate = startDate ?? dueDate;
+      const hitWidth = step.isMilestone
+        ? Math.max(PROCESS_FLOW_DIAMOND_WIDTH, processFlowAxis.pixelsPerDay)
+        : getWidth(startDate, dueDate);
+      const hitX = anchorDate ? getX(anchorDate) - hitWidth / 2 : 0;
 
       return {
         ...step,
         startDate,
         dueDate,
-        rangeLabel: `${startDate} - ${dueDate}`,
-        hitX: getX(startDate),
-        hitWidth: getWidth(startDate, dueDate)
+        anchorDate: anchorDate ?? step.anchorDate,
+        rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : (anchorDate ?? step.anchorDate),
+        hitX,
+        hitWidth
       };
     });
 
     const positionedSteps = calculateStaggeredLanes(
       rawSteps,
-      (step) => step.startDate,
-      (step) => step.dueDate
+      (step) => step.anchorDate,
+      (step) => step.dueDate ?? step.anchorDate
     );
 
     return positionedSteps.map((step, index) => {
       const isFirst = index === 0;
-      const hasLeftNotch = !isFirst;
+      const hasLeftNotch = !step.isMilestone && !isFirst;
       const previousStep = index > 0 ? positionedSteps[index - 1] : null;
       const joinsPrevious = Boolean(
+        !step.isMilestone &&
+        !previousStep?.isMilestone &&
         previousStep &&
+        step.startDate &&
+        previousStep.dueDate &&
         differenceInCalendarDays(parseISO(step.startDate), parseISO(previousStep.dueDate)) === 1 &&
         step.laneIndex === previousStep.laneIndex
       );
@@ -2499,74 +2606,106 @@ export function TaskDetailsDialog({
                         {processFlowRenderSteps.map((step) => {
                           const style = processStatusStyles[step.status];
                           const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+                          const isInteractive = !savingIssueIds[step.id];
 
                           return (
                             <g key={step.id} data-testid="task-details-process-step" opacity={savingIssueIds[step.id] ? 0.6 : 1}>
                               {/* Date labels above the bar */}
-                              <text
-                                x={step.hitX}
-                                y={stepY - 4}
-                                fill="#374151"
-                                fontSize="10"
-                                fontWeight="bold"
-                                textAnchor="start"
-                              >
-                                {extractMD(step.startDate)}
-                              </text>
-                              <text
-                                x={step.hitX + step.hitWidth}
-                                y={stepY - 4}
-                                fill="#374151"
-                                fontSize="10"
-                                fontWeight="bold"
-                                textAnchor="end"
-                              >
-                                {extractMD(step.dueDate)}
-                              </text>
+                              {step.isMilestone ? (
+                                <text
+                                  x={step.textX}
+                                  y={stepY - 4}
+                                  fill="#374151"
+                                  fontSize="10"
+                                  fontWeight="bold"
+                                  textAnchor="middle"
+                                >
+                                  {extractMD(step.anchorDate)}
+                                </text>
+                              ) : (
+                                <>
+                                  <text
+                                    x={step.hitX}
+                                    y={stepY - 4}
+                                    fill="#374151"
+                                    fontSize="10"
+                                    fontWeight="bold"
+                                    textAnchor="start"
+                                  >
+                                    {step.startDate ? extractMD(step.startDate) : ''}
+                                  </text>
+                                  <text
+                                    x={step.hitX + step.hitWidth}
+                                    y={stepY - 4}
+                                    fill="#374151"
+                                    fontSize="10"
+                                    fontWeight="bold"
+                                    textAnchor="end"
+                                  >
+                                    {step.dueDate ? extractMD(step.dueDate) : ''}
+                                  </text>
+                                </>
+                              )}
 
-                              <ProcessChevron
-                                x={step.x}
-                                y={stepY}
-                                width={step.width}
-                                height={PROCESS_FLOW_BAR_HEIGHT}
-                                pointDepth={PROCESS_FLOW_POINT_DEPTH}
-                                hasLeftNotch={step.hasLeftNotch}
-                                fill={style.fill}
-                                stroke={style.stroke}
-                                progress={step.progress}
-                                id={step.id}
-                              />
+                              {step.isMilestone ? (
+                                <ProcessDiamond
+                                  centerX={step.textX}
+                                  y={stepY}
+                                  width={step.hitWidth}
+                                  height={PROCESS_FLOW_BAR_HEIGHT}
+                                  fill={style.fill}
+                                  stroke={style.stroke}
+                                  id={step.id}
+                                />
+                              ) : (
+                                <ProcessChevron
+                                  x={step.x}
+                                  y={stepY}
+                                  width={step.width}
+                                  height={PROCESS_FLOW_BAR_HEIGHT}
+                                  pointDepth={PROCESS_FLOW_POINT_DEPTH}
+                                  hasLeftNotch={step.hasLeftNotch}
+                                  fill={style.fill}
+                                  stroke={style.stroke}
+                                  progress={step.progress}
+                                  id={step.id}
+                                />
+                              )}
                               <rect
                                 x={step.hitX}
                                 y={stepY}
                                 width={step.hitWidth}
                                 height={PROCESS_FLOW_BAR_HEIGHT}
                                 fill="transparent"
-                                style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : CUSTOM_GRAB }}
-                                onPointerDown={(event) => startProcessFlowDrag(event, step, 'move')}
+                                style={{ cursor: isInteractive && !step.isMilestone ? CUSTOM_GRAB : 'pointer' }}
+                                onPointerDown={step.isMilestone ? undefined : (event) => startProcessFlowDrag(event, step, 'move')}
                                 onClick={() => handleProcessStepClick(step)}
                                 data-testid={`task-details-process-step-hit-${step.id}`}
                               />
-                              <rect
-                                x={step.hitX}
-                                y={stepY}
-                                width={10}
-                                height={PROCESS_FLOW_BAR_HEIGHT}
-                                fill="transparent"
-                                style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
-                                onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-left')}
-                                data-testid={`task-details-process-step-left-${step.id}`}
-                              />
-                              <rect
-                                x={Math.max(step.hitX + step.hitWidth - 10, step.hitX)}
-                                y={stepY}
-                                width={10}
-                                height={PROCESS_FLOW_BAR_HEIGHT}
-                                fill="transparent"
-                                style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
-                                onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-right')}
-                                data-testid={`task-details-process-step-right-${step.id}`}
-                              />
+                              {!step.isMilestone && (
+                                <>
+                                  <rect
+                                    x={step.hitX}
+                                    y={stepY}
+                                    width={10}
+                                    height={PROCESS_FLOW_BAR_HEIGHT}
+                                    fill="transparent"
+                                    style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
+                                    onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-left')}
+                                    data-testid={`task-details-process-step-left-${step.id}`}
+                                  />
+                                  <rect
+                                    x={Math.max(step.hitX + step.hitWidth - 10, step.hitX)}
+                                    y={stepY}
+                                    width={10}
+                                    height={PROCESS_FLOW_BAR_HEIGHT}
+                                    fill="transparent"
+                                    style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
+                                    onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-right')}
+                                    data-testid={`task-details-process-step-right-${step.id}`}
+                                  />
+                                </>
+                              )}
                               <text
                                 x={step.textX}
                                 y={stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1}
