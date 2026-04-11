@@ -749,7 +749,7 @@ describe('TaskDetailsDialog', () => {
     expect(secondBarY - firstBarY).toBe(53);
   });
 
-  it('renders single-date process steps as diamonds', async () => {
+  it('renders start-only process steps as triangles and due-only steps as diamonds', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -791,10 +791,44 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
-    expect(screen.getByTestId('task-details-process-step-hit-11')).toBeTruthy();
-    expect(screen.getByTestId('task-details-process-step-hit-12')).toBeTruthy();
-    expect(screen.getByTestId('task-details-process-step-diamond-11')).toBeTruthy();
-    expect(screen.getByTestId('task-details-process-step-diamond-12')).toBeTruthy();
+    const startOnlyHit = screen.getByTestId('task-details-process-step-hit-11');
+    const dueOnlyHit = screen.getByTestId('task-details-process-step-hit-12');
+    const startOnlyTriangle = screen.getByTestId('task-details-process-step-triangle-11');
+    const dueOnlyDiamond = screen.getByTestId('task-details-process-step-diamond-12');
+
+    expect(startOnlyHit).toBeTruthy();
+    expect(dueOnlyHit).toBeTruthy();
+    expect(startOnlyTriangle).toBeTruthy();
+    expect(dueOnlyDiamond).toBeTruthy();
+
+    const trianglePath = startOnlyTriangle.getAttribute('d') ?? '';
+    const diamondPath = dueOnlyDiamond.getAttribute('d') ?? '';
+    const triangleNumbers = Array.from(trianglePath.matchAll(/-?\d+(?:\.\d+)?/g), (match) => Number(match[0]));
+    const diamondNumbers = Array.from(diamondPath.matchAll(/-?\d+(?:\.\d+)?/g), (match) => Number(match[0]));
+    const [triangleStartX, triangleStartY, triangleTipX, triangleTipY, triangleBottomX, triangleBottomY] = triangleNumbers;
+    const [diamondTopX, diamondTopY, diamondRightX, diamondRightY, , diamondBottomY, diamondLeftX] = diamondNumbers;
+    const startOnlyHitX = Number(startOnlyHit.getAttribute('x'));
+    const dueOnlyHitX = Number(dueOnlyHit.getAttribute('x'));
+    const dueOnlyHitWidth = Number(dueOnlyHit.getAttribute('width'));
+    const startOnlyHitWidth = Number(startOnlyHit.getAttribute('width'));
+
+    const triangleHeight = triangleBottomY - triangleStartY;
+    const triangleWidth = triangleTipX - triangleStartX;
+    const triangleLeftEdge = Math.hypot(triangleTipX - triangleStartX, triangleTipY - triangleStartY);
+    const triangleBottomEdge = Math.hypot(triangleTipX - triangleBottomX, triangleTipY - triangleBottomY);
+    const diamondWidth = diamondRightX - diamondLeftX;
+    const diamondHeight = diamondBottomY - diamondTopY;
+
+    expect(triangleStartX).toBe(startOnlyHitX);
+    expect(diamondTopX).toBe(dueOnlyHitX + dueOnlyHitWidth / 2);
+    expect(triangleWidth).toBeLessThan(startOnlyHitWidth);
+    expect(Math.abs(triangleLeftEdge - triangleHeight)).toBeLessThan(0.0001);
+    expect(Math.abs(triangleBottomEdge - triangleHeight)).toBeLessThan(0.0001);
+    expect(Math.abs(diamondWidth - diamondHeight)).toBeLessThan(0.0001);
+    expect(screen.queryByTestId('task-details-process-step-left-11')).toBeNull();
+    expect(screen.queryByTestId('task-details-process-step-right-11')).toBeNull();
+    expect(screen.queryByTestId('task-details-process-step-left-12')).toBeNull();
+    expect(screen.queryByTestId('task-details-process-step-right-12')).toBeNull();
     expect(screen.getByText('3/3')).toBeTruthy();
     expect(screen.getByText('3/10')).toBeTruthy();
   });

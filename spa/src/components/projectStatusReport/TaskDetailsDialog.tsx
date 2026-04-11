@@ -25,6 +25,13 @@ import {
   useEmbeddedIssueDialogLayout,
 } from './embeddedIssueDialog';
 import { buildTimelineAxis, calculateStaggeredLanes, createDateToX, createRangeToWidth } from './timelineAxis';
+import {
+  drawChevron,
+  drawDiamond,
+  drawTriangle,
+  drawStrokeText,
+  prepareHiDPICanvas
+} from './canvasTimelineRenderer';
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -70,7 +77,7 @@ type ProcessFlowStep = {
   startDate: string | null;
   dueDate: string | null;
   anchorDate: string;
-  isMilestone: boolean;
+  shapeKind: 'range' | 'start-only' | 'due-only';
   status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
   progress: number;
   hasChildren: boolean;
@@ -96,7 +103,8 @@ const PROCESS_FLOW_BAR_HEIGHT = 36;
 const PROCESS_FLOW_BAR_Y = 22;
 const PROCESS_FLOW_BAR_SPACING_Y = 17;
 const PROCESS_FLOW_POINT_DEPTH = 18;
-const PROCESS_FLOW_DIAMOND_WIDTH = 24;
+const PROCESS_FLOW_DIAMOND_WIDTH = PROCESS_FLOW_BAR_HEIGHT;
+const PROCESS_FLOW_TRIANGLE_WIDTH = (PROCESS_FLOW_BAR_HEIGHT * Math.sqrt(3)) / 2;
 const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 16;
 const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
 const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
@@ -216,6 +224,33 @@ const ProcessDiamond = ({
   ].join(' ');
 
   return <path data-testid={`task-details-process-step-diamond-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
+};
+
+const ProcessTriangle = ({
+  x,
+  y,
+  width,
+  height,
+  fill,
+  stroke,
+  id
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+  id: number;
+}) => {
+  const pathData = [
+    `M ${x} ${y}`,
+    `L ${x + width} ${y + height / 2}`,
+    `L ${x} ${y + height}`,
+    'Z'
+  ].join(' ');
+
+  return <path data-testid={`task-details-process-step-triangle-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
 };
 
 const shiftIsoDate = (isoDate: string, deltaDays: number) => format(addDays(parseISO(isoDate), deltaDays), 'yyyy-MM-dd');
@@ -1704,6 +1739,7 @@ export function TaskDetailsDialog({
   const [suppressProcessClickIssueId, setSuppressProcessClickIssueId] = useState<number | null>(null);
   const processDragRef = useRef<ProcessDragSession | null>(null);
   const processFlowContainerRef = useRef<HTMLDivElement | null>(null);
+  const processFlowCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [processFlowContainerWidth, setProcessFlowContainerWidth] = useState(0);
   const detailsLayoutRef = useRef<HTMLDivElement | null>(null);
   const [topPaneHeight, setTopPaneHeight] = useState(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
@@ -1913,14 +1949,18 @@ export function TaskDetailsDialog({
         const dueDate = issue.due_date ?? null;
         const anchorDate = startDate ?? dueDate;
         if (!anchorDate) return null;
-        const isMilestone = !(startDate && dueDate);
+        const shapeKind: ProcessFlowStep['shapeKind'] = startDate && dueDate
+          ? 'range'
+          : startDate
+            ? 'start-only'
+            : 'due-only';
         return {
           id: issue.issue_id,
           title: issue.subject,
           startDate,
           dueDate,
           anchorDate,
-          isMilestone,
+          shapeKind,
           rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : anchorDate,
           status,
           progress,
@@ -1961,14 +2001,25 @@ export function TaskDetailsDialog({
     const getWidth = createRangeToWidth(processFlowAxis.pixelsPerDay);
 
     const rawSteps = processFlowSteps.map((step) => {
-      const currentSession = !step.isMilestone && processDragSession?.issueId === step.id ? processDragSession : null;
+      const currentSession = step.shapeKind === 'range' && processDragSession?.issueId === step.id ? processDragSession : null;
       const startDate = currentSession?.currentStartDate ?? step.startDate;
       const dueDate = currentSession?.currentDueDate ?? step.dueDate;
       const anchorDate = startDate ?? dueDate;
-      const hitWidth = step.isMilestone
-        ? Math.max(PROCESS_FLOW_DIAMOND_WIDTH, processFlowAxis.pixelsPerDay)
-        : getWidth(startDate, dueDate);
-      const hitX = anchorDate ? getX(anchorDate) - hitWidth / 2 : 0;
+      const anchorX = anchorDate ? getX(anchorDate) : 0;
+      const visualWidth = step.shapeKind === 'range'
+        ? getWidth(startDate, dueDate)
+        : step.shapeKind === 'start-only'
+          ? PROCESS_FLOW_TRIANGLE_WIDTH
+          : PROCESS_FLOW_DIAMOND_WIDTH;
+      const hitWidth = step.shapeKind === 'range'
+        ? visualWidth
+        : Math.max(visualWidth, processFlowAxis.pixelsPerDay);
+      const hitX = step.shapeKind === 'start-only'
+        ? anchorX
+        : anchorX - hitWidth / 2;
+      const shapeX = step.shapeKind === 'start-only'
+        ? anchorX
+        : anchorX - visualWidth / 2;
 
       return {
         ...step,
@@ -1976,6 +2027,9 @@ export function TaskDetailsDialog({
         dueDate,
         anchorDate: anchorDate ?? step.anchorDate,
         rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : (anchorDate ?? step.anchorDate),
+        anchorX,
+        shapeX,
+        visualWidth,
         hitX,
         hitWidth
       };
@@ -1989,19 +2043,19 @@ export function TaskDetailsDialog({
 
     return positionedSteps.map((step, index) => {
       const isFirst = index === 0;
-      const hasLeftNotch = !step.isMilestone && !isFirst;
+      const hasLeftNotch = step.shapeKind === 'range' && !isFirst;
       const previousStep = index > 0 ? positionedSteps[index - 1] : null;
       const joinsPrevious = Boolean(
-        !step.isMilestone &&
-        !previousStep?.isMilestone &&
+        step.shapeKind === 'range' &&
+        previousStep?.shapeKind === 'range' &&
         previousStep &&
         step.startDate &&
         previousStep.dueDate &&
         differenceInCalendarDays(parseISO(step.startDate), parseISO(previousStep.dueDate)) === 1 &&
         step.laneIndex === previousStep.laneIndex
       );
-      const x = hasLeftNotch ? step.hitX - PROCESS_FLOW_POINT_DEPTH : step.hitX;
-      const width = hasLeftNotch ? step.hitWidth + PROCESS_FLOW_POINT_DEPTH : step.hitWidth;
+      const x = hasLeftNotch ? step.shapeX - PROCESS_FLOW_POINT_DEPTH : step.shapeX;
+      const width = hasLeftNotch ? step.visualWidth + PROCESS_FLOW_POINT_DEPTH : step.visualWidth;
 
       return {
         ...step,
@@ -2010,7 +2064,7 @@ export function TaskDetailsDialog({
         joinsPrevious,
         x,
         width,
-        textX: step.hitX + step.hitWidth / 2
+        textX: step.shapeKind === 'due-only' ? step.anchorX : step.shapeX + step.visualWidth / 2
       };
     });
   }, [processFlowAxis, processFlowSteps, processDragSession]);
@@ -2024,6 +2078,159 @@ export function TaskDetailsDialog({
     34 + (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y + 30
   );
   const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
+
+  useLayoutEffect(() => {
+    if (!processFlowAxis || !processFlowCanvasRef.current) return;
+    const context = prepareHiDPICanvas(
+      processFlowCanvasRef.current,
+      processFlowAxis.timelineWidth,
+      processFlowSvgHeight
+    );
+    if (!context) return;
+
+    context.fillStyle = '#f8fafc';
+    context.fillRect(0, 0, processFlowAxis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
+    context.fillRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, processFlowAxis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
+    context.strokeStyle = '#e2e8f0';
+    context.lineWidth = 1;
+    context.strokeRect(0, 0, processFlowAxis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
+    context.strokeRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, processFlowAxis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
+
+    processFlowAxis.headerYears.forEach((year) => {
+      context.strokeRect(year.x, 0, year.width, PROCESS_FLOW_YEAR_ROW_HEIGHT);
+      drawStrokeText(context, {
+        text: year.year,
+        x: year.x + year.width / 2,
+        y: PROCESS_FLOW_YEAR_ROW_HEIGHT / 2,
+        fill: '#334155',
+        stroke: '#f8fafc',
+        strokeWidth: 0,
+        font: '700 11px sans-serif'
+      });
+    });
+
+    processFlowAxis.headerMonths.forEach((month) => {
+      context.strokeRect(month.x, PROCESS_FLOW_YEAR_ROW_HEIGHT, month.width, PROCESS_FLOW_MONTH_ROW_HEIGHT);
+      drawStrokeText(context, {
+        text: month.label,
+        x: month.x + month.width / 2,
+        y: PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT / 2,
+        fill: '#334155',
+        stroke: '#f8fafc',
+        strokeWidth: 0,
+        font: '700 11px sans-serif'
+      });
+    });
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, PROCESS_FLOW_HEADER_HEIGHT, processFlowAxis.timelineWidth, processFlowLaneHeight);
+    processFlowAxis.headerMonths.forEach((month) => {
+      context.save();
+      context.strokeStyle = '#e2e8f0';
+      context.setLineDash([4, 3]);
+      context.beginPath();
+      context.moveTo(month.x, PROCESS_FLOW_HEADER_HEIGHT);
+      context.lineTo(month.x, PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight);
+      context.stroke();
+      context.restore();
+    });
+    context.beginPath();
+    context.moveTo(0, PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight);
+    context.lineTo(processFlowAxis.timelineWidth, PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight);
+    context.strokeStyle = '#e2e8f0';
+    context.stroke();
+
+    processFlowRenderSteps.forEach((step) => {
+      const style = processStatusStyles[step.status];
+      const stepY = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+
+      if (step.shapeKind === 'due-only') {
+        drawDiamond(context, {
+          centerX: step.textX,
+          y: stepY,
+          width: step.visualWidth,
+          height: PROCESS_FLOW_BAR_HEIGHT,
+          fill: style.fill,
+          stroke: style.stroke,
+          shadow: true
+        });
+      } else if (step.shapeKind === 'start-only') {
+        drawTriangle(context, {
+          x: step.shapeX,
+          y: stepY,
+          width: step.visualWidth,
+          height: PROCESS_FLOW_BAR_HEIGHT,
+          fill: style.fill,
+          stroke: style.stroke,
+          shadow: true
+        });
+      } else {
+        drawChevron(context, {
+          x: step.x,
+          y: stepY,
+          width: step.width,
+          height: PROCESS_FLOW_BAR_HEIGHT,
+          pointDepth: PROCESS_FLOW_POINT_DEPTH,
+          hasLeftNotch: step.hasLeftNotch,
+          fill: style.fill,
+          stroke: style.stroke,
+          progress: step.progress,
+          separatorColor: style.fill === 'url(#stripePattern)' ? 'transparent' : 'white',
+          shadow: true
+        });
+      }
+
+      if (step.shapeKind !== 'range') {
+        drawStrokeText(context, {
+          text: extractMD(step.anchorDate),
+          x: step.textX,
+          y: stepY - 4,
+          fill: '#374151',
+          stroke: '#ffffff',
+          strokeWidth: 2,
+          font: '700 10px sans-serif',
+          textBaseline: 'alphabetic'
+        });
+      } else {
+        if (step.startDate) {
+          drawStrokeText(context, {
+            text: extractMD(step.startDate),
+            x: step.hitX,
+            y: stepY - 4,
+            fill: '#374151',
+            stroke: '#ffffff',
+            strokeWidth: 2,
+            font: '700 10px sans-serif',
+            textAlign: 'start',
+            textBaseline: 'alphabetic'
+          });
+        }
+        if (step.dueDate) {
+          drawStrokeText(context, {
+            text: extractMD(step.dueDate),
+            x: step.hitX + step.hitWidth,
+            y: stepY - 4,
+            fill: '#374151',
+            stroke: '#ffffff',
+            strokeWidth: 2,
+            font: '700 10px sans-serif',
+            textAlign: 'end',
+            textBaseline: 'alphabetic'
+          });
+        }
+      }
+
+      drawStrokeText(context, {
+        text: step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title,
+        x: step.textX,
+        y: stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1,
+        fill: style.text,
+        stroke: style.textStroke || '#ffffff',
+        strokeWidth: Number(String(style.textStrokeWidth || '3px').replace('px', '')),
+        font: '700 11px sans-serif'
+      });
+    });
+  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles]);
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
   const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
@@ -2509,12 +2716,26 @@ export function TaskDetailsDialog({
                 <div className="h-full overflow-auto">
                   <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
                   {processFlowAxis && processFlowRenderSteps.length > 0 ? (
+                    <div
+                      className="relative"
+                      style={{ width: processFlowAxis.timelineWidth, height: processFlowSvgHeight }}
+                    >
+                    <canvas
+                      ref={processFlowCanvasRef}
+                      data-testid="task-details-process-flow-canvas"
+                      width={processFlowAxis.timelineWidth}
+                      height={processFlowSvgHeight}
+                      className="absolute inset-0 block"
+                      style={{ width: `${processFlowAxis.timelineWidth}px`, height: `${processFlowSvgHeight}px`, pointerEvents: 'none' }}
+                      aria-hidden="true"
+                    />
                     <svg
                       data-testid="task-details-process-flow-svg"
                       width={processFlowAxis.timelineWidth}
                       height={processFlowSvgHeight}
                       role="img"
                       aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
+                      style={{ opacity: 0 }}
                     >
                       <defs>
                         <pattern id="stripePattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -2607,11 +2828,12 @@ export function TaskDetailsDialog({
                           const style = processStatusStyles[step.status];
                           const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
                           const isInteractive = !savingIssueIds[step.id];
+                          const isRangeStep = step.shapeKind === 'range';
 
                           return (
                             <g key={step.id} data-testid="task-details-process-step" opacity={savingIssueIds[step.id] ? 0.6 : 1}>
                               {/* Date labels above the bar */}
-                              {step.isMilestone ? (
+                              {step.shapeKind !== 'range' ? (
                                 <text
                                   x={step.textX}
                                   y={stepY - 4}
@@ -2647,11 +2869,21 @@ export function TaskDetailsDialog({
                                 </>
                               )}
 
-                              {step.isMilestone ? (
+                              {step.shapeKind === 'due-only' ? (
                                 <ProcessDiamond
                                   centerX={step.textX}
                                   y={stepY}
-                                  width={step.hitWidth}
+                                  width={step.visualWidth}
+                                  height={PROCESS_FLOW_BAR_HEIGHT}
+                                  fill={style.fill}
+                                  stroke={style.stroke}
+                                  id={step.id}
+                                />
+                              ) : step.shapeKind === 'start-only' ? (
+                                <ProcessTriangle
+                                  x={step.shapeX}
+                                  y={stepY}
+                                  width={step.visualWidth}
                                   height={PROCESS_FLOW_BAR_HEIGHT}
                                   fill={style.fill}
                                   stroke={style.stroke}
@@ -2677,12 +2909,12 @@ export function TaskDetailsDialog({
                                 width={step.hitWidth}
                                 height={PROCESS_FLOW_BAR_HEIGHT}
                                 fill="transparent"
-                                style={{ cursor: isInteractive && !step.isMilestone ? CUSTOM_GRAB : 'pointer' }}
-                                onPointerDown={step.isMilestone ? undefined : (event) => startProcessFlowDrag(event, step, 'move')}
+                                style={{ cursor: isInteractive && isRangeStep ? CUSTOM_GRAB : 'pointer' }}
+                                onPointerDown={isRangeStep ? (event) => startProcessFlowDrag(event, step, 'move') : undefined}
                                 onClick={() => handleProcessStepClick(step)}
                                 data-testid={`task-details-process-step-hit-${step.id}`}
                               />
-                              {!step.isMilestone && (
+                              {isRangeStep && (
                                 <>
                                   <rect
                                     x={step.hitX}
@@ -2730,6 +2962,7 @@ export function TaskDetailsDialog({
                         })}
                       </g>
                     </svg>
+                    </div>
                   ) : (
                     <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
                   )}
