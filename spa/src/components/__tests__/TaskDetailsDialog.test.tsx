@@ -673,6 +673,7 @@ describe('TaskDetailsDialog', () => {
     const initialWidth = Number(designBar.getAttribute('width'));
     const designX = Number(designBar.getAttribute('x'));
     const buildX = Number(buildBar.getAttribute('x'));
+    expect(designX).toBeGreaterThan(0);
     expect(buildX).toBeGreaterThan(designX);
 
     fireEvent.doubleClick(screen.getByTestId('due-date-display-11'));

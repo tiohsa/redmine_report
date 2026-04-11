@@ -2078,7 +2078,8 @@ export function TaskDetailsDialog({
         end_date: step.dueDate ?? step.anchorDate
       })),
       containerWidth: processFlowTimelineWidth,
-      defaultTimelineWidth: processFlowTimelineWidth
+      defaultTimelineWidth: processFlowTimelineWidth,
+      leftBufferDays: 7
     });
   }, [processFlowSteps, processFlowTimelineWidth]);
 
