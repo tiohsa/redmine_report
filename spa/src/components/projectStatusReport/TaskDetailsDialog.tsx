@@ -133,6 +133,12 @@ const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system
 const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-200/80';
 const TASK_CELL_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
 const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold truncate shadow-sm';
+const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 px-2 border border-slate-300 bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer';
+const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 w-7 border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer';
+const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-[72px] px-3 border border-slate-400 bg-slate-100 text-[12px] font-semibold text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[11px] font-bold uppercase tracking-wide text-slate-500';
+const REDMINE_DIALOG_TEXTAREA_CLASS = 'w-full min-h-[88px] resize-y border border-slate-300 bg-white px-3 py-2 text-[13px] leading-5 text-slate-700 focus:outline-none focus:ring-0 focus:border-slate-500';
+const REDMINE_DIALOG_SECTION_CLASS = 'border-b border-slate-200 px-4 py-4';
 const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   #issue-form p:has(#issue_subject),
                   #new_issue p:has(#issue_subject),
@@ -545,7 +551,6 @@ const IssueTreeNode = ({
         data-testid={`task-row-${node.issue_id}`}
         data-selected={isSelected ? 'true' : 'false'}
         className={`${TASK_ROW_BASE_CLASS} ${isSelected ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-200/70' : 'bg-white hover:bg-slate-50/90'}`}
-        onClick={() => onSelectIssue?.(node)}
       >
         {/* Tree connectors */}
         <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
@@ -575,7 +580,12 @@ const IssueTreeNode = ({
         )}
 
         {/* TASK Column */}
-        <div className="w-[280px] min-w-[280px] shrink-0 flex items-center" style={{ paddingLeft: `${depth * 20}px` }}>
+        <div
+          className="w-[280px] min-w-[280px] shrink-0 flex items-center"
+          style={{ paddingLeft: `${depth * 20}px` }}
+          onClick={() => onSelectIssue?.(node)}
+          data-testid={`task-title-cell-${node.issue_id}`}
+        >
           <div className="w-5 mr-1 flex-shrink-0 flex items-center justify-center">
             {node.children.length > 0 && (
               <button
@@ -2021,6 +2031,14 @@ export function TaskDetailsDialog({
   }, [issues]);
 
   const selectedIssueId = selectedIssue?.issue_id ?? null;
+  const handleTaskRowSelect = useCallback((issue: TreeNodeType) => {
+    if (selectedIssue?.issue_id === issue.issue_id) {
+      selectIssue(null);
+      return;
+    }
+
+    selectIssue(issue);
+  }, [selectIssue, selectedIssue]);
 
   const processFlowSteps = useMemo<ProcessFlowStep[]>(() => {
     const parentIssueIds = new Set(
@@ -2758,7 +2776,7 @@ export function TaskDetailsDialog({
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-white relative z-10 border-b border-slate-200 flex-shrink-0 min-h-12 box-border">
+        <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-[#f8f8f8] relative z-10 border-b border-slate-300 flex-shrink-0 min-h-12 box-border">
           <div className="flex flex-row items-center gap-2.5 min-w-0">
             <div className="min-w-0">
               {drilldownPath.length > 1 && (
@@ -2778,7 +2796,7 @@ export function TaskDetailsDialog({
                         ) : (
                           <button
                             type="button"
-                            className="truncate cursor-pointer text-slate-400 hover:text-blue-600"
+                            className="truncate cursor-pointer text-slate-500 hover:text-slate-900"
                             onClick={() => handleBreadcrumbClick(index)}
                           >
                             {crumbLabel}
@@ -2789,14 +2807,14 @@ export function TaskDetailsDialog({
                   })}
                 </nav>
               )}
-              <h3 className="text-[16px] font-semibold text-slate-800 flex items-center gap-2 min-w-0" data-testid="task-details-title">
+              <h3 className="text-[16px] font-semibold text-slate-900 flex items-center gap-2 min-w-0" data-testid="task-details-title">
                 <span className="truncate">{dialogHeaderTitle}</span>
               </h3>
             </div>
             <button
               onClick={() => void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue?.issue_id ?? null })}
               title={t('timeline.reloadTasks')}
-              className="inline-flex items-center justify-center w-8 h-8 ml-1 border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+              className={`${REDMINE_DIALOG_ICON_ACTION_CLASS} ml-1`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -2804,8 +2822,8 @@ export function TaskDetailsDialog({
             </button>
           </div>
 
-          <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-400 shrink min-w-0">
-            <div className="text-[12px] text-slate-500 font-semibold whitespace-nowrap">
+          <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500 shrink min-w-0">
+            <div className="text-[12px] text-slate-700 font-semibold whitespace-nowrap">
               {t('timeline.totalTasks', { count: issues.length })}
             </div>
             <div className="hidden sm:flex items-center gap-1.5 whitespace-nowrap">
@@ -2820,7 +2838,7 @@ export function TaskDetailsDialog({
 
           <button
             aria-label={t('timeline.closeDialogAria')}
-            className="inline-flex items-center justify-center w-8 h-8 border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors flex-shrink-0 cursor-pointer"
+            className={REDMINE_DIALOG_ICON_ACTION_CLASS}
             onClick={handleClose}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -2830,7 +2848,7 @@ export function TaskDetailsDialog({
         </div>
 
         {/* Split Panel Body */}
-        <div className="flex-1 flex flex-col min-h-0 bg-slate-100 relative" ref={detailsLayoutRef}>
+        <div className="flex-1 flex flex-col min-h-0 bg-[#f3f3f3] relative" ref={detailsLayoutRef}>
           {loading && (
             <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-30">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -2838,7 +2856,7 @@ export function TaskDetailsDialog({
           )}
 
           {!loading && issues.length === 0 && (
-            <div className="text-center py-12 m-6 bg-white rounded-xl border border-dashed border-slate-300 flex-shrink-0 w-full">
+            <div className="text-center py-12 m-6 bg-white border border-slate-300 flex-shrink-0 w-full">
               <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
             </div>
           )}
@@ -3122,7 +3140,7 @@ export function TaskDetailsDialog({
                 tabIndex={0}
                 data-testid="task-details-horizontal-resizer"
                 data-resizing={verticalResizeSession ? 'true' : 'false'}
-                className={`relative z-20 shrink-0 cursor-row-resize bg-slate-200 transition-colors ${verticalResizeSession ? 'h-2 bg-blue-200' : 'h-1.5 hover:bg-blue-100'}`}
+                className={`relative z-20 shrink-0 cursor-row-resize bg-slate-300 transition-colors ${verticalResizeSession ? 'h-2 bg-slate-400' : 'h-1.5 hover:bg-slate-400'}`}
                 onPointerDown={startVerticalResize}
                 onMouseDown={startVerticalResizeWithMouse}
                 onPointerMove={(event) => updateVerticalResize(event.clientY, event.pointerId)}
@@ -3132,7 +3150,7 @@ export function TaskDetailsDialog({
                 onKeyDown={handleVerticalResizeKeyDown}
               >
                 <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
-                  <span className="h-1 w-14 rounded-full bg-slate-400/70" />
+                  <span className="h-1 w-14 rounded-full bg-slate-500/70" />
                 </div>
               </div>
 
@@ -3141,7 +3159,7 @@ export function TaskDetailsDialog({
                 <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
-                      <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
+                      <div className="flex items-center py-2 px-4 bg-[#f8f8f8] z-20 border-b border-slate-300 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
                       <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
                         {t('timeline.task', { defaultValue: 'Task' })}
@@ -3179,7 +3197,7 @@ export function TaskDetailsDialog({
                           issueId: issue.issue_id,
                           issueUrl: issue.issue_url
                         })}
-                        onSelectIssue={selectIssue}
+                        onSelectIssue={handleTaskRowSelect}
                         selectedIssueId={selectedIssue?.issue_id}
                         masters={masters}
                         onFieldUpdate={handleFieldUpdate}
@@ -3191,15 +3209,15 @@ export function TaskDetailsDialog({
 
                 {/* Right Panel - Detail View */}
                 {shouldShowSelectedIssuePanel && selectedIssue && (
-                  <div className="absolute right-0 top-0 bottom-0 w-[50%] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-white border-l border-slate-200 z-30">
+                  <div className="absolute right-0 top-0 bottom-0 w-[50%] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-white border-l border-slate-300 z-30">
                     {/* Detail Header */}
-                    <div className="px-4 pt-3.5 pb-3 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-10">
+                    <div className="px-4 pt-3 pb-2.5 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-300 bg-[#f8f8f8] sticky top-0 z-10">
                       <div className="min-w-0">
                         <div className="flex items-baseline gap-2 min-w-0">
-                          <span className="text-[11px] leading-none font-semibold text-slate-400 shrink-0">
+                          <span className="text-[11px] leading-none font-semibold text-slate-500 shrink-0">
                             #{selectedIssue.issue_id}
                           </span>
-                          <h4 className="text-[14px] leading-5 font-semibold text-slate-800 truncate">
+                          <h4 className="text-[14px] leading-5 font-semibold text-slate-900 truncate" data-testid="task-details-selected-title">
                             {selectedIssue.subject}
                           </h4>
                         </div>
@@ -3209,7 +3227,7 @@ export function TaskDetailsDialog({
                           href={selectedIssue.issue_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm cursor-pointer transition-colors"
+                          className={REDMINE_DIALOG_ICON_ACTION_CLASS}
                           title={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
                           aria-label={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
                         >
@@ -3219,7 +3237,7 @@ export function TaskDetailsDialog({
                         </a>
                         <button
                           type="button"
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm cursor-pointer transition-colors"
+                          className={REDMINE_DIALOG_ICON_ACTION_CLASS}
                           title={t('timeline.editIssue')}
                           aria-label={t('timeline.editIssue')}
                           onClick={(e) => {
@@ -3236,7 +3254,7 @@ export function TaskDetailsDialog({
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors"
+                          className={REDMINE_DIALOG_ICON_ACTION_CLASS}
                           onClick={() => selectIssue(null)}
                           title={t('common.close', { defaultValue: 'Close' })}
                           aria-label={t('common.close', { defaultValue: 'Close' })}
@@ -3251,23 +3269,36 @@ export function TaskDetailsDialog({
                     {/* Detail Fields removed */}
 
                     {/* Description */}
-                    <div className="px-4 pb-3">
-                      <div className="flex items-center mb-2">
-                        <h5 className="text-[12px] font-semibold tracking-wide text-slate-500">{t('timeline.descriptionTab')}</h5>
+                    <div className={REDMINE_DIALOG_SECTION_CLASS}>
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <h5 className={REDMINE_DIALOG_SECTION_TITLE_CLASS}>{t('timeline.descriptionTab')}</h5>
+                        {!editingDescription && (
+                          <button
+                            type="button"
+                            className={REDMINE_DIALOG_ACTION_CLASS}
+                            onClick={() => {
+                              setDescriptionDraft(selectedIssue.description || '');
+                              setEditingDescription(true);
+                            }}
+                            title={t('common.edit', { defaultValue: 'Edit' })}
+                          >
+                            {t('common.edit', { defaultValue: 'Edit' })}
+                          </button>
+                        )}
                       </div>
                       {editingDescription ? (
-                        <div className="bg-white rounded-xl border border-blue-400 shadow-sm overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
+                        <div className="flex flex-col gap-2">
                           <textarea
-                            className="w-full p-3 text-[13px] leading-[1.45] text-slate-700 bg-transparent border-none resize-y min-h-[120px] focus:outline-none focus:ring-0"
+                            className={`${REDMINE_DIALOG_TEXTAREA_CLASS} min-h-[120px]`}
                             value={descriptionDraft}
                             onChange={(e) => setDescriptionDraft(e.target.value)}
                             placeholder={t('timeline.noDescription')}
                             autoFocus
                           />
-                          <div className="bg-slate-50 px-3 py-1 border-t border-slate-100 flex justify-start gap-2">
+                          <div className="flex justify-start gap-2">
                             <button
                               type="button"
-                              className="h-[34px] min-w-[112px] px-4 text-[14px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded-[6px] hover:bg-slate-50 transition-colors cursor-pointer inline-flex items-center justify-center"
+                              className={REDMINE_DIALOG_ACTION_CLASS}
                               onClick={() => {
                                 setEditingDescription(false);
                                 setDescriptionDraft(selectedIssue.description || '');
@@ -3277,7 +3308,7 @@ export function TaskDetailsDialog({
                             </button>
                             <button
                               type="button"
-                              className="h-[34px] min-w-[110px] px-4 text-[14px] font-bold text-white bg-blue-600 rounded-[6px] hover:bg-blue-700 transition-colors cursor-pointer inline-flex items-center justify-center"
+                              className={REDMINE_DIALOG_PRIMARY_ACTION_CLASS}
                               onClick={() => { void handleSaveDescription(); }}
                             >
                               {t('common.save')}
@@ -3286,58 +3317,41 @@ export function TaskDetailsDialog({
                         </div>
                       ) : (
                         <div
-                          className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm text-[13px] leading-[1.45] text-slate-600 min-h-[80px] whitespace-pre-wrap cursor-pointer hover:border-blue-300 transition-colors group relative"
+                          className="min-h-[72px] border border-slate-200 bg-white px-3 py-2 text-[13px] leading-6 text-slate-700 whitespace-pre-wrap cursor-pointer hover:bg-slate-50 transition-colors"
                           onClick={() => {
                             setDescriptionDraft(selectedIssue.description || '');
                             setEditingDescription(true);
                           }}
+                          data-testid="task-details-description"
                         >
-                          <div className="flex justify-between items-center gap-2">
-                            <div className="flex-1 min-w-0">
-                              {selectedIssue.description || <span className="text-slate-400 italic">{t('timeline.noDescription')}</span>}
-                            </div>
-                            <button
-                              type="button"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer shrink-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDescriptionDraft(selectedIssue.description || '');
-                                setEditingDescription(true);
-                              }}
-                              title={t('common.edit', { defaultValue: 'Edit' })}
-                            >
-                              <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
-                              </svg>
-                            </button>
-                          </div>
+                          {selectedIssue.description || <span className="text-slate-500 italic">{t('timeline.noDescription')}</span>}
                         </div>
                       )}
                     </div>
 
                     {/* Comments */}
-                    <div className="px-4 pb-3">
+                    <div className="px-4 py-4">
                       <div className="flex items-center justify-between mb-2">
-                        <h5 className="text-[12px] font-semibold tracking-wide text-slate-500">{t('timeline.commentsTab')}</h5>
-                        <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full border border-slate-200 bg-white text-[11px] font-semibold text-slate-500 shadow-sm">
+                        <h5 className={REDMINE_DIALOG_SECTION_TITLE_CLASS}>{t('timeline.commentsTab')}</h5>
+                        <span className="text-[12px] font-medium text-slate-500">
                           {selectedIssue.comments?.length ?? 0}
                         </span>
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="border border-slate-200 bg-white">
                         {(selectedIssue.comments && selectedIssue.comments.length > 0) ? selectedIssue.comments.map((comment) => (
-                          <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col group">
+                          <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="group border-b border-slate-200 last:border-b-0">
                             {editingCommentId === comment.id && comment.id !== undefined ? (
-                              <div className="flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
+                              <div className="flex flex-col gap-2 p-3">
                                 <textarea
-                                  className="w-full p-3 text-[13px] leading-[1.45] text-slate-700 bg-transparent border-none resize-y min-h-[80px] focus:outline-none focus:ring-0"
+                                  className={REDMINE_DIALOG_TEXTAREA_CLASS}
                                   value={editingCommentDraft}
                                   onChange={(e) => setEditingCommentDraft(e.target.value)}
                                   autoFocus
                                 />
-                                <div className="bg-slate-50 px-3 py-1 border-t border-slate-100 flex justify-start gap-2">
+                                <div className="flex justify-start gap-2">
                                   <button
                                     type="button"
-                                    className="h-[34px] min-w-[112px] px-4 text-[14px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded-[6px] hover:bg-slate-50 transition-colors cursor-pointer inline-flex items-center justify-center"
+                                    className={REDMINE_DIALOG_ACTION_CLASS}
                                     onClick={() => {
                                       setEditingCommentId(null);
                                       setEditingCommentDraft('');
@@ -3347,7 +3361,7 @@ export function TaskDetailsDialog({
                                   </button>
                                   <button
                                     type="button"
-                                    className="h-[34px] min-w-[110px] px-4 text-[14px] font-bold text-white bg-blue-600 rounded-[6px] hover:bg-blue-700 transition-colors cursor-pointer inline-flex items-center justify-center gap-1"
+                                    className={REDMINE_DIALOG_PRIMARY_ACTION_CLASS}
                                     onClick={() => {
                                       void handleUpdateComment(comment.id!, editingCommentDraft);
                                       setEditingCommentId(null);
@@ -3359,7 +3373,7 @@ export function TaskDetailsDialog({
                               </div>
                             ) : (
                               <div
-                                className="px-3 py-2.5 relative cursor-pointer hover:bg-slate-50/50 transition-colors"
+                                className="relative cursor-pointer px-3 py-2.5 hover:bg-slate-50 transition-colors"
                                 onClick={() => {
                                   setEditingCommentId(comment.id!);
                                   setEditingCommentDraft(comment.notes || '');
@@ -3368,7 +3382,7 @@ export function TaskDetailsDialog({
                                 {comment.id !== undefined && (
                                   <button
                                     type="button"
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center h-6 min-w-6 px-1.5 border border-slate-300 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setEditingCommentId(comment.id!);
@@ -3376,41 +3390,43 @@ export function TaskDetailsDialog({
                                     }}
                                     title={t('common.edit', { defaultValue: 'Edit' })}
                                   >
-                                    <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
-                                    </svg>
+                                    {t('common.edit', { defaultValue: 'Edit' })}
                                   </button>
                                 )}
-                                <div className="mb-2 flex justify-end pr-7">
-                                  <span className="text-[11px] text-slate-400 shrink-0">
+                                <div className="mb-2 flex items-center justify-between gap-3 pr-14">
+                                  <span className="text-[12px] font-semibold text-slate-700">
+                                    {comment.author_name || t('common.unknown', { defaultValue: 'Unknown' })}
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 shrink-0">
                                     {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
                                   </span>
                                 </div>
-                                <div className="text-[12px] leading-[1.45] text-slate-600 whitespace-pre-wrap break-words">
+                                <div className="text-[13px] leading-6 text-slate-700 whitespace-pre-wrap break-words">
                                   {comment.notes}
                                 </div>
                               </div>
                             )}
                           </div>
                         )) : (
-                          <div className="p-3 bg-white rounded-xl border border-dashed border-slate-300 shadow-sm text-[12px] text-slate-400 text-center">
+                          <div className="px-3 py-4 text-[12px] text-slate-500 text-center" data-testid="task-details-no-comments">
                             {t('timeline.noComments', { defaultValue: 'No comments' })}
                           </div>
                         )}
                       </div>
 
-                      <div className="mt-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
+                      <div className="mt-4 border border-slate-200 bg-white p-3">
                         <textarea
-                          className="w-full p-3 text-[13px] leading-[1.45] text-slate-700 bg-transparent border-none resize-y min-h-[80px] focus:outline-none focus:ring-0"
+                          className={REDMINE_DIALOG_TEXTAREA_CLASS}
                           placeholder={t('timeline.addCommentPlaceholder', { defaultValue: 'Add a comment...' })}
                           value={newCommentDraft}
                           onChange={(e) => setNewCommentDraft(e.target.value)}
                           disabled={isSavingComment}
+                          data-testid="task-details-new-comment"
                         />
-                        <div className="bg-slate-50 px-3 py-2 border-t border-slate-100 flex justify-end">
+                        <div className="mt-2 flex justify-end">
                           <button
                             type="button"
-                            className="px-3 py-1.5 text-[12px] font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1"
+                            className={`${REDMINE_DIALOG_PRIMARY_ACTION_CLASS} flex items-center gap-1`}
                             onClick={() => { void handleAddComment(); }}
                             disabled={!newCommentDraft.trim() || isSavingComment}
                           >

@@ -613,6 +613,79 @@ describe('TaskDetailsDialog', () => {
     expect(indicators[0].getAttribute('aria-label')).toMatch(/1 comments|1件のコメント/);
   });
 
+  it('shows Redmine-like detail sections when an issue is selected', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10',
+        description: 'Root description',
+        comments: [
+          {
+            id: 901,
+            author_name: 'Alice',
+            notes: 'Reviewed and updated.',
+            created_on: '2026-02-05T10:00:00Z'
+          }
+        ]
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('task-title-cell-10'));
+
+    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Root issue');
+    expect(screen.getByTestId('task-details-description').textContent).toContain('Root description');
+    expect(screen.getByText('Alice')).toBeTruthy();
+    expect(screen.getByTestId('task-details-new-comment')).toBeTruthy();
+  });
+
+  it('shows empty detail states when description and comments are missing', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10',
+        description: '',
+        comments: []
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('task-title-cell-10'));
+
+    expect(screen.getByTestId('task-details-description').textContent).toMatch(/No description|説明なし/);
+    expect(screen.getByTestId('task-details-no-comments').textContent).toMatch(/No comments|なし/);
+  });
+
   it('renders year and month headers and updates bar width when leaf dates change', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
@@ -903,7 +976,7 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('task-details-title').textContent).toBe('Root issue #10');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
-    expect(document.querySelector('h4')?.textContent).toBe('Child issue');
+    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Child issue');
   });
 
   it('drills down into a child subtree when the parent process bar is double-clicked', async () => {
@@ -978,7 +1051,7 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('task-details-process-step-hit-12')).toBeTruthy();
     expect(screen.queryByTestId('task-details-process-step-hit-11')).toBeNull();
     expect(screen.queryByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeNull();
-    expect(document.querySelector('h4')).toBeNull();
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
   });
 
   it('returns to an ancestor subtree from the breadcrumb', async () => {
@@ -1120,12 +1193,12 @@ describe('TaskDetailsDialog', () => {
     fireEvent.click(screen.getByTestId('task-details-process-step-hit-11'));
 
     expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1);
-    expect(document.querySelector('h4')?.textContent).toBe('Leaf issue');
+    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Leaf issue');
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
   });
 
-  it('shows the right panel when clicking the top row after drilldown', async () => {
+  it('shows the right panel when clicking the title cell after drilldown', async () => {
     fetchTaskDetailsMock
       .mockResolvedValueOnce([
         {
@@ -1191,15 +1264,98 @@ describe('TaskDetailsDialog', () => {
     fireEvent.doubleClick(screen.getByTestId('task-details-process-step-hit-11'));
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeNull();
-    expect(document.querySelector('h4')).toBeNull();
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
 
-    fireEvent.click(screen.getByTestId('task-row-11'));
+    fireEvent.click(screen.getByTestId('task-title-cell-11'));
 
-    expect(document.querySelector('h4')?.textContent).toBe('Child issue');
+    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Child issue');
     expect(screen.getByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeTruthy();
   });
 
-  it('selects the process bar when clicking a task row', async () => {
+  it('selects the process bar when clicking a task title cell', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-03-03',
+        due_date: '2026-03-08',
+        done_ratio: 25,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('task-title-cell-11'));
+
+    expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
+    expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
+    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Leaf issue');
+  });
+
+  it('closes the right panel when clicking the same task title cell twice', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-03-03',
+        due_date: '2026-03-08',
+        done_ratio: 25,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('task-title-cell-11'));
+    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Leaf issue');
+
+    fireEvent.click(screen.getByTestId('task-title-cell-11'));
+
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
+    expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('false');
+    expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('false');
+  });
+
+  it('does not open the right panel when clicking outside the title column', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -1234,9 +1390,9 @@ describe('TaskDetailsDialog', () => {
 
     fireEvent.click(screen.getByTestId('task-row-11'));
 
-    expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
-    expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
-    expect(document.querySelector('h4')?.textContent).toBe('Leaf issue');
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
+    expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('false');
+    expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('false');
   });
 
   it('resizes the top and bottom areas from the horizontal divider control', async () => {
@@ -1415,7 +1571,7 @@ describe('TaskDetailsDialog', () => {
     fireEvent.click(bar);
 
     expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1);
-    expect(document.querySelector('h4')).toBeNull();
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
     expect(bar.getAttribute('data-selected')).toBe('false');
   });
 
