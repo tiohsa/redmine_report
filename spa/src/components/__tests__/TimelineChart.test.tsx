@@ -72,4 +72,44 @@ describe('TimelineChart', () => {
     expect(activeOverlay.getAttribute('fill')).toBe('#e0f2fe');
     expect(activeOverlay.getAttribute('opacity')).toBe('0.7');
   });
+
+  it('uses move cursor for draggable process arrows', () => {
+    const { container } = render(
+      <TimelineChart
+        timelineData={[
+          makeLane({
+            steps: [
+              {
+                issueId: 11,
+                name: 'Design',
+                x: 0,
+                width: 120,
+                status: { fill: '#2563eb', text: '#ffffff', stroke: '#2563eb' },
+                progress: 40,
+                id: 'ticket-1-11-0',
+                startDateIso: '2026-03-03',
+                endDateIso: '2026-03-10',
+                editable: true
+              }
+            ]
+          })
+        ]}
+        timelineWidth={480}
+        headerMonths={[{ label: 'Mar', x: 0, width: 480 }]}
+        headerYears={[{ year: '2026', x: 0, width: 480 }]}
+        todayX={-1}
+        axisStartDateIso="2026-03-01"
+        axisEndDateIso="2026-03-31"
+        pixelsPerDay={16}
+        containerRef={createRef<HTMLDivElement>()}
+        projectIdentifier="alpha"
+        isProcessMode
+        showTodayLine={false}
+      />
+    );
+
+    const hitArea = container.querySelector('rect[data-step-id="ticket-1-11-0"]');
+    expect(hitArea).toBeTruthy();
+    expect(hitArea?.getAttribute('style')).toContain('cursor: move;');
+  });
 });

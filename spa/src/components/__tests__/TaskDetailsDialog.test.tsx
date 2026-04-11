@@ -520,6 +520,9 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('task-details-process-step-hit-11')).toBeTruthy();
     expect(screen.getByTestId('task-details-process-step-left-11')).toBeTruthy();
     expect(screen.getByTestId('task-details-process-step-right-11')).toBeTruthy();
+    expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('style')).toContain('cursor: move;');
+    expect(screen.getByTestId('task-details-process-step-left-11').getAttribute('style')).toContain('cursor: ew-resize;');
+    expect(screen.getByTestId('task-details-process-step-right-11').getAttribute('style')).toContain('cursor: ew-resize;');
   });
 
   it('shows issue subject and id in the dialog title', async () => {

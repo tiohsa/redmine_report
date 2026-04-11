@@ -128,7 +128,6 @@ const DETAILS_TOP_PANE_MIN_HEIGHT_PX = 180;
 const DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX = 240;
 const DETAILS_LAYOUT_FALLBACK_HEIGHT_PX = 760;
 
-const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
 const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-200/80';
 const TASK_CELL_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
@@ -3070,7 +3069,7 @@ export function TaskDetailsDialog({
                                 width={step.hitWidth}
                                 height={PROCESS_FLOW_BAR_HEIGHT}
                                 fill="transparent"
-                                style={{ cursor: isInteractive && isRangeStep ? CUSTOM_GRAB : 'pointer' }}
+                                style={{ cursor: isInteractive && isRangeStep ? 'move' : 'pointer' }}
                                 onPointerDown={isRangeStep ? (event) => startProcessFlowDrag(event, step, 'move') : undefined}
                                 onClick={() => handleProcessStepClick(step)}
                                 onDoubleClick={() => handleProcessStepDoubleClick(step)}
