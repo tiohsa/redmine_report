@@ -83,6 +83,21 @@ type ProcessFlowStep = {
   hasChildren: boolean;
 };
 
+type ProcessFlowRenderStep = ProcessFlowStep & {
+  anchorX: number;
+  shapeX: number;
+  visualWidth: number;
+  hitX: number;
+  hitWidth: number;
+  laneIndex: number;
+  isFirst: boolean;
+  hasLeftNotch: boolean;
+  joinsPrevious: boolean;
+  x: number;
+  width: number;
+  textX: number;
+};
+
 type DrilldownCrumb = {
   issueId: number;
   title?: string;
@@ -251,6 +266,76 @@ const ProcessTriangle = ({
   ].join(' ');
 
   return <path data-testid={`task-details-process-step-triangle-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
+};
+
+const drawSelectedProcessOutline = (
+  context: CanvasRenderingContext2D,
+  step: {
+    shapeKind: 'range' | 'start-only' | 'due-only';
+    stepY: number;
+    x: number;
+    width: number;
+    hasLeftNotch: boolean;
+    shapeX: number;
+    visualWidth: number;
+    textX: number;
+  }
+) => {
+  context.save();
+  context.strokeStyle = '#2563eb';
+  context.lineWidth = 2;
+  context.setLineDash([6, 4]);
+  context.shadowColor = 'rgba(37, 99, 235, 0.18)';
+  context.shadowBlur = 6;
+  context.shadowOffsetX = 0;
+  context.shadowOffsetY = 1;
+
+  if (step.shapeKind === 'due-only') {
+    const halfWidth = step.visualWidth / 2;
+    const halfHeight = PROCESS_FLOW_BAR_HEIGHT / 2;
+    context.beginPath();
+    context.moveTo(step.textX, step.stepY - 3);
+    context.lineTo(step.textX + halfWidth + 3, step.stepY + halfHeight);
+    context.lineTo(step.textX, step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3);
+    context.lineTo(step.textX - halfWidth - 3, step.stepY + halfHeight);
+    context.closePath();
+    context.stroke();
+    context.restore();
+    return;
+  }
+
+  if (step.shapeKind === 'start-only') {
+    context.beginPath();
+    context.moveTo(step.shapeX - 3, step.stepY - 3);
+    context.lineTo(step.shapeX + step.visualWidth + 4, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+    context.lineTo(step.shapeX - 3, step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3);
+    context.closePath();
+    context.stroke();
+    context.restore();
+    return;
+  }
+
+  const leftEdgeX = step.x - 3;
+  const topY = step.stepY - 3;
+  const bottomY = step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3;
+  const rightBaseX = step.x + step.width - PROCESS_FLOW_POINT_DEPTH;
+  const rightTipX = step.x + step.width + 3;
+
+  context.beginPath();
+  if (step.hasLeftNotch) {
+    context.moveTo(leftEdgeX, topY);
+    context.lineTo(step.x + PROCESS_FLOW_POINT_DEPTH, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+    context.lineTo(leftEdgeX, bottomY);
+  } else {
+    context.moveTo(leftEdgeX, topY);
+    context.lineTo(leftEdgeX, bottomY);
+  }
+  context.lineTo(rightBaseX + 3, bottomY);
+  context.lineTo(rightTipX, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+  context.lineTo(rightBaseX + 3, topY);
+  context.closePath();
+  context.stroke();
+  context.restore();
 };
 
 const shiftIsoDate = (isoDate: string, deltaDays: number) => format(addDays(parseISO(isoDate), deltaDays), 'yyyy-MM-dd');
@@ -457,7 +542,10 @@ const IssueTreeNode = ({
   return (
     <>
       <div
+        data-testid={`task-row-${node.issue_id}`}
+        data-selected={isSelected ? 'true' : 'false'}
         className={`${TASK_ROW_BASE_CLASS} ${isSelected ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-200/70' : 'bg-white hover:bg-slate-50/90'}`}
+        onClick={() => onSelectIssue?.(node)}
       >
         {/* Tree connectors */}
         <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
@@ -1928,6 +2016,8 @@ export function TaskDetailsDialog({
     return roots;
   }, [issues]);
 
+  const selectedIssueId = selectedIssue?.issue_id ?? null;
+
   const processFlowSteps = useMemo<ProcessFlowStep[]>(() => {
     const parentIssueIds = new Set(
       issues
@@ -1994,7 +2084,7 @@ export function TaskDetailsDialog({
 
   const processFlowPixelsPerDay = processFlowAxis?.pixelsPerDay ?? 1;
 
-  const processFlowRenderSteps = useMemo(() => {
+  const processFlowRenderSteps = useMemo<ProcessFlowRenderStep[]>(() => {
     if (!processFlowAxis) return [];
 
     const getX = createDateToX(processFlowAxis.minDate, processFlowAxis.pixelsPerDay);
@@ -2180,6 +2270,19 @@ export function TaskDetailsDialog({
         });
       }
 
+      if (selectedIssueId === step.id) {
+        drawSelectedProcessOutline(context, {
+          shapeKind: step.shapeKind,
+          stepY,
+          x: step.x,
+          width: step.width,
+          hasLeftNotch: step.hasLeftNotch,
+          shapeX: step.shapeX,
+          visualWidth: step.visualWidth,
+          textX: step.textX
+        });
+      }
+
       if (step.shapeKind !== 'range') {
         drawStrokeText(context, {
           text: extractMD(step.anchorDate),
@@ -2230,7 +2333,7 @@ export function TaskDetailsDialog({
         font: '700 11px sans-serif'
       });
     });
-  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles]);
+  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles, selectedIssueId]);
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
   const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
@@ -2593,13 +2696,18 @@ export function TaskDetailsDialog({
     const issue = issuesRef.current.find((item) => item.issue_id === step.id) || null;
     if (!issue) return;
 
-    selectIssue(null);
+    selectIssue(issue);
+  }, [selectIssue, suppressProcessClickIssueId]);
 
-    if (step.hasChildren) {
-      setDrilldownPath((prev) => [...prev, { issueId: step.id, title: issue.subject }]);
-      void reloadTaskDetails(step.id, { selectedIssueId: null });
-    }
-  }, [reloadTaskDetails, selectIssue, suppressProcessClickIssueId]);
+  const handleProcessStepDoubleClick = useCallback((step: ProcessFlowStep) => {
+    if (!step.hasChildren) return;
+
+    const issue = issuesRef.current.find((item) => item.issue_id === step.id) || null;
+    if (!issue) return;
+
+    setDrilldownPath((prev) => [...prev, { issueId: step.id, title: issue.subject }]);
+    void reloadTaskDetails(step.id, { selectedIssueId: null });
+  }, [reloadTaskDetails]);
 
   const handleBreadcrumbClick = useCallback((index: number) => {
     setDrilldownPath((prev) => {
@@ -2829,9 +2937,15 @@ export function TaskDetailsDialog({
                           const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
                           const isInteractive = !savingIssueIds[step.id];
                           const isRangeStep = step.shapeKind === 'range';
+                          const isSelected = selectedIssueId === step.id;
 
                           return (
-                            <g key={step.id} data-testid="task-details-process-step" opacity={savingIssueIds[step.id] ? 0.6 : 1}>
+                            <g
+                              key={step.id}
+                              data-testid="task-details-process-step"
+                              data-selected={isSelected ? 'true' : 'false'}
+                              opacity={savingIssueIds[step.id] ? 0.6 : 1}
+                            >
                               {/* Date labels above the bar */}
                               {step.shapeKind !== 'range' ? (
                                 <text
@@ -2912,6 +3026,8 @@ export function TaskDetailsDialog({
                                 style={{ cursor: isInteractive && isRangeStep ? CUSTOM_GRAB : 'pointer' }}
                                 onPointerDown={isRangeStep ? (event) => startProcessFlowDrag(event, step, 'move') : undefined}
                                 onClick={() => handleProcessStepClick(step)}
+                                onDoubleClick={() => handleProcessStepDoubleClick(step)}
+                                data-selected={isSelected ? 'true' : 'false'}
                                 data-testid={`task-details-process-step-hit-${step.id}`}
                               />
                               {isRangeStep && (
