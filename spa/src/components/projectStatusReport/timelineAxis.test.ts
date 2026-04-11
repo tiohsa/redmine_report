@@ -32,4 +32,21 @@ describe('buildTimelineAxis', () => {
     expect(toX('2025-12-30')).toBeCloseTo(axis.pixelsPerDay * 3, 4);
     expect(toWidth('2026-02-01', '2026-02-03')).toBeCloseTo(axis.pixelsPerDay * 3, 4);
   });
+
+  it('supports asymmetric left and right buffers', () => {
+    const axis = buildTimelineAxis({
+      items: [
+        { start_date: '2026-02-03', end_date: '2026-02-10' }
+      ],
+      containerWidth: 640,
+      leftBufferDays: 7,
+      rightBufferDays: 3
+    });
+
+    expect(axis.axisStartDateIso).toBe('2026-01-27');
+    expect(axis.axisEndDateIso).toBe('2026-02-13');
+
+    const toX = createDateToX(axis.minDate, axis.pixelsPerDay);
+    expect(toX('2026-02-03')).toBeCloseTo(axis.pixelsPerDay * 7, 4);
+  });
 });

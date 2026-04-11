@@ -1,4 +1,5 @@
 .codex
+docs/
 docker-compose.yml
 .specify/
 specs/

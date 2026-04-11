@@ -49,26 +49,67 @@ const renderTimelineChart = (activeReportLaneKey?: string | null) =>
   );
 
 describe('TimelineChart', () => {
-  it('applies alternating backgrounds to lane labels and svg rows', () => {
+  it('renders the canvas layer and preserves lane background semantics', () => {
     renderTimelineChart();
 
+    expect(screen.getByTestId('timeline-chart-canvas')).toBeTruthy();
     expect(screen.getByTestId('timeline-lane-label-0').className).toContain('bg-white');
-    expect(screen.getByTestId('timeline-lane-label-1').className).toContain('bg-slate-50/80');
+    expect(screen.getByTestId('timeline-lane-label-1').className).toContain('bg-white');
     expect(screen.getByTestId('timeline-lane-label-2').className).toContain('bg-white');
 
     expect(screen.getByTestId('timeline-lane-bg-0').getAttribute('fill')).toBe('#ffffff');
-    expect(screen.getByTestId('timeline-lane-bg-1').getAttribute('fill')).toBe('#f8fafc');
+    expect(screen.getByTestId('timeline-lane-bg-1').getAttribute('fill')).toBe('#ffffff');
     expect(screen.getByTestId('timeline-lane-bg-2').getAttribute('fill')).toBe('#ffffff');
   });
 
   it('keeps active lane highlight above alternating backgrounds', () => {
     renderTimelineChart('1:v2');
 
-    expect(screen.getByTestId('timeline-lane-label-1').className).toContain('bg-blue-50/70');
-    expect(screen.getByTestId('timeline-lane-bg-1').getAttribute('fill')).toBe('#f8fafc');
+    expect(screen.getByTestId('timeline-lane-label-1').className).toContain('bg-sky-200/80');
+    expect(screen.getByTestId('timeline-lane-bg-1').getAttribute('fill')).toBe('#ffffff');
 
     const activeOverlay = screen.getByTestId('timeline-lane-active-bg-1');
-    expect(activeOverlay.getAttribute('fill')).toBe('#eff6ff');
+    expect(activeOverlay.getAttribute('fill')).toBe('#e0f2fe');
     expect(activeOverlay.getAttribute('opacity')).toBe('0.7');
+  });
+
+  it('uses move cursor for draggable process arrows', () => {
+    const { container } = render(
+      <TimelineChart
+        timelineData={[
+          makeLane({
+            steps: [
+              {
+                issueId: 11,
+                name: 'Design',
+                x: 0,
+                width: 120,
+                status: { fill: '#2563eb', text: '#ffffff', stroke: '#2563eb' },
+                progress: 40,
+                id: 'ticket-1-11-0',
+                startDateIso: '2026-03-03',
+                endDateIso: '2026-03-10',
+                editable: true
+              }
+            ]
+          })
+        ]}
+        timelineWidth={480}
+        headerMonths={[{ label: 'Mar', x: 0, width: 480 }]}
+        headerYears={[{ year: '2026', x: 0, width: 480 }]}
+        todayX={-1}
+        axisStartDateIso="2026-03-01"
+        axisEndDateIso="2026-03-31"
+        pixelsPerDay={16}
+        containerRef={createRef<HTMLDivElement>()}
+        projectIdentifier="alpha"
+        isProcessMode
+        showTodayLine={false}
+      />
+    );
+
+    const hitArea = container.querySelector('rect[data-step-id="ticket-1-11-0"]');
+    expect(hitArea).toBeTruthy();
+    expect(hitArea?.getAttribute('style')).toContain('cursor: move;');
   });
 });

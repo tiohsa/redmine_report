@@ -122,7 +122,8 @@ export const messages = {
       historyLabel: 'History',
       noDescription: 'No description',
       selectTicket: 'Select a ticket to view details',
-      breadcrumbAria: 'Issue hierarchy'
+      breadcrumbAria: 'Issue hierarchy',
+      resizeDetailAreasAria: 'Resize detail areas'
     },
     status: {
       completed: 'Completed',
@@ -321,7 +322,8 @@ export const messages = {
       historyLabel: '更新履歴',
       noDescription: '説明なし',
       selectTicket: 'チケットを選択して詳細を表示',
-      breadcrumbAria: 'チケット階層'
+      breadcrumbAria: 'チケット階層',
+      resizeDetailAreasAria: '詳細エリアのサイズを変更'
     },
     status: {
       completed: '完了',
