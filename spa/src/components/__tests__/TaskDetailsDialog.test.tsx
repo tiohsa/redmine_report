@@ -1275,16 +1275,98 @@ describe('TaskDetailsDialog', () => {
     const topPane = screen.getByTestId('task-details-top-pane');
     const resizer = screen.getByTestId('task-details-horizontal-resizer');
 
-    expect(topPane.style.height).toBe('320px');
+    await waitFor(() => expect(topPane.style.height).toBe('180px'));
 
     resizer.focus();
     fireEvent.keyDown(resizer, { key: 'ArrowDown' });
 
-    await waitFor(() => expect(topPane.style.height).toBe('344px'));
+    await waitFor(() => expect(topPane.style.height).toBe('204px'));
 
     fireEvent.keyDown(resizer, { key: 'PageUp' });
 
-    await waitFor(() => expect(topPane.style.height).toBe('264px'));
+    await waitFor(() => expect(topPane.style.height).toBe('180px'));
+  });
+
+  it('auto fits the top pane again when the process flow height changes after reload', async () => {
+    fetchTaskDetailsMock
+      .mockResolvedValueOnce([
+        {
+          issue_id: 10,
+          parent_id: null,
+          subject: 'Root issue',
+          start_date: '2026-02-01',
+          due_date: '2026-02-10',
+          done_ratio: 65,
+          issue_url: '/issues/10'
+        },
+        {
+          issue_id: 11,
+          parent_id: 10,
+          subject: 'Leaf issue',
+          start_date: '2026-02-03',
+          due_date: '2026-02-08',
+          done_ratio: 40,
+          issue_url: '/issues/11'
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          issue_id: 10,
+          parent_id: null,
+          subject: 'Root issue',
+          start_date: '2026-02-01',
+          due_date: '2026-02-20',
+          done_ratio: 65,
+          issue_url: '/issues/10'
+        },
+        {
+          issue_id: 11,
+          parent_id: 10,
+          subject: 'First',
+          start_date: '2026-02-03',
+          due_date: '2026-02-08',
+          done_ratio: 10,
+          issue_url: '/issues/11'
+        },
+        {
+          issue_id: 12,
+          parent_id: 10,
+          subject: 'Second',
+          start_date: '2026-02-04',
+          due_date: '2026-02-10',
+          done_ratio: 20,
+          issue_url: '/issues/12'
+        }
+      ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const topPane = screen.getByTestId('task-details-top-pane');
+    const reloadButton = screen.getByTitle('チケット一覧を再読込');
+    const resizer = screen.getByTestId('task-details-horizontal-resizer');
+
+    await waitFor(() => expect(topPane.style.height).toBe('180px'));
+
+    resizer.focus();
+    fireEvent.keyDown(resizer, { key: 'ArrowDown' });
+    await waitFor(() => expect(topPane.style.height).toBe('204px'));
+
+    fireEvent.click(reloadButton);
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(2));
+    await waitFor(
+      () => expect(screen.getByTestId('task-details-top-pane').style.height).toBe('201px'),
+      { timeout: 2000 }
+    );
   });
 
   it('suppresses process bar click after a resize interaction', async () => {

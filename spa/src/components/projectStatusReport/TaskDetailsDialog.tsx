@@ -1833,6 +1833,8 @@ export function TaskDetailsDialog({
   const [topPaneHeight, setTopPaneHeight] = useState(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
   const [verticalResizeSession, setVerticalResizeSession] = useState<DetailsVerticalResizeSession | null>(null);
   const verticalResizeRef = useRef<DetailsVerticalResizeSession | null>(null);
+  const lastAutoFitKeyRef = useRef<string | null>(null);
+  const manualResizeSuppressedKeyRef = useRef<string | null>(null);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const currentRoot = drilldownPath[drilldownPath.length - 1] || { issueId, title: issueTitle };
@@ -1966,6 +1968,8 @@ export function TaskDetailsDialog({
     setTopPaneHeight(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
     setVerticalResizeSession(null);
     verticalResizeRef.current = null;
+    lastAutoFitKeyRef.current = null;
+    manualResizeSuppressedKeyRef.current = null;
     setSuppressProcessClickIssueId(null);
     selectIssue(null);
     void reloadTaskDetails(issueId, { selectedIssueId: null }).catch(() => {
@@ -2338,6 +2342,9 @@ export function TaskDetailsDialog({
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
   const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
+  const currentAutoFitKey = open && !loading && issues.length > 0 && processFlowRenderSteps.length > 0
+    ? `${currentRootIssueId}:${processFlowSvgHeight}`
+    : null;
   const clampTopPaneHeight = useCallback((nextHeight: number, containerHeight: number) => {
     const safeContainerHeight = Number.isFinite(containerHeight) && containerHeight > 0
       ? containerHeight
@@ -2350,12 +2357,27 @@ export function TaskDetailsDialog({
   }, []);
 
   useLayoutEffect(() => {
+    if (!currentAutoFitKey || !detailsLayoutRef.current) return;
+    if (lastAutoFitKeyRef.current === currentAutoFitKey) return;
+    if (manualResizeSuppressedKeyRef.current === currentAutoFitKey) return;
+
+    const containerHeight = detailsLayoutRef.current.getBoundingClientRect().height
+      || detailsLayoutRef.current.clientHeight;
+    const nextHeight = clampTopPaneHeight(processFlowSvgHeight, containerHeight);
+
+    lastAutoFitKeyRef.current = currentAutoFitKey;
+    setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  }, [clampTopPaneHeight, currentAutoFitKey, processFlowSvgHeight]);
+
+  useLayoutEffect(() => {
     if (!open || loading || issues.length === 0 || !detailsLayoutRef.current) return;
 
     const element = detailsLayoutRef.current;
     const updateHeight = () => {
-      const nextHeight = clampTopPaneHeight(topPaneHeight, element.clientHeight);
-      setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+      setTopPaneHeight((prev) => {
+        const nextHeight = clampTopPaneHeight(prev, element.clientHeight);
+        return prev === nextHeight ? prev : nextHeight;
+      });
     };
 
     updateHeight();
@@ -2368,7 +2390,7 @@ export function TaskDetailsDialog({
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [clampTopPaneHeight, issues.length, loading, open, topPaneHeight]);
+  }, [clampTopPaneHeight, issues.length, loading, open]);
 
   const isRowDirty = (row: TaskDetailIssue) => {
     const baseline = baselineByIdRef.current[row.issue_id];
@@ -2545,6 +2567,9 @@ export function TaskDetailsDialog({
   const beginVerticalResize = useCallback((clientY: number, pointerId: number) => {
     const containerRect = detailsLayoutRef.current?.getBoundingClientRect();
     const containerHeight = containerRect?.height ?? detailsLayoutRef.current?.clientHeight ?? 0;
+    if (currentAutoFitKey) {
+      manualResizeSuppressedKeyRef.current = currentAutoFitKey;
+    }
     const nextSession = {
       pointerId,
       startClientY: clientY,
@@ -2554,7 +2579,7 @@ export function TaskDetailsDialog({
 
     verticalResizeRef.current = nextSession;
     setVerticalResizeSession(nextSession);
-  }, [topPaneHeight]);
+  }, [currentAutoFitKey, topPaneHeight]);
 
   const startVerticalResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -2579,8 +2604,11 @@ export function TaskDetailsDialog({
     event.preventDefault();
     const containerRect = detailsLayoutRef.current?.getBoundingClientRect();
     const containerHeight = containerRect?.height ?? detailsLayoutRef.current?.clientHeight ?? 0;
+    if (currentAutoFitKey) {
+      manualResizeSuppressedKeyRef.current = currentAutoFitKey;
+    }
     setTopPaneHeight((prev) => clampTopPaneHeight(prev + delta, containerHeight));
-  }, [clampTopPaneHeight]);
+  }, [clampTopPaneHeight, currentAutoFitKey]);
 
   const handleDateChange = (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => {
     setIssues((prev) => {
