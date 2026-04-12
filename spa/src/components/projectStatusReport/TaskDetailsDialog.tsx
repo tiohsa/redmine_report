@@ -154,7 +154,7 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 };
 
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
-const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-200/80';
+const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-300';
 const TASK_CELL_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
 const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold truncate shadow-sm';
 const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 px-2 border border-slate-300 bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer';
@@ -581,7 +581,7 @@ const IssueTreeNode = ({
 
         {/* TASK Column */}
         <div
-          className="shrink-0 flex items-center"
+          className="shrink-0 flex items-center border-r border-slate-200/80 self-stretch"
           style={{ paddingLeft: `${depth * 20}px`, width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}
           onClick={() => onSelectIssue?.(node)}
           data-testid={`task-title-cell-${node.issue_id}`}
@@ -658,7 +658,7 @@ const IssueTreeNode = ({
         </div>
 
         {/* COMMENTS Column */}
-        <div className="shrink-0 flex items-center justify-center px-2" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>
+        <div className="shrink-0 flex items-center justify-center px-2 border-r border-slate-200/80 self-stretch" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>
           {hasComments ? (
             <span
               data-testid="task-comment-indicator"
@@ -682,7 +682,7 @@ const IssueTreeNode = ({
 
         {/* TRACKER Column */}
         <div
-          className={`shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch ${cellClass}`}
           style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}
           onDoubleClick={(e) => startEdit('tracker_id', String(node.tracker_id || ''), e)}
         >
@@ -711,7 +711,7 @@ const IssueTreeNode = ({
 
         {/* PRIORITY Column */}
         <div
-          className={`shrink-0 flex items-center justify-start px-2 ${cellClass}`} style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch ${cellClass}`} style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}
           onDoubleClick={(e) => startEdit('priority_id', String(node.priority_id || ''), e)}
         >
           {isEditing('priority_id') && masters ? (
@@ -739,7 +739,7 @@ const IssueTreeNode = ({
 
         {/* STATUS Column */}
         <div
-          className={`shrink-0 flex items-center justify-start px-2 ${cellClass}`} style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch ${cellClass}`} style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}
           onDoubleClick={(e) => startEdit('status_id', String(node.status_id || ''), e)}
         >
           {isEditing('status_id') && masters ? (
@@ -764,7 +764,7 @@ const IssueTreeNode = ({
 
         {/* PROGRESS Column */}
         <div
-          className={`shrink-0 flex items-center gap-2 justify-start px-2 ${cellClass}`} style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}
+          className={`shrink-0 flex items-center gap-2 justify-start px-2 border-r border-slate-200/80 self-stretch ${cellClass}`} style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}
           onDoubleClick={(e) => startEdit('done_ratio', String(progressRatio), e)}
         >
           {isEditing('done_ratio') ? (
@@ -791,7 +791,7 @@ const IssueTreeNode = ({
         </div>
 
         {/* DATE RANGE Column */}
-        <div className="shrink-0 flex items-center gap-1.5 px-2 justify-start" style={{ width: `${columnWidths.dateRange}px`, minWidth: `${columnWidths.dateRange}px` }}>
+        <div className="shrink-0 flex items-center gap-1.5 px-2 justify-start border-r border-slate-200/80 self-stretch" style={{ width: `${columnWidths.dateRange}px`, minWidth: `${columnWidths.dateRange}px` }}>
           <div
             ref={dateRangeRef}
             className="flex items-center gap-1.5"
@@ -2211,6 +2211,10 @@ export function TaskDetailsDialog({
     34 + (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y + 30
   );
   const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
+  const processFlowBaseTopPadding = useMemo(() => {
+    const totalBarsHeight = (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y;
+    return (processFlowLaneHeight - totalBarsHeight) / 2;
+  }, [maxProcessFlowLane, processFlowLaneHeight]);
 
   useLayoutEffect(() => {
     if (!processFlowAxis || !processFlowCanvasRef.current) return;
@@ -2273,13 +2277,10 @@ export function TaskDetailsDialog({
     context.strokeStyle = '#e2e8f0';
     context.stroke();
 
-    const totalBarsHeight = (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y;
-    const baseTopPadding = (processFlowLaneHeight - totalBarsHeight) / 2;
-
     processFlowRenderSteps.forEach((step) => {
       const style = processStatusStyles[step.status];
       const fill = getProgressFillColor(step.progress);
-      const stepY = PROCESS_FLOW_HEADER_HEIGHT + baseTopPadding + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+      const stepY = PROCESS_FLOW_HEADER_HEIGHT + processFlowBaseTopPadding + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
       const rangeStartLabelX = step.shapeX + PROCESS_FLOW_DATE_LABEL_INSET;
       const rangeEndLabelX = step.shapeX + step.visualWidth - PROCESS_FLOW_DATE_LABEL_INSET;
 
@@ -2383,7 +2384,7 @@ export function TaskDetailsDialog({
         font: '700 11px sans-serif'
       });
     });
-  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles, selectedIssueId]);
+  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles, selectedIssueId, processFlowBaseTopPadding]);
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
   const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
@@ -3001,7 +3002,7 @@ export function TaskDetailsDialog({
                         />
 
                         {processFlowRenderSteps.map((step) => {
-                          const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+                          const stepY = processFlowBaseTopPadding + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
                           const isInteractive = !savingIssueIds[step.id];
                           const isRangeStep = step.shapeKind === 'range';
                           const isSelected = selectedIssueId === step.id;
@@ -3089,7 +3090,7 @@ export function TaskDetailsDialog({
                 <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
-                      <div className="flex items-center py-2 px-4 bg-[#f8f8f8] z-20 border-b border-slate-300 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
+                      <div className="flex items-center py-2 px-4 bg-[#f8f8f8] z-20 border-b border-slate-400/40 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
                       <div className="shrink-0 flex items-center relative group" style={{ width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}>
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
                         {t('timeline.task', { defaultValue: 'Task' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('task', deltaX)} />
