@@ -63,9 +63,9 @@ type StepRenderData = {
   width: number;
 };
 
-const BASE_LANE_HEIGHT = 104;
-const BASE_POINT_DEPTH = 15;
-const BASE_BAR_HEIGHT = 40;
+const BASE_LANE_HEIGHT = 122;
+const BASE_POINT_DEPTH = 22;
+const BASE_BAR_HEIGHT = 36;
 const PROCESS_PROGRESS_LABEL_OFFSET_Y = 18;
 const yearRowHeight = 25;
 const monthRowHeight = 25;
@@ -215,7 +215,7 @@ export function TimelineChart({
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
   const barHeight = BASE_BAR_HEIGHT * chartScale;
-  const barSpacingY = 18 * chartScale;
+  const barSpacingY = 34 * chartScale;
 
   const layoutData = useMemo<Array<TimelineLane & { steps: (TimelineStep & { laneIndex: number })[]; height: number; yOffset: number; maxLane: number }>>(() => {
     let currentY = 0;
@@ -594,7 +594,7 @@ function TimelineSvg({
         const isFirst = stepIndex === 0;
         const pointDepth = BASE_POINT_DEPTH * chartScale;
         const scaledBarHeight = BASE_BAR_HEIGHT * chartScale;
-        const scaledBarSpacingY = 18 * chartScale;
+        const scaledBarSpacingY = 34 * chartScale;
         const totalBarsHeight = (project.maxLane + 1) * scaledBarHeight + project.maxLane * scaledBarSpacingY;
         const baseTopPadding = (project.height - totalBarsHeight) / 2;
         const verticalOffset = baseTopPadding + step.laneIndex * (scaledBarHeight + scaledBarSpacingY);
@@ -1045,7 +1045,7 @@ function TimelineSvg({
                 const isFirst = stepIndex === 0;
                 const pointDepth = BASE_POINT_DEPTH * chartScale;
                 const barHeight = BASE_BAR_HEIGHT * chartScale;
-                const barSpacingY = 18 * chartScale;
+                const barSpacingY = 34 * chartScale;
                 const totalBarsHeight = (project.maxLane + 1) * barHeight + project.maxLane * barSpacingY;
                 const baseTopPadding = (project.height - totalBarsHeight) / 2;
                 const verticalOffset = baseTopPadding + step.laneIndex * (barHeight + barSpacingY);
