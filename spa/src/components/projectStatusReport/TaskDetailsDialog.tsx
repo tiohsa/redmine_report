@@ -118,8 +118,8 @@ const processStatusStyles: Record<ProcessFlowStep['status'], {
 };
 
 const PROCESS_FLOW_MIN_WIDTH = 640;
-const PROCESS_FLOW_YEAR_ROW_HEIGHT = 24;
-const PROCESS_FLOW_MONTH_ROW_HEIGHT = 24;
+const PROCESS_FLOW_YEAR_ROW_HEIGHT = 25;
+const PROCESS_FLOW_MONTH_ROW_HEIGHT = 25;
 const PROCESS_FLOW_HEADER_HEIGHT = PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT;
 const PROCESS_FLOW_LANE_HEIGHT = 122;
 const PROCESS_FLOW_BAR_HEIGHT = 36;
@@ -2076,10 +2076,10 @@ export function TaskDetailsDialog({
       const hitWidth = step.shapeKind === 'range'
         ? visualWidth
         : Math.max(visualWidth, processFlowAxis.pixelsPerDay);
-      const hitX = step.shapeKind === 'start-only'
+      const hitX = (step.shapeKind === 'range' || step.shapeKind === 'start-only')
         ? anchorX
         : anchorX - hitWidth / 2;
-      const shapeX = step.shapeKind === 'start-only'
+      const shapeX = (step.shapeKind === 'range' || step.shapeKind === 'start-only')
         ? anchorX
         : anchorX - visualWidth / 2;
 
@@ -2199,10 +2199,13 @@ export function TaskDetailsDialog({
     context.strokeStyle = '#e2e8f0';
     context.stroke();
 
+    const totalBarsHeight = (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y;
+    const baseTopPadding = (processFlowLaneHeight - totalBarsHeight) / 2;
+
     processFlowRenderSteps.forEach((step) => {
       const style = processStatusStyles[step.status];
       const fill = getProgressFillColor(step.progress);
-      const stepY = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+      const stepY = PROCESS_FLOW_HEADER_HEIGHT + baseTopPadding + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
       const rangeStartLabelX = step.shapeX + PROCESS_FLOW_DATE_LABEL_INSET;
       const rangeEndLabelX = step.shapeX + step.visualWidth - PROCESS_FLOW_DATE_LABEL_INSET;
 
@@ -2267,8 +2270,7 @@ export function TaskDetailsDialog({
           fill: style.dateText,
           stroke: '#ffffff',
           strokeWidth: 2,
-          font: '700 10px sans-serif',
-          textBaseline: 'alphabetic'
+          font: '700 10px sans-serif'
         });
       } else {
         if (step.startDate) {
@@ -2280,8 +2282,7 @@ export function TaskDetailsDialog({
             stroke: '#ffffff',
             strokeWidth: 2,
             font: '700 10px sans-serif',
-            textAlign: 'start',
-            textBaseline: 'alphabetic'
+            textAlign: 'start'
           });
         }
         if (step.dueDate) {
@@ -2293,8 +2294,7 @@ export function TaskDetailsDialog({
             stroke: '#ffffff',
             strokeWidth: 2,
             font: '700 10px sans-serif',
-            textAlign: 'end',
-            textBaseline: 'alphabetic'
+            textAlign: 'end'
           });
         }
       }
