@@ -18,21 +18,24 @@ export const createIssue = async (
     parentIssueId: number,
     payload: BulkIssuePayload
 ): Promise<any> => {
-    // Use standard web endpoint instead of REST JSON endpoint to keep session-based auth.
-    const path = '/issues';
+    // Post to project-specific endpoint to avoid needing numerical project ID
+    const path = `/projects/${projectIdentifier}/issues`;
     const formData = new URLSearchParams();
-    formData.set('issue[project_id]', String(projectIdentifier));
+    
+    // Standard form parameters
+    formData.set('utf8', '✓');
     formData.set('issue[parent_issue_id]', String(parentIssueId));
     formData.set('issue[subject]', payload.subject);
 
-    if (payload.tracker_id !== undefined) formData.set('issue[tracker_id]', String(payload.tracker_id));
-    if (payload.status_id !== undefined) formData.set('issue[status_id]', String(payload.status_id));
-    if (payload.priority_id !== undefined) formData.set('issue[priority_id]', String(payload.priority_id));
-    if (payload.assigned_to_id !== undefined) formData.set('issue[assigned_to_id]', String(payload.assigned_to_id));
-    if (payload.start_date !== undefined && payload.start_date !== null) formData.set('issue[start_date]', payload.start_date);
-    if (payload.due_date !== undefined && payload.due_date !== null) formData.set('issue[due_date]', payload.due_date);
-    if (payload.done_ratio !== undefined) formData.set('issue[done_ratio]', String(payload.done_ratio));
-    if (payload.estimated_hours !== undefined) formData.set('issue[estimated_hours]', String(payload.estimated_hours));
+    // Only append fields if they are not null or undefined
+    if (payload.tracker_id != null) formData.set('issue[tracker_id]', String(payload.tracker_id));
+    if (payload.status_id != null) formData.set('issue[status_id]', String(payload.status_id));
+    if (payload.priority_id != null) formData.set('issue[priority_id]', String(payload.priority_id));
+    if (payload.assigned_to_id != null) formData.set('issue[assigned_to_id]', String(payload.assigned_to_id));
+    if (payload.start_date != null) formData.set('issue[start_date]', payload.start_date);
+    if (payload.due_date != null) formData.set('issue[due_date]', payload.due_date);
+    if (payload.done_ratio != null) formData.set('issue[done_ratio]', String(payload.done_ratio));
+    if (payload.estimated_hours != null) formData.set('issue[estimated_hours]', String(payload.estimated_hours));
 
     const res = await fetch(path, {
         method: 'POST',

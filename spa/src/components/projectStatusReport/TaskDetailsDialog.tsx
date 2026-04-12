@@ -57,6 +57,7 @@ type IssueTreeNodeProps = {
   handleDateChange: (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => void;
   onAddSubIssue: (parentIssue: TaskDetailIssue) => void;
   onEditIssue: (issue: TaskDetailIssue) => void;
+  onViewIssue: (issue: TaskDetailIssue) => void;
   onSelectIssue?: (node: TreeNodeType) => void;
   selectedIssueId?: number | null;
   masters: TaskMasters | null;
@@ -380,6 +381,7 @@ const IssueTreeNode = ({
   handleDateChange,
   onAddSubIssue,
   onEditIssue,
+  onViewIssue,
   onSelectIssue,
   selectedIssueId,
   masters,
@@ -622,9 +624,11 @@ const IssueTreeNode = ({
               <span
                 data-testid="task-subject"
                 className={`text-[14px] leading-5 ${depth === 0 ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'} truncate hover:text-blue-700 block cursor-pointer`}
-                onClick={(e) => { e.stopPropagation(); onSelectIssue?.(node); }}
-                onDoubleClick={(e) => startEdit('subject', node.subject, e)}
-                title={node.subject}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewIssue(node);
+                }}
+                title={node.subject ? `${node.subject} (${t('timeline.viewIssue')})` : t('timeline.viewIssue')}
               >
                 {node.subject}
               </span>
@@ -936,6 +940,7 @@ const IssueTreeNode = ({
           handleDateChange={handleDateChange}
           onAddSubIssue={onAddSubIssue}
           onEditIssue={onEditIssue}
+          onViewIssue={onViewIssue}
           onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
           masters={masters}
@@ -1801,6 +1806,299 @@ function IssueEditDialog({
   );
 }
 
+function IssueViewDialog({
+  projectIdentifier,
+  issueId,
+  issueUrl,
+  inheritedFields = {},
+  onSaved,
+  onClose
+}: {
+  projectIdentifier: string;
+  issueId: number;
+  issueUrl: string;
+  inheritedFields?: InheritedSubIssueFields;
+  onSaved?: (updatedIssueId?: number) => void;
+  onClose: () => void;
+}) {
+  const iframeUrl = issueUrl;
+  const externalUrl = iframeUrl;
+  const [iframeReady, setIframeReady] = useState(false);
+  const [iframeError, setIframeError] = useState<string | null>(null);
+  const [iframeHeader, setIframeHeader] = useState('');
+  const [iframeSubject, setIframeSubject] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const footerRef = useRef<HTMLDivElement | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const cleanupIframeEscRef = useRef<(() => void) | null>(null);
+
+  const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
+    isOpen: true,
+    iframeRef,
+    headerRef,
+    footerRef,
+    errorRef,
+    sectionRef,
+  });
+
+  const createBulkIssues = async (parentIssueId: number, lines: string[], defaults: InheritedSubIssueFields) => {
+    for (const subject of lines) {
+      const payload: BulkIssuePayload = { subject, ...defaults };
+      await createIssue(projectIdentifier, parentIssueId, payload);
+    }
+  };
+
+  const handleSave = async () => {
+    const lines = bulkText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
+
+    if (lines.length === 0) {
+      onClose();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createBulkIssues(issueId, lines, inheritedFields);
+      setBulkText('');
+      setBulkOpen(false);
+      onSaved?.(issueId);
+      onClose();
+    } catch (err: any) {
+      alert(t('common.alertError', { message: err.message }));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    setIframeReady(false);
+    setIframeError(null);
+    setIframeHeader('');
+    setIframeSubject('');
+    cleanupIframeEscRef.current?.();
+    cleanupIframeEscRef.current = null;
+    resetLayout();
+  }, [iframeUrl, resetLayout]);
+
+  useEffect(() => {
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onEsc, true);
+    return () => window.removeEventListener('keydown', onEsc, true);
+  }, [onClose]);
+
+  useEffect(() => () => {
+    cleanupIframeEscRef.current?.();
+    cleanupIframeEscRef.current = null;
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-white rounded-[6px] shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden"
+        style={{
+          width: `${DEFAULT_DIALOG_WIDTH_PX}px`,
+          maxWidth: '98vw',
+          height: `${dialogHeightPx ?? getEmbeddedDialogDefaultHeight()}px`,
+          maxHeight: `${Math.floor(window.innerHeight * MAX_DIALOG_VIEWPORT_HEIGHT_RATIO)}px`,
+          boxSizing: 'border-box',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          ref={headerRef}
+          data-testid="view-issue-dialog-header"
+          className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white"
+          style={{ padding: '2px 12px' }}
+        >
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            {iframeHeader ? (
+              <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} ${iframeSubject}`}>
+                {iframeHeader} {iframeSubject}
+              </span>
+            ) : (
+              <React.Fragment>
+                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
+                  #{issueId}
+                </span>
+                <span className="text-[14px] font-bold text-slate-800 truncate">{t('timeline.viewIssueDialogTitle')}</span>
+              </React.Fragment>
+            )}
+          </div>
+          <div className="flex items-center gap-[6px] flex-shrink-0">
+            <a
+              href={externalUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
+              title={t('common.openInNewTab')}
+              aria-label={t('common.openInNewTab')}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
+              </svg>
+            </a>
+            <button
+              type="button"
+              aria-label={t('timeline.closeDialogAria')}
+              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
+              onClick={onClose}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="relative flex-1 min-h-0 bg-white overflow-hidden">
+          {iframeError ? (
+            <div
+              ref={errorRef}
+              data-testid="view-issue-dialog-error"
+              style={{
+                flex: '0 0 auto',
+                padding: '12px 16px',
+                backgroundColor: '#fdecea',
+                color: '#b71c1c',
+                borderBottom: '1px solid #f5c6cb',
+                fontSize: 13,
+              }}
+            >
+              {iframeError}
+            </div>
+          ) : null}
+          <iframe
+            ref={iframeRef}
+            title={t('timeline.viewIssueDialogTitle')}
+            src={iframeUrl}
+            className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={(e) => {
+              try {
+                const doc = (e.target as HTMLIFrameElement).contentDocument;
+                if (!doc) return;
+
+                applyEmbeddedIssueDialogStyles(doc, {
+                  contentPadding: '16px',
+                  extraCss: EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
+                  styleId: `${ISSUE_DIALOG_STYLE_ID}-view`,
+                });
+                setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
+                bindIframeSizeObservers(doc);
+
+                try {
+                  const h2Ele = doc.querySelector('h2');
+                  if (h2Ele) setIframeHeader(h2Ele.textContent || '');
+                  const subjectDiv = doc.querySelector('.subject h3');
+                  if (subjectDiv) setIframeSubject(subjectDiv.textContent || '');
+                } catch {
+                  // Ignore iframe parsing failures.
+                }
+                cleanupIframeEscRef.current?.();
+                cleanupIframeEscRef.current = bindIframeEscapeHandler(doc, onClose);
+              } catch {
+                setIframeError(null);
+              }
+              requestAnimationFrame(() => {
+                setIframeReady(true);
+                measureDialogHeight();
+              });
+            }}
+          />
+          {!iframeReady && (
+            <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
+              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
+        </div>
+
+        <div
+          ref={sectionRef}
+          className="border-t border-slate-200 bg-white flex-shrink-0"
+          style={{ padding: '8px 12px 0 12px' }}
+        >
+          <button
+            type="button"
+            className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
+            onClick={() => setBulkOpen(!bulkOpen)}
+          >
+            <span
+              className="inline-block transition-transform duration-200 text-xs"
+              style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            >
+              ▶
+            </span>
+            <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
+          </button>
+
+          {bulkOpen && (
+            <div className="mt-3">
+              <textarea
+                className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y"
+                placeholder={t('subIssueDialog.bulkPlaceholder')}
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+
+        <div
+          ref={footerRef}
+          data-testid="view-issue-dialog-footer"
+          className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-slate-200"
+          style={{ padding: '8px 12px 12px 12px' }}
+        >
+          <button
+            type="button"
+            className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
+            style={{
+              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
+              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+              borderColor: '#cbd5e1',
+              color: '#334155',
+            }}
+            onClick={onClose}
+          >
+            {t('common.close')}
+          </button>
+          <button
+            type="button"
+            className="rounded-[6px] border text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
+            style={{
+              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
+              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+              borderColor: '#2563eb',
+              backgroundColor: '#1b69e3',
+              color: '#fff',
+            }}
+            disabled={isSubmitting || !bulkText.trim()}
+            onClick={handleSave}
+          >
+            {isSubmitting ? t('common.saving') : t('common.save')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export function TaskDetailsDialog({
   open,
   projectIdentifier,
@@ -1819,6 +2117,10 @@ export function TaskDetailsDialog({
     inheritedFields: InheritedSubIssueFields;
   } | null>(null);
   const [editIssueContext, setEditIssueContext] = useState<{
+    issueId: number;
+    issueUrl: string;
+  } | null>(null);
+  const [viewIssueContext, setViewIssueContext] = useState<{
     issueId: number;
     issueUrl: string;
   } | null>(null);
@@ -1969,6 +2271,7 @@ export function TaskDetailsDialog({
     }
     setCreateIssueContext(null);
     setEditIssueContext(null);
+    setViewIssueContext(null);
     setEditingDescription(false);
     setNewCommentDraft('');
     setEditingCommentId(null);
@@ -2836,7 +3139,21 @@ export function TaskDetailsDialog({
                 </nav>
               )}
               <h3 className="text-[16px] font-semibold text-slate-900 flex items-center gap-2 min-w-0" data-testid="task-details-title">
-                <span className="truncate">{dialogHeaderTitle}</span>
+                <span
+                  className="truncate cursor-pointer hover:text-blue-600 transition-colors"
+                  onClick={() => {
+                    const row = issues.find((item) => item.issue_id === currentRootIssueId);
+                    if (row) {
+                      setViewIssueContext({
+                        issueId: currentRootIssueId,
+                        issueUrl: row.issue_url
+                      });
+                    }
+                  }}
+                  title={t('timeline.viewIssue')}
+                >
+                  {dialogHeaderTitle}
+                </span>
               </h3>
             </div>
             <button
@@ -3129,6 +3446,10 @@ export function TaskDetailsDialog({
                           issueId: issue.issue_id,
                           issueUrl: issue.issue_url
                         })}
+                        onViewIssue={(issue) => setViewIssueContext({
+                          issueId: issue.issue_id,
+                          issueUrl: issue.issue_url
+                        })}
                         onSelectIssue={handleTaskRowSelect}
                         selectedIssueId={selectedIssue?.issue_id}
                         masters={masters}
@@ -3150,7 +3471,17 @@ export function TaskDetailsDialog({
                           <span className="text-[11px] leading-none font-semibold text-slate-500 shrink-0">
                             #{selectedIssue.issue_id}
                           </span>
-                          <h4 className="text-[14px] leading-5 font-semibold text-slate-900 truncate" data-testid="task-details-selected-title">
+                          <h4
+                            className="text-[14px] leading-5 font-semibold text-slate-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                            data-testid="task-details-selected-title"
+                            onClick={() => {
+                              setViewIssueContext({
+                                issueId: selectedIssue.issue_id,
+                                issueUrl: selectedIssue.issue_url
+                              });
+                            }}
+                            title={t('timeline.viewIssue')}
+                          >
                             {selectedIssue.subject}
                           </h4>
                         </div>
@@ -3416,6 +3747,33 @@ export function TaskDetailsDialog({
           />
         )
       }
+      {
+        viewIssueContext !== null && (
+          <IssueViewDialog
+            projectIdentifier={projectIdentifier}
+            issueId={viewIssueContext.issueId}
+            issueUrl={viewIssueContext.issueUrl}
+            inheritedFields={(() => {
+              const issue = issues.find((i) => i.issue_id === viewIssueContext.issueId);
+              return issue ? {
+                tracker_id: issue.tracker_id,
+                priority_id: issue.priority_id,
+                assigned_to_id: issue.assignee_id,
+                start_date: issue.start_date,
+                due_date: issue.due_date
+              } : {};
+            })()}
+            onSaved={(updatedIssueId) => {
+              void reloadTaskDetails(currentRootIssueId, {
+                expectedIssueId: updatedIssueId ?? viewIssueContext.issueId,
+                selectedIssueId: updatedIssueId ?? viewIssueContext.issueId
+              });
+            }}
+            onClose={() => setViewIssueContext(null)}
+          />
+        )
+      }
+
     </div >
   );
 }

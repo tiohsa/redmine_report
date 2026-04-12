@@ -214,8 +214,8 @@ export function TimelineChart({
   activeReportLaneKey
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
-  const barHeight = BASE_BAR_HEIGHT * chartScale;
-  const barSpacingY = 34 * chartScale;
+  const barHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
+  const barSpacingY = Math.round(34 * chartScale);
 
   const layoutData = useMemo<Array<TimelineLane & { steps: (TimelineStep & { laneIndex: number })[]; height: number; yOffset: number; maxLane: number }>>(() => {
     let currentY = 0;
@@ -481,8 +481,9 @@ function TimelineSvg({
   showAllDates?: boolean;
   showTodayLine?: boolean;
 }) {
-  const svgHeight = headerHeight + totalTimelineHeight;
-  const scaledBarHeight = BASE_BAR_HEIGHT * chartScale;
+  const svgHeight = Math.ceil(headerHeight + totalTimelineHeight);
+  const scaledBarHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
+  const scaledBarSpacingY = Math.round(34 * chartScale);
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
   const [dragSession, setDragSession] = useState<DragSession | null>(null);
   const [savingIssueId, setSavingIssueId] = useState<number | null>(null);
@@ -592,9 +593,7 @@ function TimelineSvg({
       const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
       const stepItems = (project.steps as Array<TimelineStep & { laneIndex: number }>).map((step, stepIndex) => {
         const isFirst = stepIndex === 0;
-        const pointDepth = BASE_POINT_DEPTH * chartScale;
-        const scaledBarHeight = BASE_BAR_HEIGHT * chartScale;
-        const scaledBarSpacingY = 34 * chartScale;
+        const pointDepth = Math.round(BASE_POINT_DEPTH * chartScale);
         const totalBarsHeight = (project.maxLane + 1) * scaledBarHeight + project.maxLane * scaledBarSpacingY;
         const baseTopPadding = (project.height - totalBarsHeight) / 2;
         const verticalOffset = baseTopPadding + step.laneIndex * (scaledBarHeight + scaledBarSpacingY);
@@ -706,7 +705,9 @@ function TimelineSvg({
     pendingPreview,
     pixelsPerDay,
     selectedStepId,
-    savingIssueId
+    savingIssueId,
+    scaledBarHeight,
+    scaledBarSpacingY
   ]);
 
   useLayoutEffect(() => {
@@ -1043,9 +1044,9 @@ function TimelineSvg({
             {(project.steps as Array<TimelineStep & { laneIndex: number }>)
               .map((step, stepIndex) => {
                 const isFirst = stepIndex === 0;
-                const pointDepth = BASE_POINT_DEPTH * chartScale;
-                const barHeight = BASE_BAR_HEIGHT * chartScale;
-                const barSpacingY = 34 * chartScale;
+                const pointDepth = Math.round(BASE_POINT_DEPTH * chartScale);
+                const barHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
+                const barSpacingY = Math.round(34 * chartScale);
                 const totalBarsHeight = (project.maxLane + 1) * barHeight + project.maxLane * barSpacingY;
                 const baseTopPadding = (project.height - totalBarsHeight) / 2;
                 const verticalOffset = baseTopPadding + step.laneIndex * (barHeight + barSpacingY);

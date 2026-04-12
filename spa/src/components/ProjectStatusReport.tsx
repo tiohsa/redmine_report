@@ -184,7 +184,8 @@ export const ProjectStatusReport = ({
 
         const controller = new AbortController();
         setIsLoadingChildren(true);
-        setChildTicketsMap(new Map());
+        // Do not clear childTicketsMap immediately. Keep current view (parent bars) 
+        // to avoid blank flash/layout shift while loading child issues.
         setProcessModeError(null);
 
         (async () => {
@@ -219,15 +220,26 @@ export const ProjectStatusReport = ({
     useLayoutEffect(() => {
         if (!containerRef.current) return;
 
-        const updateWidth = () => {
-            if (containerRef.current) {
-                setContainerWidth(containerRef.current.clientWidth);
+        const observer = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            if (entry) {
+                // Use contentRect for stable measurement
+                const newWidth = Math.floor(entry.contentRect.width);
+                setContainerWidth((current) => {
+                    // Only update if the width changed by more than 1.5 pixels.
+                    // This prevents "shivering" caused by scrollbar-induced layout loops.
+                    if (Math.abs(current - newWidth) > 1.5) {
+                        return newWidth;
+                    }
+                    return current;
+                });
             }
-        };
+        });
 
-        const observer = new ResizeObserver(updateWidth);
         observer.observe(containerRef.current);
-        updateWidth();
+        
+        // Initial width measurement
+        setContainerWidth(Math.floor(containerRef.current.clientWidth));
 
         return () => observer.disconnect();
     }, []);
