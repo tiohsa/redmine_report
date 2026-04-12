@@ -3070,7 +3070,7 @@ export function TaskDetailsDialog({
                 tabIndex={0}
                 data-testid="task-details-horizontal-resizer"
                 data-resizing={verticalResizeSession ? 'true' : 'false'}
-                className={`relative z-20 shrink-0 cursor-row-resize bg-slate-300 transition-colors ${verticalResizeSession ? 'h-2 bg-slate-400' : 'h-1.5 hover:bg-slate-400'}`}
+                className={`relative z-20 shrink-0 cursor-ns-resize bg-slate-300 transition-colors ${verticalResizeSession ? 'h-2 bg-slate-400' : 'h-1.5 hover:bg-slate-400'}`}
                 onPointerDown={startVerticalResize}
                 onMouseDown={startVerticalResizeWithMouse}
                 onPointerMove={(event) => updateVerticalResize(event.clientY, event.pointerId)}
