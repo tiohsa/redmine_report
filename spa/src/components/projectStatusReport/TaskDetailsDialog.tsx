@@ -61,6 +61,7 @@ type IssueTreeNodeProps = {
   selectedIssueId?: number | null;
   masters: TaskMasters | null;
   onFieldUpdate: (issueId: number, field: string, value: string | number | null) => Promise<void>;
+  columnWidths: Record<string, number>;
 };
 
 type EditingCell = { field: string; value: string };
@@ -139,6 +140,18 @@ const DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX = 320;
 const DETAILS_TOP_PANE_MIN_HEIGHT_PX = 180;
 const DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX = 240;
 const DETAILS_LAYOUT_FALLBACK_HEIGHT_PX = 760;
+
+const COLUMN_WIDTH_STORAGE_KEY = 'redmine_report_task_details_column_widths';
+const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
+  task: 280,
+  comments: 56,
+  tracker: 90,
+  priority: 90,
+  status: 80,
+  progress: 120,
+  dateRange: 260,
+  assignee: 120
+};
 
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
 const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-200/80';
@@ -319,6 +332,43 @@ type ProcessDragSession = {
   moved: boolean;
 };
 
+const ColumnResizer = ({ onResize }: { onResize: (deltaX: number) => void }) => {
+  const [resizing, setResizing] = useState(false);
+  const startXRef = useRef(0);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizing(true);
+    startXRef.current = e.clientX;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!resizing) return;
+    const deltaX = e.clientX - startXRef.current;
+    if (deltaX !== 0) {
+      onResize(deltaX);
+      startXRef.current = e.clientX;
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    setResizing(false);
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+  };
+
+  return (
+    <div
+      className={`absolute right-0 top-0 bottom-0 w-1 border-r border-slate-300 cursor-ew-resize z-30 transition-colors ${resizing ? 'bg-blue-500 border-blue-500' : 'hover:bg-blue-400 group-hover:bg-slate-300'}`}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    />
+  );
+};
+
 const IssueTreeNode = ({
   node,
   depth,
@@ -332,7 +382,8 @@ const IssueTreeNode = ({
   onSelectIssue,
   selectedIssueId,
   masters,
-  onFieldUpdate
+  onFieldUpdate,
+  columnWidths
 }: IssueTreeNodeProps) => {
   const progressRatio = Math.max(0, Math.min(100, Number(node.done_ratio ?? 0)));
   const isDone = progressRatio === 100;
@@ -530,8 +581,8 @@ const IssueTreeNode = ({
 
         {/* TASK Column */}
         <div
-          className="w-[280px] min-w-[280px] shrink-0 flex items-center"
-          style={{ paddingLeft: `${depth * 20}px` }}
+          className="shrink-0 flex items-center"
+          style={{ paddingLeft: `${depth * 20}px`, width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}
           onClick={() => onSelectIssue?.(node)}
           data-testid={`task-title-cell-${node.issue_id}`}
         >
@@ -607,7 +658,7 @@ const IssueTreeNode = ({
         </div>
 
         {/* COMMENTS Column */}
-        <div className="w-[56px] min-w-[56px] shrink-0 flex items-center justify-center px-2">
+        <div className="shrink-0 flex items-center justify-center px-2" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>
           {hasComments ? (
             <span
               data-testid="task-comment-indicator"
@@ -631,7 +682,8 @@ const IssueTreeNode = ({
 
         {/* TRACKER Column */}
         <div
-          className={`w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}
           onDoubleClick={(e) => startEdit('tracker_id', String(node.tracker_id || ''), e)}
         >
           {isEditing('tracker_id') && masters ? (
@@ -659,7 +711,7 @@ const IssueTreeNode = ({
 
         {/* PRIORITY Column */}
         <div
-          className={`w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start px-2 ${cellClass}`} style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}
           onDoubleClick={(e) => startEdit('priority_id', String(node.priority_id || ''), e)}
         >
           {isEditing('priority_id') && masters ? (
@@ -687,7 +739,7 @@ const IssueTreeNode = ({
 
         {/* STATUS Column */}
         <div
-          className={`w-[80px] min-w-[80px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start px-2 ${cellClass}`} style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}
           onDoubleClick={(e) => startEdit('status_id', String(node.status_id || ''), e)}
         >
           {isEditing('status_id') && masters ? (
@@ -712,7 +764,7 @@ const IssueTreeNode = ({
 
         {/* PROGRESS Column */}
         <div
-          className={`w-[120px] min-w-[120px] shrink-0 flex items-center gap-2 justify-start px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center gap-2 justify-start px-2 ${cellClass}`} style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}
           onDoubleClick={(e) => startEdit('done_ratio', String(progressRatio), e)}
         >
           {isEditing('done_ratio') ? (
@@ -739,7 +791,7 @@ const IssueTreeNode = ({
         </div>
 
         {/* DATE RANGE Column */}
-        <div className="w-[260px] min-w-[260px] shrink-0 flex items-center gap-1.5 px-2 justify-start">
+        <div className="shrink-0 flex items-center gap-1.5 px-2 justify-start" style={{ width: `${columnWidths.dateRange}px`, minWidth: `${columnWidths.dateRange}px` }}>
           <div
             ref={dateRangeRef}
             className="flex items-center gap-1.5"
@@ -838,7 +890,8 @@ const IssueTreeNode = ({
 
         {/* ASSIGNEE Column */}
         <div
-          className={`w-[120px] min-w-[120px] shrink-0 flex items-center justify-start gap-1.5 px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start gap-1.5 px-2 ${cellClass}`}
+          style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}
           onDoubleClick={(e) => startEdit('assigned_to_id', String(node.assignee_id || ''), e)}
         >
           {isEditing('assigned_to_id') && masters ? (
@@ -888,6 +941,7 @@ const IssueTreeNode = ({
           selectedIssueId={selectedIssueId}
           masters={masters}
           onFieldUpdate={onFieldUpdate}
+          columnWidths={columnWidths}
         />
       ))}
     </>
@@ -1794,6 +1848,26 @@ export function TaskDetailsDialog({
   const verticalResizeRef = useRef<DetailsVerticalResizeSession | null>(null);
   const lastAutoFitKeyRef = useRef<string | null>(null);
   const manualResizeSuppressedKeyRef = useRef<string | null>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY);
+    if (saved) {
+      try {
+        return { ...DEFAULT_COLUMN_WIDTHS, ...JSON.parse(saved) };
+      } catch {
+        return DEFAULT_COLUMN_WIDTHS;
+      }
+    }
+    return DEFAULT_COLUMN_WIDTHS;
+  });
+
+  const handleColumnResize = useCallback((columnKey: string, deltaX: number) => {
+    setColumnWidths((prev) => {
+      const nextWidth = Math.max(40, prev[columnKey] + deltaX);
+      const next = { ...prev, [columnKey]: nextWidth };
+      localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const currentRoot = drilldownPath[drilldownPath.length - 1] || { issueId, title: issueTitle };
@@ -3016,17 +3090,17 @@ export function TaskDetailsDialog({
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
                       <div className="flex items-center py-2 px-4 bg-[#f8f8f8] z-20 border-b border-slate-300 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
-                      <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
+                      <div className="shrink-0 flex items-center relative group" style={{ width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}>
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
-                        {t('timeline.task', { defaultValue: 'Task' })}
+                        {t('timeline.task', { defaultValue: 'Task' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('task', deltaX)} />
                       </div>
-                      <div className="w-[56px] min-w-[56px] shrink-0 text-center px-2">{t('timeline.commentsCol', { defaultValue: 'Comments' })}</div>
-                      <div className="w-[90px] min-w-[90px] shrink-0 text-left px-2">{t('timeline.trackerCol', { defaultValue: 'Tracker' })}</div>
-                      <div className="w-[90px] min-w-[90px] shrink-0 text-left px-2">{t('timeline.priorityCol', { defaultValue: 'Priority' })}</div>
-                      <div className="w-[80px] min-w-[80px] shrink-0 text-left px-2">{t('timeline.statusCol', { defaultValue: 'Status' })}</div>
-                      <div className="w-[120px] min-w-[120px] shrink-0 text-left px-2">{t('timeline.progressCol', { defaultValue: 'Progress' })}</div>
-                      <div className="w-[260px] min-w-[260px] shrink-0 text-left px-2">{t('timeline.dateRangeCol', { defaultValue: 'Date Range' })}</div>
-                      <div className="w-[120px] min-w-[120px] shrink-0 text-left px-2">{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}</div>
+                      <div className="shrink-0 text-center px-2 relative group" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>{t('timeline.commentsCol', { defaultValue: 'Comments' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('comments', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}>{t('timeline.trackerCol', { defaultValue: 'Tracker' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('tracker', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}>{t('timeline.priorityCol', { defaultValue: 'Priority' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('priority', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}>{t('timeline.statusCol', { defaultValue: 'Status' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('status', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}>{t('timeline.progressCol', { defaultValue: 'Progress' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('progress', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.dateRange}px`, minWidth: `${columnWidths.dateRange}px` }}>{t('timeline.dateRangeCol', { defaultValue: 'Date Range' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('dateRange', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}>{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('assignee', deltaX)} /></div>
                     </div>
                     {/* Task Tree */}
                     {treeRoots.map((rootNode) => (
@@ -3057,6 +3131,7 @@ export function TaskDetailsDialog({
                         selectedIssueId={selectedIssue?.issue_id}
                         masters={masters}
                         onFieldUpdate={handleFieldUpdate}
+                        columnWidths={columnWidths}
                       />
                     ))}
                   </div>
