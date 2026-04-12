@@ -32,6 +32,7 @@ import {
   drawStrokeText,
   prepareHiDPICanvas
 } from './canvasTimelineRenderer';
+import { getProgressFillColor, getProgressTrackColor } from './constants';
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -56,10 +57,12 @@ type IssueTreeNodeProps = {
   handleDateChange: (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => void;
   onAddSubIssue: (parentIssue: TaskDetailIssue) => void;
   onEditIssue: (issue: TaskDetailIssue) => void;
+  onViewIssue: (issue: TaskDetailIssue) => void;
   onSelectIssue?: (node: TreeNodeType) => void;
   selectedIssueId?: number | null;
   masters: TaskMasters | null;
   onFieldUpdate: (issueId: number, field: string, value: string | number | null) => Promise<void>;
+  columnWidths: Record<string, number>;
 };
 
 type EditingCell = { field: string; value: string };
@@ -103,24 +106,35 @@ type DrilldownCrumb = {
   title?: string;
 };
 
-const processStatusStyles: Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDING', { fill: string; text: string; stroke: string; textStroke?: string; textStrokeWidth?: string }> = {
-  COMPLETED: { fill: '#1e3a8a', text: '#ffffff', stroke: '#1e3a8a', textStroke: 'transparent', textStrokeWidth: '0px' },
-  IN_PROGRESS: { fill: '#2563eb', text: '#1e3a8a', stroke: '#2563eb', textStroke: '#ffffff', textStrokeWidth: '3px' },
-  PENDING: { fill: 'url(#stripePattern)', text: '#475569', stroke: '#94a3b8', textStroke: '#ffffff', textStrokeWidth: '3px' }
+const processStatusStyles: Record<ProcessFlowStep['status'], {
+  fill: string;
+  text: string;
+  stroke: string;
+  accent: string;
+  progressText: string;
+  dateText: string;
+}> = {
+  COMPLETED: { fill: '#253248', text: '#1e293b', stroke: '#94a3b8', accent: '#2563eb', progressText: '#1f2937', dateText: '#475569' },
+  IN_PROGRESS: { fill: '#253248', text: '#1e293b', stroke: '#94a3b8', accent: '#f97316', progressText: '#1f2937', dateText: '#475569' },
+  PENDING: { fill: '#253248', text: '#1e293b', stroke: '#94a3b8', accent: '#64748b', progressText: '#1f2937', dateText: '#475569' }
 };
 
 const PROCESS_FLOW_MIN_WIDTH = 640;
-const PROCESS_FLOW_YEAR_ROW_HEIGHT = 24;
-const PROCESS_FLOW_MONTH_ROW_HEIGHT = 24;
+const PROCESS_FLOW_YEAR_ROW_HEIGHT = 25;
+const PROCESS_FLOW_MONTH_ROW_HEIGHT = 25;
 const PROCESS_FLOW_HEADER_HEIGHT = PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT;
-const PROCESS_FLOW_LANE_HEIGHT = 100;
+const PROCESS_FLOW_LANE_HEIGHT = 122;
 const PROCESS_FLOW_BAR_HEIGHT = 36;
-const PROCESS_FLOW_BAR_Y = 22;
-const PROCESS_FLOW_BAR_SPACING_Y = 17;
-const PROCESS_FLOW_POINT_DEPTH = 18;
+const PROCESS_FLOW_BAR_Y = 28;
+const PROCESS_FLOW_BAR_SPACING_Y = 34;
+const PROCESS_FLOW_POINT_DEPTH = 22;
 const PROCESS_FLOW_DIAMOND_WIDTH = PROCESS_FLOW_BAR_HEIGHT;
 const PROCESS_FLOW_TRIANGLE_WIDTH = (PROCESS_FLOW_BAR_HEIGHT * Math.sqrt(3)) / 2;
-const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 16;
+const PROCESS_FLOW_PROGRESS_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 18;
+const PROCESS_FLOW_ACCENT_HEIGHT = 4;
+const PROCESS_FLOW_LEFT_NOTCH_RATIO = 0.55;
+const PROCESS_FLOW_RIGHT_HEAD_RATIO = 0.62;
+const PROCESS_FLOW_DATE_LABEL_INSET = 8;
 const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
 const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
 const DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX = 320;
@@ -128,8 +142,21 @@ const DETAILS_TOP_PANE_MIN_HEIGHT_PX = 180;
 const DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX = 240;
 const DETAILS_LAYOUT_FALLBACK_HEIGHT_PX = 760;
 
+const COLUMN_WIDTH_STORAGE_KEY = 'redmine_report_task_details_column_widths';
+const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
+  task: 280,
+  comments: 56,
+  tracker: 90,
+  priority: 90,
+  status: 80,
+  progress: 120,
+  startDate: 130,
+  dueDate: 130,
+  assignee: 120
+};
+
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
-const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-200/80';
+const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-300';
 const TASK_CELL_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
 const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold truncate shadow-sm';
 const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 px-2 border border-slate-300 bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer';
@@ -161,116 +188,85 @@ const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   }
 `;
 
-const ProcessChevron = ({
-  x,
-  y,
-  width,
-  height,
-  pointDepth,
-  hasLeftNotch,
-  fill,
-  stroke,
-  progress,
-  id
-}: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  pointDepth: number;
-  hasLeftNotch: boolean;
-  fill: string;
-  stroke: string;
-  progress: number;
-  id: number;
-}) => {
-  const leftShape = !hasLeftNotch
-    ? `M ${x} ${y} L ${x} ${y + height}`
-    : `M ${x} ${y} L ${x + pointDepth} ${y + height / 2} L ${x} ${y + height}`;
-  const rightBaseX = x + Math.max(width - pointDepth, 0);
+const EMBEDDED_ISSUE_VIEW_EXTRA_CSS = `
+                  ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
+                  /* Contextual menu (Update, Edit etc. links) */
+                  .contextual, #content .contextual {
+                    display: block !important;
+                  }
+                  .contextual a, #content .contextual a {
+                    display: inline-block !important;
+                  }
+
+                  /* Show buttons for journal editing (comment edit) */
+                  div.journal form .buttons,
+                  div.journal form p.buttons,
+                  .edit-journal .buttons,
+                  .edit-journal p.buttons {
+                    display: block !important;
+                  }
+
+                  /* Hide main issue form buttons as per user request (use dialog's Save).
+                     We use opacity and absolute positioning instead of display:none to ensure
+                     Redmine's JavaScript and browser submit logic (click() etc.) still works on them. */
+                  #issue-form > .buttons,
+                  #issue-form > p.buttons,
+                  #edit_issue > .buttons,
+                  #edit_issue > p.buttons,
+                  #new_issue > .buttons,
+                  #new_issue > p.buttons {
+                    position: absolute !important;
+                    opacity: 0 !important;
+                    height: 0 !important;
+                    width: 0 !important;
+                    overflow: hidden !important;
+                    pointer-events: none !important;
+                  }
+`;
+
+const getProcessChevronMetrics = (width: number, pointDepth: number) => {
+  const leftNotchDepth = Math.min(pointDepth * PROCESS_FLOW_LEFT_NOTCH_RATIO, Math.max(width * 0.18, 8));
+  const rightHeadDepth = Math.min(pointDepth * PROCESS_FLOW_RIGHT_HEAD_RATIO, Math.max(width * 0.16, 10));
+  const leftShoulder = Math.max(4, Math.round(leftNotchDepth * 0.38));
+
+  return {
+    leftNotchDepth,
+    rightHeadDepth,
+    leftShoulder
+  };
+};
+
+const buildProcessChevronPathData = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  pointDepth: number,
+  hasLeftNotch: boolean
+) => {
+  const { leftNotchDepth, rightHeadDepth, leftShoulder } = getProcessChevronMetrics(width, pointDepth);
+  const leftShoulderX = x + leftShoulder;
+  const leftNotchTipX = x + leftNotchDepth;
+  const rightBaseX = x + Math.max(width - rightHeadDepth, leftShoulder);
   const rightTipX = x + width;
-  const rightShape = `L ${rightBaseX} ${y + height} L ${rightTipX} ${y + height / 2} L ${rightBaseX} ${y}`;
-  const pathData = `${leftShape} ${rightShape} Z`;
-  const separatorColor = fill === 'url(#stripePattern)' ? 'transparent' : 'white';
 
-  if (progress > 0 && progress < 100) {
-    return (
-      <g>
-        <defs>
-          <linearGradient id={`grad-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset={`${progress}%`} stopColor={fill} />
-            <stop offset={`${progress}%`} stopColor="#cbd5e1" />
-          </linearGradient>
-        </defs>
-        <path d={pathData} fill={`url(#grad-${id})`} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-        {hasLeftNotch && <path d={leftShape} stroke="white" strokeWidth="2" fill="none" />}
-      </g>
-    );
-  }
-
-  return (
-    <g>
-      <path d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-      {hasLeftNotch && <path d={leftShape} stroke={separatorColor} strokeWidth="2" fill="none" />}
-    </g>
-  );
-};
-
-const ProcessDiamond = ({
-  centerX,
-  y,
-  width,
-  height,
-  fill,
-  stroke,
-  id
-}: {
-  centerX: number;
-  y: number;
-  width: number;
-  height: number;
-  fill: string;
-  stroke: string;
-  id: number;
-}) => {
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
   const pathData = [
-    `M ${centerX} ${y}`,
-    `L ${centerX + halfWidth} ${y + halfHeight}`,
-    `L ${centerX} ${y + height}`,
-    `L ${centerX - halfWidth} ${y + halfHeight}`,
+    `M ${hasLeftNotch ? leftShoulderX : x} ${y}`,
+    hasLeftNotch ? `L ${leftNotchTipX} ${y + height / 2}` : '',
+    hasLeftNotch ? `L ${leftShoulderX} ${y + height}` : `L ${x} ${y + height}`,
+    `L ${rightBaseX} ${y + height}`,
+    `L ${rightTipX} ${y + height / 2}`,
+    `L ${rightBaseX} ${y}`,
     'Z'
-  ].join(' ');
+  ].filter(Boolean).join(' ');
 
-  return <path data-testid={`task-details-process-step-diamond-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
-};
-
-const ProcessTriangle = ({
-  x,
-  y,
-  width,
-  height,
-  fill,
-  stroke,
-  id
-}: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fill: string;
-  stroke: string;
-  id: number;
-}) => {
-  const pathData = [
-    `M ${x} ${y}`,
-    `L ${x + width} ${y + height / 2}`,
-    `L ${x} ${y + height}`,
-    'Z'
-  ].join(' ');
-
-  return <path data-testid={`task-details-process-step-triangle-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
+  return {
+    pathData,
+    leftShoulderX,
+    leftNotchTipX,
+    rightBaseX,
+    rightTipX
+  };
 };
 
 const drawSelectedProcessOutline = (
@@ -323,20 +319,24 @@ const drawSelectedProcessOutline = (
   const leftEdgeX = step.x - 3;
   const topY = step.stepY - 3;
   const bottomY = step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3;
-  const rightBaseX = step.x + step.width - PROCESS_FLOW_POINT_DEPTH;
-  const rightTipX = step.x + step.width + 3;
+  const {
+    leftShoulderX,
+    leftNotchTipX,
+    rightBaseX,
+    rightTipX
+  } = buildProcessChevronPathData(step.x, step.stepY, step.width, PROCESS_FLOW_BAR_HEIGHT, PROCESS_FLOW_POINT_DEPTH, step.hasLeftNotch);
 
   context.beginPath();
   if (step.hasLeftNotch) {
-    context.moveTo(leftEdgeX, topY);
-    context.lineTo(step.x + PROCESS_FLOW_POINT_DEPTH, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
-    context.lineTo(leftEdgeX, bottomY);
+    context.moveTo(leftShoulderX - 3, topY);
+    context.lineTo(leftNotchTipX + 3, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+    context.lineTo(leftShoulderX - 3, bottomY);
   } else {
     context.moveTo(leftEdgeX, topY);
     context.lineTo(leftEdgeX, bottomY);
   }
   context.lineTo(rightBaseX + 3, bottomY);
-  context.lineTo(rightTipX, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+  context.lineTo(rightTipX + 3, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
   context.lineTo(rightBaseX + 3, topY);
   context.closePath();
   context.stroke();
@@ -348,6 +348,7 @@ const extractMD = (isoDate: string) => {
   const parts = isoDate.split('-');
   return `${Number(parts[1])}/${Number(parts[2])}`;
 };
+const formatProgressLabel = (progress: number) => `${t('timeline.progressCol', { defaultValue: 'Progress' })}: ${progress}%`;
 
 type ProcessDragMode = 'move' | 'resize-left' | 'resize-right';
 type DetailsVerticalResizeSession = {
@@ -369,6 +370,43 @@ type ProcessDragSession = {
   moved: boolean;
 };
 
+const ColumnResizer = ({ onResize }: { onResize: (deltaX: number) => void }) => {
+  const [resizing, setResizing] = useState(false);
+  const startXRef = useRef(0);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizing(true);
+    startXRef.current = e.clientX;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!resizing) return;
+    const deltaX = e.clientX - startXRef.current;
+    if (deltaX !== 0) {
+      onResize(deltaX);
+      startXRef.current = e.clientX;
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    setResizing(false);
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+  };
+
+  return (
+    <div
+      className={`absolute right-0 top-0 bottom-0 w-1 border-r border-slate-300 cursor-ew-resize z-30 transition-colors ${resizing ? 'bg-blue-500 border-blue-500' : 'hover:bg-blue-400 group-hover:bg-slate-300'}`}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    />
+  );
+};
+
 const IssueTreeNode = ({
   node,
   depth,
@@ -379,10 +417,12 @@ const IssueTreeNode = ({
   handleDateChange,
   onAddSubIssue,
   onEditIssue,
+  onViewIssue,
   onSelectIssue,
   selectedIssueId,
   masters,
-  onFieldUpdate
+  onFieldUpdate,
+  columnWidths
 }: IssueTreeNodeProps) => {
   const progressRatio = Math.max(0, Math.min(100, Number(node.done_ratio ?? 0)));
   const isDone = progressRatio === 100;
@@ -392,7 +432,6 @@ const IssueTreeNode = ({
   const [editingDateRange, setEditingDateRange] = useState<EditingDateRange | null>(null);
   const [isSavingField, setIsSavingField] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const dateRangeRef = useRef<HTMLDivElement | null>(null);
   const startDateInputRef = useRef<HTMLInputElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -438,7 +477,7 @@ const IssueTreeNode = ({
   const statusLabel = node.status_name || t('status.pending');
   const isClosed = node.status_is_closed ?? false;
   const isInProgress = !isClosed && progressRatio > 0;
-  const statusBg = isClosed ? 'bg-emerald-500' : isInProgress ? 'bg-blue-500' : 'bg-slate-300';
+  const statusBg = isClosed ? 'bg-blue-600' : isInProgress ? 'bg-blue-500' : 'bg-slate-300';
   const statusText = isClosed ? 'text-white' : isInProgress ? 'text-white' : 'text-slate-600';
   const commentCount = node.comments?.length ?? 0;
   const hasComments = commentCount > 0;
@@ -580,8 +619,8 @@ const IssueTreeNode = ({
 
         {/* TASK Column */}
         <div
-          className="w-[280px] min-w-[280px] shrink-0 flex items-center"
-          style={{ paddingLeft: `${depth * 20}px` }}
+          className="shrink-0 flex items-center border-r border-slate-200/80 self-stretch"
+          style={{ paddingLeft: `${depth * 20}px`, width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}
           onClick={() => onSelectIssue?.(node)}
           data-testid={`task-title-cell-${node.issue_id}`}
         >
@@ -621,9 +660,11 @@ const IssueTreeNode = ({
               <span
                 data-testid="task-subject"
                 className={`text-[14px] leading-5 ${depth === 0 ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'} truncate hover:text-blue-700 block cursor-pointer`}
-                onClick={(e) => { e.stopPropagation(); onSelectIssue?.(node); }}
-                onDoubleClick={(e) => startEdit('subject', node.subject, e)}
-                title={node.subject}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewIssue(node);
+                }}
+                title={node.subject ? `${node.subject} (${t('timeline.viewIssue')})` : t('timeline.viewIssue')}
               >
                 {node.subject}
               </span>
@@ -657,7 +698,7 @@ const IssueTreeNode = ({
         </div>
 
         {/* COMMENTS Column */}
-        <div className="w-[56px] min-w-[56px] shrink-0 flex items-center justify-center px-2">
+        <div className="shrink-0 flex items-center justify-center px-2 border-r border-slate-200/80 self-stretch" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>
           {hasComments ? (
             <span
               data-testid="task-comment-indicator"
@@ -681,7 +722,8 @@ const IssueTreeNode = ({
 
         {/* TRACKER Column */}
         <div
-          className={`w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`}
+          style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}
           onDoubleClick={(e) => startEdit('tracker_id', String(node.tracker_id || ''), e)}
         >
           {isEditing('tracker_id') && masters ? (
@@ -709,7 +751,7 @@ const IssueTreeNode = ({
 
         {/* PRIORITY Column */}
         <div
-          className={`w-[90px] min-w-[90px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}
           onDoubleClick={(e) => startEdit('priority_id', String(node.priority_id || ''), e)}
         >
           {isEditing('priority_id') && masters ? (
@@ -737,7 +779,7 @@ const IssueTreeNode = ({
 
         {/* STATUS Column */}
         <div
-          className={`w-[80px] min-w-[80px] shrink-0 flex items-center justify-start px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}
           onDoubleClick={(e) => startEdit('status_id', String(node.status_id || ''), e)}
         >
           {isEditing('status_id') && masters ? (
@@ -762,7 +804,7 @@ const IssueTreeNode = ({
 
         {/* PROGRESS Column */}
         <div
-          className={`w-[120px] min-w-[120px] shrink-0 flex items-center gap-2 justify-start px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center gap-2 justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}
           onDoubleClick={(e) => startEdit('done_ratio', String(progressRatio), e)}
         >
           {isEditing('done_ratio') ? (
@@ -781,114 +823,114 @@ const IssueTreeNode = ({
           ) : (
             <>
               <div className="h-2 w-full max-w-[72px] overflow-hidden rounded-full bg-slate-200/90 relative">
-                <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
+                <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-blue-600' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
               </div>
               <span className="text-[11px] text-slate-600 font-semibold tabular-nums" data-testid="progress-text">{progressRatio}%</span>
             </>
           )}
         </div>
 
-        {/* DATE RANGE Column */}
-        <div className="w-[260px] min-w-[260px] shrink-0 flex items-center gap-1.5 px-2 justify-start">
-          <div
-            ref={dateRangeRef}
-            className="flex items-center gap-1.5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="relative w-[110px] h-8">
-              <span
-                data-testid={`start-date-display-${node.issue_id}`}
-                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
-                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-                onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
-              >
-                {displayStartDate ? displayStartDate.replace(/-/g, '/') : '-'}
-              </span>
-              {isEditingDateRange ? (
-                <input
-                  ref={startDateInputRef}
-                  type="date"
-                  data-testid={`start-date-input-${node.issue_id}`}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  value={dateRangeDraft?.startDate || ''}
-                  max={dateRangeDraft?.dueDate || undefined}
-                  onChange={(e) => {
-                    updateDateRangeDraft('startDate', e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      cancelDateRangeEdit();
-                    } else if (e.key === 'Enter') {
-                      e.preventDefault();
-                      commitDateRangeEdit();
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const nextTarget = e.relatedTarget as Node | null;
-                    if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
-                    commitDateRangeEdit();
-                  }}
-                  onDoubleClick={(e) => {
+        {/* START DATE Column */}
+        <div
+          className={`shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`}
+          style={{ width: `${columnWidths.startDate ?? 130}px`, minWidth: `${columnWidths.startDate ?? 130}px` }}
+        >
+          <div className="relative w-full h-8">
+            <span
+              data-testid={`start-date-display-${node.issue_id}`}
+              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate"
+              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+              onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayStartDate ? displayStartDate.replace(/-/g, '/') : '-'}
+            </span>
+            {isEditingDateRange && (editingDateRange.focusField === 'start_date' || !node.start_date) && (
+              <input
+                ref={startDateInputRef}
+                type="date"
+                data-testid={`start-date-input-${node.issue_id}`}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                value={dateRangeDraft?.startDate || ''}
+                max={dateRangeDraft?.dueDate || undefined}
+                onChange={(e) => {
+                  updateDateRangeDraft('startDate', e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
                     e.preventDefault();
-                    e.stopPropagation();
-                    openDatePicker(e.currentTarget);
-                  }}
-                />
-              ) : null}
-            </div>
-            <span className="text-slate-300 text-[10px] font-bold">-</span>
-            <div className="relative w-[110px] h-8">
-              <span
-                data-testid={`due-date-display-${node.issue_id}`}
-                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
-                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-                onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
-              >
-                {displayDueDate ? displayDueDate.replace(/-/g, '/') : '-'}
-              </span>
-              {isEditingDateRange ? (
-                <input
-                  ref={dueDateInputRef}
-                  type="date"
-                  data-testid={`due-date-input-${node.issue_id}`}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  value={dateRangeDraft?.dueDate || ''}
-                  min={dateRangeDraft?.startDate || undefined}
-                  onChange={(e) => {
-                    updateDateRangeDraft('dueDate', e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      cancelDateRangeEdit();
-                    } else if (e.key === 'Enter') {
-                      e.preventDefault();
-                      commitDateRangeEdit();
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const nextTarget = e.relatedTarget as Node | null;
-                    if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
-                    commitDateRangeEdit();
-                  }}
-                  onDoubleClick={(e) => {
+                    cancelDateRangeEdit();
+                  } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    e.stopPropagation();
-                    openDatePicker(e.currentTarget);
-                  }}
-                />
-              ) : null}
-            </div>
+                    commitDateRangeEdit();
+                  }
+                }}
+                onBlur={commitDateRangeEdit}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openDatePicker(e.currentTarget);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
           </div>
-          {isSaving && (
-            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 ml-1"></div>
-          )}
+        </div>
+
+        {/* DUE DATE Column */}
+        <div
+          className={`shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`}
+          style={{ width: `${columnWidths.dueDate ?? 130}px`, minWidth: `${columnWidths.dueDate ?? 130}px` }}
+        >
+          <div className="relative w-full h-8 flex items-center">
+            <span
+              data-testid={`due-date-display-${node.issue_id}`}
+              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate"
+              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+              onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayDueDate ? displayDueDate.replace(/-/g, '/') : '-'}
+            </span>
+            {isEditingDateRange && (editingDateRange.focusField === 'due_date' || !node.due_date) && (
+              <input
+                ref={dueDateInputRef}
+                type="date"
+                data-testid={`due-date-input-${node.issue_id}`}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                value={dateRangeDraft?.dueDate || ''}
+                min={dateRangeDraft?.startDate || undefined}
+                onChange={(e) => {
+                  updateDateRangeDraft('dueDate', e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelDateRangeEdit();
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commitDateRangeEdit();
+                  }
+                }}
+                onBlur={commitDateRangeEdit}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openDatePicker(e.currentTarget);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
+            {isSaving && (
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 ml-1 flex-shrink-0"></div>
+            )}
+          </div>
         </div>
 
         {/* ASSIGNEE Column */}
         <div
-          className={`w-[120px] min-w-[120px] shrink-0 flex items-center justify-start gap-1.5 px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start gap-1.5 px-2 overflow-hidden ${cellClass}`}
+          style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}
           onDoubleClick={(e) => startEdit('assigned_to_id', String(node.assignee_id || ''), e)}
         >
           {isEditing('assigned_to_id') && masters ? (
@@ -934,10 +976,12 @@ const IssueTreeNode = ({
           handleDateChange={handleDateChange}
           onAddSubIssue={onAddSubIssue}
           onEditIssue={onEditIssue}
+          onViewIssue={onViewIssue}
           onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
           masters={masters}
           onFieldUpdate={onFieldUpdate}
+          columnWidths={columnWidths}
         />
       ))}
     </>
@@ -1798,6 +1842,361 @@ function IssueEditDialog({
   );
 }
 
+function IssueViewDialog({
+  projectIdentifier,
+  issueId,
+  issueUrl,
+  inheritedFields = {},
+  onSaved,
+  onClose
+}: {
+  projectIdentifier: string;
+  issueId: number;
+  issueUrl: string;
+  inheritedFields?: InheritedSubIssueFields;
+  onSaved?: (updatedIssueId?: number) => void;
+  onClose: () => void;
+}) {
+  const iframeUrl = issueUrl;
+  const externalUrl = iframeUrl;
+  const [iframeReady, setIframeReady] = useState(false);
+  const [iframeError, setIframeError] = useState<string | null>(null);
+  const [iframeHeader, setIframeHeader] = useState('');
+  const [iframeSubject, setIframeSubject] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const footerRef = useRef<HTMLDivElement | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const cleanupIframeEscRef = useRef<(() => void) | null>(null);
+  const handledSaveRef = useRef(false);
+  const awaitingRedirectRef = useRef(false);
+
+  const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
+    isOpen: true,
+    iframeRef,
+    headerRef,
+    footerRef,
+    errorRef,
+    sectionRef,
+  });
+
+  const createBulkIssues = async (parentIssueId: number, lines: string[], defaults: InheritedSubIssueFields) => {
+    for (const subject of lines) {
+      const payload: BulkIssuePayload = { subject, ...defaults };
+      await createIssue(projectIdentifier, parentIssueId, payload);
+    }
+  };
+
+  const findEmbeddedIssueForm = () => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
+    const form =
+      doc.querySelector<HTMLFormElement>('form#issue-form') ||
+      doc.querySelector<HTMLFormElement>('form#edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form#new_issue') ||
+      doc.querySelector<HTMLFormElement>('#issue-form form') ||
+      doc.querySelector<HTMLFormElement>('form.edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form.new_issue');
+    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
+    return { doc, form };
+  };
+
+  const submitDefaultIssueForm = () => {
+    try {
+      const { form } = findEmbeddedIssueForm();
+      const submitter =
+        form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('button[name="commit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('input[type="submit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
+      if (submitter) {
+        submitter.click();
+        return;
+      }
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+        return;
+      }
+      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+      if (form.dispatchEvent(submitEvent)) form.submit();
+    } catch (err: any) {
+      alert(t('common.alertError', { message: err.message }));
+    }
+  };
+
+  const handleSave = async () => {
+    const lines = bulkText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
+
+    if (lines.length === 0) {
+      const doc = iframeRef.current?.contentDocument;
+      if (doc) {
+        awaitingRedirectRef.current = true;
+        submitDefaultIssueForm();
+        return;
+      }
+      onClose();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createBulkIssues(issueId, lines, inheritedFields);
+      setBulkText('');
+      setBulkOpen(false);
+      onSaved?.(issueId);
+      onClose();
+    } catch (err: any) {
+      alert(t('common.alertError', { message: err.message }));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    setIframeReady(false);
+    setIframeError(null);
+    setIframeHeader('');
+    setIframeSubject('');
+    cleanupIframeEscRef.current?.();
+    cleanupIframeEscRef.current = null;
+    handledSaveRef.current = false;
+    awaitingRedirectRef.current = false;
+    resetLayout();
+  }, [iframeUrl, resetLayout]);
+
+  useEffect(() => {
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onEsc, true);
+    return () => window.removeEventListener('keydown', onEsc, true);
+  }, [onClose]);
+
+  useEffect(() => () => {
+    cleanupIframeEscRef.current?.();
+    cleanupIframeEscRef.current = null;
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-white rounded-[6px] shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden"
+        style={{
+          width: `${DEFAULT_DIALOG_WIDTH_PX}px`,
+          maxWidth: '98vw',
+          height: `${dialogHeightPx ?? getEmbeddedDialogDefaultHeight()}px`,
+          maxHeight: `${Math.floor(window.innerHeight * MAX_DIALOG_VIEWPORT_HEIGHT_RATIO)}px`,
+          boxSizing: 'border-box',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          ref={headerRef}
+          data-testid="view-issue-dialog-header"
+          className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white"
+          style={{ padding: '2px 12px' }}
+        >
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            {iframeHeader ? (
+              <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} ${iframeSubject}`}>
+                {iframeHeader} {iframeSubject}
+              </span>
+            ) : (
+              <React.Fragment>
+                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
+                  #{issueId}
+                </span>
+                <span className="text-[14px] font-bold text-slate-800 truncate">{t('timeline.viewIssueDialogTitle')}</span>
+              </React.Fragment>
+            )}
+          </div>
+          <div className="flex items-center gap-[6px] flex-shrink-0">
+            <a
+              href={externalUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
+              title={t('common.openInNewTab')}
+              aria-label={t('common.openInNewTab')}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
+              </svg>
+            </a>
+            <button
+              type="button"
+              aria-label={t('timeline.closeDialogAria')}
+              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
+              onClick={onClose}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="relative flex-1 min-h-0 bg-white overflow-hidden">
+          {iframeError ? (
+            <div
+              ref={errorRef}
+              data-testid="view-issue-dialog-error"
+              style={{
+                flex: '0 0 auto',
+                padding: '12px 16px',
+                backgroundColor: '#fdecea',
+                color: '#b71c1c',
+                borderBottom: '1px solid #f5c6cb',
+                fontSize: 13,
+              }}
+            >
+              {iframeError}
+            </div>
+          ) : null}
+          <iframe
+            ref={iframeRef}
+            title={t('timeline.viewIssueDialogTitle')}
+            src={iframeUrl}
+            className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={(e) => {
+              try {
+                const doc = (e.target as HTMLIFrameElement).contentDocument;
+                if (!doc) return;
+
+                const iframeErrorMessage = getEmbeddedIssueDialogErrorMessage(doc);
+                applyEmbeddedIssueDialogStyles(doc, {
+                  contentPadding: '16px',
+                  extraCss: EMBEDDED_ISSUE_VIEW_EXTRA_CSS,
+                  styleId: `${ISSUE_DIALOG_STYLE_ID}-view`,
+                });
+                setIframeError(iframeErrorMessage);
+                bindIframeSizeObservers(doc);
+
+                const pathname = doc.location?.pathname || '';
+                if (
+                  !handledSaveRef.current &&
+                  awaitingRedirectRef.current &&
+                  new RegExp(`^/issues/${issueId}(?:[/?#]|$)`).test(pathname) &&
+                  !iframeErrorMessage
+                ) {
+                  handledSaveRef.current = true;
+                  awaitingRedirectRef.current = false;
+                  onSaved?.(issueId);
+                  onClose();
+                  return;
+                }
+
+                try {
+                  const h2Ele = doc.querySelector('h2');
+                  if (h2Ele) setIframeHeader(h2Ele.textContent || '');
+                  const subjectDiv = doc.querySelector('.subject h3');
+                  if (subjectDiv) setIframeSubject(subjectDiv.textContent || '');
+                } catch {
+                  // Ignore iframe parsing failures.
+                }
+                cleanupIframeEscRef.current?.();
+                cleanupIframeEscRef.current = bindIframeEscapeHandler(doc, onClose);
+              } catch {
+                setIframeError(null);
+              }
+              requestAnimationFrame(() => {
+                setIframeReady(true);
+                measureDialogHeight();
+              });
+            }}
+          />
+          {!iframeReady && (
+            <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
+              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div>
+            </div>
+          )}
+        </div>
+
+        <div
+          ref={sectionRef}
+          className="border-t border-slate-200 bg-white flex-shrink-0"
+          style={{ padding: '8px 12px 0 12px' }}
+        >
+          <button
+            type="button"
+            className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
+            onClick={() => setBulkOpen(!bulkOpen)}
+          >
+            <span
+              className="inline-block transition-transform duration-200 text-xs"
+              style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            >
+              ▶
+            </span>
+            <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
+          </button>
+
+          {bulkOpen && (
+            <div className="mt-3">
+              <textarea
+                className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y"
+                placeholder={t('subIssueDialog.bulkPlaceholder')}
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+
+        <div
+          ref={footerRef}
+          data-testid="view-issue-dialog-footer"
+          className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-slate-200"
+          style={{ padding: '8px 12px 12px 12px' }}
+        >
+          <button
+            type="button"
+            className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
+            style={{
+              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
+              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+              borderColor: '#cbd5e1',
+              color: '#334155',
+            }}
+            onClick={onClose}
+          >
+            {t('common.close')}
+          </button>
+          <button
+            type="button"
+            className="rounded-[6px] border text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
+            style={{
+              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
+              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+              borderColor: '#2563eb',
+              backgroundColor: '#1b69e3',
+              color: '#fff',
+            }}
+            disabled={isSubmitting || !iframeReady}
+            onClick={handleSave}
+          >
+            {isSubmitting ? t('common.saving') : t('common.save')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export function TaskDetailsDialog({
   open,
   projectIdentifier,
@@ -1816,6 +2215,10 @@ export function TaskDetailsDialog({
     inheritedFields: InheritedSubIssueFields;
   } | null>(null);
   const [editIssueContext, setEditIssueContext] = useState<{
+    issueId: number;
+    issueUrl: string;
+  } | null>(null);
+  const [viewIssueContext, setViewIssueContext] = useState<{
     issueId: number;
     issueUrl: string;
   } | null>(null);
@@ -1844,6 +2247,27 @@ export function TaskDetailsDialog({
   const verticalResizeRef = useRef<DetailsVerticalResizeSession | null>(null);
   const lastAutoFitKeyRef = useRef<string | null>(null);
   const manualResizeSuppressedKeyRef = useRef<string | null>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY);
+    if (saved) {
+      try {
+        return { ...DEFAULT_COLUMN_WIDTHS, ...JSON.parse(saved) };
+      } catch {
+        return DEFAULT_COLUMN_WIDTHS;
+      }
+    }
+    return DEFAULT_COLUMN_WIDTHS;
+  });
+
+  const handleColumnResize = useCallback((columnKey: string, deltaX: number) => {
+    setColumnWidths((prev) => {
+      const currentWidth = prev[columnKey] ?? DEFAULT_COLUMN_WIDTHS[columnKey] ?? 100;
+      const nextWidth = Math.max(40, currentWidth + deltaX);
+      const next = { ...prev, [columnKey]: nextWidth };
+      localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const currentRoot = drilldownPath[drilldownPath.length - 1] || { issueId, title: issueTitle };
@@ -1945,6 +2369,7 @@ export function TaskDetailsDialog({
     }
     setCreateIssueContext(null);
     setEditIssueContext(null);
+    setViewIssueContext(null);
     setEditingDescription(false);
     setNewCommentDraft('');
     setEditingCommentId(null);
@@ -2126,10 +2551,10 @@ export function TaskDetailsDialog({
       const hitWidth = step.shapeKind === 'range'
         ? visualWidth
         : Math.max(visualWidth, processFlowAxis.pixelsPerDay);
-      const hitX = step.shapeKind === 'start-only'
+      const hitX = (step.shapeKind === 'range' || step.shapeKind === 'start-only')
         ? anchorX
         : anchorX - hitWidth / 2;
-      const shapeX = step.shapeKind === 'start-only'
+      const shapeX = (step.shapeKind === 'range' || step.shapeKind === 'start-only')
         ? anchorX
         : anchorX - visualWidth / 2;
 
@@ -2155,7 +2580,7 @@ export function TaskDetailsDialog({
 
     return positionedSteps.map((step, index) => {
       const isFirst = index === 0;
-      const hasLeftNotch = step.shapeKind === 'range' && !isFirst;
+      const hasLeftNotch = false;
       const previousStep = index > 0 ? positionedSteps[index - 1] : null;
       const joinsPrevious = Boolean(
         step.shapeKind === 'range' &&
@@ -2166,16 +2591,13 @@ export function TaskDetailsDialog({
         differenceInCalendarDays(parseISO(step.startDate), parseISO(previousStep.dueDate)) === 1 &&
         step.laneIndex === previousStep.laneIndex
       );
-      const x = hasLeftNotch ? step.shapeX - PROCESS_FLOW_POINT_DEPTH : step.shapeX;
-      const width = hasLeftNotch ? step.visualWidth + PROCESS_FLOW_POINT_DEPTH : step.visualWidth;
-
       return {
         ...step,
         isFirst,
         hasLeftNotch,
         joinsPrevious,
-        x,
-        width,
+        x: step.shapeX,
+        width: step.visualWidth,
         textX: step.shapeKind === 'due-only' ? step.anchorX : step.shapeX + step.visualWidth / 2
       };
     });
@@ -2190,6 +2612,10 @@ export function TaskDetailsDialog({
     34 + (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y + 30
   );
   const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
+  const processFlowBaseTopPadding = useMemo(() => {
+    const totalBarsHeight = (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y;
+    return (processFlowLaneHeight - totalBarsHeight) / 2;
+  }, [maxProcessFlowLane, processFlowLaneHeight]);
 
   useLayoutEffect(() => {
     if (!processFlowAxis || !processFlowCanvasRef.current) return;
@@ -2254,7 +2680,10 @@ export function TaskDetailsDialog({
 
     processFlowRenderSteps.forEach((step) => {
       const style = processStatusStyles[step.status];
-      const stepY = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+      const fill = getProgressFillColor(step.progress);
+      const stepY = PROCESS_FLOW_HEADER_HEIGHT + processFlowBaseTopPadding + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+      const rangeStartLabelX = step.shapeX + PROCESS_FLOW_DATE_LABEL_INSET;
+      const rangeEndLabelX = step.shapeX + step.visualWidth - PROCESS_FLOW_DATE_LABEL_INSET;
 
       if (step.shapeKind === 'due-only') {
         drawDiamond(context, {
@@ -2262,8 +2691,10 @@ export function TaskDetailsDialog({
           y: stepY,
           width: step.visualWidth,
           height: PROCESS_FLOW_BAR_HEIGHT,
-          fill: style.fill,
+          fill,
+          trackFill: getProgressTrackColor(),
           stroke: style.stroke,
+          progress: step.progress,
           shadow: true
         });
       } else if (step.shapeKind === 'start-only') {
@@ -2272,8 +2703,10 @@ export function TaskDetailsDialog({
           y: stepY,
           width: step.visualWidth,
           height: PROCESS_FLOW_BAR_HEIGHT,
-          fill: style.fill,
+          fill,
+          trackFill: getProgressTrackColor(),
           stroke: style.stroke,
+          progress: step.progress,
           shadow: true
         });
       } else {
@@ -2284,10 +2717,10 @@ export function TaskDetailsDialog({
           height: PROCESS_FLOW_BAR_HEIGHT,
           pointDepth: PROCESS_FLOW_POINT_DEPTH,
           hasLeftNotch: step.hasLeftNotch,
-          fill: style.fill,
+          fill,
+          trackFill: getProgressTrackColor(),
           stroke: style.stroke,
           progress: step.progress,
-          separatorColor: style.fill === 'url(#stripePattern)' ? 'transparent' : 'white',
           shadow: true
         });
       }
@@ -2309,38 +2742,35 @@ export function TaskDetailsDialog({
         drawStrokeText(context, {
           text: extractMD(step.anchorDate),
           x: step.textX,
-          y: stepY - 4,
-          fill: '#374151',
+          y: stepY - 6,
+          fill: style.dateText,
           stroke: '#ffffff',
           strokeWidth: 2,
-          font: '700 10px sans-serif',
-          textBaseline: 'alphabetic'
+          font: '700 10px sans-serif'
         });
       } else {
         if (step.startDate) {
           drawStrokeText(context, {
             text: extractMD(step.startDate),
-            x: step.hitX,
-            y: stepY - 4,
-            fill: '#374151',
+            x: rangeStartLabelX,
+            y: stepY - 6,
+            fill: style.dateText,
             stroke: '#ffffff',
             strokeWidth: 2,
             font: '700 10px sans-serif',
-            textAlign: 'start',
-            textBaseline: 'alphabetic'
+            textAlign: 'start'
           });
         }
         if (step.dueDate) {
           drawStrokeText(context, {
             text: extractMD(step.dueDate),
-            x: step.hitX + step.hitWidth,
-            y: stepY - 4,
-            fill: '#374151',
+            x: rangeEndLabelX,
+            y: stepY - 6,
+            fill: style.dateText,
             stroke: '#ffffff',
             strokeWidth: 2,
             font: '700 10px sans-serif',
-            textAlign: 'end',
-            textBaseline: 'alphabetic'
+            textAlign: 'end'
           });
         }
       }
@@ -2348,14 +2778,14 @@ export function TaskDetailsDialog({
       drawStrokeText(context, {
         text: step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title,
         x: step.textX,
-        y: stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1,
+        y: stepY + PROCESS_FLOW_PROGRESS_LABEL_Y - PROCESS_FLOW_BAR_Y,
         fill: style.text,
-        stroke: style.textStroke || '#ffffff',
-        strokeWidth: Number(String(style.textStrokeWidth || '3px').replace('px', '')),
+        stroke: '#ffffff',
+        strokeWidth: 3,
         font: '700 11px sans-serif'
       });
     });
-  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles, selectedIssueId]);
+  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles, selectedIssueId, processFlowBaseTopPadding]);
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
   const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
@@ -2722,10 +3152,10 @@ export function TaskDetailsDialog({
       pointerId: event.pointerId,
       mode,
       startClientX: event.clientX,
-      originalStartDate: step.startDate,
-      originalDueDate: step.dueDate,
-      currentStartDate: step.startDate,
-      currentDueDate: step.dueDate,
+      originalStartDate: step.startDate!,
+      originalDueDate: step.dueDate!,
+      currentStartDate: step.startDate!,
+      currentDueDate: step.dueDate!,
       moved: false
     };
 
@@ -2807,7 +3237,21 @@ export function TaskDetailsDialog({
                 </nav>
               )}
               <h3 className="text-[16px] font-semibold text-slate-900 flex items-center gap-2 min-w-0" data-testid="task-details-title">
-                <span className="truncate">{dialogHeaderTitle}</span>
+                <span
+                  className="truncate cursor-pointer hover:text-blue-600 transition-colors"
+                  onClick={() => {
+                    const row = issues.find((item) => item.issue_id === currentRootIssueId);
+                    if (row) {
+                      setViewIssueContext({
+                        issueId: currentRootIssueId,
+                        issueUrl: row.issue_url
+                      });
+                    }
+                  }}
+                  title={t('timeline.viewIssue')}
+                >
+                  {dialogHeaderTitle}
+                </span>
               </h3>
             </div>
             <button
@@ -2891,12 +3335,6 @@ export function TaskDetailsDialog({
                       aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
                       style={{ opacity: 0 }}
                     >
-                      <defs>
-                        <pattern id="stripePattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                          <rect width="6" height="6" fill="#f8fafc" />
-                          <line x1="0" y1="0" x2="0" y2="6" stroke="#e2e8f0" strokeWidth="2" />
-                        </pattern>
-                      </defs>
                       <rect
                         x={0}
                         y={0}
@@ -2979,8 +3417,7 @@ export function TaskDetailsDialog({
                         />
 
                         {processFlowRenderSteps.map((step) => {
-                          const style = processStatusStyles[step.status];
-                          const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+                          const stepY = processFlowBaseTopPadding + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
                           const isInteractive = !savingIssueIds[step.id];
                           const isRangeStep = step.shapeKind === 'range';
                           const isSelected = selectedIssueId === step.id;
@@ -2992,77 +3429,6 @@ export function TaskDetailsDialog({
                               data-selected={isSelected ? 'true' : 'false'}
                               opacity={savingIssueIds[step.id] ? 0.6 : 1}
                             >
-                              {/* Date labels above the bar */}
-                              {step.shapeKind !== 'range' ? (
-                                <text
-                                  x={step.textX}
-                                  y={stepY - 4}
-                                  fill="#374151"
-                                  fontSize="10"
-                                  fontWeight="bold"
-                                  textAnchor="middle"
-                                >
-                                  {extractMD(step.anchorDate)}
-                                </text>
-                              ) : (
-                                <>
-                                  <text
-                                    x={step.hitX}
-                                    y={stepY - 4}
-                                    fill="#374151"
-                                    fontSize="10"
-                                    fontWeight="bold"
-                                    textAnchor="start"
-                                  >
-                                    {step.startDate ? extractMD(step.startDate) : ''}
-                                  </text>
-                                  <text
-                                    x={step.hitX + step.hitWidth}
-                                    y={stepY - 4}
-                                    fill="#374151"
-                                    fontSize="10"
-                                    fontWeight="bold"
-                                    textAnchor="end"
-                                  >
-                                    {step.dueDate ? extractMD(step.dueDate) : ''}
-                                  </text>
-                                </>
-                              )}
-
-                              {step.shapeKind === 'due-only' ? (
-                                <ProcessDiamond
-                                  centerX={step.textX}
-                                  y={stepY}
-                                  width={step.visualWidth}
-                                  height={PROCESS_FLOW_BAR_HEIGHT}
-                                  fill={style.fill}
-                                  stroke={style.stroke}
-                                  id={step.id}
-                                />
-                              ) : step.shapeKind === 'start-only' ? (
-                                <ProcessTriangle
-                                  x={step.shapeX}
-                                  y={stepY}
-                                  width={step.visualWidth}
-                                  height={PROCESS_FLOW_BAR_HEIGHT}
-                                  fill={style.fill}
-                                  stroke={style.stroke}
-                                  id={step.id}
-                                />
-                              ) : (
-                                <ProcessChevron
-                                  x={step.x}
-                                  y={stepY}
-                                  width={step.width}
-                                  height={PROCESS_FLOW_BAR_HEIGHT}
-                                  pointDepth={PROCESS_FLOW_POINT_DEPTH}
-                                  hasLeftNotch={step.hasLeftNotch}
-                                  fill={style.fill}
-                                  stroke={style.stroke}
-                                  progress={step.progress}
-                                  id={step.id}
-                                />
-                              )}
                               <rect
                                 x={step.hitX}
                                 y={stepY}
@@ -3100,25 +3466,6 @@ export function TaskDetailsDialog({
                                   />
                                 </>
                               )}
-                              <text
-                                x={step.textX}
-                                y={stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1}
-                                fill={style.text}
-                                fontSize="11"
-                                fontWeight="700"
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                                pointerEvents="none"
-                                style={{
-                                  paintOrder: 'stroke',
-                                  stroke: style.textStroke || '#ffffff',
-                                  strokeWidth: style.textStrokeWidth || '3px',
-                                  strokeLinecap: 'round',
-                                  strokeLinejoin: 'round'
-                                }}
-                              >
-                                {step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title}
-                              </text>
                             </g>
                           );
                         })}
@@ -3139,7 +3486,7 @@ export function TaskDetailsDialog({
                 tabIndex={0}
                 data-testid="task-details-horizontal-resizer"
                 data-resizing={verticalResizeSession ? 'true' : 'false'}
-                className={`relative z-20 shrink-0 cursor-row-resize bg-slate-300 transition-colors ${verticalResizeSession ? 'h-2 bg-slate-400' : 'h-1.5 hover:bg-slate-400'}`}
+                className={`relative z-20 shrink-0 cursor-ns-resize bg-slate-300 transition-colors ${verticalResizeSession ? 'h-2 bg-slate-400' : 'h-1.5 hover:bg-slate-400'}`}
                 onPointerDown={startVerticalResize}
                 onMouseDown={startVerticalResizeWithMouse}
                 onPointerMove={(event) => updateVerticalResize(event.clientY, event.pointerId)}
@@ -3158,18 +3505,19 @@ export function TaskDetailsDialog({
                 <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
-                      <div className="flex items-center py-2 px-4 bg-[#f8f8f8] z-20 border-b border-slate-300 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
-                      <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
+                      <div className="flex items-center py-2 px-4 bg-[#f8f8f8] z-20 border-b border-slate-400/40 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
+                      <div className="shrink-0 flex items-center relative group border-r border-slate-200/60 h-full overflow-hidden" style={{ width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}>
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
-                        {t('timeline.task', { defaultValue: 'Task' })}
+                        {t('timeline.task', { defaultValue: 'Task' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('task', deltaX)} />
                       </div>
-                      <div className="w-[56px] min-w-[56px] shrink-0 text-center px-2">{t('timeline.commentsCol', { defaultValue: 'Comments' })}</div>
-                      <div className="w-[90px] min-w-[90px] shrink-0 text-left px-2">{t('timeline.trackerCol', { defaultValue: 'Tracker' })}</div>
-                      <div className="w-[90px] min-w-[90px] shrink-0 text-left px-2">{t('timeline.priorityCol', { defaultValue: 'Priority' })}</div>
-                      <div className="w-[80px] min-w-[80px] shrink-0 text-left px-2">{t('timeline.statusCol', { defaultValue: 'Status' })}</div>
-                      <div className="w-[120px] min-w-[120px] shrink-0 text-left px-2">{t('timeline.progressCol', { defaultValue: 'Progress' })}</div>
-                      <div className="w-[260px] min-w-[260px] shrink-0 text-left px-2">{t('timeline.dateRangeCol', { defaultValue: 'Date Range' })}</div>
-                      <div className="w-[120px] min-w-[120px] shrink-0 text-left px-2">{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}</div>
+                      <div className="shrink-0 text-center px-2 relative group border-r border-slate-200/60 h-full flex items-center justify-center underline decoration-slate-300 decoration-dotted underline-offset-4 overflow-hidden" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>{t('timeline.commentsCol', { defaultValue: 'Comments' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('comments', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}>{t('timeline.trackerCol', { defaultValue: 'Tracker' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('tracker', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}>{t('timeline.priorityCol', { defaultValue: 'Priority' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('priority', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}>{t('timeline.statusCol', { defaultValue: 'Status' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('status', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}>{t('timeline.progressCol', { defaultValue: 'Progress' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('progress', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.startDate}px`, minWidth: `${columnWidths.startDate}px` }}>{t('timeline.startDateCol', { defaultValue: 'Start Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('startDate', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.dueDate}px`, minWidth: `${columnWidths.dueDate}px` }}>{t('timeline.dueDateCol', { defaultValue: 'Due Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('dueDate', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group flex items-center h-full overflow-hidden" style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}>{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('assignee', deltaX)} /></div>
                     </div>
                     {/* Task Tree */}
                     {treeRoots.map((rootNode) => (
@@ -3196,10 +3544,15 @@ export function TaskDetailsDialog({
                           issueId: issue.issue_id,
                           issueUrl: issue.issue_url
                         })}
+                        onViewIssue={(issue) => setViewIssueContext({
+                          issueId: issue.issue_id,
+                          issueUrl: issue.issue_url
+                        })}
                         onSelectIssue={handleTaskRowSelect}
                         selectedIssueId={selectedIssue?.issue_id}
                         masters={masters}
                         onFieldUpdate={handleFieldUpdate}
+                        columnWidths={columnWidths}
                       />
                     ))}
                   </div>
@@ -3216,7 +3569,17 @@ export function TaskDetailsDialog({
                           <span className="text-[11px] leading-none font-semibold text-slate-500 shrink-0">
                             #{selectedIssue.issue_id}
                           </span>
-                          <h4 className="text-[14px] leading-5 font-semibold text-slate-900 truncate" data-testid="task-details-selected-title">
+                          <h4
+                            className="text-[14px] leading-5 font-semibold text-slate-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                            data-testid="task-details-selected-title"
+                            onClick={() => {
+                              setViewIssueContext({
+                                issueId: selectedIssue.issue_id,
+                                issueUrl: selectedIssue.issue_url
+                              });
+                            }}
+                            title={t('timeline.viewIssue')}
+                          >
                             {selectedIssue.subject}
                           </h4>
                         </div>
@@ -3482,6 +3845,33 @@ export function TaskDetailsDialog({
           />
         )
       }
+      {
+        viewIssueContext !== null && (
+          <IssueViewDialog
+            projectIdentifier={projectIdentifier}
+            issueId={viewIssueContext.issueId}
+            issueUrl={viewIssueContext.issueUrl}
+            inheritedFields={(() => {
+              const issue = issues.find((i) => i.issue_id === viewIssueContext.issueId);
+              return issue ? {
+                tracker_id: issue.tracker_id,
+                priority_id: issue.priority_id,
+                assigned_to_id: issue.assignee_id,
+                start_date: issue.start_date,
+                due_date: issue.due_date
+              } : {};
+            })()}
+            onSaved={(updatedIssueId) => {
+              void reloadTaskDetails(currentRootIssueId, {
+                expectedIssueId: updatedIssueId ?? viewIssueContext.issueId,
+                selectedIssueId: updatedIssueId ?? viewIssueContext.issueId
+              });
+            }}
+            onClose={() => setViewIssueContext(null)}
+          />
+        )
+      }
+
     </div >
   );
 }
