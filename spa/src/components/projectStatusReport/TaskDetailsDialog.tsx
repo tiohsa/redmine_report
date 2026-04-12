@@ -394,7 +394,6 @@ const IssueTreeNode = ({
   const [editingDateRange, setEditingDateRange] = useState<EditingDateRange | null>(null);
   const [isSavingField, setIsSavingField] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const dateRangeRef = useRef<HTMLDivElement | null>(null);
   const startDateInputRef = useRef<HTMLInputElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -683,7 +682,7 @@ const IssueTreeNode = ({
 
         {/* TRACKER Column */}
         <div
-          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`}
           style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}
           onDoubleClick={(e) => startEdit('tracker_id', String(node.tracker_id || ''), e)}
         >
@@ -712,7 +711,7 @@ const IssueTreeNode = ({
 
         {/* PRIORITY Column */}
         <div
-          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch ${cellClass}`} style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}
           onDoubleClick={(e) => startEdit('priority_id', String(node.priority_id || ''), e)}
         >
           {isEditing('priority_id') && masters ? (
@@ -740,7 +739,7 @@ const IssueTreeNode = ({
 
         {/* STATUS Column */}
         <div
-          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch ${cellClass}`} style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}
           onDoubleClick={(e) => startEdit('status_id', String(node.status_id || ''), e)}
         >
           {isEditing('status_id') && masters ? (
@@ -765,7 +764,7 @@ const IssueTreeNode = ({
 
         {/* PROGRESS Column */}
         <div
-          className={`shrink-0 flex items-center gap-2 justify-start px-2 border-r border-slate-200/80 self-stretch ${cellClass}`} style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}
+          className={`shrink-0 flex items-center gap-2 justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}
           onDoubleClick={(e) => startEdit('done_ratio', String(progressRatio), e)}
         >
           {isEditing('done_ratio') ? (
@@ -793,13 +792,13 @@ const IssueTreeNode = ({
 
         {/* START DATE Column */}
         <div
-          className="shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch"
-          style={{ width: `${columnWidths.startDate}px`, minWidth: `${columnWidths.startDate}px` }}
+          className={`shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`}
+          style={{ width: `${columnWidths.startDate ?? 130}px`, minWidth: `${columnWidths.startDate ?? 130}px` }}
         >
           <div className="relative w-full h-8">
             <span
               data-testid={`start-date-display-${node.issue_id}`}
-              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
+              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate"
               style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
               onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
               onClick={(e) => e.stopPropagation()}
@@ -840,13 +839,13 @@ const IssueTreeNode = ({
 
         {/* DUE DATE Column */}
         <div
-          className="shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch"
-          style={{ width: `${columnWidths.dueDate}px`, minWidth: `${columnWidths.dueDate}px` }}
+          className={`shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`}
+          style={{ width: `${columnWidths.dueDate ?? 130}px`, minWidth: `${columnWidths.dueDate ?? 130}px` }}
         >
           <div className="relative w-full h-8 flex items-center">
             <span
               data-testid={`due-date-display-${node.issue_id}`}
-              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
+              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate"
               style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
               onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
               onClick={(e) => e.stopPropagation()}
@@ -890,7 +889,7 @@ const IssueTreeNode = ({
 
         {/* ASSIGNEE Column */}
         <div
-          className={`shrink-0 flex items-center justify-start gap-1.5 px-2 ${cellClass}`}
+          className={`shrink-0 flex items-center justify-start gap-1.5 px-2 overflow-hidden ${cellClass}`}
           style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}
           onDoubleClick={(e) => startEdit('assigned_to_id', String(node.assignee_id || ''), e)}
         >
@@ -1862,7 +1861,8 @@ export function TaskDetailsDialog({
 
   const handleColumnResize = useCallback((columnKey: string, deltaX: number) => {
     setColumnWidths((prev) => {
-      const nextWidth = Math.max(40, prev[columnKey] + deltaX);
+      const currentWidth = prev[columnKey] ?? DEFAULT_COLUMN_WIDTHS[columnKey] ?? 100;
+      const nextWidth = Math.max(40, currentWidth + deltaX);
       const next = { ...prev, [columnKey]: nextWidth };
       localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(next));
       return next;
@@ -3091,18 +3091,18 @@ export function TaskDetailsDialog({
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
                       <div className="flex items-center py-2 px-4 bg-[#f8f8f8] z-20 border-b border-slate-400/40 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
-                      <div className="shrink-0 flex items-center relative group" style={{ width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}>
+                      <div className="shrink-0 flex items-center relative group border-r border-slate-200/60 h-full overflow-hidden" style={{ width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}>
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
                         {t('timeline.task', { defaultValue: 'Task' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('task', deltaX)} />
                       </div>
-                      <div className="shrink-0 text-center px-2 relative group" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>{t('timeline.commentsCol', { defaultValue: 'Comments' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('comments', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}>{t('timeline.trackerCol', { defaultValue: 'Tracker' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('tracker', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}>{t('timeline.priorityCol', { defaultValue: 'Priority' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('priority', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}>{t('timeline.statusCol', { defaultValue: 'Status' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('status', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}>{t('timeline.progressCol', { defaultValue: 'Progress' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('progress', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.startDate}px`, minWidth: `${columnWidths.startDate}px` }}>{t('timeline.startDateCol', { defaultValue: 'Start Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('startDate', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.dueDate}px`, minWidth: `${columnWidths.dueDate}px` }}>{t('timeline.dueDateCol', { defaultValue: 'Due Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('dueDate', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}>{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('assignee', deltaX)} /></div>
+                      <div className="shrink-0 text-center px-2 relative group border-r border-slate-200/60 h-full flex items-center justify-center underline decoration-slate-300 decoration-dotted underline-offset-4 overflow-hidden" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>{t('timeline.commentsCol', { defaultValue: 'Comments' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('comments', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}>{t('timeline.trackerCol', { defaultValue: 'Tracker' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('tracker', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}>{t('timeline.priorityCol', { defaultValue: 'Priority' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('priority', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}>{t('timeline.statusCol', { defaultValue: 'Status' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('status', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}>{t('timeline.progressCol', { defaultValue: 'Progress' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('progress', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.startDate}px`, minWidth: `${columnWidths.startDate}px` }}>{t('timeline.startDateCol', { defaultValue: 'Start Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('startDate', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.dueDate}px`, minWidth: `${columnWidths.dueDate}px` }}>{t('timeline.dueDateCol', { defaultValue: 'Due Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('dueDate', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group flex items-center h-full overflow-hidden" style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}>{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('assignee', deltaX)} /></div>
                     </div>
                     {/* Task Tree */}
                     {treeRoots.map((rootNode) => (
