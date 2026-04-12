@@ -3,95 +3,17 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { t } from '../../i18n';
 import { updateTaskDates } from '../../services/scheduleReportApi';
+import { getProgressFillColor, getProgressTrackColor } from './constants';
 import { HeaderMonth, HeaderYear, TimelineLane, TimelineStep } from './timeline';
 import { calculateStaggeredLanes } from './timelineAxis';
 import { TaskDetailsDialog } from './TaskDetailsDialog';
 import {
   drawChevron,
-  drawRoundedOutline,
   drawStrokeText,
   prepareHiDPICanvas
 } from './canvasTimelineRenderer';
 
-type ChevronPathProps = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  pointDepth: number;
-  isFirst: boolean;
-  joinsPrevious?: boolean;
-  fill: string;
-  stroke: string;
-  progress?: number;
-  id?: string;
-  filter?: string;
-  separatorColor?: string;
-};
-
-const ChevronPath = ({
-  x,
-  y,
-  width,
-  height,
-  pointDepth,
-  isFirst,
-  joinsPrevious = false,
-  fill,
-  stroke,
-  progress,
-  id,
-  filter,
-  separatorColor = 'white'
-}: ChevronPathProps) => {
-  const hasLeftNotch = !isFirst;
-  const leftShape = !hasLeftNotch
-    ? `M ${x} ${y} L ${x} ${y + height}`
-    : `M ${x} ${y} L ${x + pointDepth} ${y + height / 2} L ${x} ${y + height}`;
-
-  const rightBaseX = x + Math.max(width - pointDepth, 0);
-  const rightTipX = x + width;
-  const rightShape = `L ${rightBaseX} ${y + height} L ${rightTipX} ${y + height / 2} L ${rightBaseX} ${y}`;
-  const pathData = `${leftShape} ${rightShape} Z`;
-
-  if (progress !== undefined && progress >= 0 && progress < 100 && id) {
-    const gradientId = `grad-${id}`;
-    return (
-      <g filter={filter}>
-        <defs>
-          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset={`${progress}%`} stopColor={fill} />
-            <stop offset={`${progress}%`} stopColor="#cbd5e1" />
-          </linearGradient>
-        </defs>
-        <path d={pathData} fill={`url(#${gradientId})`} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-        {hasLeftNotch && <path d={leftShape} stroke={separatorColor} strokeWidth="2" fill="none" />}
-      </g>
-    );
-  }
-
-  return (
-    <g filter={filter}>
-      <path d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-      {hasLeftNotch && <path d={leftShape} stroke={separatorColor} strokeWidth="2" fill="none" />}
-    </g>
-  );
-};
-
-const DateLabel = ({ x, y, label }: { x: number; y: number; label: string }) => (
-  <g transform={`translate(${x}, ${y})`}>
-    <text
-      y="1"
-      fill="#374151"
-      fontSize="10"
-      fontWeight="bold"
-      textAnchor="middle"
-      dominantBaseline="middle"
-    >
-      {label}
-    </text>
-  </g>
-);
+const formatProcessProgressLabel = (progress?: number) => `${t('timeline.progressCol', { defaultValue: 'Progress' })}: ${Math.max(0, Math.min(100, Number(progress ?? 0)))}%`;
 
 type TimelineChartProps = {
   timelineData: TimelineLane[];
@@ -141,9 +63,10 @@ type StepRenderData = {
   width: number;
 };
 
-const BASE_LANE_HEIGHT = 80;
+const BASE_LANE_HEIGHT = 104;
 const BASE_POINT_DEPTH = 15;
 const BASE_BAR_HEIGHT = 40;
+const PROCESS_PROGRESS_LABEL_OFFSET_Y = 18;
 const yearRowHeight = 25;
 const monthRowHeight = 25;
 const headerHeight = yearRowHeight + monthRowHeight;
@@ -157,6 +80,10 @@ const MIN_CENTER_CLICK_PX = 14;
 const MIN_HANDLE_ACTIVE_PX = 4;
 const ACTIVE_LANE_BACKGROUND_FILL = '#e0f2fe';
 const ALT_LANE_BACKGROUND_FILL = '#ffffff';
+const DATE_LABEL_INSET_PX = 8;
+const SELECTED_BAR_STROKE = '#2563eb';
+const SELECTED_BAR_DASH = [6, 4];
+const CHEVRON_RIGHT_HEAD_RATIO = 0.62;
 
 
 const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
@@ -229,6 +156,43 @@ const buildStepRenderData = (
   };
 };
 
+const getChevronRightHeadDepth = (width: number, pointDepth: number) =>
+  Math.min(pointDepth * CHEVRON_RIGHT_HEAD_RATIO, Math.max(width * 0.16, 10));
+
+const drawTimelineChevronSelectionOutline = (
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  pointDepth: number
+) => {
+  const rightHeadDepth = getChevronRightHeadDepth(width, pointDepth);
+  const leftEdgeX = x - 3;
+  const topY = y - 3;
+  const bottomY = y + height + 3;
+  const rightBaseX = x + Math.max(width - rightHeadDepth, 4);
+  const rightTipX = x + width;
+
+  context.save();
+  context.strokeStyle = SELECTED_BAR_STROKE;
+  context.lineWidth = 2;
+  context.setLineDash(SELECTED_BAR_DASH);
+  context.shadowColor = 'rgba(37, 99, 235, 0.18)';
+  context.shadowBlur = 6;
+  context.shadowOffsetX = 0;
+  context.shadowOffsetY = 1;
+  context.beginPath();
+  context.moveTo(leftEdgeX, topY);
+  context.lineTo(leftEdgeX, bottomY);
+  context.lineTo(rightBaseX + 3, bottomY);
+  context.lineTo(rightTipX + 3, y + height / 2);
+  context.lineTo(rightBaseX + 3, topY);
+  context.closePath();
+  context.stroke();
+  context.restore();
+};
+
 export function TimelineChart({
   timelineData,
   timelineWidth,
@@ -251,9 +215,9 @@ export function TimelineChart({
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
   const barHeight = BASE_BAR_HEIGHT * chartScale;
-  const barSpacingY = 10 * chartScale;
+  const barSpacingY = 18 * chartScale;
 
-  const layoutData = useMemo(() => {
+  const layoutData = useMemo<Array<TimelineLane & { steps: (TimelineStep & { laneIndex: number })[]; height: number; yOffset: number; maxLane: number }>>(() => {
     let currentY = 0;
     return timelineData.map((project) => {
       const staggeredSteps = calculateStaggeredLanes(
@@ -277,10 +241,16 @@ export function TimelineChart({
     projectName: string;
     versionName: string;
   } | null>(null);
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [timelineEditError, setTimelineEditError] = useState<string | null>(null);
 
-  const handleStepClick = (issueId?: number, title?: string, projectName?: string, versionName?: string) => {
-    if (!issueId) return;
+  const handleStepSelect = (stepId?: string) => {
+    setSelectedStepId(stepId || null);
+  };
+
+  const handleStepOpen = (stepId?: string, issueId?: number, title?: string, projectName?: string, versionName?: string) => {
+    if (!stepId || !issueId) return;
+    setSelectedStepId(stepId);
     setActiveIssue({
       id: issueId,
       title: title || '',
@@ -430,8 +400,10 @@ export function TimelineChart({
             pixelsPerDay={pixelsPerDay}
             projectIdentifier={projectIdentifier}
             isProcessMode={isProcessMode}
-            onStepClick={handleStepClick}
+            onStepSelect={handleStepSelect}
+            onStepOpen={handleStepOpen}
             activeReportLaneKey={activeReportLaneKey}
+            selectedStepId={selectedStepId}
             laneHeight={laneHeight}
             chartScale={chartScale}
             showAllDates={showAllDates}
@@ -476,10 +448,12 @@ function TimelineSvg({
   pixelsPerDay,
   projectIdentifier,
   isProcessMode,
-  onStepClick,
+  onStepSelect,
+  onStepOpen,
   onTaskDatesUpdated,
   onEditError,
   activeReportLaneKey,
+  selectedStepId,
   laneHeight,
   chartScale = 1,
   showAllDates,
@@ -496,10 +470,12 @@ function TimelineSvg({
   pixelsPerDay: number;
   projectIdentifier: string;
   isProcessMode: boolean;
-  onStepClick: (issueId?: number, title?: string, projectName?: string, versionName?: string) => void;
+  onStepSelect: (stepId?: string) => void;
+  onStepOpen: (stepId?: string, issueId?: number, title?: string, projectName?: string, versionName?: string) => void;
   onTaskDatesUpdated?: () => void;
   onEditError?: (message: string | null) => void;
   activeReportLaneKey?: string | null;
+  selectedStepId?: string | null;
   laneHeight: number;
   chartScale?: number;
   showAllDates?: boolean;
@@ -600,24 +576,31 @@ function TimelineSvg({
     setPendingPreview(null);
   }, [layoutData]);
 
+  useEffect(() => {
+    if (!selectedStepId) return;
+    const hasSelectedStep = layoutData.some((lane) => lane.steps.some((step) => step.id === selectedStepId));
+    if (!hasSelectedStep) {
+      onStepSelect(undefined);
+    }
+  }, [layoutData, onStepSelect, selectedStepId]);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const renderedProjects = useMemo(() => {
     return layoutData.map((project, projectIndex) => {
       const yOffset = headerHeight + project.yOffset;
       const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
-      const stepItems = project.steps.map((step, stepIndex) => {
+      const stepItems = (project.steps as Array<TimelineStep & { laneIndex: number }>).map((step, stepIndex) => {
         const isFirst = stepIndex === 0;
         const pointDepth = BASE_POINT_DEPTH * chartScale;
         const scaledBarHeight = BASE_BAR_HEIGHT * chartScale;
-        const scaledBarSpacingY = 10 * chartScale;
+        const scaledBarSpacingY = 18 * chartScale;
         const totalBarsHeight = (project.maxLane + 1) * scaledBarHeight + project.maxLane * scaledBarSpacingY;
         const baseTopPadding = (project.height - totalBarsHeight) / 2;
         const verticalOffset = baseTopPadding + step.laneIndex * (scaledBarHeight + scaledBarSpacingY);
         const fontSize = Math.max(10, Math.round(12 * chartScale));
-        const isPending = step.status.code === 'PENDING';
         const isInProgress = step.status.code === 'IN_PROGRESS';
-        const fill = isPending ? 'url(#stripePattern)' : step.status.fill;
+        const fill = getProgressFillColor(step.progress ?? 0);
         const isDraggingThis = dragSession?.stepId === step.id;
         const isActiveDragThis = Boolean(isDraggingThis && dragSession?.moved);
         const getStepPreview = (targetStep: TimelineStep): DragPreview | null => {
@@ -640,14 +623,15 @@ function TimelineSvg({
           renderData.startIso &&
           differenceInCalendarDays(parseISO(renderData.startIso), parseISO(prevRenderData.endIso)) === 1
         );
-        const barX = joinsPrevious ? renderData.x - pointDepth : renderData.x;
-        const barWidth = joinsPrevious ? renderData.width + pointDepth : renderData.width;
+        const barX = renderData.x;
+        const barWidth = renderData.width;
         const hitX = renderData.x;
         const hitWidth = Math.max(renderData.width, 1);
-        const taskCenterX = barX + barWidth / 2 + (isFirst ? 0 : pointDepth / 2);
-        const startLabelX = barX + (isFirst ? 12 : pointDepth + 12);
-        const endLabelX = renderData.startLabel === renderData.endLabel ? taskCenterX : barX + barWidth - 12;
+        const taskCenterX = barX + barWidth / 2;
+        const startLabelX = barX + DATE_LABEL_INSET_PX;
+        const endLabelX = renderData.startLabel === renderData.endLabel ? taskCenterX : barX + barWidth - DATE_LABEL_INSET_PX;
         const hasPendingPreview = pendingPreview?.stepId === step.id;
+        const isSelected = selectedStepId === step.id;
         const canEdit = Boolean(
           isProcessMode &&
           step.editable &&
@@ -690,8 +674,8 @@ function TimelineSvg({
           isDraggingThis,
           isFirst,
           isInProgress,
-          isPending,
           isSavingThis,
+          isSelected,
           joinsPrevious,
           leftHandleX,
           pointDepth,
@@ -700,7 +684,7 @@ function TimelineSvg({
           startLabelX,
           taskCenterX,
           verticalOffset,
-          zIndex: isActiveDragThis ? 10 : isSavingThis || hasPendingPreview ? 9 : isInProgress ? 1 : 0
+          zIndex: isActiveDragThis ? 10 : isSelected ? 9 : isSavingThis || hasPendingPreview ? 8 : isInProgress ? 1 : 0
         };
       });
 
@@ -721,6 +705,7 @@ function TimelineSvg({
     layoutData,
     pendingPreview,
     pixelsPerDay,
+    selectedStepId,
     savingIssueId
   ]);
 
@@ -825,11 +810,11 @@ function TimelineSvg({
             width: item.barWidth,
             height: scaledBarHeight,
             pointDepth: item.pointDepth,
-            hasLeftNotch: !item.isFirst,
+            hasLeftNotch: false,
             fill: item.fill,
+            trackFill: getProgressTrackColor(),
             stroke: item.step.status.stroke,
-            progress: item.step.progress,
-            separatorColor: item.isPending ? 'transparent' : 'white',
+            progress: item.step.progress ?? 0,
             shadow: true
           });
 
@@ -839,21 +824,32 @@ function TimelineSvg({
               x: item.taskCenterX,
               y: top + scaledBarHeight / 2,
               fill: item.step.status.text,
-              stroke: item.step.status.textStroke || '#ffffff',
-              strokeWidth: Number(String(item.step.status.textStrokeWidth || '3px').replace('px', '')),
+              stroke: item.step.status.textStroke || 'transparent',
+              strokeWidth: Number(String(item.step.status.textStrokeWidth || '0px').replace('px', '')),
               font: `700 ${item.fontSize}px sans-serif`
             });
           }
+
+          drawStrokeText(context, {
+            text: formatProcessProgressLabel(item.step.progress),
+            x: item.taskCenterX,
+            y: top + scaledBarHeight + PROCESS_PROGRESS_LABEL_OFFSET_Y,
+            fill: item.step.status.progressText || '#1f2937',
+            stroke: '#ffffff',
+            strokeWidth: 3,
+            font: `700 ${Math.max(10, Math.round(11 * chartScale))}px sans-serif`
+          });
 
           if (item.renderData.startLabel && (showAllDates || hoveredStepId === item.step.id || item.isActiveDragThis) && item.renderData.startLabel !== item.renderData.endLabel) {
             drawStrokeText(context, {
               text: item.renderData.startLabel,
               x: item.startLabelX,
-              y: top - 11,
-              fill: '#374151',
+              y: top - 6,
+              fill: item.step.status.dateText || '#475569',
               stroke: '#ffffff',
               strokeWidth: 2,
-              font: '700 10px sans-serif'
+              font: '700 10px sans-serif',
+              textAlign: 'start'
             });
           }
 
@@ -861,25 +857,39 @@ function TimelineSvg({
             drawStrokeText(context, {
               text: item.renderData.endLabel,
               x: item.endLabelX,
-              y: top - 11,
-              fill: '#374151',
+              y: top - 6,
+              fill: item.step.status.dateText || '#475569',
               stroke: '#ffffff',
               strokeWidth: 2,
-              font: '700 10px sans-serif'
+              font: '700 10px sans-serif',
+              textAlign: item.renderData.startLabel === item.renderData.endLabel ? 'center' : 'end'
             });
           }
 
-          if (item.isActiveDragThis || item.isSavingThis || item.hasPendingPreview) {
-            drawRoundedOutline(
-              context,
-              item.barX,
-              top,
-              Math.max(item.barWidth, 1),
-              scaledBarHeight,
-              item.isSavingThis ? '#2563eb' : item.hasPendingPreview ? '#0891b2' : '#0ea5e9',
-              2,
-              item.isSavingThis || item.hasPendingPreview ? [4, 2] : undefined
-            );
+          if (item.isSelected || item.isActiveDragThis || item.isSavingThis || item.hasPendingPreview) {
+            if (item.isSelected) {
+              drawTimelineChevronSelectionOutline(
+                context,
+                item.barX,
+                top,
+                Math.max(item.barWidth, 1),
+                scaledBarHeight,
+                item.pointDepth
+              );
+            } else {
+              context.save();
+              context.strokeStyle = item.isSavingThis
+                ? '#2563eb'
+                : item.hasPendingPreview
+                  ? '#0891b2'
+                  : '#0ea5e9';
+              context.lineWidth = 2;
+              context.setLineDash(item.isSavingThis || item.hasPendingPreview ? [4, 2] : []);
+              context.beginPath();
+              context.roundRect(item.barX, top, Math.max(item.barWidth, 1), scaledBarHeight, 6);
+              context.stroke();
+              context.restore();
+            }
           }
         });
 
@@ -942,10 +952,6 @@ function TimelineSvg({
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        <pattern id="stripePattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="6" height="6" fill="#f8fafc" />
-          <line x1="0" y1="0" x2="0" y2="6" stroke="#e2e8f0" strokeWidth="2" />
-        </pattern>
       </defs>
 
       <g transform="translate(0, 0)">
@@ -1046,19 +1052,18 @@ function TimelineSvg({
               />
             ))}
 
-            {project.steps
+            {(project.steps as Array<TimelineStep & { laneIndex: number }>)
               .map((step, stepIndex) => {
                 const isFirst = stepIndex === 0;
                 const pointDepth = BASE_POINT_DEPTH * chartScale;
                 const barHeight = BASE_BAR_HEIGHT * chartScale;
-                const barSpacingY = 10 * chartScale;
+                const barSpacingY = 18 * chartScale;
                 const totalBarsHeight = (project.maxLane + 1) * barHeight + project.maxLane * barSpacingY;
                 const baseTopPadding = (project.height - totalBarsHeight) / 2;
                 const verticalOffset = baseTopPadding + step.laneIndex * (barHeight + barSpacingY);
                 const fontSize = Math.max(10, Math.round(12 * chartScale));
-                const isPending = step.status.code === 'PENDING';
                 const isInProgress = step.status.code === 'IN_PROGRESS';
-                const fill = isPending ? 'url(#stripePattern)' : step.status.fill;
+                const fill = getProgressFillColor(step.progress ?? 0);
                 const isDraggingThis = dragSession?.stepId === step.id;
                 const isActiveDragThis = Boolean(isDraggingThis && dragSession?.moved);
                 const getStepPreview = (targetStep: TimelineStep): DragPreview | null => {
@@ -1081,14 +1086,16 @@ function TimelineSvg({
                   renderData.startIso &&
                   differenceInCalendarDays(parseISO(renderData.startIso), parseISO(prevRenderData.endIso)) === 1
                 );
-                const barX = joinsPrevious ? renderData.x - pointDepth : renderData.x;
-                const barWidth = joinsPrevious ? renderData.width + pointDepth : renderData.width;
+                const barX = renderData.x;
+                const barWidth = renderData.width;
                 const hitX = renderData.x;
                 const hitWidth = Math.max(renderData.width, 1);
-                const taskCenterX = barX + barWidth / 2 + (isFirst ? 0 : pointDepth / 2);
-                const startLabelX = barX + (isFirst ? 12 : pointDepth + 12);
-                const endLabelX = renderData.startLabel === renderData.endLabel ? taskCenterX : barX + barWidth - 12;
+                const rightBaseX = barX + Math.max(barWidth - pointDepth, DATE_LABEL_INSET_PX);
+                const taskCenterX = barX + barWidth / 2;
+                const startLabelX = barX + DATE_LABEL_INSET_PX;
+                const endLabelX = renderData.startLabel === renderData.endLabel ? taskCenterX : rightBaseX - DATE_LABEL_INSET_PX;
                 const hasPendingPreview = pendingPreview?.stepId === step.id;
+                const isSelected = selectedStepId === step.id;
                 const canEdit = Boolean(
                   isProcessMode &&
                   step.editable &&
@@ -1148,23 +1155,6 @@ function TimelineSvg({
                       onMouseLeave={() => setHoveredStepId((prev) => (prev === step.id ? null : prev))}
                       opacity={isSavingThis ? 0.65 : 1}
                     >
-                      <g pointerEvents="none">
-                        <ChevronPath
-                          x={barX}
-                          y={0}
-                          width={barWidth}
-                          height={barHeight}
-                          pointDepth={pointDepth}
-                          isFirst={isFirst}
-                          joinsPrevious={joinsPrevious}
-                          fill={fill}
-                          stroke={step.status.stroke}
-                          progress={step.progress}
-                          id={step.id}
-                          filter="url(#dropShadow)"
-                          separatorColor={isPending ? 'transparent' : 'white'}
-                        />
-                      </g>
                       <rect
                         x={hitX}
                         y={0}
@@ -1172,13 +1162,15 @@ function TimelineSvg({
                         height={barHeight}
                         fill="transparent"
                         style={{ cursor: bodyCursor, touchAction: 'none' }}
+                        data-selected={isSelected ? 'true' : 'false'}
                         onClick={() => {
                           if (suppressClickStepId === step.id) {
                             setSuppressClickStepId(null);
                             return;
                           }
-                          onStepClick(step.issueId, step.name, project.projectName, project.versionName);
+                          onStepSelect(step.id);
                         }}
+                        onDoubleClick={() => onStepOpen(step.id, step.issueId, step.name, project.projectName, project.versionName)}
                         onPointerDown={(event) => startDrag(event, 'move')}
                         data-step-id={step.id}
                         data-step-issue-id={step.issueId || undefined}
@@ -1208,50 +1200,6 @@ function TimelineSvg({
                         </>
                       )}
 
-                      {renderData.width > 30 && (
-                        <text
-                          x={taskCenterX}
-                          y={barHeight / 2}
-                          fill={step.status.text}
-                          fontSize={fontSize}
-                          fontWeight="bold"
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          style={{
-                            pointerEvents: 'none',
-                            paintOrder: 'stroke',
-                            stroke: step.status.textStroke || '#ffffff',
-                            strokeWidth: step.status.textStrokeWidth || '3px',
-                            strokeLinecap: 'round',
-                            strokeLinejoin: 'round'
-                          }}
-                        >
-                          {step.name}
-                        </text>
-                      )}
-
-                      {renderData.startLabel && (showAllDates || hoveredStepId === step.id || isActiveDragThis) && renderData.startLabel !== renderData.endLabel && (
-                        <DateLabel x={startLabelX} y={-12} label={renderData.startLabel} />
-                      )}
-
-                      {renderData.endLabel && (showAllDates || hoveredStepId === step.id || isActiveDragThis) && (
-                        <DateLabel x={endLabelX} y={-12} label={renderData.endLabel} />
-                      )}
-
-                      {(isActiveDragThis || isSavingThis || hasPendingPreview) && (
-                        <rect
-                          x={barX}
-                          y={0}
-                          width={Math.max(barWidth, 1)}
-                          height={barHeight}
-                          fill="none"
-                          stroke={isSavingThis ? '#2563eb' : hasPendingPreview ? '#0891b2' : '#0ea5e9'}
-                          strokeWidth="2"
-                          strokeDasharray={isSavingThis || hasPendingPreview ? '4 2' : undefined}
-                          rx="6"
-                          pointerEvents="none"
-                        />
-                      )}
                     </g>
                   )
                 };

@@ -129,7 +129,7 @@ describe('TaskDetailsDialog', () => {
     );
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
-    expect(screen.getByTestId('task-details-process-flow-svg')).toBeTruthy();
+    expect(screen.getByTestId('task-details-process-flow-canvas')).toBeTruthy();
     expect(screen.getAllByTestId('task-details-process-step')).toHaveLength(1);
     expect(screen.queryByTestId('task-details-process-step-hit-10')).toBeNull();
     expect(screen.getByTestId('task-details-process-step-hit-11')).toBeTruthy();
@@ -823,10 +823,10 @@ describe('TaskDetailsDialog', () => {
     const firstBarY = Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('y'));
     const secondBarY = Number(screen.getByTestId('task-details-process-step-hit-12').getAttribute('y'));
 
-    expect(secondBarY - firstBarY).toBe(53);
+    expect(secondBarY - firstBarY).toBe(70);
   });
 
-  it('renders start-only process steps as triangles and due-only steps as diamonds', async () => {
+  it('keeps process hit areas for start-only and due-only steps without resize handles', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -870,44 +870,12 @@ describe('TaskDetailsDialog', () => {
 
     const startOnlyHit = screen.getByTestId('task-details-process-step-hit-11');
     const dueOnlyHit = screen.getByTestId('task-details-process-step-hit-12');
-    const startOnlyTriangle = screen.getByTestId('task-details-process-step-triangle-11');
-    const dueOnlyDiamond = screen.getByTestId('task-details-process-step-diamond-12');
-
     expect(startOnlyHit).toBeTruthy();
     expect(dueOnlyHit).toBeTruthy();
-    expect(startOnlyTriangle).toBeTruthy();
-    expect(dueOnlyDiamond).toBeTruthy();
-
-    const trianglePath = startOnlyTriangle.getAttribute('d') ?? '';
-    const diamondPath = dueOnlyDiamond.getAttribute('d') ?? '';
-    const triangleNumbers = Array.from(trianglePath.matchAll(/-?\d+(?:\.\d+)?/g), (match) => Number(match[0]));
-    const diamondNumbers = Array.from(diamondPath.matchAll(/-?\d+(?:\.\d+)?/g), (match) => Number(match[0]));
-    const [triangleStartX, triangleStartY, triangleTipX, triangleTipY, triangleBottomX, triangleBottomY] = triangleNumbers;
-    const [diamondTopX, diamondTopY, diamondRightX, diamondRightY, , diamondBottomY, diamondLeftX] = diamondNumbers;
-    const startOnlyHitX = Number(startOnlyHit.getAttribute('x'));
-    const dueOnlyHitX = Number(dueOnlyHit.getAttribute('x'));
-    const dueOnlyHitWidth = Number(dueOnlyHit.getAttribute('width'));
-    const startOnlyHitWidth = Number(startOnlyHit.getAttribute('width'));
-
-    const triangleHeight = triangleBottomY - triangleStartY;
-    const triangleWidth = triangleTipX - triangleStartX;
-    const triangleLeftEdge = Math.hypot(triangleTipX - triangleStartX, triangleTipY - triangleStartY);
-    const triangleBottomEdge = Math.hypot(triangleTipX - triangleBottomX, triangleTipY - triangleBottomY);
-    const diamondWidth = diamondRightX - diamondLeftX;
-    const diamondHeight = diamondBottomY - diamondTopY;
-
-    expect(triangleStartX).toBe(startOnlyHitX);
-    expect(diamondTopX).toBe(dueOnlyHitX + dueOnlyHitWidth / 2);
-    expect(triangleWidth).toBeLessThan(startOnlyHitWidth);
-    expect(Math.abs(triangleLeftEdge - triangleHeight)).toBeLessThan(0.0001);
-    expect(Math.abs(triangleBottomEdge - triangleHeight)).toBeLessThan(0.0001);
-    expect(Math.abs(diamondWidth - diamondHeight)).toBeLessThan(0.0001);
     expect(screen.queryByTestId('task-details-process-step-left-11')).toBeNull();
     expect(screen.queryByTestId('task-details-process-step-right-11')).toBeNull();
     expect(screen.queryByTestId('task-details-process-step-left-12')).toBeNull();
     expect(screen.queryByTestId('task-details-process-step-right-12')).toBeNull();
-    expect(screen.getByText('3/3')).toBeTruthy();
-    expect(screen.getByText('3/10')).toBeTruthy();
   });
 
   it('selects a parent process bar on click without drilling down', async () => {
@@ -1523,7 +1491,7 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(2));
     await waitFor(
-      () => expect(screen.getByTestId('task-details-top-pane').style.height).toBe('201px'),
+      () => expect(screen.getByTestId('task-details-top-pane').style.height).toBe('218px'),
       { timeout: 2000 }
     );
   });

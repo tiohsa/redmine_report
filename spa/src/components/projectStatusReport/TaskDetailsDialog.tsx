@@ -32,6 +32,7 @@ import {
   drawStrokeText,
   prepareHiDPICanvas
 } from './canvasTimelineRenderer';
+import { getProgressFillColor, getProgressTrackColor } from './constants';
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -103,24 +104,35 @@ type DrilldownCrumb = {
   title?: string;
 };
 
-const processStatusStyles: Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDING', { fill: string; text: string; stroke: string; textStroke?: string; textStrokeWidth?: string }> = {
-  COMPLETED: { fill: '#1e3a8a', text: '#ffffff', stroke: '#1e3a8a', textStroke: 'transparent', textStrokeWidth: '0px' },
-  IN_PROGRESS: { fill: '#2563eb', text: '#1e3a8a', stroke: '#2563eb', textStroke: '#ffffff', textStrokeWidth: '3px' },
-  PENDING: { fill: 'url(#stripePattern)', text: '#475569', stroke: '#94a3b8', textStroke: '#ffffff', textStrokeWidth: '3px' }
+const processStatusStyles: Record<ProcessFlowStep['status'], {
+  fill: string;
+  text: string;
+  stroke: string;
+  accent: string;
+  progressText: string;
+  dateText: string;
+}> = {
+  COMPLETED: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#22c55e', progressText: '#1f2937', dateText: '#475569' },
+  IN_PROGRESS: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#f97316', progressText: '#1f2937', dateText: '#475569' },
+  PENDING: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#64748b', progressText: '#1f2937', dateText: '#475569' }
 };
 
 const PROCESS_FLOW_MIN_WIDTH = 640;
 const PROCESS_FLOW_YEAR_ROW_HEIGHT = 24;
 const PROCESS_FLOW_MONTH_ROW_HEIGHT = 24;
 const PROCESS_FLOW_HEADER_HEIGHT = PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT;
-const PROCESS_FLOW_LANE_HEIGHT = 100;
+const PROCESS_FLOW_LANE_HEIGHT = 122;
 const PROCESS_FLOW_BAR_HEIGHT = 36;
-const PROCESS_FLOW_BAR_Y = 22;
-const PROCESS_FLOW_BAR_SPACING_Y = 17;
-const PROCESS_FLOW_POINT_DEPTH = 18;
+const PROCESS_FLOW_BAR_Y = 28;
+const PROCESS_FLOW_BAR_SPACING_Y = 34;
+const PROCESS_FLOW_POINT_DEPTH = 22;
 const PROCESS_FLOW_DIAMOND_WIDTH = PROCESS_FLOW_BAR_HEIGHT;
 const PROCESS_FLOW_TRIANGLE_WIDTH = (PROCESS_FLOW_BAR_HEIGHT * Math.sqrt(3)) / 2;
-const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 16;
+const PROCESS_FLOW_PROGRESS_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 18;
+const PROCESS_FLOW_ACCENT_HEIGHT = 4;
+const PROCESS_FLOW_LEFT_NOTCH_RATIO = 0.55;
+const PROCESS_FLOW_RIGHT_HEAD_RATIO = 0.62;
+const PROCESS_FLOW_DATE_LABEL_INSET = 8;
 const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
 const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
 const DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX = 320;
@@ -161,116 +173,49 @@ const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   }
 `;
 
-const ProcessChevron = ({
-  x,
-  y,
-  width,
-  height,
-  pointDepth,
-  hasLeftNotch,
-  fill,
-  stroke,
-  progress,
-  id
-}: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  pointDepth: number;
-  hasLeftNotch: boolean;
-  fill: string;
-  stroke: string;
-  progress: number;
-  id: number;
-}) => {
-  const leftShape = !hasLeftNotch
-    ? `M ${x} ${y} L ${x} ${y + height}`
-    : `M ${x} ${y} L ${x + pointDepth} ${y + height / 2} L ${x} ${y + height}`;
-  const rightBaseX = x + Math.max(width - pointDepth, 0);
+const getProcessChevronMetrics = (width: number, pointDepth: number) => {
+  const leftNotchDepth = Math.min(pointDepth * PROCESS_FLOW_LEFT_NOTCH_RATIO, Math.max(width * 0.18, 8));
+  const rightHeadDepth = Math.min(pointDepth * PROCESS_FLOW_RIGHT_HEAD_RATIO, Math.max(width * 0.16, 10));
+  const leftShoulder = Math.max(4, Math.round(leftNotchDepth * 0.38));
+
+  return {
+    leftNotchDepth,
+    rightHeadDepth,
+    leftShoulder
+  };
+};
+
+const buildProcessChevronPathData = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  pointDepth: number,
+  hasLeftNotch: boolean
+) => {
+  const { leftNotchDepth, rightHeadDepth, leftShoulder } = getProcessChevronMetrics(width, pointDepth);
+  const leftShoulderX = x + leftShoulder;
+  const leftNotchTipX = x + leftNotchDepth;
+  const rightBaseX = x + Math.max(width - rightHeadDepth, leftShoulder);
   const rightTipX = x + width;
-  const rightShape = `L ${rightBaseX} ${y + height} L ${rightTipX} ${y + height / 2} L ${rightBaseX} ${y}`;
-  const pathData = `${leftShape} ${rightShape} Z`;
-  const separatorColor = fill === 'url(#stripePattern)' ? 'transparent' : 'white';
 
-  if (progress > 0 && progress < 100) {
-    return (
-      <g>
-        <defs>
-          <linearGradient id={`grad-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset={`${progress}%`} stopColor={fill} />
-            <stop offset={`${progress}%`} stopColor="#cbd5e1" />
-          </linearGradient>
-        </defs>
-        <path d={pathData} fill={`url(#grad-${id})`} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-        {hasLeftNotch && <path d={leftShape} stroke="white" strokeWidth="2" fill="none" />}
-      </g>
-    );
-  }
-
-  return (
-    <g>
-      <path d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-      {hasLeftNotch && <path d={leftShape} stroke={separatorColor} strokeWidth="2" fill="none" />}
-    </g>
-  );
-};
-
-const ProcessDiamond = ({
-  centerX,
-  y,
-  width,
-  height,
-  fill,
-  stroke,
-  id
-}: {
-  centerX: number;
-  y: number;
-  width: number;
-  height: number;
-  fill: string;
-  stroke: string;
-  id: number;
-}) => {
-  const halfWidth = width / 2;
-  const halfHeight = height / 2;
   const pathData = [
-    `M ${centerX} ${y}`,
-    `L ${centerX + halfWidth} ${y + halfHeight}`,
-    `L ${centerX} ${y + height}`,
-    `L ${centerX - halfWidth} ${y + halfHeight}`,
+    `M ${hasLeftNotch ? leftShoulderX : x} ${y}`,
+    hasLeftNotch ? `L ${leftNotchTipX} ${y + height / 2}` : '',
+    hasLeftNotch ? `L ${leftShoulderX} ${y + height}` : `L ${x} ${y + height}`,
+    `L ${rightBaseX} ${y + height}`,
+    `L ${rightTipX} ${y + height / 2}`,
+    `L ${rightBaseX} ${y}`,
     'Z'
-  ].join(' ');
+  ].filter(Boolean).join(' ');
 
-  return <path data-testid={`task-details-process-step-diamond-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
-};
-
-const ProcessTriangle = ({
-  x,
-  y,
-  width,
-  height,
-  fill,
-  stroke,
-  id
-}: {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fill: string;
-  stroke: string;
-  id: number;
-}) => {
-  const pathData = [
-    `M ${x} ${y}`,
-    `L ${x + width} ${y + height / 2}`,
-    `L ${x} ${y + height}`,
-    'Z'
-  ].join(' ');
-
-  return <path data-testid={`task-details-process-step-triangle-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
+  return {
+    pathData,
+    leftShoulderX,
+    leftNotchTipX,
+    rightBaseX,
+    rightTipX
+  };
 };
 
 const drawSelectedProcessOutline = (
@@ -323,20 +268,24 @@ const drawSelectedProcessOutline = (
   const leftEdgeX = step.x - 3;
   const topY = step.stepY - 3;
   const bottomY = step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3;
-  const rightBaseX = step.x + step.width - PROCESS_FLOW_POINT_DEPTH;
-  const rightTipX = step.x + step.width + 3;
+  const {
+    leftShoulderX,
+    leftNotchTipX,
+    rightBaseX,
+    rightTipX
+  } = buildProcessChevronPathData(step.x, step.stepY, step.width, PROCESS_FLOW_BAR_HEIGHT, PROCESS_FLOW_POINT_DEPTH, step.hasLeftNotch);
 
   context.beginPath();
   if (step.hasLeftNotch) {
-    context.moveTo(leftEdgeX, topY);
-    context.lineTo(step.x + PROCESS_FLOW_POINT_DEPTH, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
-    context.lineTo(leftEdgeX, bottomY);
+    context.moveTo(leftShoulderX - 3, topY);
+    context.lineTo(leftNotchTipX + 3, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+    context.lineTo(leftShoulderX - 3, bottomY);
   } else {
     context.moveTo(leftEdgeX, topY);
     context.lineTo(leftEdgeX, bottomY);
   }
   context.lineTo(rightBaseX + 3, bottomY);
-  context.lineTo(rightTipX, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+  context.lineTo(rightTipX + 3, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
   context.lineTo(rightBaseX + 3, topY);
   context.closePath();
   context.stroke();
@@ -348,6 +297,7 @@ const extractMD = (isoDate: string) => {
   const parts = isoDate.split('-');
   return `${Number(parts[1])}/${Number(parts[2])}`;
 };
+const formatProgressLabel = (progress: number) => `${t('timeline.progressCol', { defaultValue: 'Progress' })}: ${progress}%`;
 
 type ProcessDragMode = 'move' | 'resize-left' | 'resize-right';
 type DetailsVerticalResizeSession = {
@@ -2155,7 +2105,7 @@ export function TaskDetailsDialog({
 
     return positionedSteps.map((step, index) => {
       const isFirst = index === 0;
-      const hasLeftNotch = step.shapeKind === 'range' && !isFirst;
+      const hasLeftNotch = false;
       const previousStep = index > 0 ? positionedSteps[index - 1] : null;
       const joinsPrevious = Boolean(
         step.shapeKind === 'range' &&
@@ -2166,16 +2116,13 @@ export function TaskDetailsDialog({
         differenceInCalendarDays(parseISO(step.startDate), parseISO(previousStep.dueDate)) === 1 &&
         step.laneIndex === previousStep.laneIndex
       );
-      const x = hasLeftNotch ? step.shapeX - PROCESS_FLOW_POINT_DEPTH : step.shapeX;
-      const width = hasLeftNotch ? step.visualWidth + PROCESS_FLOW_POINT_DEPTH : step.visualWidth;
-
       return {
         ...step,
         isFirst,
         hasLeftNotch,
         joinsPrevious,
-        x,
-        width,
+        x: step.shapeX,
+        width: step.visualWidth,
         textX: step.shapeKind === 'due-only' ? step.anchorX : step.shapeX + step.visualWidth / 2
       };
     });
@@ -2254,7 +2201,10 @@ export function TaskDetailsDialog({
 
     processFlowRenderSteps.forEach((step) => {
       const style = processStatusStyles[step.status];
+      const fill = getProgressFillColor(step.progress);
       const stepY = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+      const rangeStartLabelX = step.shapeX + PROCESS_FLOW_DATE_LABEL_INSET;
+      const rangeEndLabelX = step.shapeX + step.visualWidth - PROCESS_FLOW_DATE_LABEL_INSET;
 
       if (step.shapeKind === 'due-only') {
         drawDiamond(context, {
@@ -2262,8 +2212,10 @@ export function TaskDetailsDialog({
           y: stepY,
           width: step.visualWidth,
           height: PROCESS_FLOW_BAR_HEIGHT,
-          fill: style.fill,
+          fill,
+          trackFill: getProgressTrackColor(),
           stroke: style.stroke,
+          progress: step.progress,
           shadow: true
         });
       } else if (step.shapeKind === 'start-only') {
@@ -2272,8 +2224,10 @@ export function TaskDetailsDialog({
           y: stepY,
           width: step.visualWidth,
           height: PROCESS_FLOW_BAR_HEIGHT,
-          fill: style.fill,
+          fill,
+          trackFill: getProgressTrackColor(),
           stroke: style.stroke,
+          progress: step.progress,
           shadow: true
         });
       } else {
@@ -2284,10 +2238,10 @@ export function TaskDetailsDialog({
           height: PROCESS_FLOW_BAR_HEIGHT,
           pointDepth: PROCESS_FLOW_POINT_DEPTH,
           hasLeftNotch: step.hasLeftNotch,
-          fill: style.fill,
+          fill,
+          trackFill: getProgressTrackColor(),
           stroke: style.stroke,
           progress: step.progress,
-          separatorColor: style.fill === 'url(#stripePattern)' ? 'transparent' : 'white',
           shadow: true
         });
       }
@@ -2309,8 +2263,8 @@ export function TaskDetailsDialog({
         drawStrokeText(context, {
           text: extractMD(step.anchorDate),
           x: step.textX,
-          y: stepY - 4,
-          fill: '#374151',
+          y: stepY - 6,
+          fill: style.dateText,
           stroke: '#ffffff',
           strokeWidth: 2,
           font: '700 10px sans-serif',
@@ -2320,9 +2274,9 @@ export function TaskDetailsDialog({
         if (step.startDate) {
           drawStrokeText(context, {
             text: extractMD(step.startDate),
-            x: step.hitX,
-            y: stepY - 4,
-            fill: '#374151',
+            x: rangeStartLabelX,
+            y: stepY - 6,
+            fill: style.dateText,
             stroke: '#ffffff',
             strokeWidth: 2,
             font: '700 10px sans-serif',
@@ -2333,9 +2287,9 @@ export function TaskDetailsDialog({
         if (step.dueDate) {
           drawStrokeText(context, {
             text: extractMD(step.dueDate),
-            x: step.hitX + step.hitWidth,
-            y: stepY - 4,
-            fill: '#374151',
+            x: rangeEndLabelX,
+            y: stepY - 6,
+            fill: style.dateText,
             stroke: '#ffffff',
             strokeWidth: 2,
             font: '700 10px sans-serif',
@@ -2350,9 +2304,19 @@ export function TaskDetailsDialog({
         x: step.textX,
         y: stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1,
         fill: style.text,
-        stroke: style.textStroke || '#ffffff',
-        strokeWidth: Number(String(style.textStrokeWidth || '3px').replace('px', '')),
+        stroke: 'transparent',
+        strokeWidth: 0,
         font: '700 11px sans-serif'
+      });
+
+      drawStrokeText(context, {
+        text: formatProgressLabel(step.progress),
+        x: step.textX,
+        y: stepY + PROCESS_FLOW_PROGRESS_LABEL_Y - PROCESS_FLOW_BAR_Y,
+        fill: style.progressText,
+        stroke: '#ffffff',
+        strokeWidth: 3,
+        font: '700 10px sans-serif'
       });
     });
   }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles, selectedIssueId]);
@@ -2722,10 +2686,10 @@ export function TaskDetailsDialog({
       pointerId: event.pointerId,
       mode,
       startClientX: event.clientX,
-      originalStartDate: step.startDate,
-      originalDueDate: step.dueDate,
-      currentStartDate: step.startDate,
-      currentDueDate: step.dueDate,
+      originalStartDate: step.startDate!,
+      originalDueDate: step.dueDate!,
+      currentStartDate: step.startDate!,
+      currentDueDate: step.dueDate!,
       moved: false
     };
 
@@ -2891,12 +2855,6 @@ export function TaskDetailsDialog({
                       aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
                       style={{ opacity: 0 }}
                     >
-                      <defs>
-                        <pattern id="stripePattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                          <rect width="6" height="6" fill="#f8fafc" />
-                          <line x1="0" y1="0" x2="0" y2="6" stroke="#e2e8f0" strokeWidth="2" />
-                        </pattern>
-                      </defs>
                       <rect
                         x={0}
                         y={0}
@@ -2979,7 +2937,6 @@ export function TaskDetailsDialog({
                         />
 
                         {processFlowRenderSteps.map((step) => {
-                          const style = processStatusStyles[step.status];
                           const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
                           const isInteractive = !savingIssueIds[step.id];
                           const isRangeStep = step.shapeKind === 'range';
@@ -2992,77 +2949,6 @@ export function TaskDetailsDialog({
                               data-selected={isSelected ? 'true' : 'false'}
                               opacity={savingIssueIds[step.id] ? 0.6 : 1}
                             >
-                              {/* Date labels above the bar */}
-                              {step.shapeKind !== 'range' ? (
-                                <text
-                                  x={step.textX}
-                                  y={stepY - 4}
-                                  fill="#374151"
-                                  fontSize="10"
-                                  fontWeight="bold"
-                                  textAnchor="middle"
-                                >
-                                  {extractMD(step.anchorDate)}
-                                </text>
-                              ) : (
-                                <>
-                                  <text
-                                    x={step.hitX}
-                                    y={stepY - 4}
-                                    fill="#374151"
-                                    fontSize="10"
-                                    fontWeight="bold"
-                                    textAnchor="start"
-                                  >
-                                    {step.startDate ? extractMD(step.startDate) : ''}
-                                  </text>
-                                  <text
-                                    x={step.hitX + step.hitWidth}
-                                    y={stepY - 4}
-                                    fill="#374151"
-                                    fontSize="10"
-                                    fontWeight="bold"
-                                    textAnchor="end"
-                                  >
-                                    {step.dueDate ? extractMD(step.dueDate) : ''}
-                                  </text>
-                                </>
-                              )}
-
-                              {step.shapeKind === 'due-only' ? (
-                                <ProcessDiamond
-                                  centerX={step.textX}
-                                  y={stepY}
-                                  width={step.visualWidth}
-                                  height={PROCESS_FLOW_BAR_HEIGHT}
-                                  fill={style.fill}
-                                  stroke={style.stroke}
-                                  id={step.id}
-                                />
-                              ) : step.shapeKind === 'start-only' ? (
-                                <ProcessTriangle
-                                  x={step.shapeX}
-                                  y={stepY}
-                                  width={step.visualWidth}
-                                  height={PROCESS_FLOW_BAR_HEIGHT}
-                                  fill={style.fill}
-                                  stroke={style.stroke}
-                                  id={step.id}
-                                />
-                              ) : (
-                                <ProcessChevron
-                                  x={step.x}
-                                  y={stepY}
-                                  width={step.width}
-                                  height={PROCESS_FLOW_BAR_HEIGHT}
-                                  pointDepth={PROCESS_FLOW_POINT_DEPTH}
-                                  hasLeftNotch={step.hasLeftNotch}
-                                  fill={style.fill}
-                                  stroke={style.stroke}
-                                  progress={step.progress}
-                                  id={step.id}
-                                />
-                              )}
                               <rect
                                 x={step.hitX}
                                 y={stepY}
@@ -3100,25 +2986,6 @@ export function TaskDetailsDialog({
                                   />
                                 </>
                               )}
-                              <text
-                                x={step.textX}
-                                y={stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1}
-                                fill={style.text}
-                                fontSize="11"
-                                fontWeight="700"
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                                pointerEvents="none"
-                                style={{
-                                  paintOrder: 'stroke',
-                                  stroke: style.textStroke || '#ffffff',
-                                  strokeWidth: style.textStrokeWidth || '3px',
-                                  strokeLinecap: 'round',
-                                  strokeLinejoin: 'round'
-                                }}
-                              >
-                                {step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title}
-                              </text>
                             </g>
                           );
                         })}

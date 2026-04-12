@@ -6,9 +6,11 @@ export type ChevronDrawOptions = {
   pointDepth: number;
   hasLeftNotch: boolean;
   fill: string;
+  trackFill?: string;
   stroke: string;
   progress?: number;
   separatorColor?: string;
+  accent?: string;
   shadow?: boolean;
 };
 
@@ -18,7 +20,9 @@ export type DiamondDrawOptions = {
   width: number;
   height: number;
   fill: string;
+  trackFill?: string;
   stroke: string;
+  progress?: number;
   shadow?: boolean;
 };
 
@@ -28,7 +32,9 @@ export type TriangleDrawOptions = {
   width: number;
   height: number;
   fill: string;
+  trackFill?: string;
   stroke: string;
+  progress?: number;
   shadow?: boolean;
 };
 
@@ -44,9 +50,16 @@ export type StrokeTextOptions = {
   textBaseline?: CanvasTextBaseline;
 };
 
-const STRIPE_BG = '#f8fafc';
-const STRIPE_LINE = '#e2e8f0';
-const PROGRESS_REMAINDER = '#cbd5e1';
+const CHEVRON_ACCENT_HEIGHT = 4;
+const CHEVRON_RIGHT_HEAD_RATIO = 0.62;
+
+const getChevronMetrics = (width: number, pointDepth: number) => {
+  const rightHeadDepth = Math.min(pointDepth * CHEVRON_RIGHT_HEAD_RATIO, Math.max(width * 0.16, 10));
+
+  return {
+    rightHeadDepth
+  };
+};
 
 const createChevronPath = (
   ctx: CanvasRenderingContext2D,
@@ -55,20 +68,15 @@ const createChevronPath = (
   width: number,
   height: number,
   pointDepth: number,
-  hasLeftNotch: boolean
+  _hasLeftNotch: boolean
 ) => {
-  const rightBaseX = x + Math.max(width - pointDepth, 0);
+  const { rightHeadDepth } = getChevronMetrics(width, pointDepth);
+  const rightBaseX = x + Math.max(width - rightHeadDepth, 4);
   const rightTipX = x + width;
 
   ctx.beginPath();
-  if (hasLeftNotch) {
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + pointDepth, y + height / 2);
-    ctx.lineTo(x, y + height);
-  } else {
-    ctx.moveTo(x, y);
-    ctx.lineTo(x, y + height);
-  }
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, y + height);
   ctx.lineTo(rightBaseX, y + height);
   ctx.lineTo(rightTipX, y + height / 2);
   ctx.lineTo(rightBaseX, y);
@@ -107,41 +115,42 @@ const createTrianglePath = (
   ctx.closePath();
 };
 
-const fillPendingStripe = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number
-) => {
-  ctx.save();
-  ctx.fillStyle = STRIPE_BG;
-  ctx.fillRect(x, y, width, height);
-  ctx.strokeStyle = STRIPE_LINE;
-  ctx.lineWidth = 2;
-  for (let offset = -height; offset < width + height; offset += 6) {
-    ctx.beginPath();
-    ctx.moveTo(x + offset, y);
-    ctx.lineTo(x + offset - height, y + height);
-    ctx.stroke();
-  }
-  ctx.restore();
-};
-
 const fillShape = (
   ctx: CanvasRenderingContext2D,
   fill: string,
+  _x: number,
+  _y: number,
+  _width: number,
+  _height: number
+) => {
+  ctx.fillStyle = fill;
+  ctx.fill();
+};
+
+const fillProgressShape = (
+  ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
+  fill: string,
+  trackFill: string,
+  progress?: number
 ) => {
-  if (fill === 'url(#stripePattern)') {
-    fillPendingStripe(ctx, x, y, width, height);
-    return;
-  }
-  ctx.fillStyle = fill;
-  ctx.fill();
+  const clampedProgress = Math.max(0, Math.min(100, Number(progress ?? 100)));
+  fillShape(ctx, trackFill, x, y, width, height);
+
+  if (clampedProgress <= 0) return;
+
+  const progressWidth = Math.max(0, Math.min(width, (width * clampedProgress) / 100));
+  if (progressWidth <= 0) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, progressWidth, height);
+  ctx.clip();
+  fillShape(ctx, fill, x, y, width, height);
+  ctx.restore();
 };
 
 const withShadow = (ctx: CanvasRenderingContext2D, enabled?: boolean) => {
@@ -186,58 +195,38 @@ export const drawChevron = (ctx: CanvasRenderingContext2D, options: ChevronDrawO
     pointDepth,
     hasLeftNotch,
     fill,
+    trackFill = '#d9e2ec',
     stroke,
-    progress,
-    separatorColor = 'white',
+    progress = 100,
+    accent,
     shadow
   } = options;
+  const { rightHeadDepth } = getChevronMetrics(width, pointDepth);
+  const rightBaseX = x + Math.max(width - rightHeadDepth, 4);
+  const accentY = y + height + 2;
 
   ctx.save();
   withShadow(ctx, shadow);
   createChevronPath(ctx, x, y, width, height, pointDepth, hasLeftNotch);
   ctx.save();
   ctx.clip();
-
-  if (progress !== undefined && progress >= 0 && progress < 100) {
-    const progressWidth = (width * progress) / 100;
-    if (progressWidth > 0) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x, y, progressWidth, height);
-      ctx.clip();
-      createChevronPath(ctx, x, y, width, height, pointDepth, hasLeftNotch);
-      fillShape(ctx, fill, x, y, width, height);
-      ctx.restore();
-    }
-
-    if (progressWidth < width) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x + progressWidth, y, width - progressWidth, height);
-      ctx.clip();
-      createChevronPath(ctx, x, y, width, height, pointDepth, hasLeftNotch);
-      ctx.fillStyle = PROGRESS_REMAINDER;
-      ctx.fill();
-      ctx.restore();
-    }
-  } else {
-    fillShape(ctx, fill, x, y, width, height);
-  }
+  fillProgressShape(ctx, x, y, width, height, fill, trackFill, progress);
 
   ctx.restore();
   ctx.shadowColor = 'transparent';
   ctx.lineWidth = 1.5;
   ctx.strokeStyle = stroke;
+  ctx.lineJoin = 'miter';
   createChevronPath(ctx, x, y, width, height, pointDepth, hasLeftNotch);
   ctx.stroke();
 
-  if (hasLeftNotch && separatorColor !== 'transparent') {
+  if (accent) {
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + pointDepth, y + height / 2);
-    ctx.lineTo(x, y + height);
-    ctx.strokeStyle = separatorColor;
-    ctx.lineWidth = 2;
+    ctx.moveTo(x + 4, accentY);
+    ctx.lineTo(rightBaseX - 2, accentY);
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = CHEVRON_ACCENT_HEIGHT;
+    ctx.lineCap = 'round';
     ctx.stroke();
   }
 
@@ -245,7 +234,7 @@ export const drawChevron = (ctx: CanvasRenderingContext2D, options: ChevronDrawO
 };
 
 export const drawDiamond = (ctx: CanvasRenderingContext2D, options: DiamondDrawOptions) => {
-  const { centerX, y, width, height, fill, stroke, shadow } = options;
+  const { centerX, y, width, height, fill, trackFill = '#d9e2ec', stroke, progress = 100, shadow } = options;
   const halfWidth = width / 2;
 
   ctx.save();
@@ -253,7 +242,7 @@ export const drawDiamond = (ctx: CanvasRenderingContext2D, options: DiamondDrawO
   createDiamondPath(ctx, centerX, y, width, height);
   ctx.save();
   ctx.clip();
-  fillShape(ctx, fill, centerX - halfWidth, y, width, height);
+  fillProgressShape(ctx, centerX - halfWidth, y, width, height, fill, trackFill, progress);
   ctx.restore();
   ctx.shadowColor = 'transparent';
   ctx.strokeStyle = stroke;
@@ -265,14 +254,14 @@ export const drawDiamond = (ctx: CanvasRenderingContext2D, options: DiamondDrawO
 };
 
 export const drawTriangle = (ctx: CanvasRenderingContext2D, options: TriangleDrawOptions) => {
-  const { x, y, width, height, fill, stroke, shadow } = options;
+  const { x, y, width, height, fill, trackFill = '#d9e2ec', stroke, progress = 100, shadow } = options;
 
   ctx.save();
   withShadow(ctx, shadow);
   createTrianglePath(ctx, x, y, width, height);
   ctx.save();
   ctx.clip();
-  fillShape(ctx, fill, x, y, width, height);
+  fillProgressShape(ctx, x, y, width, height, fill, trackFill, progress);
   ctx.restore();
   ctx.shadowColor = 'transparent';
   ctx.strokeStyle = stroke;
