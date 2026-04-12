@@ -882,17 +882,18 @@ function TimelineSvg({
           }
         });
 
-      if (showTodayLine && todayX >= 0 && todayX <= timelineWidth) {
-        context.save();
-        context.strokeStyle = '#ef4444';
-        context.setLineDash([4, 2]);
-        context.beginPath();
-        context.moveTo(todayX, yOffset + (projectIndex === 0 ? TODAY_LABEL_OFFSET_Y + TODAY_LABEL_HEIGHT + TODAY_LABEL_LINE_GAP : 0));
-        context.lineTo(todayX, yOffset + laneHeight);
-        context.stroke();
-        context.restore();
-      }
     });
+
+    if (showTodayLine && todayX >= 0 && todayX <= timelineWidth) {
+      context.save();
+      context.strokeStyle = '#ef4444';
+      context.setLineDash([4, 2]);
+      context.beginPath();
+      context.moveTo(todayX, headerHeight);
+      context.lineTo(todayX, headerHeight + totalTimelineHeight);
+      context.stroke();
+      context.restore();
+    }
   }, [
     activeReportLaneKey,
     chartScale,
@@ -1195,21 +1196,21 @@ function TimelineSvg({
               })
               .sort((a, b) => a.zIndex - b.zIndex)
               .map((item) => item.element)}
-
-            {showTodayLine && todayX >= 0 && todayX <= timelineWidth && (
-              <line
-                x1={todayX}
-                y1={projectIndex === 0 ? TODAY_LABEL_OFFSET_Y + TODAY_LABEL_HEIGHT + TODAY_LABEL_LINE_GAP : 0}
-                x2={todayX}
-                y2={laneHeight}
-                stroke="#ef4444"
-                strokeWidth="1"
-                strokeDasharray="4 2"
-              />
-            )}
           </g>
         );
       })}
+
+      {showTodayLine && todayX >= 0 && todayX <= timelineWidth && (
+        <line
+          x1={todayX}
+          y1={headerHeight}
+          x2={todayX}
+          y2={headerHeight + totalTimelineHeight}
+          stroke="#ef4444"
+          strokeWidth="1"
+          strokeDasharray="4 2"
+        />
+      )}
 
       </svg>
     </div>
