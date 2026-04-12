@@ -85,23 +85,31 @@ export type TimelineAxis = {
 };
 
 export const DEFAULT_TIMELINE_WIDTH = 1000;
+const DEFAULT_LEFT_BUFFER_DAYS = 3;
+const DEFAULT_RIGHT_BUFFER_DAYS = 3;
 
 export function buildTimelineAxis({
   items,
   containerWidth,
   displayStartDateIso,
   displayEndDateIso,
-  defaultTimelineWidth = DEFAULT_TIMELINE_WIDTH
+  defaultTimelineWidth = DEFAULT_TIMELINE_WIDTH,
+  leftBufferDays = DEFAULT_LEFT_BUFFER_DAYS,
+  rightBufferDays = DEFAULT_RIGHT_BUFFER_DAYS
 }: {
   items: TimelineAxisItem[];
   containerWidth: number;
   displayStartDateIso?: string;
   displayEndDateIso?: string;
   defaultTimelineWidth?: number;
+  leftBufferDays?: number;
+  rightBufferDays?: number;
 }): TimelineAxis {
   const { minDate, maxDate } = getDateRangeWithBuffer(items, {
     displayStartDateIso,
-    displayEndDateIso
+    displayEndDateIso,
+    leftBufferDays,
+    rightBufferDays
   });
   const totalDays = differenceInDays(maxDate, minDate) + 1;
   const timelineWidth = containerWidth > 0 ? containerWidth : defaultTimelineWidth;
@@ -138,12 +146,20 @@ export function createRangeToWidth(pixelsPerDay: number) {
 
 export function getDateRangeWithBuffer(
   items: TimelineAxisItem[],
-  displayRange: { displayStartDateIso?: string; displayEndDateIso?: string }
+  displayRange: {
+    displayStartDateIso?: string;
+    displayEndDateIso?: string;
+    leftBufferDays?: number;
+    rightBufferDays?: number;
+  }
 ): { minDate: Date; maxDate: Date } {
   const configuredRange = resolveConfiguredDateRange(displayRange.displayStartDateIso, displayRange.displayEndDateIso);
   if (configuredRange) {
     return configuredRange;
   }
+
+  const leftBufferDays = Math.max(displayRange.leftBufferDays ?? DEFAULT_LEFT_BUFFER_DAYS, 0);
+  const rightBufferDays = Math.max(displayRange.rightBufferDays ?? DEFAULT_RIGHT_BUFFER_DAYS, 0);
 
   let minDate: Date | null = null;
   let maxDate: Date | null = null;
@@ -171,9 +187,9 @@ export function getDateRangeWithBuffer(
   const effectiveMaxDate = maxDate || minDate!;
 
   const bufferedMinDate = new Date(effectiveMinDate);
-  bufferedMinDate.setDate(bufferedMinDate.getDate() - 3);
+  bufferedMinDate.setDate(bufferedMinDate.getDate() - leftBufferDays);
   const bufferedMaxDate = new Date(effectiveMaxDate);
-  bufferedMaxDate.setDate(bufferedMaxDate.getDate() + 3);
+  bufferedMaxDate.setDate(bufferedMaxDate.getDate() + rightBufferDays);
 
   return {
     minDate: bufferedMinDate,

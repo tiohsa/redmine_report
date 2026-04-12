@@ -25,6 +25,13 @@ import {
   useEmbeddedIssueDialogLayout,
 } from './embeddedIssueDialog';
 import { buildTimelineAxis, calculateStaggeredLanes, createDateToX, createRangeToWidth } from './timelineAxis';
+import {
+  drawChevron,
+  drawDiamond,
+  drawTriangle,
+  drawStrokeText,
+  prepareHiDPICanvas
+} from './canvasTimelineRenderer';
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -56,17 +63,39 @@ type IssueTreeNodeProps = {
 };
 
 type EditingCell = { field: string; value: string };
-type EditingDateRange = { issueId: number; focusField: 'start_date' | 'due_date' };
+type EditingDateRange = {
+  issueId: number;
+  focusField: 'start_date' | 'due_date';
+  startDate: string;
+  dueDate: string;
+};
 
 type ProcessFlowStep = {
   id: number;
   title: string;
   rangeLabel: string;
-  startDate: string;
-  dueDate: string;
+  startDate: string | null;
+  dueDate: string | null;
+  anchorDate: string;
+  shapeKind: 'range' | 'start-only' | 'due-only';
   status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
   progress: number;
   hasChildren: boolean;
+};
+
+type ProcessFlowRenderStep = ProcessFlowStep & {
+  anchorX: number;
+  shapeX: number;
+  visualWidth: number;
+  hitX: number;
+  hitWidth: number;
+  laneIndex: number;
+  isFirst: boolean;
+  hasLeftNotch: boolean;
+  joinsPrevious: boolean;
+  x: number;
+  width: number;
+  textX: number;
 };
 
 type DrilldownCrumb = {
@@ -89,15 +118,26 @@ const PROCESS_FLOW_BAR_HEIGHT = 36;
 const PROCESS_FLOW_BAR_Y = 22;
 const PROCESS_FLOW_BAR_SPACING_Y = 17;
 const PROCESS_FLOW_POINT_DEPTH = 18;
+const PROCESS_FLOW_DIAMOND_WIDTH = PROCESS_FLOW_BAR_HEIGHT;
+const PROCESS_FLOW_TRIANGLE_WIDTH = (PROCESS_FLOW_BAR_HEIGHT * Math.sqrt(3)) / 2;
 const PROCESS_FLOW_RANGE_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 16;
 const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
 const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
+const DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX = 320;
+const DETAILS_TOP_PANE_MIN_HEIGHT_PX = 180;
+const DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX = 240;
+const DETAILS_LAYOUT_FALLBACK_HEIGHT_PX = 760;
 
-const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
 const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-200/80';
 const TASK_CELL_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
 const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold truncate shadow-sm';
+const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 px-2 border border-slate-300 bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer';
+const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 w-7 border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer';
+const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-[72px] px-3 border border-slate-400 bg-slate-100 text-[12px] font-semibold text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[11px] font-bold uppercase tracking-wide text-slate-500';
+const REDMINE_DIALOG_TEXTAREA_CLASS = 'w-full min-h-[88px] resize-y border border-slate-300 bg-white px-3 py-2 text-[13px] leading-5 text-slate-700 focus:outline-none focus:ring-0 focus:border-slate-500';
+const REDMINE_DIALOG_SECTION_CLASS = 'border-b border-slate-200 px-4 py-4';
 const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   #issue-form p:has(#issue_subject),
                   #new_issue p:has(#issue_subject),
@@ -176,6 +216,133 @@ const ProcessChevron = ({
   );
 };
 
+const ProcessDiamond = ({
+  centerX,
+  y,
+  width,
+  height,
+  fill,
+  stroke,
+  id
+}: {
+  centerX: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+  id: number;
+}) => {
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  const pathData = [
+    `M ${centerX} ${y}`,
+    `L ${centerX + halfWidth} ${y + halfHeight}`,
+    `L ${centerX} ${y + height}`,
+    `L ${centerX - halfWidth} ${y + halfHeight}`,
+    'Z'
+  ].join(' ');
+
+  return <path data-testid={`task-details-process-step-diamond-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
+};
+
+const ProcessTriangle = ({
+  x,
+  y,
+  width,
+  height,
+  fill,
+  stroke,
+  id
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+  id: number;
+}) => {
+  const pathData = [
+    `M ${x} ${y}`,
+    `L ${x + width} ${y + height / 2}`,
+    `L ${x} ${y + height}`,
+    'Z'
+  ].join(' ');
+
+  return <path data-testid={`task-details-process-step-triangle-${id}`} d={pathData} fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />;
+};
+
+const drawSelectedProcessOutline = (
+  context: CanvasRenderingContext2D,
+  step: {
+    shapeKind: 'range' | 'start-only' | 'due-only';
+    stepY: number;
+    x: number;
+    width: number;
+    hasLeftNotch: boolean;
+    shapeX: number;
+    visualWidth: number;
+    textX: number;
+  }
+) => {
+  context.save();
+  context.strokeStyle = '#2563eb';
+  context.lineWidth = 2;
+  context.setLineDash([6, 4]);
+  context.shadowColor = 'rgba(37, 99, 235, 0.18)';
+  context.shadowBlur = 6;
+  context.shadowOffsetX = 0;
+  context.shadowOffsetY = 1;
+
+  if (step.shapeKind === 'due-only') {
+    const halfWidth = step.visualWidth / 2;
+    const halfHeight = PROCESS_FLOW_BAR_HEIGHT / 2;
+    context.beginPath();
+    context.moveTo(step.textX, step.stepY - 3);
+    context.lineTo(step.textX + halfWidth + 3, step.stepY + halfHeight);
+    context.lineTo(step.textX, step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3);
+    context.lineTo(step.textX - halfWidth - 3, step.stepY + halfHeight);
+    context.closePath();
+    context.stroke();
+    context.restore();
+    return;
+  }
+
+  if (step.shapeKind === 'start-only') {
+    context.beginPath();
+    context.moveTo(step.shapeX - 3, step.stepY - 3);
+    context.lineTo(step.shapeX + step.visualWidth + 4, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+    context.lineTo(step.shapeX - 3, step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3);
+    context.closePath();
+    context.stroke();
+    context.restore();
+    return;
+  }
+
+  const leftEdgeX = step.x - 3;
+  const topY = step.stepY - 3;
+  const bottomY = step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3;
+  const rightBaseX = step.x + step.width - PROCESS_FLOW_POINT_DEPTH;
+  const rightTipX = step.x + step.width + 3;
+
+  context.beginPath();
+  if (step.hasLeftNotch) {
+    context.moveTo(leftEdgeX, topY);
+    context.lineTo(step.x + PROCESS_FLOW_POINT_DEPTH, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+    context.lineTo(leftEdgeX, bottomY);
+  } else {
+    context.moveTo(leftEdgeX, topY);
+    context.lineTo(leftEdgeX, bottomY);
+  }
+  context.lineTo(rightBaseX + 3, bottomY);
+  context.lineTo(rightTipX, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+  context.lineTo(rightBaseX + 3, topY);
+  context.closePath();
+  context.stroke();
+  context.restore();
+};
+
 const shiftIsoDate = (isoDate: string, deltaDays: number) => format(addDays(parseISO(isoDate), deltaDays), 'yyyy-MM-dd');
 const extractMD = (isoDate: string) => {
   const parts = isoDate.split('-');
@@ -183,6 +350,12 @@ const extractMD = (isoDate: string) => {
 };
 
 type ProcessDragMode = 'move' | 'resize-left' | 'resize-right';
+type DetailsVerticalResizeSession = {
+  pointerId: number;
+  startClientY: number;
+  startTopPaneHeight: number;
+  containerHeight: number;
+};
 
 type ProcessDragSession = {
   issueId: number;
@@ -223,6 +396,20 @@ const IssueTreeNode = ({
   const startDateInputRef = useRef<HTMLInputElement | null>(null);
   const dueDateInputRef = useRef<HTMLInputElement | null>(null);
 
+  const openDatePicker = (input: HTMLInputElement | null) => {
+    if (!input) return;
+
+    try {
+      if (typeof input.showPicker === 'function') {
+        input.showPicker();
+      }
+    } catch {
+      // ignore browsers that block scripted picker opening
+    }
+
+    input.focus();
+  };
+
   useEffect(() => {
     if (editingCell && inputRef.current) {
       inputRef.current.focus();
@@ -242,14 +429,7 @@ const IssueTreeNode = ({
     if (!targetInput) return;
 
     const timer = window.setTimeout(() => {
-      try {
-        if (typeof targetInput.showPicker === 'function') {
-          targetInput.showPicker();
-        }
-      } catch {
-        // ignore browsers that block scripted picker opening
-      }
-      targetInput.focus();
+      openDatePicker(targetInput);
     }, 0);
 
     return () => window.clearTimeout(timer);
@@ -293,9 +473,34 @@ const IssueTreeNode = ({
   const cancelEdit = () => setEditingCell(null);
   const cancelDateRangeEdit = () => setEditingDateRange(null);
   const startDateRangeEdit = (field: 'start_date' | 'due_date', e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setEditingCell(null);
-    setEditingDateRange({ issueId: node.issue_id, focusField: field });
+    setEditingDateRange({
+      issueId: node.issue_id,
+      focusField: field,
+      startDate: node.start_date || '',
+      dueDate: node.due_date || ''
+    });
+  };
+  const updateDateRangeDraft = (key: 'startDate' | 'dueDate', value: string) => {
+    setEditingDateRange((prev) => {
+      if (!prev || prev.issueId !== node.issue_id) return prev;
+      return { ...prev, [key]: value };
+    });
+  };
+  const commitDateRangeEdit = () => {
+    if (!editingDateRange || editingDateRange.issueId !== node.issue_id) return;
+
+    if ((node.start_date || '') !== editingDateRange.startDate) {
+      handleDateChange(node, 'start_date', editingDateRange.startDate);
+    }
+
+    if ((node.due_date || '') !== editingDateRange.dueDate) {
+      handleDateChange(node, 'due_date', editingDateRange.dueDate);
+    }
+
+    cancelDateRangeEdit();
   };
 
   const commitEdit = async (field: string, rawValue: string) => {
@@ -333,12 +538,17 @@ const IssueTreeNode = ({
   const isEditing = (field: string) => editingCell?.field === field;
   const isEditingDateRange = editingDateRange?.issueId === node.issue_id;
   const isSaving = savingIssueIds[node.issue_id] || isSavingField;
+  const dateRangeDraft = isEditingDateRange ? editingDateRange : null;
+  const displayStartDate = dateRangeDraft?.startDate || node.start_date || '';
+  const displayDueDate = dateRangeDraft?.dueDate || node.due_date || '';
 
   const cellClass = 'group/cell cursor-pointer';
 
   return (
     <>
       <div
+        data-testid={`task-row-${node.issue_id}`}
+        data-selected={isSelected ? 'true' : 'false'}
         className={`${TASK_ROW_BASE_CLASS} ${isSelected ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-200/70' : 'bg-white hover:bg-slate-50/90'}`}
       >
         {/* Tree connectors */}
@@ -369,7 +579,12 @@ const IssueTreeNode = ({
         )}
 
         {/* TASK Column */}
-        <div className="w-[280px] min-w-[280px] shrink-0 flex items-center" style={{ paddingLeft: `${depth * 20}px` }}>
+        <div
+          className="w-[280px] min-w-[280px] shrink-0 flex items-center"
+          style={{ paddingLeft: `${depth * 20}px` }}
+          onClick={() => onSelectIssue?.(node)}
+          data-testid={`task-title-cell-${node.issue_id}`}
+        >
           <div className="w-5 mr-1 flex-shrink-0 flex items-center justify-center">
             {node.children.length > 0 && (
               <button
@@ -583,10 +798,11 @@ const IssueTreeNode = ({
             <div className="relative w-[110px] h-8">
               <span
                 data-testid={`start-date-display-${node.issue_id}`}
-                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer hover:border-blue-200 hover:bg-blue-50/70"
+                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
+                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                 onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
               >
-                {node.start_date ? node.start_date.replace(/-/g, '/') : '-'}
+                {displayStartDate ? displayStartDate.replace(/-/g, '/') : '-'}
               </span>
               {isEditingDateRange ? (
                 <input
@@ -594,22 +810,29 @@ const IssueTreeNode = ({
                   type="date"
                   data-testid={`start-date-input-${node.issue_id}`}
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  value={node.start_date || ''}
-                  max={node.due_date || undefined}
+                  value={dateRangeDraft?.startDate || ''}
+                  max={dateRangeDraft?.dueDate || undefined}
                   onChange={(e) => {
-                    handleDateChange(node, 'start_date', e.target.value);
-                    cancelDateRangeEdit();
+                    updateDateRangeDraft('startDate', e.target.value);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Escape' || e.key === 'Enter') {
+                    if (e.key === 'Escape') {
                       e.preventDefault();
                       cancelDateRangeEdit();
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      commitDateRangeEdit();
                     }
                   }}
                   onBlur={(e) => {
                     const nextTarget = e.relatedTarget as Node | null;
                     if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
-                    cancelDateRangeEdit();
+                    commitDateRangeEdit();
+                  }}
+                  onDoubleClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openDatePicker(e.currentTarget);
                   }}
                 />
               ) : null}
@@ -618,10 +841,11 @@ const IssueTreeNode = ({
             <div className="relative w-[110px] h-8">
               <span
                 data-testid={`due-date-display-${node.issue_id}`}
-                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer hover:border-blue-200 hover:bg-blue-50/70"
+                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
+                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
                 onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
               >
-                {node.due_date ? node.due_date.replace(/-/g, '/') : '-'}
+                {displayDueDate ? displayDueDate.replace(/-/g, '/') : '-'}
               </span>
               {isEditingDateRange ? (
                 <input
@@ -629,22 +853,29 @@ const IssueTreeNode = ({
                   type="date"
                   data-testid={`due-date-input-${node.issue_id}`}
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  value={node.due_date || ''}
-                  min={node.start_date || undefined}
+                  value={dateRangeDraft?.dueDate || ''}
+                  min={dateRangeDraft?.startDate || undefined}
                   onChange={(e) => {
-                    handleDateChange(node, 'due_date', e.target.value);
-                    cancelDateRangeEdit();
+                    updateDateRangeDraft('dueDate', e.target.value);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Escape' || e.key === 'Enter') {
+                    if (e.key === 'Escape') {
                       e.preventDefault();
                       cancelDateRangeEdit();
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault();
+                      commitDateRangeEdit();
                     }
                   }}
                   onBlur={(e) => {
                     const nextTarget = e.relatedTarget as Node | null;
                     if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
-                    cancelDateRangeEdit();
+                    commitDateRangeEdit();
+                  }}
+                  onDoubleClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openDatePicker(e.currentTarget);
                   }}
                 />
               ) : null}
@@ -1605,7 +1836,14 @@ export function TaskDetailsDialog({
   const [suppressProcessClickIssueId, setSuppressProcessClickIssueId] = useState<number | null>(null);
   const processDragRef = useRef<ProcessDragSession | null>(null);
   const processFlowContainerRef = useRef<HTMLDivElement | null>(null);
+  const processFlowCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [processFlowContainerWidth, setProcessFlowContainerWidth] = useState(0);
+  const detailsLayoutRef = useRef<HTMLDivElement | null>(null);
+  const [topPaneHeight, setTopPaneHeight] = useState(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
+  const [verticalResizeSession, setVerticalResizeSession] = useState<DetailsVerticalResizeSession | null>(null);
+  const verticalResizeRef = useRef<DetailsVerticalResizeSession | null>(null);
+  const lastAutoFitKeyRef = useRef<string | null>(null);
+  const manualResizeSuppressedKeyRef = useRef<string | null>(null);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const currentRoot = drilldownPath[drilldownPath.length - 1] || { issueId, title: issueTitle };
@@ -1736,6 +1974,11 @@ export function TaskDetailsDialog({
     setSavingIssueIds({});
     setProcessDragSession(null);
     processDragRef.current = null;
+    setTopPaneHeight(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
+    setVerticalResizeSession(null);
+    verticalResizeRef.current = null;
+    lastAutoFitKeyRef.current = null;
+    manualResizeSuppressedKeyRef.current = null;
     setSuppressProcessClickIssueId(null);
     selectIssue(null);
     void reloadTaskDetails(issueId, { selectedIssueId: null }).catch(() => {
@@ -1758,6 +2001,10 @@ export function TaskDetailsDialog({
   useEffect(() => {
     processDragRef.current = processDragSession;
   }, [processDragSession]);
+
+  useEffect(() => {
+    verticalResizeRef.current = verticalResizeSession;
+  }, [verticalResizeSession]);
 
   useEffect(() => () => {
     Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
@@ -1782,6 +2029,16 @@ export function TaskDetailsDialog({
     return roots;
   }, [issues]);
 
+  const selectedIssueId = selectedIssue?.issue_id ?? null;
+  const handleTaskRowSelect = useCallback((issue: TreeNodeType) => {
+    if (selectedIssue?.issue_id === issue.issue_id) {
+      selectIssue(null);
+      return;
+    }
+
+    selectIssue(issue);
+  }, [selectIssue, selectedIssue]);
+
   const processFlowSteps = useMemo<ProcessFlowStep[]>(() => {
     const parentIssueIds = new Set(
       issues
@@ -1789,7 +2046,7 @@ export function TaskDetailsDialog({
         .filter((parentId): parentId is number => Number.isInteger(parentId))
     );
     return issues
-      .filter((issue) => Boolean(issue.start_date && issue.due_date))
+      .filter((issue) => Boolean(issue.start_date || issue.due_date))
       // Use the immediate children of the opened task as the top-level segments
       .filter((issue) => issue.parent_id === currentRootIssueId)
       .map((issue) => {
@@ -1799,20 +2056,32 @@ export function TaskDetailsDialog({
           : progress > 0
             ? 'IN_PROGRESS'
             : 'PENDING';
+        const startDate = issue.start_date ?? null;
+        const dueDate = issue.due_date ?? null;
+        const anchorDate = startDate ?? dueDate;
+        if (!anchorDate) return null;
+        const shapeKind: ProcessFlowStep['shapeKind'] = startDate && dueDate
+          ? 'range'
+          : startDate
+            ? 'start-only'
+            : 'due-only';
         return {
           id: issue.issue_id,
           title: issue.subject,
-          startDate: issue.start_date as string,
-          dueDate: issue.due_date as string,
-          rangeLabel: `${issue.start_date} - ${issue.due_date}`,
+          startDate,
+          dueDate,
+          anchorDate,
+          shapeKind,
+          rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : anchorDate,
           status,
           progress,
           hasChildren: parentIssueIds.has(issue.issue_id)
         };
       })
+      .filter((step): step is ProcessFlowStep => step !== null)
       .sort((left, right) =>
-        left.startDate.localeCompare(right.startDate) ||
-        left.dueDate.localeCompare(right.dueDate) ||
+        left.anchorDate.localeCompare(right.anchorDate) ||
+        (left.dueDate ?? left.anchorDate).localeCompare(right.dueDate ?? right.anchorDate) ||
         left.id - right.id
       );
   }, [issues, currentRootIssueId]);
@@ -1826,54 +2095,79 @@ export function TaskDetailsDialog({
 
     return buildTimelineAxis({
       items: processFlowSteps.map((step) => ({
-        start_date: step.startDate,
-        end_date: step.dueDate
+        start_date: step.startDate ?? step.anchorDate,
+        end_date: step.dueDate ?? step.anchorDate
       })),
       containerWidth: processFlowTimelineWidth,
-      defaultTimelineWidth: processFlowTimelineWidth
+      defaultTimelineWidth: processFlowTimelineWidth,
+      leftBufferDays: 7
     });
   }, [processFlowSteps, processFlowTimelineWidth]);
 
   const processFlowPixelsPerDay = processFlowAxis?.pixelsPerDay ?? 1;
 
-  const processFlowRenderSteps = useMemo(() => {
+  const processFlowRenderSteps = useMemo<ProcessFlowRenderStep[]>(() => {
     if (!processFlowAxis) return [];
 
     const getX = createDateToX(processFlowAxis.minDate, processFlowAxis.pixelsPerDay);
     const getWidth = createRangeToWidth(processFlowAxis.pixelsPerDay);
 
     const rawSteps = processFlowSteps.map((step) => {
-      const currentSession = processDragSession?.issueId === step.id ? processDragSession : null;
+      const currentSession = step.shapeKind === 'range' && processDragSession?.issueId === step.id ? processDragSession : null;
       const startDate = currentSession?.currentStartDate ?? step.startDate;
       const dueDate = currentSession?.currentDueDate ?? step.dueDate;
+      const anchorDate = startDate ?? dueDate;
+      const anchorX = anchorDate ? getX(anchorDate) : 0;
+      const visualWidth = step.shapeKind === 'range'
+        ? getWidth(startDate, dueDate)
+        : step.shapeKind === 'start-only'
+          ? PROCESS_FLOW_TRIANGLE_WIDTH
+          : PROCESS_FLOW_DIAMOND_WIDTH;
+      const hitWidth = step.shapeKind === 'range'
+        ? visualWidth
+        : Math.max(visualWidth, processFlowAxis.pixelsPerDay);
+      const hitX = step.shapeKind === 'start-only'
+        ? anchorX
+        : anchorX - hitWidth / 2;
+      const shapeX = step.shapeKind === 'start-only'
+        ? anchorX
+        : anchorX - visualWidth / 2;
 
       return {
         ...step,
         startDate,
         dueDate,
-        rangeLabel: `${startDate} - ${dueDate}`,
-        hitX: getX(startDate),
-        hitWidth: getWidth(startDate, dueDate)
+        anchorDate: anchorDate ?? step.anchorDate,
+        rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : (anchorDate ?? step.anchorDate),
+        anchorX,
+        shapeX,
+        visualWidth,
+        hitX,
+        hitWidth
       };
     });
 
     const positionedSteps = calculateStaggeredLanes(
       rawSteps,
-      (step) => step.startDate,
-      (step) => step.dueDate
+      (step) => step.anchorDate,
+      (step) => step.dueDate ?? step.anchorDate
     );
 
     return positionedSteps.map((step, index) => {
       const isFirst = index === 0;
-      const hasLeftNotch = !isFirst;
+      const hasLeftNotch = step.shapeKind === 'range' && !isFirst;
       const previousStep = index > 0 ? positionedSteps[index - 1] : null;
       const joinsPrevious = Boolean(
+        step.shapeKind === 'range' &&
+        previousStep?.shapeKind === 'range' &&
         previousStep &&
+        step.startDate &&
+        previousStep.dueDate &&
         differenceInCalendarDays(parseISO(step.startDate), parseISO(previousStep.dueDate)) === 1 &&
         step.laneIndex === previousStep.laneIndex
       );
-      const x = hasLeftNotch ? step.hitX - PROCESS_FLOW_POINT_DEPTH : step.hitX;
-      const width = hasLeftNotch ? step.hitWidth + PROCESS_FLOW_POINT_DEPTH : step.hitWidth;
+      const x = hasLeftNotch ? step.shapeX - PROCESS_FLOW_POINT_DEPTH : step.shapeX;
+      const width = hasLeftNotch ? step.visualWidth + PROCESS_FLOW_POINT_DEPTH : step.visualWidth;
 
       return {
         ...step,
@@ -1882,7 +2176,7 @@ export function TaskDetailsDialog({
         joinsPrevious,
         x,
         width,
-        textX: step.hitX + step.hitWidth / 2
+        textX: step.shapeKind === 'due-only' ? step.anchorX : step.shapeX + step.visualWidth / 2
       };
     });
   }, [processFlowAxis, processFlowSteps, processDragSession]);
@@ -1897,8 +2191,223 @@ export function TaskDetailsDialog({
   );
   const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
 
+  useLayoutEffect(() => {
+    if (!processFlowAxis || !processFlowCanvasRef.current) return;
+    const context = prepareHiDPICanvas(
+      processFlowCanvasRef.current,
+      processFlowAxis.timelineWidth,
+      processFlowSvgHeight
+    );
+    if (!context) return;
+
+    context.fillStyle = '#f8fafc';
+    context.fillRect(0, 0, processFlowAxis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
+    context.fillRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, processFlowAxis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
+    context.strokeStyle = '#e2e8f0';
+    context.lineWidth = 1;
+    context.strokeRect(0, 0, processFlowAxis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
+    context.strokeRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, processFlowAxis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
+
+    processFlowAxis.headerYears.forEach((year) => {
+      context.strokeRect(year.x, 0, year.width, PROCESS_FLOW_YEAR_ROW_HEIGHT);
+      drawStrokeText(context, {
+        text: year.year,
+        x: year.x + year.width / 2,
+        y: PROCESS_FLOW_YEAR_ROW_HEIGHT / 2,
+        fill: '#334155',
+        stroke: '#f8fafc',
+        strokeWidth: 0,
+        font: '700 11px sans-serif'
+      });
+    });
+
+    processFlowAxis.headerMonths.forEach((month) => {
+      context.strokeRect(month.x, PROCESS_FLOW_YEAR_ROW_HEIGHT, month.width, PROCESS_FLOW_MONTH_ROW_HEIGHT);
+      drawStrokeText(context, {
+        text: month.label,
+        x: month.x + month.width / 2,
+        y: PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT / 2,
+        fill: '#334155',
+        stroke: '#f8fafc',
+        strokeWidth: 0,
+        font: '700 11px sans-serif'
+      });
+    });
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, PROCESS_FLOW_HEADER_HEIGHT, processFlowAxis.timelineWidth, processFlowLaneHeight);
+    processFlowAxis.headerMonths.forEach((month) => {
+      context.save();
+      context.strokeStyle = '#e2e8f0';
+      context.setLineDash([4, 3]);
+      context.beginPath();
+      context.moveTo(month.x, PROCESS_FLOW_HEADER_HEIGHT);
+      context.lineTo(month.x, PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight);
+      context.stroke();
+      context.restore();
+    });
+    context.beginPath();
+    context.moveTo(0, PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight);
+    context.lineTo(processFlowAxis.timelineWidth, PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight);
+    context.strokeStyle = '#e2e8f0';
+    context.stroke();
+
+    processFlowRenderSteps.forEach((step) => {
+      const style = processStatusStyles[step.status];
+      const stepY = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+
+      if (step.shapeKind === 'due-only') {
+        drawDiamond(context, {
+          centerX: step.textX,
+          y: stepY,
+          width: step.visualWidth,
+          height: PROCESS_FLOW_BAR_HEIGHT,
+          fill: style.fill,
+          stroke: style.stroke,
+          shadow: true
+        });
+      } else if (step.shapeKind === 'start-only') {
+        drawTriangle(context, {
+          x: step.shapeX,
+          y: stepY,
+          width: step.visualWidth,
+          height: PROCESS_FLOW_BAR_HEIGHT,
+          fill: style.fill,
+          stroke: style.stroke,
+          shadow: true
+        });
+      } else {
+        drawChevron(context, {
+          x: step.x,
+          y: stepY,
+          width: step.width,
+          height: PROCESS_FLOW_BAR_HEIGHT,
+          pointDepth: PROCESS_FLOW_POINT_DEPTH,
+          hasLeftNotch: step.hasLeftNotch,
+          fill: style.fill,
+          stroke: style.stroke,
+          progress: step.progress,
+          separatorColor: style.fill === 'url(#stripePattern)' ? 'transparent' : 'white',
+          shadow: true
+        });
+      }
+
+      if (selectedIssueId === step.id) {
+        drawSelectedProcessOutline(context, {
+          shapeKind: step.shapeKind,
+          stepY,
+          x: step.x,
+          width: step.width,
+          hasLeftNotch: step.hasLeftNotch,
+          shapeX: step.shapeX,
+          visualWidth: step.visualWidth,
+          textX: step.textX
+        });
+      }
+
+      if (step.shapeKind !== 'range') {
+        drawStrokeText(context, {
+          text: extractMD(step.anchorDate),
+          x: step.textX,
+          y: stepY - 4,
+          fill: '#374151',
+          stroke: '#ffffff',
+          strokeWidth: 2,
+          font: '700 10px sans-serif',
+          textBaseline: 'alphabetic'
+        });
+      } else {
+        if (step.startDate) {
+          drawStrokeText(context, {
+            text: extractMD(step.startDate),
+            x: step.hitX,
+            y: stepY - 4,
+            fill: '#374151',
+            stroke: '#ffffff',
+            strokeWidth: 2,
+            font: '700 10px sans-serif',
+            textAlign: 'start',
+            textBaseline: 'alphabetic'
+          });
+        }
+        if (step.dueDate) {
+          drawStrokeText(context, {
+            text: extractMD(step.dueDate),
+            x: step.hitX + step.hitWidth,
+            y: stepY - 4,
+            fill: '#374151',
+            stroke: '#ffffff',
+            strokeWidth: 2,
+            font: '700 10px sans-serif',
+            textAlign: 'end',
+            textBaseline: 'alphabetic'
+          });
+        }
+      }
+
+      drawStrokeText(context, {
+        text: step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title,
+        x: step.textX,
+        y: stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1,
+        fill: style.text,
+        stroke: style.textStroke || '#ffffff',
+        strokeWidth: Number(String(style.textStrokeWidth || '3px').replace('px', '')),
+        font: '700 11px sans-serif'
+      });
+    });
+  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles, selectedIssueId]);
+
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
   const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
+  const currentAutoFitKey = open && !loading && issues.length > 0 && processFlowRenderSteps.length > 0
+    ? `${currentRootIssueId}:${processFlowSvgHeight}`
+    : null;
+  const clampTopPaneHeight = useCallback((nextHeight: number, containerHeight: number) => {
+    const safeContainerHeight = Number.isFinite(containerHeight) && containerHeight > 0
+      ? containerHeight
+      : DETAILS_LAYOUT_FALLBACK_HEIGHT_PX;
+    const maxHeight = Math.max(
+      DETAILS_TOP_PANE_MIN_HEIGHT_PX,
+      safeContainerHeight - DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX
+    );
+    return Math.min(Math.max(nextHeight, DETAILS_TOP_PANE_MIN_HEIGHT_PX), maxHeight);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!currentAutoFitKey || !detailsLayoutRef.current) return;
+    if (lastAutoFitKeyRef.current === currentAutoFitKey) return;
+    if (manualResizeSuppressedKeyRef.current === currentAutoFitKey) return;
+
+    const containerHeight = detailsLayoutRef.current.getBoundingClientRect().height
+      || detailsLayoutRef.current.clientHeight;
+    const nextHeight = clampTopPaneHeight(processFlowSvgHeight, containerHeight);
+
+    lastAutoFitKeyRef.current = currentAutoFitKey;
+    setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  }, [clampTopPaneHeight, currentAutoFitKey, processFlowSvgHeight]);
+
+  useLayoutEffect(() => {
+    if (!open || loading || issues.length === 0 || !detailsLayoutRef.current) return;
+
+    const element = detailsLayoutRef.current;
+    const updateHeight = () => {
+      setTopPaneHeight((prev) => {
+        const nextHeight = clampTopPaneHeight(prev, element.clientHeight);
+        return prev === nextHeight ? prev : nextHeight;
+      });
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [clampTopPaneHeight, issues.length, loading, open]);
 
   const isRowDirty = (row: TaskDetailIssue) => {
     const baseline = baselineByIdRef.current[row.issue_id];
@@ -2030,6 +2539,94 @@ export function TaskDetailsDialog({
     };
   }, [processDragSession, processFlowPixelsPerDay, saveProcessFlowDates]);
 
+  const updateVerticalResize = useCallback((clientY: number, pointerId?: number) => {
+    const current = verticalResizeRef.current;
+    if (!current) return;
+    if (typeof pointerId === 'number' && pointerId > 0 && current.pointerId !== pointerId) return;
+
+    const deltaY = clientY - current.startClientY;
+    const nextHeight = clampTopPaneHeight(current.startTopPaneHeight + deltaY, current.containerHeight);
+    setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  }, [clampTopPaneHeight]);
+
+  const stopVerticalResize = useCallback((pointerId?: number) => {
+    const current = verticalResizeRef.current;
+    if (!current) return;
+    if (typeof pointerId === 'number' && pointerId > 0 && current.pointerId !== pointerId) return;
+
+    verticalResizeRef.current = null;
+    setVerticalResizeSession(null);
+  }, []);
+
+  useEffect(() => {
+    if (!verticalResizeSession) return;
+
+    const onPointerMove = (event: PointerEvent) => updateVerticalResize(event.clientY, event.pointerId);
+    const onPointerUp = (event: PointerEvent) => stopVerticalResize(event.pointerId);
+    const onMouseMove = (event: MouseEvent) => updateVerticalResize(event.clientY);
+    const onMouseUp = () => stopVerticalResize();
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [stopVerticalResize, updateVerticalResize, verticalResizeSession]);
+
+  const beginVerticalResize = useCallback((clientY: number, pointerId: number) => {
+    const containerRect = detailsLayoutRef.current?.getBoundingClientRect();
+    const containerHeight = containerRect?.height ?? detailsLayoutRef.current?.clientHeight ?? 0;
+    if (currentAutoFitKey) {
+      manualResizeSuppressedKeyRef.current = currentAutoFitKey;
+    }
+    const nextSession = {
+      pointerId,
+      startClientY: clientY,
+      startTopPaneHeight: topPaneHeight,
+      containerHeight
+    };
+
+    verticalResizeRef.current = nextSession;
+    setVerticalResizeSession(nextSession);
+  }, [currentAutoFitKey, topPaneHeight]);
+
+  const startVerticalResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    beginVerticalResize(event.clientY, event.pointerId);
+  }, [beginVerticalResize]);
+
+  const startVerticalResizeWithMouse = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    beginVerticalResize(event.clientY, 1);
+  }, [beginVerticalResize]);
+
+  const handleVerticalResizeKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    let delta = 0;
+    if (event.key === 'ArrowDown') delta = 24;
+    if (event.key === 'ArrowUp') delta = -24;
+    if (event.key === 'PageDown') delta = 80;
+    if (event.key === 'PageUp') delta = -80;
+    if (delta === 0) return;
+
+    event.preventDefault();
+    const containerRect = detailsLayoutRef.current?.getBoundingClientRect();
+    const containerHeight = containerRect?.height ?? detailsLayoutRef.current?.clientHeight ?? 0;
+    if (currentAutoFitKey) {
+      manualResizeSuppressedKeyRef.current = currentAutoFitKey;
+    }
+    setTopPaneHeight((prev) => clampTopPaneHeight(prev + delta, containerHeight));
+  }, [clampTopPaneHeight, currentAutoFitKey]);
+
   const handleDateChange = (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => {
     setIssues((prev) => {
       const next = prev.map((item) => (item.issue_id === row.issue_id ? { ...item, [key]: value || null } : item));
@@ -2145,13 +2742,18 @@ export function TaskDetailsDialog({
     const issue = issuesRef.current.find((item) => item.issue_id === step.id) || null;
     if (!issue) return;
 
-    selectIssue(null);
+    selectIssue(issue);
+  }, [selectIssue, suppressProcessClickIssueId]);
 
-    if (step.hasChildren) {
-      setDrilldownPath((prev) => [...prev, { issueId: step.id, title: issue.subject }]);
-      void reloadTaskDetails(step.id, { selectedIssueId: null });
-    }
-  }, [reloadTaskDetails, selectIssue, suppressProcessClickIssueId]);
+  const handleProcessStepDoubleClick = useCallback((step: ProcessFlowStep) => {
+    if (!step.hasChildren) return;
+
+    const issue = issuesRef.current.find((item) => item.issue_id === step.id) || null;
+    if (!issue) return;
+
+    setDrilldownPath((prev) => [...prev, { issueId: step.id, title: issue.subject }]);
+    void reloadTaskDetails(step.id, { selectedIssueId: null });
+  }, [reloadTaskDetails]);
 
   const handleBreadcrumbClick = useCallback((index: number) => {
     setDrilldownPath((prev) => {
@@ -2173,7 +2775,7 @@ export function TaskDetailsDialog({
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-white relative z-10 border-b border-slate-200 flex-shrink-0 min-h-12 box-border">
+        <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-[#f8f8f8] relative z-10 border-b border-slate-300 flex-shrink-0 min-h-12 box-border">
           <div className="flex flex-row items-center gap-2.5 min-w-0">
             <div className="min-w-0">
               {drilldownPath.length > 1 && (
@@ -2193,7 +2795,7 @@ export function TaskDetailsDialog({
                         ) : (
                           <button
                             type="button"
-                            className="truncate cursor-pointer text-slate-400 hover:text-blue-600"
+                            className="truncate cursor-pointer text-slate-500 hover:text-slate-900"
                             onClick={() => handleBreadcrumbClick(index)}
                           >
                             {crumbLabel}
@@ -2204,14 +2806,14 @@ export function TaskDetailsDialog({
                   })}
                 </nav>
               )}
-              <h3 className="text-[16px] font-semibold text-slate-800 flex items-center gap-2 min-w-0" data-testid="task-details-title">
+              <h3 className="text-[16px] font-semibold text-slate-900 flex items-center gap-2 min-w-0" data-testid="task-details-title">
                 <span className="truncate">{dialogHeaderTitle}</span>
               </h3>
             </div>
             <button
               onClick={() => void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue?.issue_id ?? null })}
               title={t('timeline.reloadTasks')}
-              className="inline-flex items-center justify-center w-8 h-8 ml-1 border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+              className={`${REDMINE_DIALOG_ICON_ACTION_CLASS} ml-1`}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -2219,8 +2821,8 @@ export function TaskDetailsDialog({
             </button>
           </div>
 
-          <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-400 shrink min-w-0">
-            <div className="text-[12px] text-slate-500 font-semibold whitespace-nowrap">
+          <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500 shrink min-w-0">
+            <div className="text-[12px] text-slate-700 font-semibold whitespace-nowrap">
               {t('timeline.totalTasks', { count: issues.length })}
             </div>
             <div className="hidden sm:flex items-center gap-1.5 whitespace-nowrap">
@@ -2235,7 +2837,7 @@ export function TaskDetailsDialog({
 
           <button
             aria-label={t('timeline.closeDialogAria')}
-            className="inline-flex items-center justify-center w-8 h-8 border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors flex-shrink-0 cursor-pointer"
+            className={REDMINE_DIALOG_ICON_ACTION_CLASS}
             onClick={handleClose}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -2245,7 +2847,7 @@ export function TaskDetailsDialog({
         </div>
 
         {/* Split Panel Body */}
-        <div className="flex-1 flex flex-col min-h-0 bg-slate-100 relative">
+        <div className="flex-1 flex flex-col min-h-0 bg-[#f3f3f3] relative" ref={detailsLayoutRef}>
           {loading && (
             <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-30">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -2253,22 +2855,41 @@ export function TaskDetailsDialog({
           )}
 
           {!loading && issues.length === 0 && (
-            <div className="text-center py-12 m-6 bg-white rounded-xl border border-dashed border-slate-300 flex-shrink-0 w-full">
+            <div className="text-center py-12 m-6 bg-white border border-slate-300 flex-shrink-0 w-full">
               <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
             </div>
           )}
 
           {!loading && issues.length > 0 && (
             <>
-              <div className="border-b border-slate-200 bg-white relative z-10">
-                <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
+              <div
+                className="border-b border-slate-200 bg-white relative z-10 shrink-0 overflow-hidden"
+                data-testid="task-details-top-pane"
+                style={{ height: `${topPaneHeight}px` }}
+              >
+                <div className="h-full overflow-auto">
+                  <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
                   {processFlowAxis && processFlowRenderSteps.length > 0 ? (
+                    <div
+                      className="relative"
+                      style={{ width: processFlowAxis.timelineWidth, height: processFlowSvgHeight }}
+                    >
+                    <canvas
+                      ref={processFlowCanvasRef}
+                      data-testid="task-details-process-flow-canvas"
+                      width={processFlowAxis.timelineWidth}
+                      height={processFlowSvgHeight}
+                      className="absolute inset-0 block"
+                      style={{ width: `${processFlowAxis.timelineWidth}px`, height: `${processFlowSvgHeight}px`, pointerEvents: 'none' }}
+                      aria-hidden="true"
+                    />
                     <svg
                       data-testid="task-details-process-flow-svg"
                       width={processFlowAxis.timelineWidth}
                       height={processFlowSvgHeight}
                       role="img"
                       aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
+                      style={{ opacity: 0 }}
                     >
                       <defs>
                         <pattern id="stripePattern" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -2360,74 +2981,125 @@ export function TaskDetailsDialog({
                         {processFlowRenderSteps.map((step) => {
                           const style = processStatusStyles[step.status];
                           const stepY = PROCESS_FLOW_BAR_Y + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+                          const isInteractive = !savingIssueIds[step.id];
+                          const isRangeStep = step.shapeKind === 'range';
+                          const isSelected = selectedIssueId === step.id;
 
                           return (
-                            <g key={step.id} data-testid="task-details-process-step" opacity={savingIssueIds[step.id] ? 0.6 : 1}>
+                            <g
+                              key={step.id}
+                              data-testid="task-details-process-step"
+                              data-selected={isSelected ? 'true' : 'false'}
+                              opacity={savingIssueIds[step.id] ? 0.6 : 1}
+                            >
                               {/* Date labels above the bar */}
-                              <text
-                                x={step.hitX}
-                                y={stepY - 4}
-                                fill="#374151"
-                                fontSize="10"
-                                fontWeight="bold"
-                                textAnchor="start"
-                              >
-                                {extractMD(step.startDate)}
-                              </text>
-                              <text
-                                x={step.hitX + step.hitWidth}
-                                y={stepY - 4}
-                                fill="#374151"
-                                fontSize="10"
-                                fontWeight="bold"
-                                textAnchor="end"
-                              >
-                                {extractMD(step.dueDate)}
-                              </text>
+                              {step.shapeKind !== 'range' ? (
+                                <text
+                                  x={step.textX}
+                                  y={stepY - 4}
+                                  fill="#374151"
+                                  fontSize="10"
+                                  fontWeight="bold"
+                                  textAnchor="middle"
+                                >
+                                  {extractMD(step.anchorDate)}
+                                </text>
+                              ) : (
+                                <>
+                                  <text
+                                    x={step.hitX}
+                                    y={stepY - 4}
+                                    fill="#374151"
+                                    fontSize="10"
+                                    fontWeight="bold"
+                                    textAnchor="start"
+                                  >
+                                    {step.startDate ? extractMD(step.startDate) : ''}
+                                  </text>
+                                  <text
+                                    x={step.hitX + step.hitWidth}
+                                    y={stepY - 4}
+                                    fill="#374151"
+                                    fontSize="10"
+                                    fontWeight="bold"
+                                    textAnchor="end"
+                                  >
+                                    {step.dueDate ? extractMD(step.dueDate) : ''}
+                                  </text>
+                                </>
+                              )}
 
-                              <ProcessChevron
-                                x={step.x}
-                                y={stepY}
-                                width={step.width}
-                                height={PROCESS_FLOW_BAR_HEIGHT}
-                                pointDepth={PROCESS_FLOW_POINT_DEPTH}
-                                hasLeftNotch={step.hasLeftNotch}
-                                fill={style.fill}
-                                stroke={style.stroke}
-                                progress={step.progress}
-                                id={step.id}
-                              />
+                              {step.shapeKind === 'due-only' ? (
+                                <ProcessDiamond
+                                  centerX={step.textX}
+                                  y={stepY}
+                                  width={step.visualWidth}
+                                  height={PROCESS_FLOW_BAR_HEIGHT}
+                                  fill={style.fill}
+                                  stroke={style.stroke}
+                                  id={step.id}
+                                />
+                              ) : step.shapeKind === 'start-only' ? (
+                                <ProcessTriangle
+                                  x={step.shapeX}
+                                  y={stepY}
+                                  width={step.visualWidth}
+                                  height={PROCESS_FLOW_BAR_HEIGHT}
+                                  fill={style.fill}
+                                  stroke={style.stroke}
+                                  id={step.id}
+                                />
+                              ) : (
+                                <ProcessChevron
+                                  x={step.x}
+                                  y={stepY}
+                                  width={step.width}
+                                  height={PROCESS_FLOW_BAR_HEIGHT}
+                                  pointDepth={PROCESS_FLOW_POINT_DEPTH}
+                                  hasLeftNotch={step.hasLeftNotch}
+                                  fill={style.fill}
+                                  stroke={style.stroke}
+                                  progress={step.progress}
+                                  id={step.id}
+                                />
+                              )}
                               <rect
                                 x={step.hitX}
                                 y={stepY}
                                 width={step.hitWidth}
                                 height={PROCESS_FLOW_BAR_HEIGHT}
                                 fill="transparent"
-                                style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : CUSTOM_GRAB }}
-                                onPointerDown={(event) => startProcessFlowDrag(event, step, 'move')}
+                                style={{ cursor: isInteractive && isRangeStep ? 'move' : 'pointer' }}
+                                onPointerDown={isRangeStep ? (event) => startProcessFlowDrag(event, step, 'move') : undefined}
                                 onClick={() => handleProcessStepClick(step)}
+                                onDoubleClick={() => handleProcessStepDoubleClick(step)}
+                                data-selected={isSelected ? 'true' : 'false'}
                                 data-testid={`task-details-process-step-hit-${step.id}`}
                               />
-                              <rect
-                                x={step.hitX}
-                                y={stepY}
-                                width={10}
-                                height={PROCESS_FLOW_BAR_HEIGHT}
-                                fill="transparent"
-                                style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
-                                onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-left')}
-                                data-testid={`task-details-process-step-left-${step.id}`}
-                              />
-                              <rect
-                                x={Math.max(step.hitX + step.hitWidth - 10, step.hitX)}
-                                y={stepY}
-                                width={10}
-                                height={PROCESS_FLOW_BAR_HEIGHT}
-                                fill="transparent"
-                                style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
-                                onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-right')}
-                                data-testid={`task-details-process-step-right-${step.id}`}
-                              />
+                              {isRangeStep && (
+                                <>
+                                  <rect
+                                    x={step.hitX}
+                                    y={stepY}
+                                    width={10}
+                                    height={PROCESS_FLOW_BAR_HEIGHT}
+                                    fill="transparent"
+                                    style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
+                                    onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-left')}
+                                    data-testid={`task-details-process-step-left-${step.id}`}
+                                  />
+                                  <rect
+                                    x={Math.max(step.hitX + step.hitWidth - 10, step.hitX)}
+                                    y={stepY}
+                                    width={10}
+                                    height={PROCESS_FLOW_BAR_HEIGHT}
+                                    fill="transparent"
+                                    style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
+                                    onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-right')}
+                                    data-testid={`task-details-process-step-right-${step.id}`}
+                                  />
+                                </>
+                              )}
                               <text
                                 x={step.textX}
                                 y={stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1}
@@ -2452,18 +3124,41 @@ export function TaskDetailsDialog({
                         })}
                       </g>
                     </svg>
+                    </div>
                   ) : (
                     <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
                   )}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label={t('timeline.resizeDetailAreasAria')}
+                tabIndex={0}
+                data-testid="task-details-horizontal-resizer"
+                data-resizing={verticalResizeSession ? 'true' : 'false'}
+                className={`relative z-20 shrink-0 cursor-row-resize bg-slate-300 transition-colors ${verticalResizeSession ? 'h-2 bg-slate-400' : 'h-1.5 hover:bg-slate-400'}`}
+                onPointerDown={startVerticalResize}
+                onMouseDown={startVerticalResizeWithMouse}
+                onPointerMove={(event) => updateVerticalResize(event.clientY, event.pointerId)}
+                onPointerUp={(event) => stopVerticalResize(event.pointerId)}
+                onMouseMove={(event) => updateVerticalResize(event.clientY)}
+                onMouseUp={() => stopVerticalResize()}
+                onKeyDown={handleVerticalResizeKeyDown}
+              >
+                <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+                  <span className="h-1 w-14 rounded-full bg-slate-500/70" />
                 </div>
               </div>
 
               {/* Left Panel - Task List */}
-              <div className="flex-1 flex min-h-0 relative bg-white">
+              <div className="flex-1 flex min-h-0 relative bg-white" data-testid="task-details-bottom-pane">
                 <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
-                      <div className="flex items-center py-2 px-4 bg-slate-50 z-20 border-b border-slate-200 text-[11px] font-semibold text-slate-500 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
+                      <div className="flex items-center py-2 px-4 bg-[#f8f8f8] z-20 border-b border-slate-300 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
                       <div className="w-[280px] min-w-[280px] shrink-0 flex items-center">
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
                         {t('timeline.task', { defaultValue: 'Task' })}
@@ -2501,7 +3196,7 @@ export function TaskDetailsDialog({
                           issueId: issue.issue_id,
                           issueUrl: issue.issue_url
                         })}
-                        onSelectIssue={selectIssue}
+                        onSelectIssue={handleTaskRowSelect}
                         selectedIssueId={selectedIssue?.issue_id}
                         masters={masters}
                         onFieldUpdate={handleFieldUpdate}
@@ -2513,15 +3208,15 @@ export function TaskDetailsDialog({
 
                 {/* Right Panel - Detail View */}
                 {shouldShowSelectedIssuePanel && selectedIssue && (
-                  <div className="absolute right-0 top-0 bottom-0 w-[50%] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-white border-l border-slate-200 z-30">
+                  <div className="absolute right-0 top-0 bottom-0 w-[50%] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-white border-l border-slate-300 z-30">
                     {/* Detail Header */}
-                    <div className="px-4 pt-3.5 pb-3 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-200 bg-white/95 backdrop-blur-sm sticky top-0 z-10">
+                    <div className="px-4 pt-3 pb-2.5 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-300 bg-[#f8f8f8] sticky top-0 z-10">
                       <div className="min-w-0">
                         <div className="flex items-baseline gap-2 min-w-0">
-                          <span className="text-[11px] leading-none font-semibold text-slate-400 shrink-0">
+                          <span className="text-[11px] leading-none font-semibold text-slate-500 shrink-0">
                             #{selectedIssue.issue_id}
                           </span>
-                          <h4 className="text-[14px] leading-5 font-semibold text-slate-800 truncate">
+                          <h4 className="text-[14px] leading-5 font-semibold text-slate-900 truncate" data-testid="task-details-selected-title">
                             {selectedIssue.subject}
                           </h4>
                         </div>
@@ -2531,7 +3226,7 @@ export function TaskDetailsDialog({
                           href={selectedIssue.issue_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm cursor-pointer transition-colors"
+                          className={REDMINE_DIALOG_ICON_ACTION_CLASS}
                           title={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
                           aria-label={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
                         >
@@ -2541,7 +3236,7 @@ export function TaskDetailsDialog({
                         </a>
                         <button
                           type="button"
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 shadow-sm cursor-pointer transition-colors"
+                          className={REDMINE_DIALOG_ICON_ACTION_CLASS}
                           title={t('timeline.editIssue')}
                           aria-label={t('timeline.editIssue')}
                           onClick={(e) => {
@@ -2558,7 +3253,7 @@ export function TaskDetailsDialog({
                         </button>
                         <button
                           type="button"
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 shadow-sm cursor-pointer transition-colors"
+                          className={REDMINE_DIALOG_ICON_ACTION_CLASS}
                           onClick={() => selectIssue(null)}
                           title={t('common.close', { defaultValue: 'Close' })}
                           aria-label={t('common.close', { defaultValue: 'Close' })}
@@ -2573,23 +3268,36 @@ export function TaskDetailsDialog({
                     {/* Detail Fields removed */}
 
                     {/* Description */}
-                    <div className="px-4 pb-3">
-                      <div className="flex items-center mb-2">
-                        <h5 className="text-[12px] font-semibold tracking-wide text-slate-500">{t('timeline.descriptionTab')}</h5>
+                    <div className={REDMINE_DIALOG_SECTION_CLASS}>
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <h5 className={REDMINE_DIALOG_SECTION_TITLE_CLASS}>{t('timeline.descriptionTab')}</h5>
+                        {!editingDescription && (
+                          <button
+                            type="button"
+                            className={REDMINE_DIALOG_ACTION_CLASS}
+                            onClick={() => {
+                              setDescriptionDraft(selectedIssue.description || '');
+                              setEditingDescription(true);
+                            }}
+                            title={t('common.edit', { defaultValue: 'Edit' })}
+                          >
+                            {t('common.edit', { defaultValue: 'Edit' })}
+                          </button>
+                        )}
                       </div>
                       {editingDescription ? (
-                        <div className="bg-white rounded-xl border border-blue-400 shadow-sm overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
+                        <div className="flex flex-col gap-2">
                           <textarea
-                            className="w-full p-3 text-[13px] leading-[1.45] text-slate-700 bg-transparent border-none resize-y min-h-[120px] focus:outline-none focus:ring-0"
+                            className={`${REDMINE_DIALOG_TEXTAREA_CLASS} min-h-[120px]`}
                             value={descriptionDraft}
                             onChange={(e) => setDescriptionDraft(e.target.value)}
                             placeholder={t('timeline.noDescription')}
                             autoFocus
                           />
-                          <div className="bg-slate-50 px-3 py-1 border-t border-slate-100 flex justify-start gap-2">
+                          <div className="flex justify-start gap-2">
                             <button
                               type="button"
-                              className="h-[34px] min-w-[112px] px-4 text-[14px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded-[6px] hover:bg-slate-50 transition-colors cursor-pointer inline-flex items-center justify-center"
+                              className={REDMINE_DIALOG_ACTION_CLASS}
                               onClick={() => {
                                 setEditingDescription(false);
                                 setDescriptionDraft(selectedIssue.description || '');
@@ -2599,7 +3307,7 @@ export function TaskDetailsDialog({
                             </button>
                             <button
                               type="button"
-                              className="h-[34px] min-w-[110px] px-4 text-[14px] font-bold text-white bg-blue-600 rounded-[6px] hover:bg-blue-700 transition-colors cursor-pointer inline-flex items-center justify-center"
+                              className={REDMINE_DIALOG_PRIMARY_ACTION_CLASS}
                               onClick={() => { void handleSaveDescription(); }}
                             >
                               {t('common.save')}
@@ -2608,58 +3316,41 @@ export function TaskDetailsDialog({
                         </div>
                       ) : (
                         <div
-                          className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm text-[13px] leading-[1.45] text-slate-600 min-h-[80px] whitespace-pre-wrap cursor-pointer hover:border-blue-300 transition-colors group relative"
+                          className="min-h-[72px] border border-slate-200 bg-white px-3 py-2 text-[13px] leading-6 text-slate-700 whitespace-pre-wrap cursor-pointer hover:bg-slate-50 transition-colors"
                           onClick={() => {
                             setDescriptionDraft(selectedIssue.description || '');
                             setEditingDescription(true);
                           }}
+                          data-testid="task-details-description"
                         >
-                          <div className="flex justify-between items-center gap-2">
-                            <div className="flex-1 min-w-0">
-                              {selectedIssue.description || <span className="text-slate-400 italic">{t('timeline.noDescription')}</span>}
-                            </div>
-                            <button
-                              type="button"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer shrink-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDescriptionDraft(selectedIssue.description || '');
-                                setEditingDescription(true);
-                              }}
-                              title={t('common.edit', { defaultValue: 'Edit' })}
-                            >
-                              <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
-                              </svg>
-                            </button>
-                          </div>
+                          {selectedIssue.description || <span className="text-slate-500 italic">{t('timeline.noDescription')}</span>}
                         </div>
                       )}
                     </div>
 
                     {/* Comments */}
-                    <div className="px-4 pb-3">
+                    <div className="px-4 py-4">
                       <div className="flex items-center justify-between mb-2">
-                        <h5 className="text-[12px] font-semibold tracking-wide text-slate-500">{t('timeline.commentsTab')}</h5>
-                        <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full border border-slate-200 bg-white text-[11px] font-semibold text-slate-500 shadow-sm">
+                        <h5 className={REDMINE_DIALOG_SECTION_TITLE_CLASS}>{t('timeline.commentsTab')}</h5>
+                        <span className="text-[12px] font-medium text-slate-500">
                           {selectedIssue.comments?.length ?? 0}
                         </span>
                       </div>
-                      <div className="space-y-1.5">
+                      <div className="border border-slate-200 bg-white">
                         {(selectedIssue.comments && selectedIssue.comments.length > 0) ? selectedIssue.comments.map((comment) => (
-                          <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col group">
+                          <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="group border-b border-slate-200 last:border-b-0">
                             {editingCommentId === comment.id && comment.id !== undefined ? (
-                              <div className="flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
+                              <div className="flex flex-col gap-2 p-3">
                                 <textarea
-                                  className="w-full p-3 text-[13px] leading-[1.45] text-slate-700 bg-transparent border-none resize-y min-h-[80px] focus:outline-none focus:ring-0"
+                                  className={REDMINE_DIALOG_TEXTAREA_CLASS}
                                   value={editingCommentDraft}
                                   onChange={(e) => setEditingCommentDraft(e.target.value)}
                                   autoFocus
                                 />
-                                <div className="bg-slate-50 px-3 py-1 border-t border-slate-100 flex justify-start gap-2">
+                                <div className="flex justify-start gap-2">
                                   <button
                                     type="button"
-                                    className="h-[34px] min-w-[112px] px-4 text-[14px] font-medium text-slate-600 hover:text-slate-800 bg-white border border-slate-300 rounded-[6px] hover:bg-slate-50 transition-colors cursor-pointer inline-flex items-center justify-center"
+                                    className={REDMINE_DIALOG_ACTION_CLASS}
                                     onClick={() => {
                                       setEditingCommentId(null);
                                       setEditingCommentDraft('');
@@ -2669,7 +3360,7 @@ export function TaskDetailsDialog({
                                   </button>
                                   <button
                                     type="button"
-                                    className="h-[34px] min-w-[110px] px-4 text-[14px] font-bold text-white bg-blue-600 rounded-[6px] hover:bg-blue-700 transition-colors cursor-pointer inline-flex items-center justify-center gap-1"
+                                    className={REDMINE_DIALOG_PRIMARY_ACTION_CLASS}
                                     onClick={() => {
                                       void handleUpdateComment(comment.id!, editingCommentDraft);
                                       setEditingCommentId(null);
@@ -2681,7 +3372,7 @@ export function TaskDetailsDialog({
                               </div>
                             ) : (
                               <div
-                                className="px-3 py-2.5 relative cursor-pointer hover:bg-slate-50/50 transition-colors"
+                                className="relative cursor-pointer px-3 py-2.5 hover:bg-slate-50 transition-colors"
                                 onClick={() => {
                                   setEditingCommentId(comment.id!);
                                   setEditingCommentDraft(comment.notes || '');
@@ -2690,7 +3381,7 @@ export function TaskDetailsDialog({
                                 {comment.id !== undefined && (
                                   <button
                                     type="button"
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-6 h-6 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center h-6 min-w-6 px-1.5 border border-slate-300 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setEditingCommentId(comment.id!);
@@ -2698,41 +3389,43 @@ export function TaskDetailsDialog({
                                     }}
                                     title={t('common.edit', { defaultValue: 'Edit' })}
                                   >
-                                    <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
-                                    </svg>
+                                    {t('common.edit', { defaultValue: 'Edit' })}
                                   </button>
                                 )}
-                                <div className="mb-2 flex justify-end pr-7">
-                                  <span className="text-[11px] text-slate-400 shrink-0">
+                                <div className="mb-2 flex items-center justify-between gap-3 pr-14">
+                                  <span className="text-[12px] font-semibold text-slate-700">
+                                    {comment.author_name || t('common.unknown', { defaultValue: 'Unknown' })}
+                                  </span>
+                                  <span className="text-[11px] text-slate-500 shrink-0">
                                     {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
                                   </span>
                                 </div>
-                                <div className="text-[12px] leading-[1.45] text-slate-600 whitespace-pre-wrap break-words">
+                                <div className="text-[13px] leading-6 text-slate-700 whitespace-pre-wrap break-words">
                                   {comment.notes}
                                 </div>
                               </div>
                             )}
                           </div>
                         )) : (
-                          <div className="p-3 bg-white rounded-xl border border-dashed border-slate-300 shadow-sm text-[12px] text-slate-400 text-center">
+                          <div className="px-3 py-4 text-[12px] text-slate-500 text-center" data-testid="task-details-no-comments">
                             {t('timeline.noComments', { defaultValue: 'No comments' })}
                           </div>
                         )}
                       </div>
 
-                      <div className="mt-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col focus-within:ring-1 focus-within:ring-blue-500">
+                      <div className="mt-4 border border-slate-200 bg-white p-3">
                         <textarea
-                          className="w-full p-3 text-[13px] leading-[1.45] text-slate-700 bg-transparent border-none resize-y min-h-[80px] focus:outline-none focus:ring-0"
+                          className={REDMINE_DIALOG_TEXTAREA_CLASS}
                           placeholder={t('timeline.addCommentPlaceholder', { defaultValue: 'Add a comment...' })}
                           value={newCommentDraft}
                           onChange={(e) => setNewCommentDraft(e.target.value)}
                           disabled={isSavingComment}
+                          data-testid="task-details-new-comment"
                         />
-                        <div className="bg-slate-50 px-3 py-2 border-t border-slate-100 flex justify-end">
+                        <div className="mt-2 flex justify-end">
                           <button
                             type="button"
-                            className="px-3 py-1.5 text-[12px] font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1"
+                            className={`${REDMINE_DIALOG_PRIMARY_ACTION_CLASS} flex items-center gap-1`}
                             onClick={() => { void handleAddComment(); }}
                             disabled={!newCommentDraft.trim() || isSavingComment}
                           >

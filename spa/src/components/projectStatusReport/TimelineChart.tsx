@@ -1,11 +1,17 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { t } from '../../i18n';
 import { updateTaskDates } from '../../services/scheduleReportApi';
 import { HeaderMonth, HeaderYear, TimelineLane, TimelineStep } from './timeline';
 import { calculateStaggeredLanes } from './timelineAxis';
 import { TaskDetailsDialog } from './TaskDetailsDialog';
+import {
+  drawChevron,
+  drawRoundedOutline,
+  drawStrokeText,
+  prepareHiDPICanvas
+} from './canvasTimelineRenderer';
 
 type ChevronPathProps = {
   x: number;
@@ -152,8 +158,6 @@ const MIN_HANDLE_ACTIVE_PX = 4;
 const ACTIVE_LANE_BACKGROUND_FILL = '#e0f2fe';
 const ALT_LANE_BACKGROUND_FILL = '#ffffff';
 
-const CUSTOM_GRAB = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grab`;
-const CUSTOM_GRABBING = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='%23475569' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/svg%3E") 12 12, grabbing`;
 
 const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
   labelClassName: isActive ? 'bg-sky-200/80' : 'bg-white',
@@ -502,6 +506,7 @@ function TimelineSvg({
   showTodayLine?: boolean;
 }) {
   const svgHeight = headerHeight + totalTimelineHeight;
+  const scaledBarHeight = BASE_BAR_HEIGHT * chartScale;
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
   const [dragSession, setDragSession] = useState<DragSession | null>(null);
   const [savingIssueId, setSavingIssueId] = useState<number | null>(null);
@@ -595,12 +600,334 @@ function TimelineSvg({
     setPendingPreview(null);
   }, [layoutData]);
 
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const renderedProjects = useMemo(() => {
+    return layoutData.map((project, projectIndex) => {
+      const yOffset = headerHeight + project.yOffset;
+      const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
+      const stepItems = project.steps.map((step, stepIndex) => {
+        const isFirst = stepIndex === 0;
+        const pointDepth = BASE_POINT_DEPTH * chartScale;
+        const scaledBarHeight = BASE_BAR_HEIGHT * chartScale;
+        const scaledBarSpacingY = 10 * chartScale;
+        const totalBarsHeight = (project.maxLane + 1) * scaledBarHeight + project.maxLane * scaledBarSpacingY;
+        const baseTopPadding = (project.height - totalBarsHeight) / 2;
+        const verticalOffset = baseTopPadding + step.laneIndex * (scaledBarHeight + scaledBarSpacingY);
+        const fontSize = Math.max(10, Math.round(12 * chartScale));
+        const isPending = step.status.code === 'PENDING';
+        const isInProgress = step.status.code === 'IN_PROGRESS';
+        const fill = isPending ? 'url(#stripePattern)' : step.status.fill;
+        const isDraggingThis = dragSession?.stepId === step.id;
+        const isActiveDragThis = Boolean(isDraggingThis && dragSession?.moved);
+        const getStepPreview = (targetStep: TimelineStep): DragPreview | null => {
+          if (dragSession?.stepId === targetStep.id) {
+            return { currentStartIso: dragSession.currentStartIso, currentEndIso: dragSession.currentEndIso };
+          }
+          if (pendingPreview?.stepId === targetStep.id) {
+            return { currentStartIso: pendingPreview.currentStartIso, currentEndIso: pendingPreview.currentEndIso };
+          }
+          return null;
+        };
+        const preview = getStepPreview(step);
+        const renderData = buildStepRenderData(step, preview, axisStartDate, pixelsPerDay);
+        const prevStep = stepIndex > 0 ? project.steps[stepIndex - 1] : null;
+        const prevRenderData = prevStep
+          ? buildStepRenderData(prevStep, getStepPreview(prevStep), axisStartDate, pixelsPerDay)
+          : null;
+        const joinsPrevious = Boolean(
+          prevRenderData?.endIso &&
+          renderData.startIso &&
+          differenceInCalendarDays(parseISO(renderData.startIso), parseISO(prevRenderData.endIso)) === 1
+        );
+        const barX = joinsPrevious ? renderData.x - pointDepth : renderData.x;
+        const barWidth = joinsPrevious ? renderData.width + pointDepth : renderData.width;
+        const hitX = renderData.x;
+        const hitWidth = Math.max(renderData.width, 1);
+        const taskCenterX = barX + barWidth / 2 + (isFirst ? 0 : pointDepth / 2);
+        const startLabelX = barX + (isFirst ? 12 : pointDepth + 12);
+        const endLabelX = renderData.startLabel === renderData.endLabel ? taskCenterX : barX + barWidth - 12;
+        const hasPendingPreview = pendingPreview?.stepId === step.id;
+        const canEdit = Boolean(
+          isProcessMode &&
+          step.editable &&
+          step.issueId &&
+          renderData.startIso &&
+          renderData.endIso &&
+          savingIssueId === null &&
+          !pendingPreview &&
+          !dragSessionRef.current
+        );
+        const isSavingThis = savingIssueId === step.issueId;
+        const rawHandleWidth = Math.min(RESIZE_HANDLE_PX, Math.max(4, hitWidth / 3));
+        const maxHandleWidthByCenter = Math.max(0, (hitWidth - MIN_CENTER_CLICK_PX) / 2);
+        const handleWidth = Math.min(rawHandleWidth, maxHandleWidthByCenter);
+        const enableResizeHandles = handleWidth >= MIN_HANDLE_ACTIVE_PX;
+        const leftHandleX = hitX;
+        const rightHandleX = Math.max(hitX + hitWidth - handleWidth, hitX);
+        const bodyCursor = canEdit
+          ? 'move'
+          : step.issueId
+            ? 'pointer'
+            : 'default';
+
+        return {
+          step,
+          barX,
+          barWidth,
+          baseTopPadding,
+          bodyCursor,
+          canEdit,
+          enableResizeHandles,
+          endLabelX,
+          fill,
+          fontSize,
+          handleWidth,
+          hasPendingPreview,
+          hitWidth,
+          hitX,
+          isActiveDragThis,
+          isDraggingThis,
+          isFirst,
+          isInProgress,
+          isPending,
+          isSavingThis,
+          joinsPrevious,
+          leftHandleX,
+          pointDepth,
+          renderData,
+          rightHandleX,
+          startLabelX,
+          taskCenterX,
+          verticalOffset,
+          zIndex: isActiveDragThis ? 10 : isSavingThis || hasPendingPreview ? 9 : isInProgress ? 1 : 0
+        };
+      });
+
+      return {
+        laneBackground,
+        project,
+        projectIndex,
+        stepItems,
+        yOffset
+      };
+    });
+  }, [
+    activeReportLaneKey,
+    axisStartDate,
+    chartScale,
+    dragSession,
+    isProcessMode,
+    layoutData,
+    pendingPreview,
+    pixelsPerDay,
+    savingIssueId
+  ]);
+
+  useLayoutEffect(() => {
+    if (!canvasRef.current) return;
+    const context = prepareHiDPICanvas(canvasRef.current, timelineWidth, svgHeight);
+    if (!context) return;
+
+    context.fillStyle = '#f9fafb';
+    context.fillRect(0, 0, timelineWidth, yearRowHeight);
+    context.fillRect(0, yearRowHeight, timelineWidth, monthRowHeight);
+    context.strokeStyle = '#e5e7eb';
+    context.lineWidth = 1;
+    context.strokeRect(0, 0, timelineWidth, yearRowHeight);
+    context.strokeRect(0, yearRowHeight, timelineWidth, monthRowHeight);
+
+    headerYears.forEach((year) => {
+      context.strokeStyle = '#e5e7eb';
+      context.strokeRect(year.x, 0, year.width, yearRowHeight);
+      drawStrokeText(context, {
+        text: year.year,
+        x: year.x + year.width / 2,
+        y: yearRowHeight / 2,
+        fill: '#374151',
+        stroke: '#f9fafb',
+        strokeWidth: 0,
+        font: '700 12px sans-serif'
+      });
+    });
+
+    headerMonths.forEach((month) => {
+      context.strokeStyle = '#e5e7eb';
+      context.strokeRect(month.x, yearRowHeight, month.width, monthRowHeight);
+      drawStrokeText(context, {
+        text: month.label,
+        x: month.x + month.width / 2,
+        y: yearRowHeight + monthRowHeight / 2,
+        fill: '#374151',
+        stroke: '#f9fafb',
+        strokeWidth: 0,
+        font: '700 12px sans-serif'
+      });
+    });
+
+    if (showTodayLine && todayX >= 0 && todayX <= timelineWidth) {
+      context.fillStyle = '#ef4444';
+      context.fillRect(
+        todayX - TODAY_LABEL_WIDTH / 2,
+        headerHeight + TODAY_LABEL_OFFSET_Y,
+        TODAY_LABEL_WIDTH,
+        TODAY_LABEL_HEIGHT
+      );
+      drawStrokeText(context, {
+        text: format(new Date(), 'M/d'),
+        x: todayX,
+        y: headerHeight + TODAY_LABEL_OFFSET_Y + 12,
+        fill: '#ffffff',
+        stroke: '#ef4444',
+        strokeWidth: 0,
+        font: '700 10px sans-serif'
+      });
+    }
+
+    renderedProjects.forEach(({ laneBackground, project, projectIndex, stepItems, yOffset }) => {
+      context.fillStyle = laneBackground.baseFill;
+      context.fillRect(0, yOffset, timelineWidth, project.height);
+
+      if (project.laneKey === activeReportLaneKey) {
+        context.save();
+        context.globalAlpha = 0.7;
+        context.fillStyle = ACTIVE_LANE_BACKGROUND_FILL;
+        context.fillRect(0, yOffset, timelineWidth, project.height);
+        context.restore();
+      }
+
+      context.strokeStyle = '#cbd5e1';
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(0, yOffset + project.height);
+      context.lineTo(timelineWidth, yOffset + project.height);
+      context.stroke();
+
+      headerMonths.forEach((month) => {
+        context.save();
+        context.strokeStyle = '#f3f4f6';
+        context.setLineDash([4, 2]);
+        context.beginPath();
+        context.moveTo(month.x, yOffset);
+        context.lineTo(month.x, yOffset + project.height);
+        context.stroke();
+        context.restore();
+      });
+
+      stepItems
+        .slice()
+        .sort((a, b) => a.zIndex - b.zIndex)
+        .forEach((item) => {
+          const top = yOffset + item.verticalOffset;
+          drawChevron(context, {
+            x: item.barX,
+            y: top,
+            width: item.barWidth,
+            height: scaledBarHeight,
+            pointDepth: item.pointDepth,
+            hasLeftNotch: !item.isFirst,
+            fill: item.fill,
+            stroke: item.step.status.stroke,
+            progress: item.step.progress,
+            separatorColor: item.isPending ? 'transparent' : 'white',
+            shadow: true
+          });
+
+          if (item.renderData.width > 30) {
+            drawStrokeText(context, {
+              text: item.step.name,
+              x: item.taskCenterX,
+              y: top + scaledBarHeight / 2,
+              fill: item.step.status.text,
+              stroke: item.step.status.textStroke || '#ffffff',
+              strokeWidth: Number(String(item.step.status.textStrokeWidth || '3px').replace('px', '')),
+              font: `700 ${item.fontSize}px sans-serif`
+            });
+          }
+
+          if (item.renderData.startLabel && (showAllDates || hoveredStepId === item.step.id || item.isActiveDragThis) && item.renderData.startLabel !== item.renderData.endLabel) {
+            drawStrokeText(context, {
+              text: item.renderData.startLabel,
+              x: item.startLabelX,
+              y: top - 11,
+              fill: '#374151',
+              stroke: '#ffffff',
+              strokeWidth: 2,
+              font: '700 10px sans-serif'
+            });
+          }
+
+          if (item.renderData.endLabel && (showAllDates || hoveredStepId === item.step.id || item.isActiveDragThis)) {
+            drawStrokeText(context, {
+              text: item.renderData.endLabel,
+              x: item.endLabelX,
+              y: top - 11,
+              fill: '#374151',
+              stroke: '#ffffff',
+              strokeWidth: 2,
+              font: '700 10px sans-serif'
+            });
+          }
+
+          if (item.isActiveDragThis || item.isSavingThis || item.hasPendingPreview) {
+            drawRoundedOutline(
+              context,
+              item.barX,
+              top,
+              Math.max(item.barWidth, 1),
+              scaledBarHeight,
+              item.isSavingThis ? '#2563eb' : item.hasPendingPreview ? '#0891b2' : '#0ea5e9',
+              2,
+              item.isSavingThis || item.hasPendingPreview ? [4, 2] : undefined
+            );
+          }
+        });
+
+      if (showTodayLine && todayX >= 0 && todayX <= timelineWidth) {
+        context.save();
+        context.strokeStyle = '#ef4444';
+        context.setLineDash([4, 2]);
+        context.beginPath();
+        context.moveTo(todayX, yOffset + (projectIndex === 0 ? TODAY_LABEL_OFFSET_Y + TODAY_LABEL_HEIGHT + TODAY_LABEL_LINE_GAP : 0));
+        context.lineTo(todayX, yOffset + laneHeight);
+        context.stroke();
+        context.restore();
+      }
+    });
+  }, [
+    activeReportLaneKey,
+    chartScale,
+    headerMonths,
+    headerYears,
+    hoveredStepId,
+    laneHeight,
+    renderedProjects,
+    scaledBarHeight,
+    showAllDates,
+    showTodayLine,
+    svgHeight,
+    timelineWidth,
+    todayX
+  ]);
+
   if (layoutData.length === 0) {
     return <div className="flex items-center justify-center h-32 text-gray-400">{t('common.noData')}</div>;
   }
 
   return (
-    <svg viewBox={`0 0 ${timelineWidth} ${svgHeight}`} className="w-full" style={{ minHeight: svgHeight, minWidth: `${timelineWidth}px` }}>
+    <div className="relative" style={{ minHeight: svgHeight, minWidth: `${timelineWidth}px`, width: timelineWidth }}>
+      <canvas
+        ref={canvasRef}
+        data-testid="timeline-chart-canvas"
+        className="absolute inset-0 block"
+        style={{ width: `${timelineWidth}px`, height: `${svgHeight}px`, pointerEvents: 'none' }}
+        aria-hidden="true"
+      />
+      <svg
+        viewBox={`0 0 ${timelineWidth} ${svgHeight}`}
+        className="relative block w-full"
+        style={{ minHeight: svgHeight, minWidth: `${timelineWidth}px`, opacity: 0 }}
+      >
       <defs>
         <pattern id="gridPattern" width="100" height="100" patternUnits="userSpaceOnUse">
           <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#f3f4f6" strokeWidth="1" />
@@ -779,13 +1106,11 @@ function TimelineSvg({
                 const enableResizeHandles = handleWidth >= MIN_HANDLE_ACTIVE_PX;
                 const leftHandleX = hitX;
                 const rightHandleX = Math.max(hitX + hitWidth - handleWidth, hitX);
-                const bodyCursor = isDraggingThis
-                  ? (isActiveDragThis ? CUSTOM_GRABBING : CUSTOM_GRAB)
-                  : canEdit
-                    ? CUSTOM_GRAB
-                    : step.issueId
-                      ? 'pointer'
-                      : 'default';
+                const bodyCursor = canEdit
+                  ? 'move'
+                  : step.issueId
+                    ? 'pointer'
+                    : 'default';
 
                 const startDrag = (event: ReactPointerEvent<SVGElement>, mode: DragMode) => {
                   if (!canEdit || !step.issueId || !renderData.startIso || !renderData.endIso) return;
@@ -949,6 +1274,7 @@ function TimelineSvg({
         );
       })}
 
-    </svg>
+      </svg>
+    </div>
   );
 }
