@@ -188,6 +188,42 @@ const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   }
 `;
 
+const EMBEDDED_ISSUE_VIEW_EXTRA_CSS = `
+                  ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
+                  /* Contextual menu (Update, Edit etc. links) */
+                  .contextual, #content .contextual {
+                    display: block !important;
+                  }
+                  .contextual a, #content .contextual a {
+                    display: inline-block !important;
+                  }
+
+                  /* Show buttons for journal editing (comment edit) */
+                  div.journal form .buttons,
+                  div.journal form p.buttons,
+                  .edit-journal .buttons,
+                  .edit-journal p.buttons {
+                    display: block !important;
+                  }
+
+                  /* Hide main issue form buttons as per user request (use dialog's Save).
+                     We use opacity and absolute positioning instead of display:none to ensure
+                     Redmine's JavaScript and browser submit logic (click() etc.) still works on them. */
+                  #issue-form > .buttons,
+                  #issue-form > p.buttons,
+                  #edit_issue > .buttons,
+                  #edit_issue > p.buttons,
+                  #new_issue > .buttons,
+                  #new_issue > p.buttons {
+                    position: absolute !important;
+                    opacity: 0 !important;
+                    height: 0 !important;
+                    width: 0 !important;
+                    overflow: hidden !important;
+                    pointer-events: none !important;
+                  }
+`;
+
 const getProcessChevronMetrics = (width: number, pointDepth: number) => {
   const leftNotchDepth = Math.min(pointDepth * PROCESS_FLOW_LEFT_NOTCH_RATIO, Math.max(width * 0.18, 8));
   const rightHeadDepth = Math.min(pointDepth * PROCESS_FLOW_RIGHT_HEAD_RATIO, Math.max(width * 0.16, 10));
@@ -1836,6 +1872,8 @@ function IssueViewDialog({
   const errorRef = useRef<HTMLDivElement | null>(null);
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const cleanupIframeEscRef = useRef<(() => void) | null>(null);
+  const handledSaveRef = useRef(false);
+  const awaitingRedirectRef = useRef(false);
 
   const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
     isOpen: true,
@@ -1853,10 +1891,53 @@ function IssueViewDialog({
     }
   };
 
+  const findEmbeddedIssueForm = () => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
+    const form =
+      doc.querySelector<HTMLFormElement>('form#issue-form') ||
+      doc.querySelector<HTMLFormElement>('form#edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form#new_issue') ||
+      doc.querySelector<HTMLFormElement>('#issue-form form') ||
+      doc.querySelector<HTMLFormElement>('form.edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form.new_issue');
+    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
+    return { doc, form };
+  };
+
+  const submitDefaultIssueForm = () => {
+    try {
+      const { form } = findEmbeddedIssueForm();
+      const submitter =
+        form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('button[name="commit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('input[type="submit"]:not([disabled])') ||
+        form.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
+      if (submitter) {
+        submitter.click();
+        return;
+      }
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+        return;
+      }
+      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+      if (form.dispatchEvent(submitEvent)) form.submit();
+    } catch (err: any) {
+      alert(t('common.alertError', { message: err.message }));
+    }
+  };
+
   const handleSave = async () => {
     const lines = bulkText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
 
     if (lines.length === 0) {
+      const doc = iframeRef.current?.contentDocument;
+      if (doc) {
+        awaitingRedirectRef.current = true;
+        submitDefaultIssueForm();
+        return;
+      }
       onClose();
       return;
     }
@@ -1882,6 +1963,8 @@ function IssueViewDialog({
     setIframeSubject('');
     cleanupIframeEscRef.current?.();
     cleanupIframeEscRef.current = null;
+    handledSaveRef.current = false;
+    awaitingRedirectRef.current = false;
     resetLayout();
   }, [iframeUrl, resetLayout]);
 
@@ -1991,13 +2074,28 @@ function IssueViewDialog({
                 const doc = (e.target as HTMLIFrameElement).contentDocument;
                 if (!doc) return;
 
+                const iframeErrorMessage = getEmbeddedIssueDialogErrorMessage(doc);
                 applyEmbeddedIssueDialogStyles(doc, {
                   contentPadding: '16px',
-                  extraCss: EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
+                  extraCss: EMBEDDED_ISSUE_VIEW_EXTRA_CSS,
                   styleId: `${ISSUE_DIALOG_STYLE_ID}-view`,
                 });
-                setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
+                setIframeError(iframeErrorMessage);
                 bindIframeSizeObservers(doc);
+
+                const pathname = doc.location?.pathname || '';
+                if (
+                  !handledSaveRef.current &&
+                  awaitingRedirectRef.current &&
+                  new RegExp(`^/issues/${issueId}(?:[/?#]|$)`).test(pathname) &&
+                  !iframeErrorMessage
+                ) {
+                  handledSaveRef.current = true;
+                  awaitingRedirectRef.current = false;
+                  onSaved?.(issueId);
+                  onClose();
+                  return;
+                }
 
                 try {
                   const h2Ele = doc.querySelector('h2');
@@ -2087,7 +2185,7 @@ function IssueViewDialog({
               backgroundColor: '#1b69e3',
               color: '#fff',
             }}
-            disabled={isSubmitting || !bulkText.trim()}
+            disabled={isSubmitting || !iframeReady}
             onClick={handleSave}
           >
             {isSubmitting ? t('common.saving') : t('common.save')}

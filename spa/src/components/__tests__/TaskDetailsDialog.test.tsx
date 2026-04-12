@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskDetailsDialog } from '../projectStatusReport/TaskDetailsDialog';
 
@@ -1801,6 +1802,93 @@ describe('TaskDetailsDialog', () => {
     const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
     expect(iframe).toBeTruthy();
     expect(iframe.getAttribute('src')).toBe('/issues/10/edit');
+  });
+
+  it('closes the title-opened view dialog after saving', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    const submitClick = vi.fn();
+
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return open ? (
+        <TaskDetailsDialog
+          open
+          projectIdentifier="ecookbook"
+          issueId={10}
+          onClose={() => setOpen(false)}
+        />
+      ) : null;
+    }
+
+    render(<Harness />);
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTitle('チケットを表示'));
+
+    const iframe = screen.getByTitle(/Issue Details|チケット詳細/) as HTMLIFrameElement;
+    const { doc, form } = buildEmbeddedIssueDocument({
+      action: '/issues/10'
+    });
+    const submitter = doc.createElement('button');
+    submitter.setAttribute('name', 'commit');
+    submitter.type = 'submit';
+    submitter.textContent = 'Save';
+    Object.defineProperty(submitter, 'click', {
+      configurable: true,
+      value: submitClick
+    });
+    form.appendChild(submitter);
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: doc
+    });
+
+    fireEvent.load(iframe);
+
+    const saveButton = screen.getByRole('button', { name: /保存|Save/ }) as HTMLButtonElement;
+    await waitFor(() => expect(saveButton.disabled).toBe(false));
+    fireEvent.click(saveButton);
+
+    expect(submitClick).toHaveBeenCalledTimes(1);
+
+    const successDoc = {
+      head: { appendChild: vi.fn() },
+      createElement: vi.fn(() => ({ textContent: '' })),
+      querySelectorAll: vi.fn(() => []),
+      querySelector: vi.fn(() => null),
+      location: { pathname: '/issues/10' }
+    } as unknown as Document;
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: successDoc
+    });
+
+    fireEvent.load(iframe);
+
+    await waitFor(() => {
+      expect(screen.queryByTitle(/Issue Details|チケット詳細/)).toBeNull();
+    });
   });
 
   it('keeps edit issue dialog open when validation error returns edit form on /issues/:id', async () => {
