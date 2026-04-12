@@ -112,9 +112,9 @@ const processStatusStyles: Record<ProcessFlowStep['status'], {
   progressText: string;
   dateText: string;
 }> = {
-  COMPLETED: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#2563eb', progressText: '#1f2937', dateText: '#475569' },
-  IN_PROGRESS: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#f97316', progressText: '#1f2937', dateText: '#475569' },
-  PENDING: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#64748b', progressText: '#1f2937', dateText: '#475569' }
+  COMPLETED: { fill: '#253248', text: '#1e293b', stroke: '#94a3b8', accent: '#2563eb', progressText: '#1f2937', dateText: '#475569' },
+  IN_PROGRESS: { fill: '#253248', text: '#1e293b', stroke: '#94a3b8', accent: '#f97316', progressText: '#1f2937', dateText: '#475569' },
+  PENDING: { fill: '#253248', text: '#1e293b', stroke: '#94a3b8', accent: '#64748b', progressText: '#1f2937', dateText: '#475569' }
 };
 
 const PROCESS_FLOW_MIN_WIDTH = 640;
@@ -2302,21 +2302,11 @@ export function TaskDetailsDialog({
       drawStrokeText(context, {
         text: step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title,
         x: step.textX,
-        y: stepY + PROCESS_FLOW_BAR_HEIGHT / 2 + 1,
-        fill: style.text,
-        stroke: 'transparent',
-        strokeWidth: 0,
-        font: '700 11px sans-serif'
-      });
-
-      drawStrokeText(context, {
-        text: formatProgressLabel(step.progress),
-        x: step.textX,
         y: stepY + PROCESS_FLOW_PROGRESS_LABEL_Y - PROCESS_FLOW_BAR_Y,
-        fill: style.progressText,
+        fill: style.text,
         stroke: '#ffffff',
         strokeWidth: 3,
-        font: '700 10px sans-serif'
+        font: '700 11px sans-serif'
       });
     });
   }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles, selectedIssueId]);

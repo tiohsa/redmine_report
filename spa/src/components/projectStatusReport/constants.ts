@@ -61,8 +61,8 @@ export const buildStatusStyles = (): Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDI
   COMPLETED: {
     code: 'COMPLETED',
     fill: '#253248',
-    text: '#ffffff',
-    stroke: '#1c2433',
+    text: '#1e293b',
+    stroke: '#94a3b8',
     label: t('status.completed'),
     accent: '#2563eb',
     progressText: '#1f2937',
@@ -73,8 +73,8 @@ export const buildStatusStyles = (): Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDI
   IN_PROGRESS: {
     code: 'IN_PROGRESS',
     fill: '#253248',
-    text: '#ffffff',
-    stroke: '#1c2433',
+    text: '#1e293b',
+    stroke: '#94a3b8',
     label: t('status.inProgress'),
     accent: '#f97316',
     progressText: '#1f2937',
@@ -85,8 +85,8 @@ export const buildStatusStyles = (): Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDI
   PENDING: {
     code: 'PENDING',
     fill: '#253248',
-    text: '#ffffff',
-    stroke: '#1c2433',
+    text: '#1e293b',
+    stroke: '#94a3b8',
     label: t('status.pending'),
     accent: '#64748b',
     progressText: '#1f2937',

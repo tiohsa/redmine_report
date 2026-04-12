@@ -818,23 +818,11 @@ function TimelineSvg({
             shadow: true
           });
 
-          if (item.renderData.width > 30) {
-            drawStrokeText(context, {
-              text: item.step.name,
-              x: item.taskCenterX,
-              y: top + scaledBarHeight / 2,
-              fill: item.step.status.text,
-              stroke: item.step.status.textStroke || 'transparent',
-              strokeWidth: Number(String(item.step.status.textStrokeWidth || '0px').replace('px', '')),
-              font: `700 ${item.fontSize}px sans-serif`
-            });
-          }
-
           drawStrokeText(context, {
-            text: formatProcessProgressLabel(item.step.progress),
+            text: item.step.name,
             x: item.taskCenterX,
             y: top + scaledBarHeight + PROCESS_PROGRESS_LABEL_OFFSET_Y,
-            fill: item.step.status.progressText || '#1f2937',
+            fill: item.step.status.text,
             stroke: '#ffffff',
             strokeWidth: 3,
             font: `700 ${Math.max(10, Math.round(11 * chartScale))}px sans-serif`
