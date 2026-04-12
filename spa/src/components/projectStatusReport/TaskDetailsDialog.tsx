@@ -112,7 +112,7 @@ const processStatusStyles: Record<ProcessFlowStep['status'], {
   progressText: string;
   dateText: string;
 }> = {
-  COMPLETED: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#22c55e', progressText: '#1f2937', dateText: '#475569' },
+  COMPLETED: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#2563eb', progressText: '#1f2937', dateText: '#475569' },
   IN_PROGRESS: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#f97316', progressText: '#1f2937', dateText: '#475569' },
   PENDING: { fill: '#253248', text: '#ffffff', stroke: '#1c2433', accent: '#64748b', progressText: '#1f2937', dateText: '#475569' }
 };
@@ -388,7 +388,7 @@ const IssueTreeNode = ({
   const statusLabel = node.status_name || t('status.pending');
   const isClosed = node.status_is_closed ?? false;
   const isInProgress = !isClosed && progressRatio > 0;
-  const statusBg = isClosed ? 'bg-emerald-500' : isInProgress ? 'bg-blue-500' : 'bg-slate-300';
+  const statusBg = isClosed ? 'bg-blue-600' : isInProgress ? 'bg-blue-500' : 'bg-slate-300';
   const statusText = isClosed ? 'text-white' : isInProgress ? 'text-white' : 'text-slate-600';
   const commentCount = node.comments?.length ?? 0;
   const hasComments = commentCount > 0;
@@ -731,7 +731,7 @@ const IssueTreeNode = ({
           ) : (
             <>
               <div className="h-2 w-full max-w-[72px] overflow-hidden rounded-full bg-slate-200/90 relative">
-                <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
+                <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-blue-600' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
               </div>
               <span className="text-[11px] text-slate-600 font-semibold tabular-nums" data-testid="progress-text">{progressRatio}%</span>
             </>

@@ -49,10 +49,10 @@ export const getProgressFillColor = (progress: number) => {
   const value = clampProgress(progress);
 
   if (value <= 0) return '#64748b';
-  if (value >= 100) return '#16a34a';
+  if (value >= 100) return '#1d4ed8';
   if (value <= 55) return mixHex('#64748b', '#2563eb', value / 55);
 
-  return mixHex('#2563eb', '#16a34a', (value - 55) / 45);
+  return mixHex('#2563eb', '#1d4ed8', (value - 55) / 45);
 };
 
 export const getProgressTrackColor = () => '#d9e2ec';
@@ -64,7 +64,7 @@ export const buildStatusStyles = (): Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDI
     text: '#ffffff',
     stroke: '#1c2433',
     label: t('status.completed'),
-    accent: '#22c55e',
+    accent: '#2563eb',
     progressText: '#1f2937',
     dateText: '#475569',
     textStroke: 'transparent',
