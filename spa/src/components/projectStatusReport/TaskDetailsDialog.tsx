@@ -149,7 +149,8 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   priority: 90,
   status: 80,
   progress: 120,
-  dateRange: 260,
+  startDate: 130,
+  dueDate: 130,
   assignee: 120
 };
 
@@ -790,102 +791,101 @@ const IssueTreeNode = ({
           )}
         </div>
 
-        {/* DATE RANGE Column */}
-        <div className="shrink-0 flex items-center gap-1.5 px-2 justify-start border-r border-slate-200/80 self-stretch" style={{ width: `${columnWidths.dateRange}px`, minWidth: `${columnWidths.dateRange}px` }}>
-          <div
-            ref={dateRangeRef}
-            className="flex items-center gap-1.5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="relative w-[110px] h-8">
-              <span
-                data-testid={`start-date-display-${node.issue_id}`}
-                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
-                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-                onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
-              >
-                {displayStartDate ? displayStartDate.replace(/-/g, '/') : '-'}
-              </span>
-              {isEditingDateRange ? (
-                <input
-                  ref={startDateInputRef}
-                  type="date"
-                  data-testid={`start-date-input-${node.issue_id}`}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  value={dateRangeDraft?.startDate || ''}
-                  max={dateRangeDraft?.dueDate || undefined}
-                  onChange={(e) => {
-                    updateDateRangeDraft('startDate', e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      cancelDateRangeEdit();
-                    } else if (e.key === 'Enter') {
-                      e.preventDefault();
-                      commitDateRangeEdit();
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const nextTarget = e.relatedTarget as Node | null;
-                    if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
-                    commitDateRangeEdit();
-                  }}
-                  onDoubleClick={(e) => {
+        {/* START DATE Column */}
+        <div
+          className="shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch"
+          style={{ width: `${columnWidths.startDate}px`, minWidth: `${columnWidths.startDate}px` }}
+        >
+          <div className="relative w-full h-8">
+            <span
+              data-testid={`start-date-display-${node.issue_id}`}
+              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
+              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+              onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayStartDate ? displayStartDate.replace(/-/g, '/') : '-'}
+            </span>
+            {isEditingDateRange && (editingDateRange.focusField === 'start_date' || !node.start_date) && (
+              <input
+                ref={startDateInputRef}
+                type="date"
+                data-testid={`start-date-input-${node.issue_id}`}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                value={dateRangeDraft?.startDate || ''}
+                max={dateRangeDraft?.dueDate || undefined}
+                onChange={(e) => {
+                  updateDateRangeDraft('startDate', e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
                     e.preventDefault();
-                    e.stopPropagation();
-                    openDatePicker(e.currentTarget);
-                  }}
-                />
-              ) : null}
-            </div>
-            <span className="text-slate-300 text-[10px] font-bold">-</span>
-            <div className="relative w-[110px] h-8">
-              <span
-                data-testid={`due-date-display-${node.issue_id}`}
-                className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
-                style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-                onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
-              >
-                {displayDueDate ? displayDueDate.replace(/-/g, '/') : '-'}
-              </span>
-              {isEditingDateRange ? (
-                <input
-                  ref={dueDateInputRef}
-                  type="date"
-                  data-testid={`due-date-input-${node.issue_id}`}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  value={dateRangeDraft?.dueDate || ''}
-                  min={dateRangeDraft?.startDate || undefined}
-                  onChange={(e) => {
-                    updateDateRangeDraft('dueDate', e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      e.preventDefault();
-                      cancelDateRangeEdit();
-                    } else if (e.key === 'Enter') {
-                      e.preventDefault();
-                      commitDateRangeEdit();
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const nextTarget = e.relatedTarget as Node | null;
-                    if (dateRangeRef.current && nextTarget && dateRangeRef.current.contains(nextTarget)) return;
-                    commitDateRangeEdit();
-                  }}
-                  onDoubleClick={(e) => {
+                    cancelDateRangeEdit();
+                  } else if (e.key === 'Enter') {
                     e.preventDefault();
-                    e.stopPropagation();
-                    openDatePicker(e.currentTarget);
-                  }}
-                />
-              ) : null}
-            </div>
+                    commitDateRangeEdit();
+                  }
+                }}
+                onBlur={commitDateRangeEdit}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openDatePicker(e.currentTarget);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
           </div>
-          {isSaving && (
-            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 ml-1"></div>
-          )}
+        </div>
+
+        {/* DUE DATE Column */}
+        <div
+          className="shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch"
+          style={{ width: `${columnWidths.dueDate}px`, minWidth: `${columnWidths.dueDate}px` }}
+        >
+          <div className="relative w-full h-8 flex items-center">
+            <span
+              data-testid={`due-date-display-${node.issue_id}`}
+              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums cursor-pointer select-none hover:border-blue-200 hover:bg-blue-50/70"
+              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+              onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayDueDate ? displayDueDate.replace(/-/g, '/') : '-'}
+            </span>
+            {isEditingDateRange && (editingDateRange.focusField === 'due_date' || !node.due_date) && (
+              <input
+                ref={dueDateInputRef}
+                type="date"
+                data-testid={`due-date-input-${node.issue_id}`}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                value={dateRangeDraft?.dueDate || ''}
+                min={dateRangeDraft?.startDate || undefined}
+                onChange={(e) => {
+                  updateDateRangeDraft('dueDate', e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelDateRangeEdit();
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    commitDateRangeEdit();
+                  }
+                }}
+                onBlur={commitDateRangeEdit}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openDatePicker(e.currentTarget);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
+            {isSaving && (
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 ml-1 flex-shrink-0"></div>
+            )}
+          </div>
         </div>
 
         {/* ASSIGNEE Column */}
@@ -3100,7 +3100,8 @@ export function TaskDetailsDialog({
                       <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}>{t('timeline.priorityCol', { defaultValue: 'Priority' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('priority', deltaX)} /></div>
                       <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}>{t('timeline.statusCol', { defaultValue: 'Status' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('status', deltaX)} /></div>
                       <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}>{t('timeline.progressCol', { defaultValue: 'Progress' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('progress', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.dateRange}px`, minWidth: `${columnWidths.dateRange}px` }}>{t('timeline.dateRangeCol', { defaultValue: 'Date Range' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('dateRange', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.startDate}px`, minWidth: `${columnWidths.startDate}px` }}>{t('timeline.startDateCol', { defaultValue: 'Start Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('startDate', deltaX)} /></div>
+                      <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.dueDate}px`, minWidth: `${columnWidths.dueDate}px` }}>{t('timeline.dueDateCol', { defaultValue: 'Due Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('dueDate', deltaX)} /></div>
                       <div className="shrink-0 text-left px-2 relative group" style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}>{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('assignee', deltaX)} /></div>
                     </div>
                     {/* Task Tree */}
