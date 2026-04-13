@@ -780,6 +780,11 @@ export const ProjectStatusReport = ({
                             })
                         }
                         onVersionReportClick={handleVersionReportClick}
+                        onClearSelection={() => {
+                            setActiveReportLaneKey(null);
+                            setAiLoading(false);
+                            setAiError(null);
+                        }}
                         activeReportLaneKey={activeReportLaneKey}
                         detailedReportResponse={aiResponse}
                         detailedReportLoading={aiLoading}

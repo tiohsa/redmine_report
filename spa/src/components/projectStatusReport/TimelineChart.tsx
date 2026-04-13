@@ -37,6 +37,7 @@ type TimelineChartProps = {
   detailedReportResponse?: AiResponseView | null;
   detailedReportLoading?: boolean;
   detailedReportError?: string | null;
+  onClearSelection?: () => void;
 };
 
 type DragMode = 'move' | 'resize-left' | 'resize-right';
@@ -231,7 +232,8 @@ export function TimelineChart({
   activeReportLaneKey,
   detailedReportResponse = null,
   detailedReportLoading = false,
-  detailedReportError = null
+  detailedReportError = null,
+  onClearSelection
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
   const barHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
@@ -277,6 +279,11 @@ export function TimelineChart({
     setSelectedStepId(stepId || null);
   };
 
+  const handleBackgroundClick = (event: React.MouseEvent) => {
+    setSelectedStepId(null);
+    onClearSelection?.();
+  };
+
   const handleStepOpen = (stepId?: string, issueId?: number, title?: string, projectName?: string, versionName?: string) => {
     if (!stepId || !issueId) return;
     setSelectedStepId(stepId);
@@ -290,7 +297,10 @@ export function TimelineChart({
 
   return (
     <>
-      <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+      <div
+        className="flex border border-gray-200 rounded-lg overflow-hidden"
+        onClick={handleBackgroundClick}
+      >
         <div className="flex-none min-w-max bg-white border-r border-gray-200 flex flex-col">
           <div className="flex items-center px-6 font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
             {t('timeline.laneHeader')}
@@ -309,18 +319,19 @@ export function TimelineChart({
                 <div
                   className={`flex flex-col justify-center px-6 whitespace-nowrap transition-colors duration-300 ${project.versionId && !isActiveReportLane ? 'cursor-pointer hover:bg-sky-50/50' : ''}`}
                   style={{ height: project.contentHeight }}
-                  onClick={() =>
-                    project.versionId &&
-                    !isActiveReportLane &&
-                    onVersionReportClick?.({
-                      laneKey: project.laneKey,
-                      versionId: project.versionId as number,
-                      versionName: project.versionName,
-                      projectId: project.projectId,
-                      projectName: project.projectName,
-                      projectIdentifier: project.projectIdentifier
-                    })
-                  }
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (project.versionId && !isActiveReportLane) {
+                      onVersionReportClick?.({
+                        laneKey: project.laneKey,
+                        versionId: project.versionId as number,
+                        versionName: project.versionName,
+                        projectId: project.projectId,
+                        projectName: project.projectName,
+                        projectIdentifier: project.projectIdentifier
+                      });
+                    }
+                  }}
                 >
                   {project.versionId ? (
                     <div className="flex items-center gap-2">
@@ -328,6 +339,7 @@ export function TimelineChart({
                         href={`/versions/${project.versionId}`}
                         className="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline"
                         title={project.versionName}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {project.versionName}
                       </a>
@@ -407,11 +419,12 @@ export function TimelineChart({
                       {project.versionName}
                     </div>
                   )}
-                  {project.projectIdentifier ? (
+                   {project.projectIdentifier ? (
                     <a
                       href={`/projects/${project.projectIdentifier}`}
                       className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
                       title={project.projectName}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {project.projectName}
                     </a>
@@ -1108,7 +1121,8 @@ function TimelineChartSurface({
                         fill="transparent"
                         style={{ cursor: bodyCursor, touchAction: 'none' }}
                         data-selected={isSelected ? 'true' : 'false'}
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
                           if (suppressClickStepId === step.id) {
                             setSuppressClickStepId(null);
                             return;
