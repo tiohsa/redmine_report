@@ -428,6 +428,7 @@ export function TimelineChart({
           issueTitle={activeIssue.title}
           projectName={activeIssue.projectName}
           versionName={activeIssue.versionName}
+          chartScale={chartScale}
           onTaskDatesUpdated={onTaskDatesUpdated}
           onClose={() => setActiveIssue(null)}
         />
