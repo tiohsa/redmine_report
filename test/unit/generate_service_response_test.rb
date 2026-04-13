@@ -60,19 +60,21 @@ class GenerateServiceResponseTest < ActiveSupport::TestCase
   end
 
   def test_call_returns_header_kpi_markdown_llm_response_and_tickets
-    @service.singleton_class.send(:define_method, :build_markdown) do |_context, _limit|
-      @last_sections = { major_achievements: ['##1 done'] }
-      '# weekly markdown'
+    composer = Object.new
+    composer.define_singleton_method(:call) do
+      { markdown: '# weekly markdown', sections: { major_achievements: ['##1 done'] } }
     end
 
-    result = @service.call(prompt: ' custom prompt ')
+    RedmineReport::WeeklyReport::MarkdownComposer.stub :new, composer do
+      result = @service.call(prompt: ' custom prompt ')
 
-    assert_equal 10, result.dig(:header_preview, :project_id)
-    assert_equal 20, result.dig(:header_preview, :version_id)
-    assert_equal '2026-W07', result.dig(:header_preview, :week)
-    assert_equal({ completed: 1, wip: 2, overdue: 3, high_priority_open: 4 }, result[:kpi])
-    assert_equal '# weekly markdown', result[:markdown]
-    assert_equal({ major_achievements: ['##1 done'] }, result[:llm_response])
-    assert_equal [{ id: 1, title: 'Issue 1' }], result[:tickets]
+      assert_equal 10, result.dig(:header_preview, :project_id)
+      assert_equal 20, result.dig(:header_preview, :version_id)
+      assert_equal '2026-W07', result.dig(:header_preview, :week)
+      assert_equal({ completed: 1, wip: 2, overdue: 3, high_priority_open: 4 }, result[:kpi])
+      assert_equal '# weekly markdown', result[:markdown]
+      assert_equal({ major_achievements: ['##1 done'] }, result[:llm_response])
+      assert_equal [{ id: 1, title: 'Issue 1' }], result[:tickets]
+    end
   end
 end

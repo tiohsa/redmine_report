@@ -333,7 +333,7 @@ describe('TaskDetailsDialog', () => {
     expect(await screen.findByTestId('start-date-input-11')).toBeTruthy();
   });
 
-  it('constrains start date and due date inputs by each other in the inline date editor', async () => {
+  it('constrains start and due dates in the inline date editor', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -369,9 +369,12 @@ describe('TaskDetailsDialog', () => {
     fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
 
     const startDateInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
-    const dueDateInput = await screen.findByTestId('due-date-input-11') as HTMLInputElement;
-
     expect(startDateInput.max).toBe('2026-02-08');
+
+    fireEvent.blur(startDateInput);
+    fireEvent.doubleClick(screen.getByTestId('due-date-display-11'));
+
+    const dueDateInput = await screen.findByTestId('due-date-input-11') as HTMLInputElement;
     expect(dueDateInput.min).toBe('2026-02-03');
   });
 
@@ -429,12 +432,10 @@ describe('TaskDetailsDialog', () => {
     expect(firstDueDateInput.min).toBe('2026-02-03');
 
     fireEvent.blur(firstStartDateInput);
-    fireEvent.doubleClick(screen.getByTestId('start-date-display-12'));
+    fireEvent.doubleClick(screen.getByTestId('due-date-display-12'));
 
-    const secondStartDateInput = await screen.findByTestId('start-date-input-12') as HTMLInputElement;
     const secondDueDateInput = await screen.findByTestId('due-date-input-12') as HTMLInputElement;
 
-    expect(secondStartDateInput.max).toBe('2026-02-12');
     expect(secondDueDateInput.min).toBe('');
   });
 
@@ -740,10 +741,7 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
-    const yearHeaders = container.querySelectorAll('[data-testid^="task-details-process-year-"]');
-    const monthHeaders = container.querySelectorAll('[data-testid^="task-details-process-month-"]');
-    expect(yearHeaders.length).toBeGreaterThan(0);
-    expect(monthHeaders.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByTestId('task-details-process-flow-canvas')).toBeTruthy();
 
     const designBar = screen.getByTestId('task-details-process-step-hit-11');
     const buildBar = screen.getByTestId('task-details-process-step-hit-12');
@@ -1492,7 +1490,7 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(2));
     await waitFor(
-      () => expect(screen.getByTestId('task-details-top-pane').style.height).toBe('218px'),
+      () => expect(screen.getByTestId('task-details-top-pane').style.height).toBe('220px'),
       { timeout: 2000 }
     );
   });

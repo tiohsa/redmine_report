@@ -50,28 +50,23 @@ const renderTimelineChart = (activeReportLaneKey?: string | null) =>
   );
 
 describe('TimelineChart', () => {
-  it('renders the canvas layer and preserves lane background semantics', () => {
+  it('renders the canvas layer and keeps lane labels styled', () => {
     renderTimelineChart();
 
     expect(screen.getByTestId('timeline-chart-canvas')).toBeTruthy();
     expect(screen.getByTestId('timeline-lane-label-0').className).toContain('bg-white');
     expect(screen.getByTestId('timeline-lane-label-1').className).toContain('bg-white');
     expect(screen.getByTestId('timeline-lane-label-2').className).toContain('bg-white');
-
-    expect(screen.getByTestId('timeline-lane-bg-0').getAttribute('fill')).toBe('#ffffff');
-    expect(screen.getByTestId('timeline-lane-bg-1').getAttribute('fill')).toBe('#ffffff');
-    expect(screen.getByTestId('timeline-lane-bg-2').getAttribute('fill')).toBe('#ffffff');
+    expect(screen.queryByTestId('timeline-lane-bg-0')).toBeNull();
+    expect(screen.queryByTestId('timeline-lane-active-bg-1')).toBeNull();
   });
 
   it('keeps active lane highlight above alternating backgrounds', () => {
     renderTimelineChart('1:v2');
 
     expect(screen.getByTestId('timeline-lane-label-1').className).toContain('bg-sky-200/80');
-    expect(screen.getByTestId('timeline-lane-bg-1').getAttribute('fill')).toBe('#ffffff');
-
-    const activeOverlay = screen.getByTestId('timeline-lane-active-bg-1');
-    expect(activeOverlay.getAttribute('fill')).toBe('#e0f2fe');
-    expect(activeOverlay.getAttribute('opacity')).toBe('0.7');
+    expect(screen.queryByTestId('timeline-lane-bg-1')).toBeNull();
+    expect(screen.queryByTestId('timeline-lane-active-bg-1')).toBeNull();
   });
 
   it('uses move cursor for draggable process arrows', () => {

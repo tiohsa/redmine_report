@@ -13,8 +13,6 @@ import {
   prepareHiDPICanvas
 } from './canvasTimelineRenderer';
 
-const formatProcessProgressLabel = (progress?: number) => `${t('timeline.progressCol', { defaultValue: 'Progress' })}: ${Math.max(0, Math.min(100, Number(progress ?? 0)))}%`;
-
 type TimelineChartProps = {
   timelineData: TimelineLane[];
   timelineWidth: number;
@@ -73,7 +71,6 @@ const headerHeight = yearRowHeight + monthRowHeight;
 const TODAY_LABEL_WIDTH = 40;
 const TODAY_LABEL_HEIGHT = 16;
 const TODAY_LABEL_OFFSET_Y = 2;
-const TODAY_LABEL_LINE_GAP = 2;
 const DRAG_THRESHOLD_PX = 4;
 const RESIZE_HANDLE_PX = 10;
 const MIN_CENTER_CLICK_PX = 14;
@@ -388,7 +385,7 @@ export function TimelineChart({
         </div>
 
         <div className="flex-1 overflow-x-auto bg-white relative" ref={containerRef}>
-          <TimelineSvg
+          <TimelineChartSurface
             layoutData={layoutData}
             totalTimelineHeight={totalTimelineHeight}
             timelineWidth={timelineWidth}
@@ -437,7 +434,7 @@ export function TimelineChart({
   );
 }
 
-function TimelineSvg({
+function TimelineChartSurface({
   layoutData,
   totalTimelineHeight,
   timelineWidth,
@@ -482,7 +479,7 @@ function TimelineSvg({
   showAllDates?: boolean;
   showTodayLine?: boolean;
 }) {
-  const svgHeight = Math.ceil(headerHeight + totalTimelineHeight);
+  const chartHeight = Math.ceil(headerHeight + totalTimelineHeight);
   const scaledBarHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
   const scaledBarSpacingY = Math.round(34 * chartScale);
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
@@ -713,7 +710,7 @@ function TimelineSvg({
 
   useLayoutEffect(() => {
     if (!canvasRef.current) return;
-    const context = prepareHiDPICanvas(canvasRef.current, timelineWidth, svgHeight);
+    const context = prepareHiDPICanvas(canvasRef.current, timelineWidth, chartHeight);
     if (!context) return;
 
     context.fillStyle = '#f9fafb';
@@ -906,7 +903,7 @@ function TimelineSvg({
     scaledBarHeight,
     showAllDates,
     showTodayLine,
-    svgHeight,
+    chartHeight,
     timelineWidth,
     todayX
   ]);
@@ -916,133 +913,24 @@ function TimelineSvg({
   }
 
   return (
-    <div className="relative" style={{ minHeight: svgHeight, minWidth: `${timelineWidth}px`, width: timelineWidth }}>
+    <div className="relative" style={{ minHeight: chartHeight, minWidth: `${timelineWidth}px`, width: timelineWidth }}>
       <canvas
         ref={canvasRef}
         data-testid="timeline-chart-canvas"
         className="absolute inset-0 block"
-        style={{ width: `${timelineWidth}px`, height: `${svgHeight}px`, pointerEvents: 'none' }}
+        style={{ width: `${timelineWidth}px`, height: `${chartHeight}px`, pointerEvents: 'none' }}
         aria-hidden="true"
       />
       <svg
-        viewBox={`0 0 ${timelineWidth} ${svgHeight}`}
+        viewBox={`0 0 ${timelineWidth} ${chartHeight}`}
         className="relative block w-full"
-        style={{ minHeight: svgHeight, minWidth: `${timelineWidth}px`, opacity: 0 }}
+        style={{ minHeight: chartHeight, minWidth: `${timelineWidth}px`, opacity: 0 }}
       >
-      <defs>
-        <pattern id="gridPattern" width="100" height="100" patternUnits="userSpaceOnUse">
-          <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#f3f4f6" strokeWidth="1" />
-        </pattern>
-        <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
-          <feOffset in="blur" dx="0" dy="1" result="offsetBlur" />
-          <feFlood floodColor="rgba(0,0,0,0.2)" result="colorBlur" />
-          <feComposite in="colorBlur" in2="offsetBlur" operator="in" result="shadow" />
-          <feMerge>
-            <feMergeNode in="shadow" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-
-      <g transform="translate(0, 0)">
-        <rect x={0} y={0} width={timelineWidth} height={yearRowHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
-        <rect x={0} y={yearRowHeight} width={timelineWidth} height={monthRowHeight} fill="#f9fafb" stroke="#e5e7eb" strokeWidth="1" />
-        {headerYears.map((year, idx) => (
-          <g key={`year-${year.year}-${idx}`} transform={`translate(${year.x}, 0)`}>
-            <rect x={0} y={0} width={year.width} height={yearRowHeight} fill="none" stroke="#e5e7eb" strokeWidth="1" />
-            <text
-              x={year.width / 2}
-              y={yearRowHeight / 2}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="12"
-              fontWeight="bold"
-              fill="#374151"
-            >
-              {year.year}
-            </text>
-          </g>
-        ))}
-
-        {headerMonths.map((month, idx) => (
-          <g key={`month-${month.label}-${idx}`} transform={`translate(${month.x}, ${yearRowHeight})`}>
-            <rect x={0} y={0} width={month.width} height={monthRowHeight} fill="none" stroke="#e5e7eb" strokeWidth="1" />
-            <text
-              x={month.width / 2}
-              y={monthRowHeight / 2}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="12"
-              fontWeight="bold"
-              fill="#374151"
-            >
-              {month.label}
-            </text>
-          </g>
-        ))}
-
-        {showTodayLine && todayX >= 0 && todayX <= timelineWidth && (
-          <g transform={`translate(${todayX}, 0)`}>
-            <rect
-              x={-TODAY_LABEL_WIDTH / 2}
-              y={headerHeight + TODAY_LABEL_OFFSET_Y}
-              width={TODAY_LABEL_WIDTH}
-              height={TODAY_LABEL_HEIGHT}
-              fill="#ef4444"
-            />
-            <text
-              x={0}
-              y={headerHeight + TODAY_LABEL_OFFSET_Y + 12}
-              textAnchor="middle"
-              fontSize="10"
-              fontWeight="bold"
-              fill="#ffffff"
-            >
-              {format(new Date(), 'M/d')}
-            </text>
-          </g>
-        )}
-      </g>
-
-      {layoutData.map((project, projectIndex) => {
+      {layoutData.map((project) => {
         const yOffset = headerHeight + project.yOffset;
-        const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
 
         return (
           <g key={project.laneKey} transform={`translate(0, ${yOffset})`}>
-            <rect
-              data-testid={`timeline-lane-bg-${projectIndex}`}
-              x={0}
-              y={0}
-              width={timelineWidth}
-              height={project.height}
-              fill={laneBackground.baseFill}
-            />
-            {project.laneKey === activeReportLaneKey && (
-              <rect
-                data-testid={`timeline-lane-active-bg-${projectIndex}`}
-                x={0}
-                y={0}
-                width={timelineWidth}
-                height={project.height}
-                fill={ACTIVE_LANE_BACKGROUND_FILL}
-                opacity="0.7"
-              />
-            )}
-            <line x1={0} y1={project.height} x2={timelineWidth} y2={project.height} stroke="#cbd5e1" strokeWidth="1" />
-            {headerMonths.map((month, monthIndex) => (
-              <line
-                key={`${project.laneKey}-month-${monthIndex}`}
-                x1={month.x}
-                y1={0}
-                x2={month.x}
-                y2={project.height}
-                stroke="#f3f4f6"
-                strokeDasharray="4 2"
-              />
-            ))}
-
             {(project.steps as Array<TimelineStep & { laneIndex: number }>)
               .map((step, stepIndex) => {
                 const isFirst = stepIndex === 0;
@@ -1200,18 +1088,6 @@ function TimelineSvg({
           </g>
         );
       })}
-
-      {showTodayLine && todayX >= 0 && todayX <= timelineWidth && (
-        <line
-          x1={todayX}
-          y1={headerHeight}
-          x2={todayX}
-          y2={headerHeight + totalTimelineHeight}
-          stroke="#ef4444"
-          strokeWidth="1"
-          strokeDasharray="4 2"
-        />
-      )}
 
       </svg>
     </div>
