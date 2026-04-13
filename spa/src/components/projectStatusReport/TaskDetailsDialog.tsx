@@ -3350,10 +3350,10 @@ export function TaskDetailsDialog({
                       height={processFlowChartHeight}
                     >
                       {processFlowRenderSteps.map((step) => {
-                          const stepY = processFlowBaseTopPadding + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
-                          const isInteractive = !savingIssueIds[step.id];
-                          const isRangeStep = step.shapeKind === 'range';
-                          const isSelected = selectedIssueId === step.id;
+                        const stepY = PROCESS_FLOW_HEADER_HEIGHT + processFlowBaseTopPadding + step.laneIndex * (scaledBarHeight + scaledBarSpacingY);
+                        const isInteractive = !savingIssueIds[step.id];
+                        const isRangeStep = step.shapeKind === 'range';
+                        const isSelected = selectedIssueId === step.id;
 
                           return (
                             <g
@@ -3366,7 +3366,7 @@ export function TaskDetailsDialog({
                                 x={step.hitX}
                                 y={stepY}
                                 width={step.hitWidth}
-                                height={PROCESS_FLOW_BAR_HEIGHT}
+                                height={scaledBarHeight}
                                 fill="transparent"
                                 style={{ cursor: isInteractive && isRangeStep ? 'move' : 'pointer' }}
                                 onPointerDown={isRangeStep ? (event) => startProcessFlowDrag(event, step, 'move') : undefined}
@@ -3381,7 +3381,7 @@ export function TaskDetailsDialog({
                                     x={step.hitX}
                                     y={stepY}
                                     width={10}
-                                    height={PROCESS_FLOW_BAR_HEIGHT}
+                                    height={scaledBarHeight}
                                     fill="transparent"
                                     style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
                                     onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-left')}
@@ -3391,7 +3391,7 @@ export function TaskDetailsDialog({
                                     x={Math.max(step.hitX + step.hitWidth - 10, step.hitX)}
                                     y={stepY}
                                     width={10}
-                                    height={PROCESS_FLOW_BAR_HEIGHT}
+                                    height={scaledBarHeight}
                                     fill="transparent"
                                     style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
                                     onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-right')}
