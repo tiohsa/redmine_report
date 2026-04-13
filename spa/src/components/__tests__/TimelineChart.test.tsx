@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { createRef } from 'react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { createRef, type ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { TimelineChart } from '../projectStatusReport/TimelineChart';
 import type { TimelineLane } from '../projectStatusReport/timeline';
@@ -27,13 +27,26 @@ const makeLane = (overrides: Partial<TimelineLane> = {}): TimelineLane => ({
   ...overrides
 });
 
-const renderTimelineChart = (activeReportLaneKey?: string | null) =>
-  render(
+const renderTimelineChart = (
+  options:
+    | string
+    | {
+        activeReportLaneKey?: string | null;
+        onVersionAiClick?: ComponentProps<typeof TimelineChart>['onVersionAiClick'];
+        onVersionReportClick?: ComponentProps<typeof TimelineChart>['onVersionReportClick'];
+      } = {}
+) => {
+  const resolvedOptions =
+    typeof options === 'string'
+      ? { activeReportLaneKey: options }
+      : options;
+
+  return render(
     <TimelineChart
       timelineData={[
-        makeLane({ laneKey: '1:v1', versionName: 'v1', projectName: 'Alpha' }),
-        makeLane({ laneKey: '1:v2', versionName: 'v2', projectName: 'Beta' }),
-        makeLane({ laneKey: '2:v3', versionName: 'v3', projectName: 'Gamma', projectId: 2, projectIdentifier: 'gamma' })
+        makeLane({ laneKey: '1:v1', versionName: 'v1', projectName: 'Alpha', versionId: 101 }),
+        makeLane({ laneKey: '1:v2', versionName: 'v2', projectName: 'Beta', versionId: 102 }),
+        makeLane({ laneKey: '2:v3', versionName: 'v3', projectName: 'Gamma', projectId: 2, projectIdentifier: 'gamma', versionId: 103 })
       ]}
       timelineWidth={480}
       headerMonths={[{ label: 'Mar', x: 0, width: 480 }]}
@@ -45,9 +58,12 @@ const renderTimelineChart = (activeReportLaneKey?: string | null) =>
       containerRef={createRef<HTMLDivElement>()}
       projectIdentifier="alpha"
       showTodayLine={false}
-      activeReportLaneKey={activeReportLaneKey}
+      activeReportLaneKey={resolvedOptions.activeReportLaneKey}
+      onVersionAiClick={resolvedOptions.onVersionAiClick}
+      onVersionReportClick={resolvedOptions.onVersionReportClick}
     />
   );
+};
 
 describe('TimelineChart', () => {
   it('renders the canvas layer and keeps lane labels styled', () => {
@@ -67,6 +83,36 @@ describe('TimelineChart', () => {
     expect(screen.getByTestId('timeline-lane-label-1').className).toContain('bg-sky-200/80');
     expect(screen.queryByTestId('timeline-lane-bg-1')).toBeNull();
     expect(screen.queryByTestId('timeline-lane-active-bg-1')).toBeNull();
+  });
+
+  it('calls the detail report callback once when clicking the detail button', () => {
+    const onVersionReportClick = vi.fn();
+    renderTimelineChart({ onVersionReportClick });
+
+    const lane = screen.getByTestId('timeline-lane-label-1');
+    fireEvent.click(within(lane).getByRole('button', { name: 'timeline.showDetailAria' }));
+
+    expect(onVersionReportClick).toHaveBeenCalledTimes(1);
+    expect(onVersionReportClick).toHaveBeenCalledWith(expect.objectContaining({
+      laneKey: '1:v2',
+      versionId: 102,
+      versionName: 'v2',
+      projectId: 1,
+      projectName: 'Beta',
+      projectIdentifier: 'alpha'
+    }));
+  });
+
+  it('calls the ai button callback once without triggering the detail report callback', () => {
+    const onVersionAiClick = vi.fn();
+    const onVersionReportClick = vi.fn();
+    renderTimelineChart({ onVersionAiClick, onVersionReportClick });
+
+    const lane = screen.getByTestId('timeline-lane-label-1');
+    fireEvent.click(within(lane).getByRole('button', { name: 'timeline.startAiAria' }));
+
+    expect(onVersionAiClick).toHaveBeenCalledTimes(1);
+    expect(onVersionReportClick).not.toHaveBeenCalled();
   });
 
   it('uses move cursor for draggable process arrows', () => {
