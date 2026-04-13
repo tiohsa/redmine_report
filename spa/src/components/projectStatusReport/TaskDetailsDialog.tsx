@@ -41,6 +41,8 @@ type TaskDetailsDialogProps = {
   issueTitle?: string;
   projectName?: string;
   versionName?: string;
+  chartScale?: number;
+
   onTaskDatesUpdated?: () => void;
   onClose: () => void;
 };
@@ -131,11 +133,9 @@ const PROCESS_FLOW_POINT_DEPTH = 22;
 const PROCESS_FLOW_DIAMOND_WIDTH = PROCESS_FLOW_BAR_HEIGHT;
 const PROCESS_FLOW_TRIANGLE_WIDTH = (PROCESS_FLOW_BAR_HEIGHT * Math.sqrt(3)) / 2;
 const PROCESS_FLOW_PROGRESS_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 18;
-const PROCESS_FLOW_ACCENT_HEIGHT = 4;
 const PROCESS_FLOW_LEFT_NOTCH_RATIO = 0.55;
 const PROCESS_FLOW_RIGHT_HEAD_RATIO = 0.62;
 const PROCESS_FLOW_DATE_LABEL_INSET = 8;
-const PROCESS_FLOW_SVG_HEIGHT = PROCESS_FLOW_HEADER_HEIGHT + PROCESS_FLOW_LANE_HEIGHT;
 const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
 const DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX = 320;
 const DETAILS_TOP_PANE_MIN_HEIGHT_PX = 180;
@@ -157,7 +157,6 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
 const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-300';
-const TASK_CELL_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
 const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold truncate shadow-sm';
 const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 px-2 border border-slate-300 bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer';
 const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 w-7 border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer';
@@ -279,8 +278,12 @@ const drawSelectedProcessOutline = (
     hasLeftNotch: boolean;
     shapeX: number;
     visualWidth: number;
-    textX: number;
+        textX: number;
+    barHeight: number;
+    pointDepth: number;
   }
+
+
 ) => {
   context.save();
   context.strokeStyle = '#2563eb';
@@ -293,11 +296,11 @@ const drawSelectedProcessOutline = (
 
   if (step.shapeKind === 'due-only') {
     const halfWidth = step.visualWidth / 2;
-    const halfHeight = PROCESS_FLOW_BAR_HEIGHT / 2;
+    const halfHeight = step.barHeight / 2;
     context.beginPath();
     context.moveTo(step.textX, step.stepY - 3);
     context.lineTo(step.textX + halfWidth + 3, step.stepY + halfHeight);
-    context.lineTo(step.textX, step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3);
+    context.lineTo(step.textX, step.stepY + step.barHeight + 3);
     context.lineTo(step.textX - halfWidth - 3, step.stepY + halfHeight);
     context.closePath();
     context.stroke();
@@ -308,8 +311,8 @@ const drawSelectedProcessOutline = (
   if (step.shapeKind === 'start-only') {
     context.beginPath();
     context.moveTo(step.shapeX - 3, step.stepY - 3);
-    context.lineTo(step.shapeX + step.visualWidth + 4, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
-    context.lineTo(step.shapeX - 3, step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3);
+    context.lineTo(step.shapeX + step.visualWidth + 4, step.stepY + step.barHeight / 2);
+    context.lineTo(step.shapeX - 3, step.stepY + step.barHeight + 3);
     context.closePath();
     context.stroke();
     context.restore();
@@ -318,25 +321,25 @@ const drawSelectedProcessOutline = (
 
   const leftEdgeX = step.x - 3;
   const topY = step.stepY - 3;
-  const bottomY = step.stepY + PROCESS_FLOW_BAR_HEIGHT + 3;
+  const bottomY = step.stepY + step.barHeight + 3;
   const {
     leftShoulderX,
     leftNotchTipX,
     rightBaseX,
     rightTipX
-  } = buildProcessChevronPathData(step.x, step.stepY, step.width, PROCESS_FLOW_BAR_HEIGHT, PROCESS_FLOW_POINT_DEPTH, step.hasLeftNotch);
+  } = buildProcessChevronPathData(step.x, step.stepY, step.width, step.barHeight, step.pointDepth, step.hasLeftNotch);
 
   context.beginPath();
   if (step.hasLeftNotch) {
     context.moveTo(leftShoulderX - 3, topY);
-    context.lineTo(leftNotchTipX + 3, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+    context.lineTo(leftNotchTipX + 3, step.stepY + step.barHeight / 2);
     context.lineTo(leftShoulderX - 3, bottomY);
   } else {
     context.moveTo(leftEdgeX, topY);
     context.lineTo(leftEdgeX, bottomY);
   }
   context.lineTo(rightBaseX + 3, bottomY);
-  context.lineTo(rightTipX + 3, step.stepY + PROCESS_FLOW_BAR_HEIGHT / 2);
+  context.lineTo(rightTipX + 3, step.stepY + step.barHeight / 2);
   context.lineTo(rightBaseX + 3, topY);
   context.closePath();
   context.stroke();
@@ -348,7 +351,6 @@ const extractMD = (isoDate: string) => {
   const parts = isoDate.split('-');
   return `${Number(parts[1])}/${Number(parts[2])}`;
 };
-const formatProgressLabel = (progress: number) => `${t('timeline.progressCol', { defaultValue: 'Progress' })}: ${progress}%`;
 
 type ProcessDragMode = 'move' | 'resize-left' | 'resize-right';
 type DetailsVerticalResizeSession = {
@@ -2202,9 +2204,21 @@ export function TaskDetailsDialog({
   projectIdentifier,
   issueId,
   issueTitle,
+  chartScale,
+
   onTaskDatesUpdated,
   onClose
 }: TaskDetailsDialogProps) {
+  const effectiveScale = chartScale ?? 1;
+  const scaledLaneHeight = Math.round(PROCESS_FLOW_LANE_HEIGHT * effectiveScale);
+  const scaledBarHeight = Math.round(PROCESS_FLOW_BAR_HEIGHT * effectiveScale);
+  const scaledBarY = Math.round(PROCESS_FLOW_BAR_Y * effectiveScale);
+  const scaledBarSpacingY = Math.round(PROCESS_FLOW_BAR_SPACING_Y * effectiveScale);
+  const scaledPointDepth = Math.round(PROCESS_FLOW_POINT_DEPTH * effectiveScale);
+  const scaledTriangleWidth = Math.round(PROCESS_FLOW_TRIANGLE_WIDTH * effectiveScale);
+  const scaledDiamondWidth = Math.round(PROCESS_FLOW_DIAMOND_WIDTH * effectiveScale);
+  const scaledProgressLabelY = Math.round(PROCESS_FLOW_PROGRESS_LABEL_Y * effectiveScale);
+
   const [issues, setIssues] = useState<TaskDetailIssue[]>([]);
   const [baselineById, setBaselineById] = useState<Record<number, TaskDetailIssue>>({});
   const [savingIssueIds, setSavingIssueIds] = useState<Record<number, boolean>>({});
@@ -2546,8 +2560,8 @@ export function TaskDetailsDialog({
       const visualWidth = step.shapeKind === 'range'
         ? getWidth(startDate, dueDate)
         : step.shapeKind === 'start-only'
-          ? PROCESS_FLOW_TRIANGLE_WIDTH
-          : PROCESS_FLOW_DIAMOND_WIDTH;
+          ? scaledTriangleWidth
+          : scaledDiamondWidth;
       const hitWidth = step.shapeKind === 'range'
         ? visualWidth
         : Math.max(visualWidth, processFlowAxis.pixelsPerDay);
@@ -2608,12 +2622,12 @@ export function TaskDetailsDialog({
   }, [processFlowRenderSteps]);
 
   const processFlowLaneHeight = Math.max(
-    PROCESS_FLOW_LANE_HEIGHT,
-    34 + (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y + 30
+    scaledLaneHeight,
+    34 + (maxProcessFlowLane + 1) * scaledBarHeight + maxProcessFlowLane * scaledBarSpacingY + 30
   );
-  const processFlowSvgHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
+  const processFlowChartHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
   const processFlowBaseTopPadding = useMemo(() => {
-    const totalBarsHeight = (maxProcessFlowLane + 1) * PROCESS_FLOW_BAR_HEIGHT + maxProcessFlowLane * PROCESS_FLOW_BAR_SPACING_Y;
+    const totalBarsHeight = (maxProcessFlowLane + 1) * scaledBarHeight + maxProcessFlowLane * scaledBarSpacingY;
     return (processFlowLaneHeight - totalBarsHeight) / 2;
   }, [maxProcessFlowLane, processFlowLaneHeight]);
 
@@ -2622,7 +2636,7 @@ export function TaskDetailsDialog({
     const context = prepareHiDPICanvas(
       processFlowCanvasRef.current,
       processFlowAxis.timelineWidth,
-      processFlowSvgHeight
+      processFlowChartHeight
     );
     if (!context) return;
 
@@ -2681,7 +2695,7 @@ export function TaskDetailsDialog({
     processFlowRenderSteps.forEach((step) => {
       const style = processStatusStyles[step.status];
       const fill = getProgressFillColor(step.progress);
-      const stepY = PROCESS_FLOW_HEADER_HEIGHT + processFlowBaseTopPadding + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
+      const stepY = PROCESS_FLOW_HEADER_HEIGHT + processFlowBaseTopPadding + step.laneIndex * (scaledBarHeight + scaledBarSpacingY);
       const rangeStartLabelX = step.shapeX + PROCESS_FLOW_DATE_LABEL_INSET;
       const rangeEndLabelX = step.shapeX + step.visualWidth - PROCESS_FLOW_DATE_LABEL_INSET;
 
@@ -2690,7 +2704,7 @@ export function TaskDetailsDialog({
           centerX: step.textX,
           y: stepY,
           width: step.visualWidth,
-          height: PROCESS_FLOW_BAR_HEIGHT,
+          height: scaledBarHeight,
           fill,
           trackFill: getProgressTrackColor(),
           stroke: style.stroke,
@@ -2702,7 +2716,7 @@ export function TaskDetailsDialog({
           x: step.shapeX,
           y: stepY,
           width: step.visualWidth,
-          height: PROCESS_FLOW_BAR_HEIGHT,
+          height: scaledBarHeight,
           fill,
           trackFill: getProgressTrackColor(),
           stroke: style.stroke,
@@ -2714,8 +2728,8 @@ export function TaskDetailsDialog({
           x: step.x,
           y: stepY,
           width: step.width,
-          height: PROCESS_FLOW_BAR_HEIGHT,
-          pointDepth: PROCESS_FLOW_POINT_DEPTH,
+          height: scaledBarHeight,
+          pointDepth: scaledPointDepth,
           hasLeftNotch: step.hasLeftNotch,
           fill,
           trackFill: getProgressTrackColor(),
@@ -2734,7 +2748,10 @@ export function TaskDetailsDialog({
           hasLeftNotch: step.hasLeftNotch,
           shapeX: step.shapeX,
           visualWidth: step.visualWidth,
-          textX: step.textX
+          textX: step.textX,
+          barHeight: scaledBarHeight,
+          pointDepth: scaledPointDepth
+
         });
       }
 
@@ -2778,19 +2795,19 @@ export function TaskDetailsDialog({
       drawStrokeText(context, {
         text: step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title,
         x: step.textX,
-        y: stepY + PROCESS_FLOW_PROGRESS_LABEL_Y - PROCESS_FLOW_BAR_Y,
+        y: stepY + scaledProgressLabelY - scaledBarY,
         fill: style.text,
         stroke: '#ffffff',
         strokeWidth: 3,
         font: '700 11px sans-serif'
       });
     });
-  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowSvgHeight, processStatusStyles, selectedIssueId, processFlowBaseTopPadding]);
+  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowChartHeight, processStatusStyles, selectedIssueId, processFlowBaseTopPadding]);
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
   const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
   const currentAutoFitKey = open && !loading && issues.length > 0 && processFlowRenderSteps.length > 0
-    ? `${currentRootIssueId}:${processFlowSvgHeight}`
+    ? `${currentRootIssueId}:${processFlowChartHeight}`
     : null;
   const clampTopPaneHeight = useCallback((nextHeight: number, containerHeight: number) => {
     const safeContainerHeight = Number.isFinite(containerHeight) && containerHeight > 0
@@ -2810,11 +2827,11 @@ export function TaskDetailsDialog({
 
     const containerHeight = detailsLayoutRef.current.getBoundingClientRect().height
       || detailsLayoutRef.current.clientHeight;
-    const nextHeight = clampTopPaneHeight(processFlowSvgHeight, containerHeight);
+    const nextHeight = clampTopPaneHeight(processFlowChartHeight, containerHeight);
 
     lastAutoFitKeyRef.current = currentAutoFitKey;
     setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
-  }, [clampTopPaneHeight, currentAutoFitKey, processFlowSvgHeight]);
+  }, [clampTopPaneHeight, currentAutoFitKey, processFlowChartHeight]);
 
   useLayoutEffect(() => {
     if (!open || loading || issues.length === 0 || !detailsLayoutRef.current) return;
@@ -3198,6 +3215,7 @@ export function TaskDetailsDialog({
 
   if (!open) return null;
 
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] flex items-center justify-center p-2 sm:p-4 transition-all" onClick={handleClose}>
       <div
@@ -3316,111 +3334,26 @@ export function TaskDetailsDialog({
                   {processFlowAxis && processFlowRenderSteps.length > 0 ? (
                     <div
                       className="relative"
-                      style={{ width: processFlowAxis.timelineWidth, height: processFlowSvgHeight }}
+                      style={{ width: processFlowAxis.timelineWidth, height: processFlowChartHeight }}
                     >
                     <canvas
                       ref={processFlowCanvasRef}
                       data-testid="task-details-process-flow-canvas"
                       width={processFlowAxis.timelineWidth}
-                      height={processFlowSvgHeight}
+                      height={processFlowChartHeight}
                       className="absolute inset-0 block"
-                      style={{ width: `${processFlowAxis.timelineWidth}px`, height: `${processFlowSvgHeight}px`, pointerEvents: 'none' }}
+                      style={{ width: `${processFlowAxis.timelineWidth}px`, height: `${processFlowChartHeight}px`, pointerEvents: 'none' }}
                       aria-hidden="true"
                     />
                     <svg
-                      data-testid="task-details-process-flow-svg"
                       width={processFlowAxis.timelineWidth}
-                      height={processFlowSvgHeight}
-                      role="img"
-                      aria-label={t('timeline.processMode', { defaultValue: 'Process Flow' })}
-                      style={{ opacity: 0 }}
+                      height={processFlowChartHeight}
                     >
-                      <rect
-                        x={0}
-                        y={0}
-                        width={processFlowAxis.timelineWidth}
-                        height={PROCESS_FLOW_YEAR_ROW_HEIGHT}
-                        fill="#f8fafc"
-                        stroke="#e2e8f0"
-                        strokeWidth="1"
-                      />
-                      <rect
-                        x={0}
-                        y={PROCESS_FLOW_YEAR_ROW_HEIGHT}
-                        width={processFlowAxis.timelineWidth}
-                        height={PROCESS_FLOW_MONTH_ROW_HEIGHT}
-                        fill="#f8fafc"
-                        stroke="#e2e8f0"
-                        strokeWidth="1"
-                      />
-                      {processFlowAxis.headerYears.map((year, index) => (
-                        <g key={`process-year-${year.year}-${index}`} transform={`translate(${year.x}, 0)`}>
-                          <rect x={0} y={0} width={year.width} height={PROCESS_FLOW_YEAR_ROW_HEIGHT} fill="none" stroke="#e2e8f0" strokeWidth="1" />
-                          <text
-                            data-testid={`task-details-process-year-${index}`}
-                            x={year.width / 2}
-                            y={PROCESS_FLOW_YEAR_ROW_HEIGHT / 2}
-                            fill="#334155"
-                            fontSize="11"
-                            fontWeight="700"
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                          >
-                            {year.year}
-                          </text>
-                        </g>
-                      ))}
-                      {processFlowAxis.headerMonths.map((month, index) => (
-                        <g key={`process-month-${month.label}-${index}`} transform={`translate(${month.x}, ${PROCESS_FLOW_YEAR_ROW_HEIGHT})`}>
-                          <rect x={0} y={0} width={month.width} height={PROCESS_FLOW_MONTH_ROW_HEIGHT} fill="none" stroke="#e2e8f0" strokeWidth="1" />
-                          <text
-                            data-testid={`task-details-process-month-${index}`}
-                            x={month.width / 2}
-                            y={PROCESS_FLOW_MONTH_ROW_HEIGHT / 2}
-                            fill="#334155"
-                            fontSize="11"
-                            fontWeight="700"
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                          >
-                            {month.label}
-                          </text>
-                        </g>
-                      ))}
-
-                      <g transform={`translate(0, ${PROCESS_FLOW_HEADER_HEIGHT})`}>
-                        <rect
-                          x={0}
-                          y={0}
-                          width={processFlowAxis.timelineWidth}
-                          height={processFlowLaneHeight}
-                          fill="#ffffff"
-                        />
-                        {processFlowAxis.headerMonths.map((month, index) => (
-                          <line
-                            key={`process-month-line-${index}`}
-                            x1={month.x}
-                            y1={0}
-                            x2={month.x}
-                            y2={processFlowLaneHeight}
-                            stroke="#e2e8f0"
-                            strokeDasharray="4 3"
-                          />
-                        ))}
-                        <line
-                          x1={0}
-                          y1={processFlowLaneHeight}
-                          x2={processFlowAxis.timelineWidth}
-                          y2={processFlowLaneHeight}
-                          stroke="#e2e8f0"
-                          strokeWidth="1"
-                        />
-
-                        {processFlowRenderSteps.map((step) => {
-                          const stepY = processFlowBaseTopPadding + step.laneIndex * (PROCESS_FLOW_BAR_HEIGHT + PROCESS_FLOW_BAR_SPACING_Y);
-                          const isInteractive = !savingIssueIds[step.id];
-                          const isRangeStep = step.shapeKind === 'range';
-                          const isSelected = selectedIssueId === step.id;
+                      {processFlowRenderSteps.map((step) => {
+                        const stepY = PROCESS_FLOW_HEADER_HEIGHT + processFlowBaseTopPadding + step.laneIndex * (scaledBarHeight + scaledBarSpacingY);
+                        const isInteractive = !savingIssueIds[step.id];
+                        const isRangeStep = step.shapeKind === 'range';
+                        const isSelected = selectedIssueId === step.id;
 
                           return (
                             <g
@@ -3433,7 +3366,7 @@ export function TaskDetailsDialog({
                                 x={step.hitX}
                                 y={stepY}
                                 width={step.hitWidth}
-                                height={PROCESS_FLOW_BAR_HEIGHT}
+                                height={scaledBarHeight}
                                 fill="transparent"
                                 style={{ cursor: isInteractive && isRangeStep ? 'move' : 'pointer' }}
                                 onPointerDown={isRangeStep ? (event) => startProcessFlowDrag(event, step, 'move') : undefined}
@@ -3448,7 +3381,7 @@ export function TaskDetailsDialog({
                                     x={step.hitX}
                                     y={stepY}
                                     width={10}
-                                    height={PROCESS_FLOW_BAR_HEIGHT}
+                                    height={scaledBarHeight}
                                     fill="transparent"
                                     style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
                                     onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-left')}
@@ -3458,7 +3391,7 @@ export function TaskDetailsDialog({
                                     x={Math.max(step.hitX + step.hitWidth - 10, step.hitX)}
                                     y={stepY}
                                     width={10}
-                                    height={PROCESS_FLOW_BAR_HEIGHT}
+                                    height={scaledBarHeight}
                                     fill="transparent"
                                     style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
                                     onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-right')}
@@ -3466,10 +3399,9 @@ export function TaskDetailsDialog({
                                   />
                                 </>
                               )}
-                            </g>
-                          );
-                        })}
-                      </g>
+                              </g>
+                            );
+                      })}
                     </svg>
                     </div>
                   ) : (

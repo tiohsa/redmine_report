@@ -298,23 +298,3 @@ export const drawStrokeText = (ctx: CanvasRenderingContext2D, options: StrokeTex
   ctx.fillText(text, x, y);
   ctx.restore();
 };
-
-export const drawRoundedOutline = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  stroke: string,
-  strokeWidth: number,
-  dash?: number[]
-) => {
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(x, y, width, height, 6);
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = strokeWidth;
-  ctx.setLineDash(dash ?? []);
-  ctx.stroke();
-  ctx.restore();
-};

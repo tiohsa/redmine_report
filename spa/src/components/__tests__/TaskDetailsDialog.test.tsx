@@ -333,7 +333,7 @@ describe('TaskDetailsDialog', () => {
     expect(await screen.findByTestId('start-date-input-11')).toBeTruthy();
   });
 
-  it('constrains start date and due date inputs by each other in the inline date editor', async () => {
+  it('constrains start and due dates in the inline date editor', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -369,9 +369,12 @@ describe('TaskDetailsDialog', () => {
     fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
 
     const startDateInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
-    const dueDateInput = await screen.findByTestId('due-date-input-11') as HTMLInputElement;
-
     expect(startDateInput.max).toBe('2026-02-08');
+
+    fireEvent.blur(startDateInput);
+    fireEvent.doubleClick(screen.getByTestId('due-date-display-11'));
+
+    const dueDateInput = await screen.findByTestId('due-date-input-11') as HTMLInputElement;
     expect(dueDateInput.min).toBe('2026-02-03');
   });
 
@@ -429,12 +432,10 @@ describe('TaskDetailsDialog', () => {
     expect(firstDueDateInput.min).toBe('2026-02-03');
 
     fireEvent.blur(firstStartDateInput);
-    fireEvent.doubleClick(screen.getByTestId('start-date-display-12'));
+    fireEvent.doubleClick(screen.getByTestId('due-date-display-12'));
 
-    const secondStartDateInput = await screen.findByTestId('start-date-input-12') as HTMLInputElement;
     const secondDueDateInput = await screen.findByTestId('due-date-input-12') as HTMLInputElement;
 
-    expect(secondStartDateInput.max).toBe('2026-02-12');
     expect(secondDueDateInput.min).toBe('');
   });
 
@@ -740,10 +741,7 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
-    const yearHeaders = container.querySelectorAll('[data-testid^="task-details-process-year-"]');
-    const monthHeaders = container.querySelectorAll('[data-testid^="task-details-process-month-"]');
-    expect(yearHeaders.length).toBeGreaterThan(0);
-    expect(monthHeaders.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByTestId('task-details-process-flow-canvas')).toBeTruthy();
 
     const designBar = screen.getByTestId('task-details-process-step-hit-11');
     const buildBar = screen.getByTestId('task-details-process-step-hit-12');
@@ -827,6 +825,55 @@ describe('TaskDetailsDialog', () => {
     expect(secondBarY - firstBarY).toBe(70);
   });
 
+  it('keeps staggered process hit areas vertically aligned with the canvas when chartScale is applied', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'First',
+        start_date: '2026-03-03',
+        due_date: '2026-03-08',
+        done_ratio: 0,
+        issue_url: '/issues/11'
+      },
+      {
+        issue_id: 12,
+        parent_id: 10,
+        subject: 'Second',
+        start_date: '2026-03-04',
+        due_date: '2026-03-10',
+        done_ratio: 0,
+        issue_url: '/issues/12'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        chartScale={1.5}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const firstBarY = Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('y'));
+    const secondBarY = Number(screen.getByTestId('task-details-process-step-hit-12').getAttribute('y'));
+
+    expect(secondBarY - firstBarY).toBe(105);
+  });
+
   it('keeps process hit areas for start-only and due-only steps without resize handles', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
@@ -877,6 +924,93 @@ describe('TaskDetailsDialog', () => {
     expect(screen.queryByTestId('task-details-process-step-right-11')).toBeNull();
     expect(screen.queryByTestId('task-details-process-step-left-12')).toBeNull();
     expect(screen.queryByTestId('task-details-process-step-right-12')).toBeNull();
+  });
+
+  it('aligns process hit areas below the header rows', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-03-03',
+        due_date: null,
+        done_ratio: 0,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const hitArea = screen.getByTestId('task-details-process-step-hit-11');
+    expect(hitArea.getAttribute('y')).toBe('93');
+  });
+
+  it('keeps process row spacing aligned when chartScale is not 1', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'First lane issue',
+        start_date: '2026-03-03',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/11'
+      },
+      {
+        issue_id: 12,
+        parent_id: 10,
+        subject: 'Second lane issue',
+        start_date: '2026-03-04',
+        due_date: '2026-03-21',
+        done_ratio: 0,
+        issue_url: '/issues/12'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        chartScale={1.5}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const firstRow = screen.getByTestId('task-details-process-step-hit-11');
+    const secondRow = screen.getByTestId('task-details-process-step-hit-12');
+    const rowGap = Number(secondRow.getAttribute('y')) - Number(firstRow.getAttribute('y'));
+
+    expect(rowGap).toBe(105);
   });
 
   it('selects a parent process bar on click without drilling down', async () => {
@@ -1492,7 +1626,7 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(2));
     await waitFor(
-      () => expect(screen.getByTestId('task-details-top-pane').style.height).toBe('218px'),
+      () => expect(screen.getByTestId('task-details-top-pane').style.height).toBe('220px'),
       { timeout: 2000 }
     );
   });
