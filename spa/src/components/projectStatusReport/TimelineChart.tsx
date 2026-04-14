@@ -888,8 +888,7 @@ function TimelineChartSurface({
             fill: item.fill,
             trackFill: getProgressTrackColor(),
             stroke: item.step.status.stroke,
-            progress: item.step.progress ?? 0,
-            shadow: true
+            progress: item.step.progress
           });
 
           drawStrokeText(context, {

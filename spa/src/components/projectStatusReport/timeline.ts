@@ -247,7 +247,7 @@ function resolveStatus(
   statusStyles: Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDING', StatusStyle>
 ): { status: StatusStyle; progress?: number } {
   if (progressRate === 100) {
-    return { status: statusStyles.COMPLETED };
+    return { status: statusStyles.COMPLETED, progress: 100 };
   }
 
   if (progressRate > 0) {
