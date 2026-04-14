@@ -824,8 +824,19 @@ const IssueTreeNode = ({
             />
           ) : (
             <>
-              <div className="h-2 w-full max-w-[72px] overflow-hidden rounded-full bg-slate-200/90 relative">
-                <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-blue-600' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
+              <div
+                className="h-2 w-full max-w-[72px] overflow-hidden rounded-full relative"
+                style={{ backgroundColor: getProgressTrackColor() }}
+              >
+
+                <div
+                  className="absolute left-0 top-0 bottom-0 rounded-full transition-all"
+                  style={{
+                    width: progressRatio === 0 ? '100%' : `${progressRatio}%`,
+                    backgroundColor: getProgressFillColor(progressRatio)
+                  }}
+                />
+
               </div>
               <span className="text-[11px] text-slate-600 font-semibold tabular-nums" data-testid="progress-text">{progressRatio}%</span>
             </>
@@ -2765,7 +2776,7 @@ export function TaskDetailsDialog({
           shapeKind,
           rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : anchorDate,
           status,
-          progress,
+          progress: progress === 0 ? undefined : progress,
           hasChildren: parentIssueIds.has(issue.issue_id)
         };
       })
