@@ -298,3 +298,33 @@ export const drawStrokeText = (ctx: CanvasRenderingContext2D, options: StrokeTex
   ctx.fillText(text, x, y);
   ctx.restore();
 };
+
+export const truncateCanvasText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  font: string
+): string => {
+  if (maxWidth <= 0) return '';
+  ctx.save();
+  ctx.font = font;
+  const metrics = ctx.measureText(text);
+  if (metrics.width <= maxWidth) {
+    ctx.restore();
+    return text;
+  }
+
+  const ellipsis = '…';
+  const ellipsisWidth = ctx.measureText(ellipsis).width;
+  if (ellipsisWidth > maxWidth) {
+    ctx.restore();
+    return '';
+  }
+
+  let truncated = text;
+  while (truncated.length > 0 && ctx.measureText(truncated + ellipsis).width > maxWidth) {
+    truncated = truncated.slice(0, -1);
+  }
+  ctx.restore();
+  return truncated + ellipsis;
+};

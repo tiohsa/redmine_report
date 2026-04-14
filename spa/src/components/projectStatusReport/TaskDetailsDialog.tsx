@@ -27,7 +27,7 @@ import {
 import { buildTimelineAxis, calculateStaggeredLanes, createDateToX, createRangeToWidth } from './timelineAxis';
 import {
   drawChevron,
-  drawDiamond,
+  drawDiamond, truncateCanvasText,
   drawTriangle,
   drawStrokeText,
   prepareHiDPICanvas
@@ -825,8 +825,9 @@ const IssueTreeNode = ({
           ) : (
             <>
               <div
-                className="h-2 w-full max-w-[72px] overflow-hidden rounded-full relative"
+                className="h-2 w-full max-w-[72px] overflow-hidden rounded-full relative cursor-help"
                 style={{ backgroundColor: getProgressTrackColor() }}
+                title={`${progressRatio}% ${t('timeline.progress')}`}
               >
 
                 <div
@@ -3113,15 +3114,21 @@ export function TaskDetailsDialog({
         }
       }
 
-      drawStrokeText(context, {
-        text: step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title,
-        x: step.textX,
-        y: stepY + scaledProgressLabelY - scaledBarY,
-        fill: style.text,
-        stroke: '#ffffff',
-        strokeWidth: 3,
-        font: '700 11px sans-serif'
-      });
+      const labelFont = '700 11px sans-serif';
+      const maxLabelWidth = step.visualWidth - 12; // 6px padding on each side
+      const displayTitle = truncateCanvasText(context, step.title, maxLabelWidth, labelFont);
+
+      if (displayTitle) {
+        drawStrokeText(context, {
+          text: displayTitle,
+          x: step.textX,
+          y: stepY + scaledBarHeight / 2,
+          fill: '#ffffff',
+          stroke: step.status === 'IN_PROGRESS' ? '#1e293b' : '#334155',
+          strokeWidth: 2,
+          font: labelFont
+        });
+      }
     });
   }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowChartHeight, processStatusStyles, selectedIssueId, processFlowBaseTopPadding]);
 
@@ -3375,7 +3382,9 @@ export function TaskDetailsDialog({
                                 onDoubleClick={() => handleProcessStepDoubleClick(step)}
                                 data-selected={isSelected ? 'true' : 'false'}
                                 data-testid={`task-details-process-step-hit-${step.id}`}
-                              />
+                              >
+                                <title>{step.title}</title>
+                              </rect>
                               {isRangeStep && (
                                 <>
                                   <rect

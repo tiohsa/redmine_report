@@ -12,7 +12,8 @@ import type { AiResponseView } from '../../types/weeklyReport';
 import {
   drawChevron,
   drawStrokeText,
-  prepareHiDPICanvas
+  prepareHiDPICanvas,
+  truncateCanvasText
 } from './canvasTimelineRenderer';
 
 type TimelineChartProps = {
@@ -891,15 +892,21 @@ function TimelineChartSurface({
             progress: item.step.progress
           });
 
-          drawStrokeText(context, {
-            text: item.step.name,
-            x: item.taskCenterX,
-            y: top + scaledBarHeight + PROCESS_PROGRESS_LABEL_OFFSET_Y,
-            fill: item.step.status.text,
-            stroke: '#ffffff',
-            strokeWidth: 3,
-            font: `700 ${Math.max(10, Math.round(11 * chartScale))}px sans-serif`
-          });
+          const labelFont = `700 ${Math.max(10, Math.round(11 * chartScale))}px sans-serif`;
+          const maxLabelWidth = item.barWidth - 12; // 6px padding on each side
+          const displayTitle = truncateCanvasText(context, item.step.name, maxLabelWidth, labelFont);
+
+          if (displayTitle) {
+            drawStrokeText(context, {
+              text: displayTitle,
+              x: item.taskCenterX,
+              y: top + scaledBarHeight / 2,
+              fill: '#ffffff',
+              stroke: item.step.status.code === 'IN_PROGRESS' ? '#1e293b' : '#334155',
+              strokeWidth: 2,
+              font: labelFont
+            });
+          }
 
           if (item.renderData.startLabel && (showAllDates || hoveredStepId === item.step.id || item.isActiveDragThis) && item.renderData.startLabel !== item.renderData.endLabel) {
             drawStrokeText(context, {
@@ -1112,29 +1119,29 @@ function TimelineChartSurface({
                       onMouseLeave={() => setHoveredStepId((prev) => (prev === step.id ? null : prev))}
                       opacity={isSavingThis ? 0.65 : 1}
                     >
-                      <rect
-                        x={hitX}
-                        y={0}
-                        width={hitWidth}
-                        height={barHeight}
-                        fill="transparent"
-                        style={{ cursor: bodyCursor, touchAction: 'none' }}
-                        data-selected={isSelected ? 'true' : 'false'}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (suppressClickStepId === step.id) {
-                            setSuppressClickStepId(null);
-                            return;
-                          }
-                          onStepSelect(step.id);
-                        }}
-                        onDoubleClick={() => onStepOpen(step.id, step.issueId, step.name, project.projectName, project.versionName)}
-                        onPointerDown={(event) => startDrag(event, 'move')}
-                        data-step-id={step.id}
-                        data-step-issue-id={step.issueId || undefined}
-                      >
-                        <title>{step.name}</title>
-                      </rect>
+                        <rect
+                          x={hitX}
+                          y={0}
+                          width={hitWidth}
+                          height={barHeight}
+                          fill="transparent"
+                          style={{ cursor: bodyCursor, touchAction: 'none' }}
+                          data-selected={isSelected ? 'true' : 'false'}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (suppressClickStepId === step.id) {
+                              setSuppressClickStepId(null);
+                              return;
+                            }
+                            onStepSelect(step.id);
+                          }}
+                          onDoubleClick={() => onStepOpen(step.id, step.issueId, step.name, project.projectName, project.versionName)}
+                          onPointerDown={(event) => startDrag(event, 'move')}
+                          data-step-id={step.id}
+                          data-step-issue-id={step.issueId || undefined}
+                        >
+                          <title>{step.name}</title>
+                        </rect>
                       {isProcessMode && step.editable && enableResizeHandles && (
                         <>
                           <rect
