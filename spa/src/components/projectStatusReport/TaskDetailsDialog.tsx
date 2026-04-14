@@ -3307,6 +3307,7 @@ export function TaskDetailsDialog({
             <div className="text-center py-12 m-6 bg-white border border-slate-300 flex-shrink-0 w-full">
               <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
             </div>
+
           )}
 
           {!loading && issues.length > 0 && (
@@ -3316,7 +3317,7 @@ export function TaskDetailsDialog({
                 data-testid="task-details-top-pane"
                 style={{ height: `${topPaneHeight}px` }}
               >
-                <div className="h-full overflow-auto">
+                <div className="h-full overflow-auto" onClick={() => selectIssue(null)}>
                   <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
                   {processFlowAxis && processFlowRenderSteps.length > 0 ? (
                     <div
@@ -3348,6 +3349,8 @@ export function TaskDetailsDialog({
                               data-testid="task-details-process-step"
                               data-selected={isSelected ? 'true' : 'false'}
                               opacity={savingIssueIds[step.id] ? 0.6 : 1}
+                              onClick={(e) => e.stopPropagation()}
+                              onDoubleClick={(e) => e.stopPropagation()}
                             >
                               <rect
                                 x={step.hitX}
