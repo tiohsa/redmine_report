@@ -48,11 +48,17 @@ const mixHex = (from: string, to: string, ratio: number) => {
 export const getProgressFillColor = (progress: number) => {
   const value = clampProgress(progress);
 
-  if (value <= 0) return '#64748b';
-  if (value >= 100) return '#1d4ed8';
-  if (value <= 55) return mixHex('#64748b', '#2563eb', value / 55);
+  if (value <= 0) return '#94a3b8';
+  if (value >= 100) return '#2563eb';
 
-  return mixHex('#2563eb', '#1d4ed8', (value - 55) / 45);
+  if (value <= 30) {
+    return mixHex('#f97316', '#fbbf24', value / 30);
+  }
+  if (value <= 65) {
+    return mixHex('#fbbf24', '#3b82f6', (value - 30) / 35);
+  }
+
+  return mixHex('#3b82f6', '#2563eb', (value - 65) / 35);
 };
 
 export const getProgressTrackColor = () => '#d9e2ec';

@@ -27,7 +27,7 @@ import {
 import { buildTimelineAxis, calculateStaggeredLanes, createDateToX, createRangeToWidth } from './timelineAxis';
 import {
   drawChevron,
-  drawDiamond,
+  drawDiamond, truncateCanvasText,
   drawTriangle,
   drawStrokeText,
   prepareHiDPICanvas
@@ -824,8 +824,20 @@ const IssueTreeNode = ({
             />
           ) : (
             <>
-              <div className="h-2 w-full max-w-[72px] overflow-hidden rounded-full bg-slate-200/90 relative">
-                <div className={`absolute left-0 top-0 bottom-0 rounded-full transition-all ${isDone ? 'bg-blue-600' : 'bg-blue-500'}`} style={{ width: `${progressRatio}%` }} />
+              <div
+                className="h-2 w-full max-w-[72px] overflow-hidden rounded-full relative cursor-help"
+                style={{ backgroundColor: getProgressTrackColor() }}
+                title={`${progressRatio}% ${t('timeline.progress')}`}
+              >
+
+                <div
+                  className="absolute left-0 top-0 bottom-0 rounded-full transition-all"
+                  style={{
+                    width: progressRatio === 0 ? '100%' : `${progressRatio}%`,
+                    backgroundColor: getProgressFillColor(progressRatio)
+                  }}
+                />
+
               </div>
               <span className="text-[11px] text-slate-600 font-semibold tabular-nums" data-testid="progress-text">{progressRatio}%</span>
             </>
@@ -2248,7 +2260,7 @@ export function TaskDetailsDialog({
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
-  const hasDateChangesRef = useRef(false);
+  const hasAnyChangesRef = useRef(false);
   const [processDragSession, setProcessDragSession] = useState<ProcessDragSession | null>(null);
   const [suppressProcessClickIssueId, setSuppressProcessClickIssueId] = useState<number | null>(null);
   const processDragRef = useRef<ProcessDragSession | null>(null);
@@ -2364,9 +2376,8 @@ export function TaskDetailsDialog({
         });
       }
 
-      const nextSelectedIssueId = options.selectedIssueId;
-      const nextSelectedIssue = nextSelectedIssueId
-        ? latestRows.find((row) => row.issue_id === nextSelectedIssueId) || null
+      const nextSelectedIssue = options.selectedIssueId
+        ? latestRows.find((row) => row.issue_id === options.selectedIssueId) || null
         : null;
       selectIssue(nextSelectedIssue);
     } catch (error: unknown) {
@@ -2377,9 +2388,9 @@ export function TaskDetailsDialog({
   }, [projectIdentifier, selectIssue]);
 
   const handleClose = useCallback(() => {
-    if (hasDateChangesRef.current) {
+    if (hasAnyChangesRef.current) {
       onTaskDatesUpdated?.();
-      hasDateChangesRef.current = false;
+      hasAnyChangesRef.current = false;
     }
     setCreateIssueContext(null);
     setEditIssueContext(null);
@@ -2393,7 +2404,7 @@ export function TaskDetailsDialog({
 
   useEffect(() => {
     if (!open) return;
-    hasDateChangesRef.current = false;
+    hasAnyChangesRef.current = false;
 
     const onEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -2449,6 +2460,259 @@ export function TaskDetailsDialog({
     Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
     saveTimersRef.current = {};
   }, []);
+
+  const isRowDirty = (row: TaskDetailIssue) => {
+    const baseline = baselineByIdRef.current[row.issue_id];
+    if (!baseline) return false;
+    return baseline.start_date !== row.start_date || baseline.due_date !== row.due_date;
+  };
+
+  const saveRow = async (row: TaskDetailIssue) => {
+    setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: true }));
+    try {
+      const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
+        start_date: row.start_date,
+        due_date: row.due_date
+      });
+      // Preserve parent_id in the updated row
+      updated.parent_id = row.parent_id;
+      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
+      setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
+      hasAnyChangesRef.current = true;
+    } catch (error: unknown) {
+      const message =
+        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
+      alert(message);
+      const baseline = baselineByIdRef.current[row.issue_id];
+      if (baseline) {
+        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
+      }
+    } finally {
+      setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
+    }
+  };
+
+  const saveProcessFlowDates = useCallback(async (row: TaskDetailIssue, startDate: string, dueDate: string) => {
+    if (saveTimersRef.current[row.issue_id]) {
+      clearTimeout(saveTimersRef.current[row.issue_id]);
+      delete saveTimersRef.current[row.issue_id];
+    }
+
+    setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: true }));
+    setIssues((prev) => prev.map((item) => (
+      item.issue_id === row.issue_id ? { ...item, start_date: startDate, due_date: dueDate } : item
+    )));
+
+    try {
+      const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
+        start_date: startDate,
+        due_date: dueDate
+      });
+      updated.parent_id = row.parent_id;
+      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
+      setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
+      setSelectedIssue((prev) => (
+        prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
+      ));
+      hasAnyChangesRef.current = true;
+    } catch (error: unknown) {
+      const message =
+        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
+      alert(message);
+      const baseline = baselineByIdRef.current[row.issue_id];
+      if (baseline) {
+        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
+      }
+    } finally {
+      setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
+    }
+  }, [projectIdentifier, setSelectedIssue]);
+
+  const handleDateChange = (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => {
+    setIssues((prev) => {
+      const next = prev.map((item) => (item.issue_id === row.issue_id ? { ...item, [key]: value || null } : item));
+      const updatedRow = next.find((item) => item.issue_id === row.issue_id);
+      if (!updatedRow) return next;
+
+      if (saveTimersRef.current[row.issue_id]) {
+        clearTimeout(saveTimersRef.current[row.issue_id]);
+      }
+
+      if (!isRowDirty(updatedRow)) {
+        delete saveTimersRef.current[row.issue_id];
+        return next;
+      }
+
+      saveTimersRef.current[row.issue_id] = setTimeout(() => {
+        const latestRow = issuesRef.current.find((item) => item.issue_id === row.issue_id);
+        delete saveTimersRef.current[row.issue_id];
+        if (!latestRow || !isRowDirty(latestRow) || savingIssueIdsRef.current[row.issue_id]) return;
+        void saveRow(latestRow);
+      }, 500);
+
+      return next;
+    });
+  };
+
+  const handleFieldUpdate = useCallback(async (issueId: number, field: string, value: string | number | null) => {
+    const payload: Record<string, unknown> = { [field]: value };
+    try {
+      const updated = await updateTaskFields(projectIdentifier, issueId, payload as import('../../services/scheduleReportApi').TaskUpdatePayload);
+      setIssues(prev => prev.map(item => item.issue_id === updated.issue_id ? { ...item, ...updated } : item));
+      setBaselineById(prev => ({ ...prev, [updated.issue_id]: { ...prev[updated.issue_id], ...updated } }));
+      setSelectedIssue(prev => prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev);
+      hasAnyChangesRef.current = true;
+    } catch (error: unknown) {
+      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
+      alert(message);
+
+      const baseline = baselineByIdRef.current[issueId];
+      if (baseline) {
+        setIssues((prev) => prev.map((item) => (item.issue_id === issueId ? { ...item, ...baseline } : item)));
+        setSelectedIssue((prev) => (prev?.issue_id === issueId ? { ...prev, ...baseline, children: prev.children } : prev));
+      }
+
+      throw error;
+    }
+  }, [projectIdentifier, issues, setSelectedIssue]);
+
+  const handleSaveDescription = async () => {
+    if (!selectedIssue) return;
+    try {
+      await handleFieldUpdate(selectedIssue.issue_id, 'description', descriptionDraft);
+      setEditingDescription(false);
+    } catch (error) {
+      // Error is handled in handleFieldUpdate
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!selectedIssue || !newCommentDraft.trim()) return;
+    setIsSavingComment(true);
+    try {
+      await handleFieldUpdate(selectedIssue.issue_id, 'notes', newCommentDraft.trim());
+      setNewCommentDraft('');
+    } catch (error) {
+      // Error is handled in handleFieldUpdate
+    } finally {
+      setIsSavingComment(false);
+    }
+  };
+
+  const handleUpdateComment = async (journalId: number, notes: string) => {
+    if (!selectedIssue) return;
+    try {
+      await import('../../services/scheduleReportApi').then(m => m.updateTaskJournal(projectIdentifier, journalId, notes));
+      void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue.issue_id });
+      hasAnyChangesRef.current = true;
+    } catch (error: unknown) {
+      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
+      alert(message);
+    }
+  };
+
+  const startVerticalResize = (e: React.PointerEvent) => {
+    if (!detailsLayoutRef.current) return;
+    const containerHeight = detailsLayoutRef.current.clientHeight;
+    const pointerId = e.pointerId;
+    const session: DetailsVerticalResizeSession = {
+      pointerId,
+      startClientY: e.clientY,
+      startTopPaneHeight: topPaneHeight,
+      containerHeight
+    };
+    setVerticalResizeSession(session);
+    (e.target as HTMLElement).setPointerCapture(pointerId);
+  };
+
+  const startVerticalResizeWithMouse = (e: React.MouseEvent) => {
+    if (e.button !== 0 || !detailsLayoutRef.current) return;
+    const containerHeight = detailsLayoutRef.current.clientHeight;
+    const session: DetailsVerticalResizeSession = {
+      pointerId: -1, // Special value for mouse
+      startClientY: e.clientY,
+      startTopPaneHeight: topPaneHeight,
+      containerHeight
+    };
+    setVerticalResizeSession(session);
+  };
+
+  useEffect(() => {
+    if (!verticalResizeSession) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (e.pointerId !== verticalResizeSession.pointerId) return;
+      const deltaY = e.clientY - verticalResizeSession.startClientY;
+      const nextHeight = Math.max(
+        100,
+        Math.min(verticalResizeSession.containerHeight - 100, verticalResizeSession.startTopPaneHeight + deltaY)
+      );
+      setTopPaneHeight(nextHeight);
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      if (e.pointerId !== verticalResizeSession.pointerId) return;
+      setVerticalResizeSession(null);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (verticalResizeSession.pointerId !== -1) return;
+      const deltaY = e.clientY - verticalResizeSession.startClientY;
+      const nextHeight = Math.max(
+        100,
+        Math.min(verticalResizeSession.containerHeight - 100, verticalResizeSession.startTopPaneHeight + deltaY)
+      );
+      setTopPaneHeight(nextHeight);
+    };
+
+    const handleMouseUp = () => {
+      if (verticalResizeSession.pointerId !== -1) return;
+      setVerticalResizeSession(null);
+    };
+
+    if (verticalResizeSession.pointerId === -1) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    } else {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [verticalResizeSession]);
+
+  const updateVerticalResize = (clientY: number, pointerId?: number) => {
+    if (!verticalResizeRef.current) return;
+    if (pointerId !== undefined && pointerId !== verticalResizeRef.current.pointerId) return;
+    const deltaY = clientY - verticalResizeRef.current.startClientY;
+    const nextHeight = Math.max(
+      100,
+      Math.min(verticalResizeRef.current.containerHeight - 100, verticalResizeRef.current.startTopPaneHeight + deltaY)
+    );
+    setTopPaneHeight(nextHeight);
+  };
+
+  const stopVerticalResize = (pointerId?: number) => {
+    if (!verticalResizeRef.current) return;
+    if (pointerId !== undefined && pointerId !== verticalResizeRef.current.pointerId) return;
+    setVerticalResizeSession(null);
+  };
+
+  const handleVerticalResizeKeyDown = (e: React.KeyboardEvent) => {
+    const step = e.shiftKey ? 50 : 10;
+    if (e.key === 'ArrowUp') {
+      setTopPaneHeight((prev) => Math.max(100, prev - step));
+    } else if (e.key === 'ArrowDown') {
+      if (!detailsLayoutRef.current) return;
+      const containerHeight = detailsLayoutRef.current.clientHeight;
+      setTopPaneHeight((prev) => Math.min(containerHeight - 100, prev + step));
+    }
+  };
 
   const treeRoots = useMemo(() => {
     const map = new Map<number, TreeNodeType>();
@@ -2513,7 +2777,7 @@ export function TaskDetailsDialog({
           shapeKind,
           rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : anchorDate,
           status,
-          progress,
+          progress: progress === 0 ? undefined : progress,
           hasChildren: parentIssueIds.has(issue.issue_id)
         };
       })
@@ -2542,6 +2806,68 @@ export function TaskDetailsDialog({
       leftBufferDays: 7
     });
   }, [processFlowSteps, processFlowTimelineWidth]);
+
+  useEffect(() => {
+    if (!processDragSession || !processFlowAxis) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (e.pointerId !== processDragSession.pointerId) return;
+      const session = processDragRef.current;
+      if (!session) return;
+
+      const deltaX = e.clientX - session.startClientX;
+      if (Math.abs(deltaX) < 3 && !session.moved) return;
+
+      const deltaDays = Math.round(deltaX / processFlowAxis.pixelsPerDay);
+      const originalStart = parseISO(session.originalStartDate);
+      const originalDue = parseISO(session.originalDueDate);
+
+      let nextStartStr = session.originalStartDate;
+      let nextDueStr = session.originalDueDate;
+
+      if (session.mode === 'move') {
+        nextStartStr = format(addDays(originalStart, deltaDays), 'yyyy-MM-dd');
+        nextDueStr = format(addDays(originalDue, deltaDays), 'yyyy-MM-dd');
+      } else if (session.mode === 'resize-left') {
+        const nextStart = addDays(originalStart, deltaDays);
+        if (nextStart > originalDue) return;
+        nextStartStr = format(nextStart, 'yyyy-MM-dd');
+      } else if (session.mode === 'resize-right') {
+        const nextDue = addDays(originalDue, deltaDays);
+        if (nextDue < originalStart) return;
+        nextDueStr = format(nextDue, 'yyyy-MM-dd');
+      }
+
+      setProcessDragSession((prev) => (prev ? {
+        ...prev,
+        currentStartDate: nextStartStr,
+        currentDueDate: nextDueStr,
+        moved: true
+      } : null));
+    };
+
+    const handlePointerUp = async (e: PointerEvent) => {
+      if (e.pointerId !== processDragSession.pointerId) return;
+      const session = processDragRef.current;
+      if (!session) return;
+
+      if (session.moved) {
+        setSuppressProcessClickIssueId(session.issueId);
+        const row = issuesRef.current.find((item) => item.issue_id === session.issueId);
+        if (row) {
+          await saveProcessFlowDates(row, session.currentStartDate, session.currentDueDate);
+        }
+      }
+      setProcessDragSession(null);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [processDragSession, processFlowAxis, saveProcessFlowDates]);
 
   const processFlowPixelsPerDay = processFlowAxis?.pixelsPerDay ?? 1;
 
@@ -2708,8 +3034,7 @@ export function TaskDetailsDialog({
           fill,
           trackFill: getProgressTrackColor(),
           stroke: style.stroke,
-          progress: step.progress,
-          shadow: true
+          progress: step.progress
         });
       } else if (step.shapeKind === 'start-only') {
         drawTriangle(context, {
@@ -2720,8 +3045,7 @@ export function TaskDetailsDialog({
           fill,
           trackFill: getProgressTrackColor(),
           stroke: style.stroke,
-          progress: step.progress,
-          shadow: true
+          progress: step.progress
         });
       } else {
         drawChevron(context, {
@@ -2734,8 +3058,7 @@ export function TaskDetailsDialog({
           fill,
           trackFill: getProgressTrackColor(),
           stroke: style.stroke,
-          progress: step.progress,
-          shadow: true
+          progress: step.progress
         });
       }
 
@@ -2751,7 +3074,6 @@ export function TaskDetailsDialog({
           textX: step.textX,
           barHeight: scaledBarHeight,
           pointDepth: scaledPointDepth
-
         });
       }
 
@@ -2792,15 +3114,21 @@ export function TaskDetailsDialog({
         }
       }
 
-      drawStrokeText(context, {
-        text: step.title.length > 24 ? `${step.title.slice(0, 24)}…` : step.title,
-        x: step.textX,
-        y: stepY + scaledProgressLabelY - scaledBarY,
-        fill: style.text,
-        stroke: '#ffffff',
-        strokeWidth: 3,
-        font: '700 11px sans-serif'
-      });
+      const labelFont = '700 11px sans-serif';
+      const maxLabelWidth = step.visualWidth - 12; // 6px padding on each side
+      const displayTitle = truncateCanvasText(context, step.title, maxLabelWidth, labelFont);
+
+      if (displayTitle) {
+        drawStrokeText(context, {
+          text: displayTitle,
+          x: step.textX,
+          y: stepY + scaledBarHeight / 2,
+          fill: '#ffffff',
+          stroke: step.status === 'IN_PROGRESS' ? '#1e293b' : '#334155',
+          strokeWidth: 2,
+          font: labelFont
+        });
+      }
     });
   }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowChartHeight, processStatusStyles, selectedIssueId, processFlowBaseTopPadding]);
 
@@ -2832,329 +3160,6 @@ export function TaskDetailsDialog({
     lastAutoFitKeyRef.current = currentAutoFitKey;
     setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
   }, [clampTopPaneHeight, currentAutoFitKey, processFlowChartHeight]);
-
-  useLayoutEffect(() => {
-    if (!open || loading || issues.length === 0 || !detailsLayoutRef.current) return;
-
-    const element = detailsLayoutRef.current;
-    const updateHeight = () => {
-      setTopPaneHeight((prev) => {
-        const nextHeight = clampTopPaneHeight(prev, element.clientHeight);
-        return prev === nextHeight ? prev : nextHeight;
-      });
-    };
-
-    updateHeight();
-
-    if (typeof ResizeObserver === 'undefined') {
-      return;
-    }
-
-    const observer = new ResizeObserver(updateHeight);
-    observer.observe(element);
-
-    return () => observer.disconnect();
-  }, [clampTopPaneHeight, issues.length, loading, open]);
-
-  const isRowDirty = (row: TaskDetailIssue) => {
-    const baseline = baselineByIdRef.current[row.issue_id];
-    if (!baseline) return false;
-    return baseline.start_date !== row.start_date || baseline.due_date !== row.due_date;
-  };
-
-  const saveRow = async (row: TaskDetailIssue) => {
-    setSavingIssueIds((prev: Record<number, boolean>) => ({ ...prev, [row.issue_id]: true }));
-    try {
-      const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
-        start_date: row.start_date,
-        due_date: row.due_date
-      });
-      // Preserve parent_id in the updated row
-      updated.parent_id = row.parent_id;
-      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
-      setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
-      hasDateChangesRef.current = true;
-    } catch (error: unknown) {
-      const message =
-        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
-      alert(message);
-
-      const baseline = baselineByIdRef.current[row.issue_id];
-      if (baseline) {
-        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
-        hasDateChangesRef.current = true; // Need to refresh Gantt chart if they actually saved previously, but for now we just revert our local list
-      }
-    } finally {
-      setSavingIssueIds((prev: Record<number, boolean>) => ({ ...prev, [row.issue_id]: false }));
-    }
-  };
-
-  const saveProcessFlowDates = useCallback(async (row: TaskDetailIssue, startDate: string, dueDate: string) => {
-    if (saveTimersRef.current[row.issue_id]) {
-      clearTimeout(saveTimersRef.current[row.issue_id]);
-      delete saveTimersRef.current[row.issue_id];
-    }
-
-    setSavingIssueIds((prev: Record<number, boolean>) => ({ ...prev, [row.issue_id]: true }));
-    setIssues((prev) => prev.map((item) => (
-      item.issue_id === row.issue_id ? { ...item, start_date: startDate, due_date: dueDate } : item
-    )));
-
-    try {
-      const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
-        start_date: startDate,
-        due_date: dueDate
-      });
-      updated.parent_id = row.parent_id;
-      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
-      setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
-      setSelectedIssue((prev) => (
-        prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
-      ));
-      hasDateChangesRef.current = true;
-    } catch (error: unknown) {
-      const message =
-        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
-      alert(message);
-      const baseline = baselineByIdRef.current[row.issue_id];
-      if (baseline) {
-        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
-      }
-    } finally {
-      setSavingIssueIds((prev: Record<number, boolean>) => ({ ...prev, [row.issue_id]: false }));
-    }
-  }, [projectIdentifier]);
-
-  useEffect(() => {
-    if (!processDragSession) return;
-
-    const onPointerMove = (event: PointerEvent) => {
-      const current = processDragRef.current;
-      if (!current) return;
-      if (typeof event.pointerId === 'number' && current.pointerId !== event.pointerId) return;
-      if (!Number.isFinite(processFlowPixelsPerDay) || processFlowPixelsPerDay <= 0) return;
-
-      const deltaDays = Math.round((event.clientX - current.startClientX) / processFlowPixelsPerDay);
-      if (!Number.isFinite(deltaDays)) return;
-      const moved = current.moved || Math.abs(event.clientX - current.startClientX) >= PROCESS_FLOW_DRAG_THRESHOLD_PX;
-
-      let nextStart = current.originalStartDate;
-      let nextDue = current.originalDueDate;
-
-      if (current.mode === 'move') {
-        nextStart = shiftIsoDate(current.originalStartDate, deltaDays);
-        nextDue = shiftIsoDate(current.originalDueDate, deltaDays);
-      } else if (current.mode === 'resize-left') {
-        const candidateStart = shiftIsoDate(current.originalStartDate, deltaDays);
-        nextStart = candidateStart > current.originalDueDate ? current.originalDueDate : candidateStart;
-      } else {
-        const candidateDue = shiftIsoDate(current.originalDueDate, deltaDays);
-        nextDue = candidateDue < current.originalStartDate ? current.originalStartDate : candidateDue;
-      }
-
-      if (nextStart === current.currentStartDate && nextDue === current.currentDueDate && moved === current.moved) return;
-
-      const updated = { ...current, currentStartDate: nextStart, currentDueDate: nextDue, moved };
-      processDragRef.current = updated;
-      setProcessDragSession(updated);
-    };
-
-    const onPointerUp = (event: PointerEvent) => {
-      const current = processDragRef.current;
-      if (!current) return;
-      if (typeof event.pointerId === 'number' && current.pointerId !== event.pointerId) return;
-      setSuppressProcessClickIssueId(current.moved || current.mode !== 'move' ? current.issueId : null);
-
-      const issue = issuesRef.current.find((item) => item.issue_id === current.issueId);
-      const hasChanged = current.currentStartDate !== current.originalStartDate || current.currentDueDate !== current.originalDueDate;
-      if (issue && hasChanged) {
-        void saveProcessFlowDates(issue, current.currentStartDate, current.currentDueDate);
-      }
-
-      processDragRef.current = null;
-      setProcessDragSession(null);
-    };
-
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
-
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
-    };
-  }, [processDragSession, processFlowPixelsPerDay, saveProcessFlowDates]);
-
-  const updateVerticalResize = useCallback((clientY: number, pointerId?: number) => {
-    const current = verticalResizeRef.current;
-    if (!current) return;
-    if (typeof pointerId === 'number' && pointerId > 0 && current.pointerId !== pointerId) return;
-
-    const deltaY = clientY - current.startClientY;
-    const nextHeight = clampTopPaneHeight(current.startTopPaneHeight + deltaY, current.containerHeight);
-    setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
-  }, [clampTopPaneHeight]);
-
-  const stopVerticalResize = useCallback((pointerId?: number) => {
-    const current = verticalResizeRef.current;
-    if (!current) return;
-    if (typeof pointerId === 'number' && pointerId > 0 && current.pointerId !== pointerId) return;
-
-    verticalResizeRef.current = null;
-    setVerticalResizeSession(null);
-  }, []);
-
-  useEffect(() => {
-    if (!verticalResizeSession) return;
-
-    const onPointerMove = (event: PointerEvent) => updateVerticalResize(event.clientY, event.pointerId);
-    const onPointerUp = (event: PointerEvent) => stopVerticalResize(event.pointerId);
-    const onMouseMove = (event: MouseEvent) => updateVerticalResize(event.clientY);
-    const onMouseUp = () => stopVerticalResize();
-
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, [stopVerticalResize, updateVerticalResize, verticalResizeSession]);
-
-  const beginVerticalResize = useCallback((clientY: number, pointerId: number) => {
-    const containerRect = detailsLayoutRef.current?.getBoundingClientRect();
-    const containerHeight = containerRect?.height ?? detailsLayoutRef.current?.clientHeight ?? 0;
-    if (currentAutoFitKey) {
-      manualResizeSuppressedKeyRef.current = currentAutoFitKey;
-    }
-    const nextSession = {
-      pointerId,
-      startClientY: clientY,
-      startTopPaneHeight: topPaneHeight,
-      containerHeight
-    };
-
-    verticalResizeRef.current = nextSession;
-    setVerticalResizeSession(nextSession);
-  }, [currentAutoFitKey, topPaneHeight]);
-
-  const startVerticalResize = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    beginVerticalResize(event.clientY, event.pointerId);
-  }, [beginVerticalResize]);
-
-  const startVerticalResizeWithMouse = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    beginVerticalResize(event.clientY, 1);
-  }, [beginVerticalResize]);
-
-  const handleVerticalResizeKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    let delta = 0;
-    if (event.key === 'ArrowDown') delta = 24;
-    if (event.key === 'ArrowUp') delta = -24;
-    if (event.key === 'PageDown') delta = 80;
-    if (event.key === 'PageUp') delta = -80;
-    if (delta === 0) return;
-
-    event.preventDefault();
-    const containerRect = detailsLayoutRef.current?.getBoundingClientRect();
-    const containerHeight = containerRect?.height ?? detailsLayoutRef.current?.clientHeight ?? 0;
-    if (currentAutoFitKey) {
-      manualResizeSuppressedKeyRef.current = currentAutoFitKey;
-    }
-    setTopPaneHeight((prev) => clampTopPaneHeight(prev + delta, containerHeight));
-  }, [clampTopPaneHeight, currentAutoFitKey]);
-
-  const handleDateChange = (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => {
-    setIssues((prev) => {
-      const next = prev.map((item) => (item.issue_id === row.issue_id ? { ...item, [key]: value || null } : item));
-      const updatedRow = next.find((item) => item.issue_id === row.issue_id);
-      if (!updatedRow) return next;
-
-      if (saveTimersRef.current[row.issue_id]) {
-        clearTimeout(saveTimersRef.current[row.issue_id]);
-      }
-
-      if (!isRowDirty(updatedRow)) {
-        delete saveTimersRef.current[row.issue_id];
-        return next;
-      }
-
-      saveTimersRef.current[row.issue_id] = setTimeout(() => {
-        const latestRow = issuesRef.current.find((item) => item.issue_id === row.issue_id);
-        delete saveTimersRef.current[row.issue_id];
-        if (!latestRow || !isRowDirty(latestRow) || savingIssueIdsRef.current[row.issue_id]) return;
-        void saveRow(latestRow);
-      }, 500);
-
-      return next;
-    });
-  };
-
-  const handleFieldUpdate = useCallback(async (issueId: number, field: string, value: string | number | null) => {
-    const payload: Record<string, unknown> = { [field]: value };
-    try {
-      const updated = await updateTaskFields(projectIdentifier, issueId, payload as import('../../services/scheduleReportApi').TaskUpdatePayload);
-      setIssues(prev => prev.map(item => item.issue_id === updated.issue_id ? { ...item, ...updated } : item));
-      setBaselineById(prev => ({ ...prev, [updated.issue_id]: { ...prev[updated.issue_id], ...updated } }));
-      setSelectedIssue(prev => prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev);
-    } catch (error: unknown) {
-      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
-      alert(message);
-
-      const baseline = baselineByIdRef.current[issueId];
-      if (baseline) {
-        setIssues((prev) => prev.map((item) => (item.issue_id === issueId ? { ...item, ...baseline } : item)));
-        setSelectedIssue((prev) => (prev?.issue_id === issueId ? { ...prev, ...baseline, children: prev.children } : prev));
-      }
-
-      throw error;
-    }
-  }, [projectIdentifier, issues]);
-
-  const handleSaveDescription = async () => {
-    if (!selectedIssue) return;
-    try {
-      await handleFieldUpdate(selectedIssue.issue_id, 'description', descriptionDraft);
-      setEditingDescription(false);
-    } catch (error) {
-      // Error is handled in handleFieldUpdate
-    }
-  };
-
-  const handleAddComment = async () => {
-    if (!selectedIssue || !newCommentDraft.trim()) return;
-    setIsSavingComment(true);
-    try {
-      await handleFieldUpdate(selectedIssue.issue_id, 'notes', newCommentDraft.trim());
-      setNewCommentDraft('');
-    } catch (error) {
-      // Error is handled in handleFieldUpdate
-    } finally {
-      setIsSavingComment(false);
-    }
-  };
-
-  const handleUpdateComment = async (journalId: number, notes: string) => {
-    if (!selectedIssue) return;
-    try {
-      await import('../../services/scheduleReportApi').then(m => m.updateTaskJournal(projectIdentifier, journalId, notes));
-      void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue.issue_id });
-    } catch (error: unknown) {
-      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
-      alert(message);
-    }
-  };
-
   const startProcessFlowDrag = (
     event: React.PointerEvent<SVGRectElement>,
     step: ProcessFlowStep,
@@ -3320,6 +3325,7 @@ export function TaskDetailsDialog({
             <div className="text-center py-12 m-6 bg-white border border-slate-300 flex-shrink-0 w-full">
               <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
             </div>
+
           )}
 
           {!loading && issues.length > 0 && (
@@ -3329,7 +3335,7 @@ export function TaskDetailsDialog({
                 data-testid="task-details-top-pane"
                 style={{ height: `${topPaneHeight}px` }}
               >
-                <div className="h-full overflow-auto">
+                <div className="h-full overflow-auto" onClick={() => selectIssue(null)}>
                   <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
                   {processFlowAxis && processFlowRenderSteps.length > 0 ? (
                     <div
@@ -3361,6 +3367,8 @@ export function TaskDetailsDialog({
                               data-testid="task-details-process-step"
                               data-selected={isSelected ? 'true' : 'false'}
                               opacity={savingIssueIds[step.id] ? 0.6 : 1}
+                              onClick={(e) => e.stopPropagation()}
+                              onDoubleClick={(e) => e.stopPropagation()}
                             >
                               <rect
                                 x={step.hitX}
@@ -3374,7 +3382,9 @@ export function TaskDetailsDialog({
                                 onDoubleClick={() => handleProcessStepDoubleClick(step)}
                                 data-selected={isSelected ? 'true' : 'false'}
                                 data-testid={`task-details-process-step-hit-${step.id}`}
-                              />
+                              >
+                                <title>{step.title}</title>
+                              </rect>
                               {isRangeStep && (
                                 <>
                                   <rect
@@ -3752,6 +3762,7 @@ export function TaskDetailsDialog({
             parentIssueId={createIssueContext.issueId}
             inheritedFields={createIssueContext.inheritedFields}
             onCreated={(createdIssueId) => {
+              hasAnyChangesRef.current = true;
               void reloadTaskDetails(currentRootIssueId, {
                 expectedIssueId: createdIssueId,
                 selectedIssueId: createdIssueId ?? currentRootIssueId
@@ -3768,6 +3779,7 @@ export function TaskDetailsDialog({
             issueId={editIssueContext.issueId}
             issueUrl={editIssueContext.issueUrl}
             onSaved={(updatedIssueId) => {
+              hasAnyChangesRef.current = true;
               void reloadTaskDetails(currentRootIssueId, {
                 expectedIssueId: updatedIssueId ?? editIssueContext.issueId,
                 selectedIssueId: updatedIssueId ?? editIssueContext.issueId
@@ -3794,6 +3806,7 @@ export function TaskDetailsDialog({
               } : {};
             })()}
             onSaved={(updatedIssueId) => {
+              hasAnyChangesRef.current = true;
               void reloadTaskDetails(currentRootIssueId, {
                 expectedIssueId: updatedIssueId ?? viewIssueContext.issueId,
                 selectedIssueId: updatedIssueId ?? viewIssueContext.issueId
