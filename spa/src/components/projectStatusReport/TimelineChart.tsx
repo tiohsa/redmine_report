@@ -282,7 +282,6 @@ export function TimelineChart({
 
   const handleBackgroundClick = (event: React.MouseEvent) => {
     setSelectedStepId(null);
-    onClearSelection?.();
   };
 
   const handleStepOpen = (stepId?: string, issueId?: number, title?: string, projectName?: string, versionName?: string) => {
@@ -1184,7 +1183,7 @@ function TimelineChartSurface({
             minWidth: `${timelineWidth}px`
           }}
         >
-          <div className="mx-4 pointer-events-auto">
+          <div className="mx-4 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
             <div data-testid={`timeline-inline-report-${activeReportLaneKey}`} style={{ height: INLINE_REPORT_SLOT_HEIGHT - 12 }}>
               <InlineReportSlot
                 response={detailedReportResponse}
