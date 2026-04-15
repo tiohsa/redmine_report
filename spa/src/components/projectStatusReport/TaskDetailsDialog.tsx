@@ -3260,19 +3260,19 @@ export function TaskDetailsDialog({
                 </nav>
               )}
               <h3 className="text-[16px] font-semibold text-slate-900 flex items-center gap-2 min-w-0" data-testid="task-details-title">
-                <span
-                  className="truncate cursor-pointer hover:text-blue-600 transition-colors"
-                  onClick={() => {
-                    const row = issues.find((item) => item.issue_id === currentRootIssueId);
-                    if (row) {
-                      setViewIssueContext({
-                        issueId: currentRootIssueId,
-                        issueUrl: row.issue_url
-                      });
-                    }
-                  }}
-                  title={t('timeline.viewIssue')}
-                >
+                <span className="truncate">
+
+
+
+
+
+
+
+
+
+
+
+
                   {dialogHeaderTitle}
                 </span>
               </h3>
@@ -3512,15 +3512,15 @@ export function TaskDetailsDialog({
                             #{selectedIssue.issue_id}
                           </span>
                           <h4
-                            className="text-[14px] leading-5 font-semibold text-slate-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                            className="text-[14px] leading-5 font-semibold text-slate-900 truncate"
                             data-testid="task-details-selected-title"
-                            onClick={() => {
-                              setViewIssueContext({
-                                issueId: selectedIssue.issue_id,
-                                issueUrl: selectedIssue.issue_url
-                              });
-                            }}
-                            title={t('timeline.viewIssue')}
+
+
+
+
+
+
+
                           >
                             {selectedIssue.subject}
                           </h4>
