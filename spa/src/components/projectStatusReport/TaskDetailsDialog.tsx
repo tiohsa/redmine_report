@@ -2562,6 +2562,11 @@ export function TaskDetailsDialog({
       setBaselineById(prev => ({ ...prev, [updated.issue_id]: { ...prev[updated.issue_id], ...updated } }));
       setSelectedIssue(prev => prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev);
       hasAnyChangesRef.current = true;
+
+      if (field === 'done_ratio') {
+        // 進捗更新時は親チケットにも影響があるため、全体を再読み込みする
+        void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue?.issue_id ?? null });
+      }
     } catch (error: unknown) {
       const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
       alert(message);
@@ -2574,7 +2579,7 @@ export function TaskDetailsDialog({
 
       throw error;
     }
-  }, [projectIdentifier, issues, setSelectedIssue]);
+  }, [projectIdentifier, issues, setSelectedIssue, reloadTaskDetails, currentRootIssueId]);
 
   const handleSaveDescription = async () => {
     if (!selectedIssue) return;
