@@ -13,6 +13,7 @@ import { useUiStore } from '../stores/uiStore';
 import { VersionAiDialog } from './projectStatusReport/VersionAiDialog';
 import type { AiResponseView } from '../types/weeklyReport';
 import { getDateFnsLocale, getLocale, t } from '../i18n';
+import { reportStyles } from './designSystem';
 
 const CHART_SCALE_STORAGE_KEY = 'redmine_report.schedule.chartScale';
 const SHOW_ALL_DATES_STORAGE_KEY = 'redmine_report.schedule.showAllDates';
@@ -280,6 +281,24 @@ export const ProjectStatusReport = ({
     const allVersionsSelected = allVersions.length > 0 && selectedVersions.length === allVersions.length;
 
     const isCustomDateRangeActive = Boolean(displayStartDateIso && displayEndDateIso);
+    const summaryMetrics = [
+        {
+            label: t('report.projectScope'),
+            value: selectedProjectIdentifiers.length > 0
+                ? t('filter.projectsCount', { count: selectedProjectIdentifiers.length })
+                : t('filter.selectProjects')
+        },
+        {
+            label: t('report.versionScope'),
+            value: selectedVersions.length > 0
+                ? t('filter.selectedCount', { count: selectedVersions.length })
+                : t('report.noneSelected')
+        },
+        {
+            label: t('report.taskCount'),
+            value: t('timeline.totalTasks', { count: bars.length })
+        }
+    ];
 
     const openDateRangeDialog = () => {
         setPendingStartDate(displayStartDateIso || axisStartDateIso);
@@ -373,20 +392,20 @@ export const ProjectStatusReport = ({
         }
     };
 
-    const iconButtonStyle = "p-2 rounded-[9999px] text-[#45515e] hover:text-[#222222] hover:bg-[rgba(0,0,0,0.05)] transition-all duration-300 relative cursor-pointer";
-    const activeIconButtonStyle = "p-2 rounded-[9999px] text-[var(--color-brand-6)] bg-[var(--color-primary-200)] hover:text-[var(--color-primary-700)] transition-all duration-300 relative shadow-subtle cursor-pointer";
+    const iconButtonStyle = reportStyles.iconButton;
+    const activeIconButtonStyle = reportStyles.iconButtonActive;
     const headerIconStyle = "w-5 h-5";
-    const filterDropdownPanelStyle = "absolute top-full left-0 mt-3 w-72 max-h-[420px] bg-white border border-gray-100 rounded-[20px] shadow-elevated z-50 overflow-hidden font-sans animate-in fade-in slide-in-from-top-2 duration-300";
-    const filterDropdownTitleStyle = "px-5 pt-5 pb-3 text-[14px] font-semibold text-[#222222] font-display";
-    const filterDropdownRowStyle = "px-5 py-3 flex items-center gap-3 text-[15px] text-[#45515e] hover:bg-gray-50 cursor-pointer font-sans transition-colors";
-    const filterDropdownDividerStyle = "border-t border-gray-100 mx-5";
-    const filterDropdownClearLinkStyle = "text-[var(--color-primary-600)] hover:text-[var(--color-primary-700)] hover:underline text-sm cursor-pointer bg-transparent border-0 p-0 m-0 shadow-none appearance-none outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 font-sans font-medium";
+    const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-3 w-72 max-h-[420px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
+    const filterDropdownTitleStyle = reportStyles.dropdownTitle;
+    const filterDropdownRowStyle = reportStyles.dropdownRow;
+    const filterDropdownDividerStyle = reportStyles.dropdownDivider;
+    const filterDropdownClearLinkStyle = reportStyles.dropdownClear;
 
     return (
-        <div ref={fullScreenRef} className="bg-white flex-1 font-sans text-[#222222]">
-            <div className="w-full bg-white px-6 pt-2 pb-2">
+        <div ref={fullScreenRef} className="flex-1 bg-transparent font-sans text-[#222222]">
+            <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 pb-6 pt-4 sm:px-6 lg:px-8">
                 {/* Header Row: Single line layout */}
-                <div className="flex items-center justify-between h-10 mb-4">
+                <div className="report-surface flex items-center justify-between gap-4 px-5 py-4 shadow-none">
 
                     {/* Left: Filters */}
                     <div className="flex items-center gap-2">
@@ -401,7 +420,7 @@ export const ProjectStatusReport = ({
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
                                 </svg>
                                 {selectedProjectIdentifiers.length > 0 && (
-                                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[var(--color-brand-6)] rounded-full border-2 border-white shadow-sm"></span>
+                                    <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[var(--color-brand-6)] shadow-sm"></span>
                                 )}
                             </button>
                             {isProjectOpen && (
@@ -484,8 +503,8 @@ export const ProjectStatusReport = ({
                                 <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
                                 </svg>
-                                 {selectedVersions.length > 0 && (
-                                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[var(--color-brand-6)] rounded-full border-2 border-white shadow-sm"></span>
+                                {selectedVersions.length > 0 && (
+                                    <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[var(--color-brand-6)] shadow-sm"></span>
                                 )}
                             </button>
                             {isVersionOpen && onVersionChange && (
@@ -564,7 +583,7 @@ export const ProjectStatusReport = ({
                                 </svg>
                             </button>
                              {isLegendOpen && (
-                                <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-100 rounded-[16px] shadow-subtle z-50 p-4 animate-in fade-in zoom-in duration-200">
+                                <div className="report-dropdown-panel right-0 top-full mt-2 w-48 p-4 animate-in fade-in zoom-in duration-200">
                                     <div className="flex flex-col gap-3">
                                         {statuses.map((status) => (
                                             <div key={status.label} className="flex items-center gap-3 text-[#222222] font-sans">
@@ -583,7 +602,7 @@ export const ProjectStatusReport = ({
                             )}
                         </div>
 
-                        <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                        <div className="mx-1 h-6 w-px bg-slate-200"></div>
 
                         {/* Chart Size Selection */}
                         <div className="relative" ref={sizeDropdownRef}>
@@ -595,12 +614,12 @@ export const ProjectStatusReport = ({
                                 <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"></path>
                                 </svg>
-                                <span className="absolute -bottom-1 -right-1 text-[9px] font-bold bg-[#f0f0f0] text-[#222222] px-1.5 py-0.5 rounded-full border border-gray-200 shadow-sm leading-none">
+                                <span className="absolute -bottom-1 -right-1 rounded-full border border-gray-200 bg-[#f0f0f0] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[#222222] shadow-sm">
                                     {chartScale === 0.5 ? 'S' : chartScale === 0.75 ? 'M' : chartScale === 1 ? 'L' : 'XL'}
                                 </span>
                             </button>
                             {isSizeOpen && (
-                                <div className="absolute top-full right-0 mt-3 w-32 bg-white rounded-[16px] border border-gray-100 shadow-elevated z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="report-dropdown-panel right-0 top-full mt-3 w-32 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
                                     {[
                                         { label: 'S', value: 0.5 },
                                         { label: 'M', value: 0.75 },
@@ -647,8 +666,8 @@ export const ProjectStatusReport = ({
                             <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                             </svg>
-                            <span
-                                className={`absolute -bottom-1 -right-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full border shadow-sm leading-none transition-all ${isProcessMode || showAllDates || showTodayLine
+                                <span
+                                    className={`absolute -bottom-1 -right-1 rounded-full border px-1.5 py-0.5 text-[8px] font-bold leading-none shadow-sm transition-all ${isProcessMode || showAllDates || showTodayLine
                                     ? 'bg-[var(--color-brand-6)] text-white border-[var(--color-brand-6)]'
                                     : 'bg-white text-[#8e8e93] border-gray-200'
                                 }`}
@@ -669,7 +688,7 @@ export const ProjectStatusReport = ({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 2v4m8-4v4M3 10h18M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm3 10h6m-2-2 2 2-2 2"></path>
                             </svg>
                             {isCustomDateRangeActive && (
-                                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full border border-white"></span>
+                                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border border-white bg-blue-500"></span>
                             )}
                         </button>
 
@@ -684,7 +703,7 @@ export const ProjectStatusReport = ({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                             </svg>
                             <span
-                                className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded border ${showAllDates
+                                className={`absolute -bottom-1 -right-1 rounded border px-1 text-[9px] font-bold ${showAllDates
                                     ? 'bg-blue-600 text-white border-blue-600'
                                     : 'bg-white text-slate-500 border-slate-200'
                                 }`}
@@ -705,7 +724,7 @@ export const ProjectStatusReport = ({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16" />
                             </svg>
                             <span
-                                className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded border ${showTodayLine
+                                className={`absolute -bottom-1 -right-1 rounded border px-1 text-[9px] font-bold ${showTodayLine
                                     ? 'bg-blue-600 text-white border-blue-600'
                                     : 'bg-white text-slate-500 border-slate-200'
                                 }`}
@@ -739,21 +758,30 @@ export const ProjectStatusReport = ({
                     </div>
                 </div>
 
+                <div className={reportStyles.summaryStrip}>
+                    {summaryMetrics.map((metric) => (
+                        <div key={metric.label} className={reportStyles.summaryMetric}>
+                            <div className={reportStyles.summaryLabel}>{metric.label}</div>
+                            <div className={reportStyles.summaryValue}>{metric.value}</div>
+                        </div>
+                    ))}
+                </div>
+
                 {fetchError && (
-                    <div className="mb-6 bg-red-50 border border-red-100 text-red-600 px-5 py-4 rounded-xl relative" role="alert">
-                        <span className="block sm:inline text-sm font-bold">{fetchError}</span>
+                    <div className="report-alert-error relative" role="alert">
+                        <span className="block text-sm font-bold sm:inline">{fetchError}</span>
                     </div>
                 )}
 
                 {processModeError && isProcessMode && (
-                    <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800" role="alert">
+                    <div className="report-alert-warning" role="alert">
                         <span className="block text-sm font-semibold">
                             {t('filter.processMode', { defaultValue: 'Process Mode' })}: {processModeError}
                         </span>
                     </div>
                 )}
 
-                <div className="flex flex-col gap-4">
+                <div className="report-surface overflow-hidden">
                     <TimelineChart
                         timelineData={timelineData}
                         timelineWidth={timelineWidth}
@@ -794,27 +822,27 @@ export const ProjectStatusReport = ({
 
 
                  {isDateRangeDialogOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[4px] px-4" role="dialog" aria-modal="true" aria-label={t('filter.dateRange')}>
-                        <div className="w-full max-w-md rounded-[24px] border border-gray-100 bg-white p-8 shadow-brand-glow animate-in fade-in zoom-in slide-in-from-bottom-4 duration-500">
-                            <h2 className="text-[31px] font-display font-semibold text-[#222222] leading-tight">{t('filter.dateRange')}</h2>
-                            <p className="mt-3 text-[16px] text-[#45515e] font-sans leading-relaxed">{t('filter.dateRangeDescription')}</p>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-[4px]" role="dialog" aria-modal="true" aria-label={t('filter.dateRange')}>
+                        <div className="report-surface-elevated w-full max-w-md animate-in fade-in zoom-in slide-in-from-bottom-4 duration-500 p-8">
+                            <h2 className="report-section-title">{t('filter.dateRange')}</h2>
+                            <p className="mt-3 text-[16px] font-sans leading-relaxed text-[#45515e]">{t('filter.dateRangeDescription')}</p>
                             <div className="mt-6 grid grid-cols-1 gap-5">
-                                <label className="text-[13px] font-sans font-medium uppercase text-[#8e8e93] tracking-wide">
+                                <label className="text-[13px] font-sans font-medium uppercase tracking-wide text-[#8e8e93]">
                                     {t('weeklyDialog.startDate')}
                                     <input
                                         type="date"
                                         value={pendingStartDate}
                                         onChange={(event) => setPendingStartDate(event.target.value)}
-                                        className="mt-2 w-full rounded-[8px] border border-gray-200 px-4 py-3 text-[16px] font-sans text-[#222222] focus:outline-none focus:border-[#45515e] transition-colors"
+                                        className="report-input mt-2"
                                     />
                                 </label>
-                                <label className="text-[13px] font-sans font-medium uppercase text-[#8e8e93] tracking-wide">
+                                <label className="text-[13px] font-sans font-medium uppercase tracking-wide text-[#8e8e93]">
                                     {t('weeklyDialog.endDate')}
                                     <input
                                         type="date"
                                         value={pendingEndDate}
                                         onChange={(event) => setPendingEndDate(event.target.value)}
-                                        className="mt-2 w-full rounded-[8px] border border-gray-200 px-4 py-3 text-[16px] font-sans text-[#222222] focus:outline-none focus:border-[#45515e] transition-colors"
+                                        className="report-input mt-2"
                                     />
                                 </label>
                             </div>
@@ -825,21 +853,21 @@ export const ProjectStatusReport = ({
                                 <button
                                     type="button"
                                     onClick={() => setIsDateRangeDialogOpen(false)}
-                                    className="h-10 px-5 rounded-full border border-gray-200 bg-[#f0f0f0] text-[14px] font-sans font-medium text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer"
+                                    className={reportStyles.pillSecondary}
                                 >
                                     {t('common.cancel')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={clearDateRange}
-                                    className="h-10 px-5 rounded-full border border-gray-200 bg-white text-[14px] font-sans font-medium text-[#222222] hover:bg-gray-50 transition-colors cursor-pointer"
+                                    className={reportStyles.pillSecondary}
                                 >
                                     {t('filter.clearDateRange')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={applyDateRange}
-                                    className="h-10 px-6 rounded-full bg-[#181e25] text-[14px] font-sans font-semibold text-white hover:bg-black transition-colors cursor-pointer"
+                                    className={reportStyles.pillPrimary}
                                 >
                                     {t('common.save')}
                                 </button>

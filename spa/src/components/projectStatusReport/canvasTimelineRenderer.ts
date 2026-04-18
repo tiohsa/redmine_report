@@ -68,7 +68,7 @@ const createChevronPath = (
   width: number,
   height: number,
   pointDepth: number,
-  _hasLeftNotch: boolean
+  hasLeftNotch: boolean
 ) => {
   const { rightHeadDepth } = getChevronMetrics(width, pointDepth);
   const rightBaseX = x + Math.max(width - rightHeadDepth, 4);
@@ -76,14 +76,22 @@ const createChevronPath = (
   const radius = Math.min(height / 2, 8); // Modern rounding
 
   ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(rightBaseX, y);
-  ctx.lineTo(rightTipX, y + height / 2);
-  ctx.lineTo(rightBaseX, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.arcTo(x, y + height, x, y + height - radius, radius);
-  ctx.lineTo(x, y + radius);
-  ctx.arcTo(x, y, x + radius, y, radius);
+  if (hasLeftNotch) {
+    ctx.moveTo(x, y);
+    ctx.lineTo(rightBaseX, y);
+    ctx.lineTo(rightTipX, y + height / 2);
+    ctx.lineTo(rightBaseX, y + height);
+    ctx.lineTo(x, y + height);
+  } else {
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(rightBaseX, y);
+    ctx.lineTo(rightTipX, y + height / 2);
+    ctx.lineTo(rightBaseX, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.arcTo(x, y + height, x, y + height - radius, radius);
+    ctx.lineTo(x, y + radius);
+    ctx.arcTo(x, y, x + radius, y, radius);
+  }
   ctx.closePath();
 };
 

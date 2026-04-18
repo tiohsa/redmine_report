@@ -157,13 +157,13 @@ export function CreateDestinationIssueDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] sm:p-6"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="bg-white rounded-[24px] shadow-brand-glow border border-gray-100 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 font-sans"
+        className="report-surface-elevated flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 font-sans"
         style={{
           width: `${DEFAULT_DIALOG_WIDTH_PX}px`,
           maxWidth: '98vw',
@@ -176,27 +176,28 @@ export function CreateDestinationIssueDialog({
         <div
           ref={headerRef}
           data-testid="destination-issue-dialog-header"
-          className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white"
+          className="flex flex-shrink-0 items-center justify-between border-b border-gray-100 bg-white"
           style={{ padding: '2px 12px' }}
         >
           <div className="flex items-center gap-3 overflow-hidden">
-            <h4 className="text-[18px] font-display font-medium text-[#222222] truncate" data-testid="destination-issue-dialog-title">
+            <h4 className="truncate text-[18px] font-display font-medium text-[#222222]" data-testid="destination-issue-dialog-title">
               {t('destinationIssueDialog.title')}
             </h4>
           </div>
           <div className="flex items-center gap-[6px] flex-shrink-0">
-            <button
-              type="button"
-              aria-label={t('destinationIssueDialog.closeAria')}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors cursor-pointer"
-              onClick={onClose}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
+          <button
+            type="button"
+            aria-label={t('destinationIssueDialog.closeAria')}
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+            style={{ width: '24px', height: '24px' }}
+            onClick={onClose}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
           </div>
         </div>
 
-        <div className="relative flex-1 min-h-0 bg-white overflow-hidden">
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
           {iframeError ? (
             <div
               ref={errorRef}
@@ -253,7 +254,7 @@ export function CreateDestinationIssueDialog({
             }}
           />
           {!iframeReady ? (
-            <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white">
               <div className="flex flex-col items-center gap-3">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                 <div className="text-xs text-slate-500 font-medium tracking-wide">{t('embeddedIssueForm.dialogLoading')}</div>
@@ -265,18 +266,32 @@ export function CreateDestinationIssueDialog({
         <div
           ref={footerRef}
           data-testid="destination-issue-dialog-footer"
-          className="border-t border-gray-100 bg-white flex justify-end gap-3 flex-shrink-0 items-center px-6 py-4"
+          className="flex flex-shrink-0 items-center justify-start gap-3 border-t border-gray-100 bg-white px-6 py-4"
         >
+          <a
+            href={externalUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={t('common.openInNewTab')}
+            className="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+            style={{ width: '24px', height: '24px' }}
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 3h7v7m0-7L10 14m-4 0H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
+            </svg>
+          </a>
           <button
             type="button"
-            className="h-10 px-6 rounded-full border border-gray-200 bg-[#f0f0f0] text-[14px] font-sans font-medium text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer"
+            className="inline-flex h-7 min-w-[88px] items-center justify-center rounded-full border border-gray-200 bg-[#f0f0f0] px-4 text-[13px] font-medium text-[#222222] transition-colors hover:bg-gray-200"
+            style={{ height: '28px', minWidth: '88px' }}
             onClick={onClose}
           >
             {t('common.cancel')}
           </button>
           <button
             type="button"
-            className="h-10 px-8 rounded-full bg-[#181e25] text-[14px] font-sans font-semibold text-white hover:bg-black transition-colors cursor-pointer disabled:opacity-30"
+            className="inline-flex h-7 min-w-[88px] items-center justify-center rounded-full bg-[#181e25] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-black disabled:opacity-50 disabled:pointer-events-none"
+            style={{ height: '28px', minWidth: '88px' }}
             disabled={isSubmitting || !iframeReady}
             onClick={handleSave}
           >

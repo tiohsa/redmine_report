@@ -33,6 +33,7 @@ import {
   prepareHiDPICanvas
 } from './canvasTimelineRenderer';
 import { getProgressFillColor, getProgressTrackColor } from './constants';
+import { reportStyles } from '../designSystem';
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -62,8 +63,8 @@ type IssueTreeNodeProps = {
   onAddSubIssue: (parentIssue: TaskDetailIssue) => void;
   onEditIssue: (issue: TaskDetailIssue) => void;
   onViewIssue: (issue: TaskDetailIssue) => void;
-  onSelectIssue?: (node: TreeNodeType) => void;
   selectedIssueId?: number | null;
+  registerRowRef?: (issueId: number, element: HTMLDivElement | null) => void;
   masters: TaskMasters | null;
   onFieldUpdate: (issueId: number, field: string, value: string | number | null) => Promise<void>;
   columnWidths: Record<string, number>;
@@ -125,13 +126,13 @@ const processStatusStyles: Record<ProcessFlowStep['status'], {
 };
 
 const PROCESS_FLOW_MIN_WIDTH = 640;
-const PROCESS_FLOW_YEAR_ROW_HEIGHT = 25;
-const PROCESS_FLOW_MONTH_ROW_HEIGHT = 25;
+const PROCESS_FLOW_YEAR_ROW_HEIGHT = 23;
+const PROCESS_FLOW_MONTH_ROW_HEIGHT = 23;
 const PROCESS_FLOW_HEADER_HEIGHT = PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT;
-const PROCESS_FLOW_LANE_HEIGHT = 122;
+const PROCESS_FLOW_LANE_HEIGHT = 136;
 const PROCESS_FLOW_BAR_HEIGHT = 36;
 const PROCESS_FLOW_BAR_Y = 28;
-const PROCESS_FLOW_BAR_SPACING_Y = 17;
+const PROCESS_FLOW_BAR_SPACING_Y = 34;
 const PROCESS_FLOW_POINT_DEPTH = 22;
 const PROCESS_FLOW_DIAMOND_WIDTH = PROCESS_FLOW_BAR_HEIGHT;
 const PROCESS_FLOW_TRIANGLE_WIDTH = (PROCESS_FLOW_BAR_HEIGHT * Math.sqrt(3)) / 2;
@@ -202,14 +203,13 @@ const DENSITY_CONFIG = {
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY: string = "var(--font-sans)";
 const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[56px] transition-all duration-200 relative group px-6 border-b border-gray-100 font-sans text-[var(--color-text-04)]';
 const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 text-[11px] font-semibold font-sans truncate transition-all duration-300';
-const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 px-4 rounded-[9999px] border border-gray-200 bg-white text-[13px] font-medium font-sans text-[#222222] hover:bg-gray-100 transition-colors cursor-pointer shadow-subtle';
+const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 px-4 rounded-full border border-gray-200 bg-[#f0f0f0] text-[13px] font-medium font-sans text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer shadow-subtle';
+const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-full bg-[rgba(0,0,0,0.04)] text-[#45515e] hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222] transition-all duration-300 cursor-pointer';
+const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-9 min-w-[100px] px-6 rounded-full bg-[#181e25] text-[13px] font-semibold font-sans text-white hover:bg-black transition-all shadow-subtle disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
 
-const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-[9999px] bg-[rgba(0,0,0,0.04)] text-[#45515e] hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222] transition-all duration-300 cursor-pointer';
-const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-9 min-w-[100px] px-6 rounded-[9999px] bg-[#181e25] text-[13px] font-semibold font-sans text-[#ffffff] hover:bg-black transition-all shadow-subtle disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
-
-const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[13px] font-display font-semibold uppercase text-[#18181b] tracking-wider';
-const REDMINE_DIALOG_TEXTAREA_CLASS = 'w-full min-h-[120px] resize-y border border-gray-100 rounded-[16px] bg-[#f8fafc] px-4 py-3 text-[16px] leading-[1.50] font-sans text-[#222222] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)] focus:border-[var(--color-primary-500)] transition-all';
-const REDMINE_DIALOG_SECTION_CLASS = 'border-b border-gray-50 px-8 py-6';
+const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[13px] font-display font-semibold uppercase tracking-wider text-[#18181b]';
+const REDMINE_DIALOG_TEXTAREA_CLASS = `${reportStyles.textarea} min-h-[120px] bg-[#f8fafc]`;
+const REDMINE_DIALOG_SECTION_CLASS = 'border-b border-gray-100 px-8 py-6';
 const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   #issue-form p:has(#issue_subject),
                   #new_issue p:has(#issue_subject),
@@ -491,8 +491,8 @@ const IssueTreeNode = ({
   onAddSubIssue,
   onEditIssue,
   onViewIssue,
-  onSelectIssue,
   selectedIssueId,
+  registerRowRef,
   masters,
   onFieldUpdate,
   columnWidths,
@@ -660,6 +660,7 @@ const IssueTreeNode = ({
   return (
     <>
       <div
+        ref={(element) => registerRowRef?.(node.issue_id, element)}
         data-testid={`task-row-${node.issue_id}`}
         data-selected={isSelected ? 'true' : 'false'}
         className={`flex items-center ${DENSITY_CONFIG[density].rowHeight} transition-all duration-200 relative group px-6 border-b border-gray-100 font-sans text-[var(--color-text-04)] ${isSelected ? 'bg-[rgba(20,86,240,0.04)] shadow-[inset_0_0_0_1px_rgba(20,86,240,0.1)]' : 'bg-white hover:bg-slate-50'}
@@ -696,7 +697,6 @@ const IssueTreeNode = ({
         <div
           className="shrink-0 flex items-center border-r border-slate-200/80 self-stretch overflow-hidden"
           style={{ paddingLeft: `${depth * 20}px`, width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}
-          onClick={() => onSelectIssue?.(node)}
           data-testid={`task-title-cell-${node.issue_id}`}
         >
           <div className="w-5 mr-1 flex-shrink-0 flex items-center justify-center">
@@ -717,8 +717,7 @@ const IssueTreeNode = ({
           </div>
           <div className="flex items-center min-w-0 z-10 flex-1">
             <span
-              className={`flex-shrink-0 text-slate-400 ${DENSITY_CONFIG[density].idSize} font-semibold mr-1.5 cursor-pointer hover:text-blue-500`}
-              onClick={(e) => { e.stopPropagation(); onSelectIssue?.(node); }}
+              className={`flex-shrink-0 text-slate-400 ${DENSITY_CONFIG[density].idSize} font-semibold mr-1.5`}
             >#{node.issue_id}</span>
             {isEditing('subject') ? (
               <input
@@ -739,7 +738,7 @@ const IssueTreeNode = ({
                   e.stopPropagation();
                   onViewIssue(node);
                 }}
-                title={node.subject ? `${node.subject} (${t('timeline.viewIssue')})` : t('timeline.viewIssue')}
+                title={depth === 0 ? t('timeline.viewIssue') : `${node.subject} (${t('timeline.viewIssue')})`}
               >
                 {node.subject}
               </span>
@@ -1061,8 +1060,8 @@ const IssueTreeNode = ({
           onAddSubIssue={onAddSubIssue}
           onEditIssue={onEditIssue}
           onViewIssue={onViewIssue}
-          onSelectIssue={onSelectIssue}
           selectedIssueId={selectedIssueId}
+          registerRowRef={registerRowRef}
           masters={masters}
           onFieldUpdate={onFieldUpdate}
           columnWidths={columnWidths}
@@ -1741,13 +1740,10 @@ function IssueEditDialog({
       .find((match): match is RegExpMatchArray => Boolean(match && match[1]));
     const updatedIssueId = matched ? Number(matched[1]) : issueId;
 
-    // Redmine redirects (302) to the issue show page after a successful update.
-    // The show page may contain an inline edit form, so we must check for redirect
-    // first to avoid misidentifying a successful save as a validation error.
-    const isRedirectedToShowPage = res.redirected ||
-      /\/issues\/\d+(?:[/?#]|$)/.test(new URL(res.url, window.location.origin).pathname);
-
-    if (isRedirectedToShowPage && res.ok) {
+    // Redmine typically redirects (302) to the issue show page after a successful update.
+    // Use the redirected flag rather than the final URL so a 200 response from /issues/:id
+    // that re-renders the edit form is still treated as a validation error.
+    if (res.redirected && res.ok) {
       return {
         kind: 'saved',
         issueId: updatedIssueId
@@ -2377,6 +2373,12 @@ export function TaskDetailsDialog({
     issueUrl: string;
   } | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<TreeNodeType | null>(null);
+  const [editingDescription, setEditingDescription] = useState<boolean>(false);
+  const [descriptionDraft, setDescriptionDraft] = useState<string>('');
+  const [newCommentDraft, setNewCommentDraft] = useState<string>('');
+  const [isSavingComment, setIsSavingComment] = useState<boolean>(false);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editingCommentDraft, setEditingCommentDraft] = useState<string>('');
   const [drilldownPath, setDrilldownPath] = useState<DrilldownCrumb[]>([]);
   const issuesRef = useRef<TaskDetailIssue[]>([]);
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
@@ -2403,6 +2405,7 @@ export function TaskDetailsDialog({
   const processDragRef = useRef<ProcessDragSession | null>(null);
   const processFlowContainerRef = useRef<HTMLDivElement | null>(null);
   const processFlowCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const issueRowRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const [processFlowContainerWidth, setProcessFlowContainerWidth] = useState(0);
   const detailsLayoutRef = useRef<HTMLDivElement | null>(null);
   const [topPaneHeight, setTopPaneHeight] = useState(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
@@ -2442,6 +2445,15 @@ export function TaskDetailsDialog({
       ? { ...issue, children: 'children' in issue ? issue.children : [] }
       : null;
     setSelectedIssue(nextIssue);
+    setEditingDescription(false);
+    setDescriptionDraft(nextIssue?.description || '');
+    setNewCommentDraft('');
+    setEditingCommentId(null);
+    setEditingCommentDraft('');
+  }, []);
+
+  const registerIssueRowRef = useCallback((issueId: number, element: HTMLDivElement | null) => {
+    issueRowRefs.current[issueId] = element;
   }, []);
 
   // Load master data when dialog opens
@@ -2527,6 +2539,10 @@ export function TaskDetailsDialog({
     setCreateIssueContext(null);
     setEditIssueContext(null);
     setViewIssueContext(null);
+    setEditingDescription(false);
+    setNewCommentDraft('');
+    setEditingCommentId(null);
+    setEditingCommentDraft('');
     onClose();
   }, [onClose, onTaskDatesUpdated]);
 
@@ -2837,12 +2853,17 @@ export function TaskDetailsDialog({
   };
 
   const handleVerticalResizeKeyDown = (e: React.KeyboardEvent) => {
-    const step = e.shiftKey ? 50 : 10;
-    if (e.key === 'ArrowUp') {
+    const step = e.shiftKey ? 50 : 24;
+    if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault();
       setTopPaneHeight((prev) => Math.max(100, prev - step));
-    } else if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+      e.preventDefault();
       if (!detailsLayoutRef.current) return;
-      const containerHeight = detailsLayoutRef.current.clientHeight;
+      const containerHeight =
+        detailsLayoutRef.current.clientHeight ||
+        detailsLayoutRef.current.getBoundingClientRect().height ||
+        DETAILS_LAYOUT_FALLBACK_HEIGHT_PX;
       setTopPaneHeight((prev) => Math.min(containerHeight - 100, prev + step));
     }
   };
@@ -2866,14 +2887,18 @@ export function TaskDetailsDialog({
   }, [issues]);
 
   const selectedIssueId = selectedIssue?.issue_id ?? null;
-  const handleTaskRowSelect = useCallback((issue: TreeNodeType) => {
-    if (selectedIssue?.issue_id === issue.issue_id) {
-      selectIssue(null);
-      return;
-    }
 
-    selectIssue(issue);
-  }, [selectIssue, selectedIssue]);
+  useEffect(() => {
+    if (!selectedIssueId) return;
+
+    const rowElement = issueRowRefs.current[selectedIssueId];
+    if (!rowElement) return;
+
+    rowElement.scrollIntoView({
+      block: 'center',
+      inline: 'nearest'
+    });
+  }, [selectedIssueId, issues]);
 
   const processFlowSteps = useMemo<ProcessFlowStep[]>(() => {
     const parentIssueIds = new Set(
@@ -2984,8 +3009,10 @@ export function TaskDetailsDialog({
       const session = processDragRef.current;
       if (!session) return;
 
-      if (session.moved) {
+      if (session.mode !== 'move' || session.moved) {
         setSuppressProcessClickIssueId(session.issueId);
+      }
+      if (session.moved) {
         const row = issuesRef.current.find((item) => item.issue_id === session.issueId);
         if (row) {
           await saveProcessFlowDates(row, session.currentStartDate, session.currentDueDate);
@@ -3082,7 +3109,7 @@ export function TaskDetailsDialog({
 
   const processFlowLaneHeight = Math.max(
     scaledLaneHeight,
-    34 + (maxProcessFlowLane + 1) * scaledBarHeight + maxProcessFlowLane * scaledBarSpacingY + 30
+    40 + (maxProcessFlowLane + 1) * scaledBarHeight + maxProcessFlowLane * scaledBarSpacingY + 40
   );
   const processFlowChartHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
   const processFlowBaseTopPadding = useMemo(() => {
@@ -3356,16 +3383,16 @@ export function TaskDetailsDialog({
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[6px] flex items-center justify-center p-4 transition-all duration-500 animate-in fade-in" onClick={handleClose}>
       <div
-        className="bg-white w-full max-w-[96vw] h-[92vh] rounded-[24px] shadow-brand-glow border border-gray-100 flex flex-col overflow-hidden transition-all transform animate-in slide-in-from-bottom-8 duration-700 ease-out font-sans"
+        className="report-surface-elevated flex h-[92vh] w-full max-w-[96vw] flex-col overflow-hidden font-sans transition-all transform animate-in slide-in-from-bottom-8 duration-700 ease-out"
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 flex items-center justify-between gap-3 bg-white relative z-40 border-b border-gray-200 flex-shrink-0 min-h-12 box-border">
+        <div className="px-5 py-2.5 flex items-center justify-between gap-2.5 bg-white relative z-40 border-b border-gray-200 flex-shrink-0 min-h-10 box-border">
           <div className="flex flex-row items-center gap-2.5 min-w-0">
             <div className="min-w-0">
               {drilldownPath.length > 1 && (
                 <nav
-                  className="mb-1.5 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[12px] font-medium font-sans text-[#8e8e93]"
+                  className="mb-1 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[11px] font-medium font-sans text-[#8e8e93]"
 
                   aria-label={t('timeline.breadcrumbAria', { defaultValue: 'Issue hierarchy' })}
                   data-testid="task-details-breadcrumb"
@@ -3392,7 +3419,7 @@ export function TaskDetailsDialog({
                   })}
                 </nav>
               )}
-              <h3 className="text-[28px] font-display font-semibold text-[var(--color-text-00)] flex items-center gap-3 min-w-0" data-testid="task-details-title">
+              <h3 className="text-[24px] leading-none font-display font-semibold text-[var(--color-text-00)] flex items-center gap-2 min-w-0" data-testid="task-details-title">
                 <span className="truncate">
 
 
@@ -3680,8 +3707,8 @@ export function TaskDetailsDialog({
                           issueId: issue.issue_id,
                           issueUrl: issue.issue_url
                         })}
-                        onSelectIssue={handleTaskRowSelect}
                         selectedIssueId={selectedIssue?.issue_id}
+                        registerRowRef={registerIssueRowRef}
                         masters={masters}
                         onFieldUpdate={handleFieldUpdate}
                         columnWidths={columnWidths}
@@ -3690,6 +3717,7 @@ export function TaskDetailsDialog({
                     ))}
                   </div>
                 </div>
+
               </div>
             </>
           )}

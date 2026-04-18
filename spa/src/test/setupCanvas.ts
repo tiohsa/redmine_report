@@ -12,6 +12,7 @@ const createCanvasContextStub = () => {
     fillText: vi.fn(),
     lineTo: vi.fn(),
     moveTo: vi.fn(),
+    arcTo: vi.fn(),
     rect: vi.fn(),
     restore: vi.fn(),
     roundRect: vi.fn(),

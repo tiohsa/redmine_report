@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useUiStore } from '../stores/uiStore';
 import { useTaskStore } from '../stores/taskStore';
 import { t } from '../i18n';
+import { reportStyles } from './designSystem';
 
 interface FilterToolbarProps {
   allVersions?: string[];
@@ -58,14 +59,14 @@ export function FilterToolbar(props: FilterToolbarProps) {
       : t('filter.projectsCount', { count: selectedCount });
 
   return (
-    <div className="schedule-report-filter-toolbar flex items-center gap-4 p-2 bg-gray-50 border-b border-gray-200">
+    <div className="schedule-report-filter-toolbar report-panel flex items-center gap-4 border border-gray-100 bg-[#fbfdff] p-4 shadow-none">
 
       {/* Project Selection */}
       <div className="flex items-center gap-2 relative" ref={projectDropdownRef}>
-        <label className="text-sm text-gray-600 font-medium">{t('filter.projects')}</label>
+        <label className="text-sm font-medium text-[#45515e]">{t('filter.projects')}</label>
         <button
           onClick={() => setIsProjectOpen(!isProjectOpen)}
-          className="bg-white border border-gray-300 text-gray-700 text-sm rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2 min-w-[200px] justify-between"
+          className="flex min-w-[200px] items-center justify-between gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)]"
         >
           <span className="truncate max-w-[180px]">{buttonLabel}</span>
           <svg className={`w-4 h-4 transition-transform ${isProjectOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,14 +75,14 @@ export function FilterToolbar(props: FilterToolbarProps) {
         </button>
 
         {isProjectOpen && (
-          <div className="absolute top-full left-0 mt-1 w-64 max-h-96 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50">
+          <div className={`${reportStyles.dropdownPanel} left-0 top-full mt-2 w-64 max-h-96 overflow-y-auto`}>
             {availableProjects.map((p) => {
               const isSelected = selectedProjectIdentifiers.includes(p.identifier);
               const isDisabled = p.selectable === false;
               return (
                 <div
                   key={p.project_id}
-                  className={`px-3 py-2 flex items-center gap-2 hover:bg-gray-50 cursor-pointer ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-gray-50 ${isDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
                   onClick={() => !isDisabled && toggleProject(p.identifier)}
                 >
                   <input
@@ -89,7 +90,7 @@ export function FilterToolbar(props: FilterToolbarProps) {
                     checked={isSelected}
                     readOnly
                     disabled={isDisabled}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-gray-300 text-[var(--color-primary-600)] focus:ring-[var(--color-primary-200)]"
                   />
                   <span className={`text-sm ${isSelected ? 'font-medium text-gray-900' : 'text-gray-700'}`} style={{ paddingLeft: `${p.level * 12}px` }}>
                     {p.name}
@@ -104,14 +105,14 @@ export function FilterToolbar(props: FilterToolbarProps) {
         )}
       </div>
 
-      <div className="h-6 w-px bg-gray-300 mx-2"></div>
+      <div className="mx-2 h-6 w-px bg-gray-200"></div>
 
       {/* Version Selection */}
       <div className="flex items-center gap-2 relative" ref={versionDropdownRef}>
-        <label className="text-sm text-gray-600 font-medium">{t('filter.versions')}</label>
+        <label className="text-sm font-medium text-[#45515e]">{t('filter.versions')}</label>
         <button
           onClick={() => setIsVersionOpen(!isVersionOpen)}
-          className="bg-white border border-gray-300 text-gray-700 text-sm rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2 min-w-[150px] justify-between"
+          className="flex min-w-[150px] items-center justify-between gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)]"
         >
           <span className="truncate max-w-[130px]">
             {selectedVersions.length === allVersions.length ? t('filter.allVersions') : t('filter.selectedCount', { count: selectedVersions.length })}
@@ -122,10 +123,10 @@ export function FilterToolbar(props: FilterToolbarProps) {
         </button>
 
         {isVersionOpen && onVersionChange && (
-          <div className="absolute top-full left-0 mt-1 w-64 max-h-96 overflow-y-auto bg-white border border-gray-200 rounded shadow-lg z-50">
-            <div className="p-2 border-b border-gray-100 flex justify-between bg-gray-50 sticky top-0 z-10">
+          <div className={`${reportStyles.dropdownPanel} left-0 top-full mt-2 w-64 max-h-96 overflow-y-auto`}>
+            <div className="sticky top-0 z-10 flex justify-between border-b border-gray-100 bg-[#fbfdff] p-2">
               <button
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                className="text-xs font-medium text-[var(--color-primary-600)] hover:text-[var(--color-primary-700)]"
                 onClick={() => onVersionChange(allVersions)}
               >
                 {t('filter.selectAll')}
@@ -140,7 +141,7 @@ export function FilterToolbar(props: FilterToolbarProps) {
             {allVersions.map((version) => (
               <div
                 key={version}
-                className="px-3 py-2 flex items-center gap-2 hover:bg-gray-50 cursor-pointer"
+                className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-gray-50"
                 onClick={() => {
                   if (selectedVersions.includes(version)) {
                     onVersionChange(selectedVersions.filter(v => v !== version));
@@ -153,9 +154,9 @@ export function FilterToolbar(props: FilterToolbarProps) {
                   type="checkbox"
                   checked={selectedVersions.includes(version)}
                   readOnly
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
+                  className="pointer-events-none rounded border-gray-300 text-[var(--color-primary-600)] focus:ring-[var(--color-primary-200)]"
                 />
-                <span className="text-sm text-gray-700 truncate">{version}</span>
+                <span className="truncate text-sm text-gray-700">{version}</span>
               </div>
             ))}
             {allVersions.length === 0 && (

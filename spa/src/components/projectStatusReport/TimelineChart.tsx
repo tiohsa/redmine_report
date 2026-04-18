@@ -15,6 +15,7 @@ import {
   prepareHiDPICanvas,
   truncateCanvasText
 } from './canvasTimelineRenderer';
+import { reportStyles } from '../designSystem';
 
 type TimelineChartProps = {
   timelineData: TimelineLane[];
@@ -98,12 +99,12 @@ const CHEVRON_RIGHT_HEAD_RATIO = 0.62;
 
 
 const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
-  labelClassName: isActive ? 'bg-[var(--color-brand-10)]' : 'bg-white',
+  labelClassName: isActive ? 'bg-sky-200/80' : 'bg-white',
   baseFill: isActive ? ACTIVE_LANE_BACKGROUND_FILL : (laneIndex % 2 === 0 ? '#ffffff' : '#fafafa')
 });
 
 const InlineReportSlot = ({ response, isLoading, errorMessage }: InlineReportSlotProps) => (
-  <section className="flex h-full flex-col gap-4 overflow-hidden rounded-[24px] border border-gray-200 bg-white p-6 shadow-brand-glow animate-in fade-in slide-in-from-top-4 duration-500 font-sans">
+  <section className={`${reportStyles.surfaceElevated} flex h-full flex-col gap-4 overflow-hidden p-6 animate-in fade-in slide-in-from-top-4 duration-500 font-sans`}>
     <div className="min-h-0 flex-1 overflow-auto">
       <AiResponsePanel response={response} isLoading={isLoading} errorMessage={errorMessage} />
     </div>

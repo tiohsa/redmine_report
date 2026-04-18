@@ -78,6 +78,10 @@ describe('TaskDetailsDialog', () => {
     createIssueMock.mockReset();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn()
+    });
 
     if (!(globalThis as any).ResizeObserver) {
       (globalThis as any).ResizeObserver = class {
@@ -619,7 +623,7 @@ describe('TaskDetailsDialog', () => {
     expect(indicators[0].getAttribute('aria-label')).toMatch(/1 comments|1件のコメント/);
   });
 
-  it('shows Redmine-like detail sections when an issue is selected', async () => {
+  it('does not open a detail pane when clicking a task row', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -654,13 +658,11 @@ describe('TaskDetailsDialog', () => {
 
     fireEvent.click(screen.getByTestId('task-title-cell-10'));
 
-    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Root issue');
-    expect(screen.getByTestId('task-details-description').textContent).toContain('Root description');
-    expect(screen.getByText('Alice')).toBeTruthy();
-    expect(screen.getByTestId('task-details-new-comment')).toBeTruthy();
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
+    expect(screen.getByTestId('task-row-10').getAttribute('data-selected')).toBe('false');
   });
 
-  it('shows empty detail states when description and comments are missing', async () => {
+  it('does not open a detail pane when clicking a task row with empty details', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -688,8 +690,8 @@ describe('TaskDetailsDialog', () => {
 
     fireEvent.click(screen.getByTestId('task-title-cell-10'));
 
-    expect(screen.getByTestId('task-details-description').textContent).toMatch(/No description|説明なし/);
-    expect(screen.getByTestId('task-details-no-comments').textContent).toMatch(/No comments|なし/);
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
+    expect(screen.getByTestId('task-row-10').getAttribute('data-selected')).toBe('false');
   });
 
   it('renders year and month headers and updates bar width when leaf dates change', async () => {
@@ -961,7 +963,7 @@ describe('TaskDetailsDialog', () => {
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
     const hitArea = screen.getByTestId('task-details-process-step-hit-11');
-    expect(hitArea.getAttribute('y')).toBe('93');
+    expect(hitArea.getAttribute('y')).toBe('96');
   });
 
   it('keeps process row spacing aligned when chartScale is not 1', async () => {
@@ -1014,7 +1016,7 @@ describe('TaskDetailsDialog', () => {
     expect(rowGap).toBe(105);
   });
 
-  it('selects a parent process bar on click without drilling down', async () => {
+  it('selects a parent process bar on click and scrolls the matching row into view', async () => {
     fetchTaskDetailsMock
       .mockResolvedValueOnce([
         {
@@ -1066,6 +1068,12 @@ describe('TaskDetailsDialog', () => {
         }
       ]);
 
+    const scrollIntoViewMock = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoViewMock
+    });
+
     render(
       <TaskDetailsDialog
         open
@@ -1083,7 +1091,52 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('task-details-title').textContent).toBe('Root issue #10');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
-    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Child issue');
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
+    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({ block: 'center', inline: 'nearest' });
+  });
+
+  it('keeps process bar selection working after a pointer down/up click without dragging', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Child issue',
+        start_date: '2026-03-03',
+        due_date: '2026-03-08',
+        done_ratio: 25,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const processBar = screen.getByTestId('task-details-process-step-hit-11');
+
+    fireEvent.pointerDown(processBar, { pointerId: 1, clientX: 120 });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 120 });
+    fireEvent.click(processBar);
+
+    expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
+    expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
   });
 
   it('drills down into a child subtree when the parent process bar is double-clicked', async () => {
@@ -1300,12 +1353,12 @@ describe('TaskDetailsDialog', () => {
     fireEvent.click(screen.getByTestId('task-details-process-step-hit-11'));
 
     expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Leaf issue');
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
   });
 
-  it('shows the right panel when clicking the title cell after drilldown', async () => {
+  it('does not open a detail pane when clicking the title cell after drilldown', async () => {
     fetchTaskDetailsMock
       .mockResolvedValueOnce([
         {
@@ -1375,89 +1428,90 @@ describe('TaskDetailsDialog', () => {
 
     fireEvent.click(screen.getByTestId('task-title-cell-11'));
 
-    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Child issue');
-    expect(screen.getByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeTruthy();
-  });
-
-  it('selects the process bar when clicking a task title cell', async () => {
-    fetchTaskDetailsMock.mockResolvedValue([
-      {
-        issue_id: 10,
-        parent_id: null,
-        subject: 'Root issue',
-        start_date: '2026-03-01',
-        due_date: '2026-03-20',
-        done_ratio: 0,
-        issue_url: '/issues/10'
-      },
-      {
-        issue_id: 11,
-        parent_id: 10,
-        subject: 'Leaf issue',
-        start_date: '2026-03-03',
-        due_date: '2026-03-08',
-        done_ratio: 25,
-        issue_url: '/issues/11'
-      }
-    ]);
-
-    render(
-      <TaskDetailsDialog
-        open
-        projectIdentifier="ecookbook"
-        issueId={10}
-        onClose={vi.fn()}
-      />
-    );
-
-    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByTestId('task-title-cell-11'));
-
-    expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
-    expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
-    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Leaf issue');
-  });
-
-  it('closes the right panel when clicking the same task title cell twice', async () => {
-    fetchTaskDetailsMock.mockResolvedValue([
-      {
-        issue_id: 10,
-        parent_id: null,
-        subject: 'Root issue',
-        start_date: '2026-03-01',
-        due_date: '2026-03-20',
-        done_ratio: 0,
-        issue_url: '/issues/10'
-      },
-      {
-        issue_id: 11,
-        parent_id: 10,
-        subject: 'Leaf issue',
-        start_date: '2026-03-03',
-        due_date: '2026-03-08',
-        done_ratio: 25,
-        issue_url: '/issues/11'
-      }
-    ]);
-
-    render(
-      <TaskDetailsDialog
-        open
-        projectIdentifier="ecookbook"
-        issueId={10}
-        onClose={vi.fn()}
-      />
-    );
-
-    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
-
-    fireEvent.click(screen.getByTestId('task-title-cell-11'));
-    expect(screen.getByTestId('task-details-selected-title').textContent).toBe('Leaf issue');
-
-    fireEvent.click(screen.getByTestId('task-title-cell-11'));
-
     expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
+    expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('false');
+    expect(screen.queryByTestId('task-details-process-step-hit-11')).toBeNull();
+    expect(screen.queryByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeNull();
+  });
+
+  it('does not select a process bar when clicking a task title cell', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-03-03',
+        due_date: '2026-03-08',
+        done_ratio: 25,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('task-title-cell-11'));
+
+    expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('false');
+    expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('false');
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
+  });
+
+  it('keeps task title clicks from changing the process selection', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 0,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-03-03',
+        due_date: '2026-03-08',
+        done_ratio: 25,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTestId('task-title-cell-11'));
+    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('task-title-cell-11'));
+
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('false');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('false');
   });
@@ -1538,16 +1592,16 @@ describe('TaskDetailsDialog', () => {
     const topPane = screen.getByTestId('task-details-top-pane');
     const resizer = screen.getByTestId('task-details-horizontal-resizer');
 
-    await waitFor(() => expect(topPane.style.height).toBe('180px'));
+    await waitFor(() => expect(topPane.style.height).toBe('182px'));
 
     resizer.focus();
     fireEvent.keyDown(resizer, { key: 'ArrowDown' });
 
-    await waitFor(() => expect(topPane.style.height).toBe('204px'));
+    await waitFor(() => expect(topPane.style.height).toBe('206px'));
 
     fireEvent.keyDown(resizer, { key: 'PageUp' });
 
-    await waitFor(() => expect(topPane.style.height).toBe('180px'));
+    await waitFor(() => expect(topPane.style.height).toBe('182px'));
   });
 
   it('auto fits the top pane again when the process flow height changes after reload', async () => {
@@ -1617,17 +1671,17 @@ describe('TaskDetailsDialog', () => {
     const reloadButton = screen.getByTitle('チケット一覧を再読込');
     const resizer = screen.getByTestId('task-details-horizontal-resizer');
 
-    await waitFor(() => expect(topPane.style.height).toBe('180px'));
+    await waitFor(() => expect(topPane.style.height).toBe('182px'));
 
     resizer.focus();
     fireEvent.keyDown(resizer, { key: 'ArrowDown' });
-    await waitFor(() => expect(topPane.style.height).toBe('204px'));
+    await waitFor(() => expect(topPane.style.height).toBe('206px'));
 
     fireEvent.click(reloadButton);
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(2));
     await waitFor(
-      () => expect(screen.getByTestId('task-details-top-pane').style.height).toBe('220px'),
+      () => expect(screen.getByTestId('task-details-top-pane').style.height).toBe('232px'),
       { timeout: 2000 }
     );
   });

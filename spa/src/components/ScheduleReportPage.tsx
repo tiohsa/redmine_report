@@ -193,7 +193,7 @@ export function ScheduleReportPage() {
       });
   }, [setSnapshot, setLoading, setError, filters, rootProjectIdentifier, currentProjectIdentifier, selectedProjectIdentifiers, refreshToken]);
   return (
-    <div className="schedule-report-page bg-white h-screen flex flex-col overflow-auto">
+    <div className="schedule-report-page report-page-shell">
       {showInitialLoading ? (
         <div className="flex items-center justify-center h-full text-gray-400">{t('common.loading')}</div>
       ) : (

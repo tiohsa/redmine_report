@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { t } from '../../i18n';
 import { createIssue, BulkIssuePayload } from './bulkIssueApi';
+import { reportStyles } from '../designSystem';
 
 interface BulkIssueRegistrationPanelProps {
   projectId: number;
@@ -58,25 +59,25 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
   };
 
   return (
-    <div className="mt-6 border-t border-slate-200 pt-4 pb-2" id="bulk-registration-accordion-container">
+    <div className="mt-6 rounded-[24px] border border-gray-100 bg-white p-5 shadow-subtle" id="bulk-registration-accordion-container">
       <button
         type="button"
-        className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
+        className="flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 font-semibold text-[#222222] transition-colors hover:text-[var(--color-primary-600)]"
         onClick={() => setIsOpen(!isOpen)}
       >
         <span
-          className="inline-block transition-transform duration-200"
-          style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            className="inline-block transition-transform duration-200"
+            style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
         >
           ▶
         </span>
-        <span className="text-[13px]">{t('bulkIssue.panelTitle')}</span>
+        <span className="text-[13px] uppercase tracking-[0.14em]">{t('bulkIssue.panelTitle')}</span>
       </button>
 
       {isOpen && (
-        <div className="mt-4">
+        <div className="mt-4 space-y-4">
           <textarea
-            className="w-full h-32 p-3 border border-slate-300 rounded focus:outline-none focus:border-blue-500 font-mono text-[13px] bg-white text-slate-800"
+            className={`${reportStyles.textarea} ${reportStyles.textareaMono} h-32 bg-[#f8fafc]`}
             placeholder={t('bulkIssue.placeholder')}
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
@@ -85,14 +86,14 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
           <div className="flex justify-end gap-2 mt-4">
             <button
               type="button"
-              className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-[13px] py-1.5 px-4 rounded shadow-sm transition-colors cursor-pointer"
+              className={reportStyles.pillSecondary}
               onClick={() => setIsOpen(false)}
             >
               {t('common.cancel')}
             </button>
             <button
               type="button"
-              className="bg-blue-600 hover:bg-blue-700 text-white text-[13px] py-1.5 px-4 rounded shadow-sm disabled:opacity-50 transition-colors cursor-pointer"
+              className={reportStyles.pillPrimary}
               disabled={isSubmitting || bulkText.trim() === '' || !parentIssueId}
               onClick={handleSubmit}
             >

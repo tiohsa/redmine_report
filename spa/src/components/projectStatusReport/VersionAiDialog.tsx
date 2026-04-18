@@ -14,6 +14,7 @@ import type {
 } from '../../types/weeklyReport';
 import { t, tList } from '../../i18n';
 import { CreateDestinationIssueDialog } from './CreateDestinationIssueDialog';
+import { reportStyles } from '../designSystem';
 
 type Props = {
   open: boolean;
@@ -240,25 +241,25 @@ export const VersionAiDialog = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4" onClick={onClose}>
       <div
-        className="relative w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col rounded-[24px] bg-white shadow-brand-glow border border-gray-100 animate-in fade-in zoom-in duration-300 font-sans"
+        className="report-surface-elevated relative flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden animate-in fade-in zoom-in duration-300 font-sans"
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex-none px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-white">
+        <div className="flex flex-none items-center justify-between border-b border-gray-100 bg-white px-8 py-6">
           <div className="flex items-center gap-4">
-            <div className="p-2.5 bg-[#f0f7ff] rounded-2xl">
+            <div className="rounded-2xl bg-[var(--color-primary-200)]/55 p-2.5">
               <svg className="w-6 h-6 text-[var(--color-brand-6)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z" fill="currentColor" fillOpacity="0.2" />
               </svg>
             </div>
             <div>
-              <h2 className="text-[24px] font-display font-medium text-[#222222] leading-tight">{t('weeklyDialog.title')}</h2>
-              <p className="text-[14px] text-[#45515e] font-sans font-medium">{versionName}</p>
+              <h2 className={reportStyles.sectionHeading}>{t('weeklyDialog.title')}</h2>
+              <p className="text-[14px] font-sans font-medium text-[#45515e]">{versionName}</p>
             </div>
           </div>
           <button
             type="button"
-            className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors cursor-pointer"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
             onClick={onClose}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -266,7 +267,7 @@ export const VersionAiDialog = ({
         </div>
 
         {/* Step Indicator */}
-        <div className="flex-none px-8 py-4 bg-slate-50/50 flex items-center justify-between border-b border-slate-100">
+        <div className="flex flex-none items-center justify-between border-b border-slate-100 bg-[#fbfdff] px-8 py-4">
           {tList('weeklyDialog.steps').map((label, idx) => {
             const step = idx + 1;
             return (
@@ -293,28 +294,28 @@ export const VersionAiDialog = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin scrollbar-thumb-slate-200">
+        <div className="flex-1 overflow-y-auto space-y-8 p-8 scrollbar-thin scrollbar-thumb-slate-200">
           {/* Section 1: Target Selection */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-3 text-[14px] font-sans font-bold text-[#222222]">
-              <div className="w-1.5 h-1.5 bg-[var(--color-brand-6)] rounded-full"></div>
+          <section className="report-panel space-y-4 p-6">
+            <div className="flex items-center gap-3 text-[14px] font-sans font-semibold text-[#222222]">
+              <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand-6)]"></div>
               {t('weeklyDialog.sectionTarget')}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('weeklyDialog.startDate')}</label>
+                <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400">{t('weeklyDialog.startDate')}</label>
                 <input
                   type="date"
-                  className="w-full h-10 px-4 rounded-xl border-none bg-slate-50 text-slate-700 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer"
+                  className={reportStyles.input}
                   value={weekFrom}
                   onChange={(e) => setWeekFrom(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('weeklyDialog.endDate')}</label>
+                <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400">{t('weeklyDialog.endDate')}</label>
                 <input
                   type="date"
-                  className="w-full h-10 px-4 rounded-xl border-none bg-slate-50 text-slate-700 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer"
+                  className={reportStyles.input}
                   value={weekTo}
                   onChange={(e) => setWeekTo(e.target.value)}
                 />
@@ -322,7 +323,7 @@ export const VersionAiDialog = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t('weeklyDialog.destinationIssueId')}</label>
+              <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400">{t('weeklyDialog.destinationIssueId')}</label>
               <div className="flex items-center gap-3">
                 <div className="relative group w-48">
                   <input
@@ -334,7 +335,7 @@ export const VersionAiDialog = ({
                       setDestinationIssueId(e.target.value);
                       setValidation(null);
                     }}
-                    className="w-full h-10 pl-4 pr-10 rounded-xl border-none bg-slate-50 text-slate-700 text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                    className={`${reportStyles.input} pr-10`}
                   />
                   {validation && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -350,7 +351,7 @@ export const VersionAiDialog = ({
                   type="button"
                   title={t('weeklyDialog.createDestinationIssue')}
                   onClick={() => setCreateTicketOpen(true)}
-                  className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-indigo-600 transition-all cursor-pointer flex-shrink-0"
+                  className={`${reportStyles.iconButtonMuted} h-10 w-10 flex-shrink-0 rounded-[16px]`}
                 >
                   <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -360,7 +361,7 @@ export const VersionAiDialog = ({
                   type="button"
                   onClick={validateDestination}
                   disabled={loadingValidate || !destinationIssueId}
-                  className="h-10 px-6 rounded-xl bg-slate-700 text-white text-[11px] font-black tracking-tight hover:bg-slate-800 transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-slate-100"
+                  className={reportStyles.pillPrimary}
                 >
                   {loadingValidate ? t('weeklyDialog.validating') : t('weeklyDialog.validateDestination')}
                 </button>
@@ -368,7 +369,7 @@ export const VersionAiDialog = ({
                   type="button"
                   onClick={saveMapping}
                   disabled={!destinationValid}
-                  className="h-10 px-6 rounded-xl bg-emerald-600 text-white text-[11px] font-black tracking-tight hover:bg-emerald-700 transition-all disabled:opacity-50 cursor-pointer shadow-lg shadow-emerald-50"
+                  className={reportStyles.pillPrimary}
                 >
                   {t('weeklyDialog.saveSetting')}
                 </button>
@@ -378,17 +379,17 @@ export const VersionAiDialog = ({
           </section>
 
           {/* Section 2: AI Prompt */}
-          <section className="space-y-4">
+          <section className="report-panel space-y-4 p-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-[14px] font-sans font-bold text-[#222222]">
-                <div className="w-1.5 h-1.5 bg-[var(--color-brand-6)] rounded-full"></div>
+              <div className="flex items-center gap-3 text-[14px] font-sans font-semibold text-[#222222]">
+                <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand-6)]"></div>
                 {t('weeklyDialog.sectionPrompt')}
               </div>
               <button
                 type="button"
                 onClick={preparePrompt}
                 disabled={loadingPrepare}
-                className="group relative h-10 px-6 overflow-hidden rounded-xl bg-indigo-700 text-white text-[11px] font-black tracking-tight transition-all hover:bg-indigo-800 hover:shadow-xl hover:shadow-indigo-100 disabled:opacity-70 cursor-pointer"
+                className={`${reportStyles.pillPrimary} group relative`}
               >
                 <div className="relative z-10 flex items-center gap-2">
                   {loadingPrepare ? (
@@ -403,12 +404,12 @@ export const VersionAiDialog = ({
             {promptText && (
               <div className="relative group animate-in zoom-in-95 duration-300">
                 <textarea
-                  className="w-full min-h-[160px] p-6 rounded-[16px] bg-slate-50 border-none text-[13px] text-[#222222] font-mono leading-relaxed focus:ring-2 focus:ring-blue-500/10 transition-all"
+                  className={`${reportStyles.textarea} ${reportStyles.textareaMono} min-h-[160px] bg-[#f8fafc] p-6`}
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value)}
                 />
                 <button
-                  className="absolute top-4 right-4 p-2 bg-white rounded-lg shadow-sm text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all border border-slate-100 cursor-pointer"
+                  className="absolute right-4 top-4 rounded-lg border border-slate-100 bg-white p-2 text-slate-400 opacity-0 shadow-sm transition-all hover:text-indigo-600 group-hover:opacity-100 cursor-pointer"
                   title={t('common.copy')}
                   onClick={() => {
                     navigator.clipboard.writeText(promptText);
@@ -420,7 +421,7 @@ export const VersionAiDialog = ({
               </div>
             )}
             {prepared && (
-              <div className="px-4 py-2 bg-indigo-50/50 rounded-lg text-[10px] text-indigo-600 font-bold tracking-tight inline-flex items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-lg bg-indigo-50/50 px-4 py-2 text-[10px] font-bold tracking-tight text-indigo-600">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path></svg>
                 {t('weeklyDialog.preparedSummary', { week: prepared.header_preview.week, count: prepared.tickets.length })}
               </div>
@@ -428,17 +429,17 @@ export const VersionAiDialog = ({
           </section>
 
           {/* Section 3: AI Generation */}
-          <section className="space-y-4">
+          <section className="report-panel space-y-4 p-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-[14px] font-sans font-bold text-[#222222]">
-                <div className="w-1.5 h-1.5 bg-[var(--color-brand-6)] rounded-full"></div>
+              <div className="flex items-center gap-3 text-[14px] font-sans font-semibold text-[#222222]">
+                <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand-6)]"></div>
                 {t('weeklyDialog.sectionPreview')}
               </div>
               <button
                 type="button"
                 onClick={submitToLlm}
                 disabled={loadingGenerate || !promptText}
-                className="group relative h-11 px-8 overflow-hidden rounded-full bg-[#181e25] text-white text-[14px] font-sans font-semibold transition-all hover:bg-black hover:shadow-xl hover:shadow-gray-200 disabled:opacity-50 cursor-pointer shadow-subtle"
+                className={`${reportStyles.pillPrimary} group relative`}
               >
                 <div className="relative z-10 flex items-center gap-2">
                   {loadingGenerate ? (
@@ -450,7 +451,7 @@ export const VersionAiDialog = ({
                 </div>
               </button>
             </div>
-            <div className="bg-slate-50 rounded-2xl p-6 min-h-[120px] relative animate-in slide-in-from-bottom-2 duration-500">
+            <div className="report-panel-muted relative min-h-[120px] animate-in slide-in-from-bottom-2 duration-500 p-6">
               <div className="prose prose-sm prose-slate max-w-none text-xs text-slate-700 leading-relaxed font-medium">
                 <div className="mb-4 flex items-center gap-2 text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-2">
                   {(generated?.header_preview.week || prepared?.header_preview.week || isoWeekKey(weekFrom) || '-')}{' '}
@@ -459,7 +460,7 @@ export const VersionAiDialog = ({
                 <textarea
                   aria-label={t('weeklyDialog.previewBodyAria')}
                   placeholder={t('weeklyDialog.previewPlaceholder')}
-                  className="w-full min-h-[220px] whitespace-pre-wrap rounded-xl bg-white border border-slate-200 p-3 text-xs leading-relaxed font-sans focus:ring-2 focus:ring-violet-500/20"
+                  className={`${reportStyles.textarea} ${reportStyles.textareaMono} min-h-[220px] whitespace-pre-wrap bg-white p-3`}
                   value={editableMarkdown}
                   onChange={(e) => setEditableMarkdown(e.target.value)}
                 />
@@ -468,7 +469,7 @@ export const VersionAiDialog = ({
           </section>
 
           {error && (
-            <div className="px-5 py-4 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-3 animate-in shake duration-500">
+            <div className="report-alert-error flex items-center gap-3 animate-in shake duration-500">
               <svg className="w-5 h-5 text-rose-500 flex-none" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path></svg>
               <div className="text-xs font-bold text-rose-700 leading-snug">{error}</div>
             </div>
@@ -476,7 +477,7 @@ export const VersionAiDialog = ({
         </div>
 
         {/* Footer */}
-        <div className="flex-none px-8 py-6 bg-white border-t border-gray-50 flex items-center justify-between">
+        <div className="flex flex-none items-center justify-between border-t border-gray-100 bg-white px-8 py-6">
           <div className="flex items-center gap-2">
             {message && <span className="text-sm font-semibold text-emerald-600 animate-in fade-in slide-in-from-bottom-1">{message}</span>}
           </div>
@@ -484,7 +485,7 @@ export const VersionAiDialog = ({
             <button
               type="button"
               onClick={onClose}
-              className="h-11 px-6 rounded-full text-[#45515e] text-[14px] font-sans font-medium hover:bg-gray-50 transition-all cursor-pointer"
+              className={reportStyles.pillSecondary}
             >
               {t('common.close')}
             </button>
@@ -492,7 +493,7 @@ export const VersionAiDialog = ({
               type="button"
               onClick={saveReport}
               disabled={!saveEnabled || loadingSave}
-              className="relative group h-11 px-10 overflow-hidden rounded-full bg-[var(--color-brand-6)] text-white text-[14px] font-sans font-semibold transition-all hover:opacity-90 hover:shadow-xl hover:shadow-blue-100 disabled:opacity-30 cursor-pointer shadow-subtle"
+              className={reportStyles.pillPrimary}
             >
               <div className="relative z-10 flex items-center gap-2">
                 {loadingSave ? (

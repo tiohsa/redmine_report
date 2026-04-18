@@ -51,7 +51,12 @@ export const messages = {
       fullscreen: 'Fullscreen',
       export: 'Export',
       detailTitle: 'Detailed Report',
-      aiSuffix: '(AI Responses)'
+      aiSuffix: '(AI Responses)',
+      overview: 'Overview',
+      projectScope: 'Projects',
+      versionScope: 'Versions',
+      taskCount: 'Tasks',
+      noneSelected: 'None selected'
     },
     detailedTabs: {
       projectsAria: 'Projects',
@@ -255,7 +260,12 @@ export const messages = {
       fullscreen: '全画面表示',
       export: 'エクスポート',
       detailTitle: '詳細レポート',
-      aiSuffix: '(生成AIレスポンス)'
+      aiSuffix: '(生成AIレスポンス)',
+      overview: '概要',
+      projectScope: 'プロジェクト',
+      versionScope: 'バージョン',
+      taskCount: '件数',
+      noneSelected: '未選択'
     },
     detailedTabs: {
       projectsAria: 'プロジェクト',
