@@ -73,13 +73,17 @@ const createChevronPath = (
   const { rightHeadDepth } = getChevronMetrics(width, pointDepth);
   const rightBaseX = x + Math.max(width - rightHeadDepth, 4);
   const rightTipX = x + width;
+  const radius = Math.min(height / 2, 8); // Modern rounding
 
   ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x, y + height);
-  ctx.lineTo(rightBaseX, y + height);
-  ctx.lineTo(rightTipX, y + height / 2);
+  ctx.moveTo(x + radius, y);
   ctx.lineTo(rightBaseX, y);
+  ctx.lineTo(rightTipX, y + height / 2);
+  ctx.lineTo(rightBaseX, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.arcTo(x, y + height, x, y + height - radius, radius);
+  ctx.lineTo(x, y + radius);
+  ctx.arcTo(x, y, x + radius, y, radius);
   ctx.closePath();
 };
 
@@ -155,9 +159,9 @@ const fillProgressShape = (
 
 const withShadow = (ctx: CanvasRenderingContext2D, enabled?: boolean) => {
   if (!enabled) return;
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
-  ctx.shadowBlur = 2;
-  ctx.shadowOffsetY = 1;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.08)'; // MiniMax standard shadow opacity
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
 };
 
 export const prepareHiDPICanvas = (

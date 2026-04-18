@@ -373,13 +373,13 @@ export const ProjectStatusReport = ({
         }
     };
 
-    const iconButtonStyle = "p-2 rounded-full text-[#45515e] hover:text-[#222222] hover:bg-[rgba(0,0,0,0.05)] transition-colors relative cursor-pointer";
-    const activeIconButtonStyle = "p-2 rounded-full text-[var(--color-brand-6)] bg-[var(--color-primary-200)] hover:text-[var(--color-primary-700)] transition-colors relative shadow-subtle cursor-pointer";
+    const iconButtonStyle = "p-2 rounded-[9999px] text-[#45515e] hover:text-[#222222] hover:bg-[rgba(0,0,0,0.05)] transition-all duration-300 relative cursor-pointer";
+    const activeIconButtonStyle = "p-2 rounded-[9999px] text-[var(--color-brand-6)] bg-[var(--color-primary-200)] hover:text-[var(--color-primary-700)] transition-all duration-300 relative shadow-subtle cursor-pointer";
     const headerIconStyle = "w-5 h-5";
-    const filterDropdownPanelStyle = "absolute top-full left-0 mt-2 w-72 max-h-[420px] bg-white border border-gray-200 rounded-[13px] shadow-elevated z-50 overflow-hidden font-sans";
-    const filterDropdownTitleStyle = "px-4 pt-4 pb-2 text-[13px] font-semibold text-[#222222] font-poppins";
-    const filterDropdownRowStyle = "px-4 py-2.5 flex items-center gap-3 text-[15px] text-[#45515e] hover:bg-gray-50 cursor-pointer font-sans";
-    const filterDropdownDividerStyle = "border-t border-gray-200 mx-4";
+    const filterDropdownPanelStyle = "absolute top-full left-0 mt-3 w-72 max-h-[420px] bg-white border border-gray-100 rounded-[20px] shadow-elevated z-50 overflow-hidden font-sans animate-in fade-in slide-in-from-top-2 duration-300";
+    const filterDropdownTitleStyle = "px-5 pt-5 pb-3 text-[14px] font-semibold text-[#222222] font-display";
+    const filterDropdownRowStyle = "px-5 py-3 flex items-center gap-3 text-[15px] text-[#45515e] hover:bg-gray-50 cursor-pointer font-sans transition-colors";
+    const filterDropdownDividerStyle = "border-t border-gray-100 mx-5";
     const filterDropdownClearLinkStyle = "text-[var(--color-primary-600)] hover:text-[var(--color-primary-700)] hover:underline text-sm cursor-pointer bg-transparent border-0 p-0 m-0 shadow-none appearance-none outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 font-sans font-medium";
 
     return (
@@ -600,7 +600,7 @@ export const ProjectStatusReport = ({
                                 </span>
                             </button>
                             {isSizeOpen && (
-                                <div className="absolute top-full right-0 mt-2 w-28 bg-white rounded-xl shadow-xl z-50 overflow-hidden">
+                                <div className="absolute top-full right-0 mt-3 w-32 bg-white rounded-[16px] border border-gray-100 shadow-elevated z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
                                     {[
                                         { label: 'S', value: 0.5 },
                                         { label: 'M', value: 0.75 },
@@ -793,11 +793,11 @@ export const ProjectStatusReport = ({
                 </div>
 
 
-                {isDateRangeDialogOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] px-4" role="dialog" aria-modal="true" aria-label={t('filter.dateRange')}>
-                        <div className="w-full max-w-md rounded-[24px] border border-gray-200 bg-white p-8 shadow-brand-glow animate-in fade-in zoom-in duration-300">
-                            <h2 className="text-[28px] font-display font-medium text-[#222222]">{t('filter.dateRange')}</h2>
-                            <p className="mt-2 text-[14px] text-[#45515e] font-sans">{t('filter.dateRangeDescription')}</p>
+                 {isDateRangeDialogOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[4px] px-4" role="dialog" aria-modal="true" aria-label={t('filter.dateRange')}>
+                        <div className="w-full max-w-md rounded-[24px] border border-gray-100 bg-white p-8 shadow-brand-glow animate-in fade-in zoom-in slide-in-from-bottom-4 duration-500">
+                            <h2 className="text-[31px] font-display font-semibold text-[#222222] leading-tight">{t('filter.dateRange')}</h2>
+                            <p className="mt-3 text-[16px] text-[#45515e] font-sans leading-relaxed">{t('filter.dateRangeDescription')}</p>
                             <div className="mt-6 grid grid-cols-1 gap-5">
                                 <label className="text-[13px] font-sans font-medium uppercase text-[#8e8e93] tracking-wide">
                                     {t('weeklyDialog.startDate')}

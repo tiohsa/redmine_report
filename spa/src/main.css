@@ -21,6 +21,7 @@
 
   --color-text-00: #222222;
   --color-text-04: #45515e;
+  --color-text-muted: #8e8e93;
 
   /* Custom Shadow utilities based on DESIGN.md */
   --shadow-subtle: 0px 4px 6px rgba(0, 0, 0, 0.08);
@@ -28,6 +29,11 @@
   --shadow-brand-glow: 0px 0px 15px rgba(44, 30, 116, 0.16);
   --shadow-brand-glow-offset: 6.5px 2px 17.5px rgba(44, 30, 116, 0.11);
   --shadow-elevated: 0px 12px 16px -4px rgba(36, 36, 36, 0.08);
+
+  /* Border Radii */
+  --radius-pill: 9999px;
+  --radius-generous: 24px;
+  --radius-standard: 13px;
 }
 
 /* Minimalist Scrollbar Style */
@@ -138,6 +144,30 @@
 
     .markdown-body hr {
         @apply border-t border-gray-200 my-3;
+    }
+
+    .pill-button {
+        @apply rounded-[9999px] transition-all duration-300 font-sans font-medium flex items-center justify-center cursor-pointer;
+    }
+
+    .pill-button-primary {
+        @apply rounded-[9999px] transition-all duration-300 font-sans font-medium flex items-center justify-center cursor-pointer bg-[#181e25] text-white hover:bg-black px-5 py-2;
+    }
+
+    .pill-button-nav {
+        @apply rounded-[9999px] transition-all duration-300 font-sans font-medium flex items-center justify-center cursor-pointer bg-[rgba(0,0,0,0.05)] text-[#18181b] hover:bg-[rgba(0,0,0,0.1)] px-4 py-1.5;
+    }
+
+    .premium-card {
+        @apply bg-white rounded-[24px] shadow-subtle border border-gray-100 transition-all duration-300 hover:shadow-brand-glow;
+    }
+
+    .progress-track {
+        @apply h-2 w-full bg-gray-100 rounded-[9999px] overflow-hidden relative;
+    }
+
+    .progress-fill {
+        @apply absolute left-0 top-0 bottom-0 rounded-[9999px] transition-all duration-500;
     }
 
     .markdown-body > *:first-child {

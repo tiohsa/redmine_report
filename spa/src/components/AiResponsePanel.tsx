@@ -40,13 +40,13 @@ const Section = ({
   const html = renderMarkdown(body);
 
   return (
-    <div className={`${PANEL_CARD_BASE} flex flex-col h-full`}>
+    <div className={`${PANEL_CARD_BASE} flex flex-col h-full hover:shadow-brand-glow-offset transition-all duration-500`}>
       <div
-        className={`${headerColor} px-6 py-6 text-white text-[20px] font-display font-semibold tracking-wide flex items-center justify-between min-h-[68px] opacity-95`}
+        className={`${headerColor} px-8 py-7 text-white text-[22px] font-display font-bold tracking-tight flex items-center justify-between min-h-[80px] opacity-95`}
       >
         <span>{title}</span>
       </div>
-      <div className={`${PANEL_SECTION_BODY} flex-1`}>
+      <div className="p-8 flex-1">
         {isEditing ? (
           <textarea
             value={body}
@@ -62,14 +62,14 @@ const Section = ({
             }}
             autoFocus
             rows={8}
-            className="w-full min-h-[190px] rounded-[11px] border border-gray-200 bg-white px-3 py-2.5 text-[16px] text-[#222222] font-sans leading-[1.50] outline-none shadow-none focus:border-[#45515e]"
+            className="w-full min-h-[220px] rounded-[16px] border border-gray-100 bg-[#f8fafc] px-5 py-4 text-[16px] text-[#222222] font-sans leading-relaxed outline-none focus:ring-2 focus:ring-[var(--color-primary-200)] transition-all"
             data-testid={`ai-section-editor-${sectionKey}`}
           />
         ) : (
           <div
             role="button"
             tabIndex={0}
-            className="rounded-xl -m-1 p-1.5 cursor-text hover:bg-slate-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+            className="rounded-[16px] -m-2 p-2 cursor-text hover:bg-slate-50 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
             onClick={() => onStartEdit(sectionKey)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -81,11 +81,11 @@ const Section = ({
           >
             {html ? (
               <div
-                className="markdown-body"
+                className="markdown-body font-sans text-[15px] leading-relaxed text-[#45515e]"
                 dangerouslySetInnerHTML={{ __html: html }}
               />
             ) : (
-              <p className="text-sm text-slate-400 text-center py-4">{t('common.noInfo')}</p>
+              <p className="text-[14px] text-slate-400 text-center py-6 font-sans italic">{t('common.noInfo')}</p>
             )}
           </div>
         )}

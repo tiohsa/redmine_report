@@ -346,7 +346,7 @@ export function TimelineChart({
                       <button
                         type="button"
                         aria-label={t('timeline.startAiAria', { versionName: project.versionName })}
-                        className="group h-7 w-7 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:border-[var(--color-brand-6)] hover:bg-[var(--color-primary-200)] transition-all duration-300 shadow-subtle cursor-pointer overflow-hidden relative"
+                        className="group h-8 px-3 flex items-center gap-2 rounded-[9999px] border border-gray-100 bg-white hover:border-[var(--color-brand-6)] hover:bg-[var(--color-primary-200)] transition-all duration-300 shadow-subtle cursor-pointer overflow-hidden relative"
                         onClick={(event) => {
                           event.stopPropagation();
                           onVersionAiClick?.({
@@ -373,19 +373,13 @@ export function TimelineChart({
                             d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z"
                             fill={`url(#ai-grad-${project.versionId})`}
                           />
-                          <path
-                            d="M6 4L7 5M17 19L18 20M4 6L6 7M18 4L20 5M6 20L4 18M20 18L18 19"
-                            stroke={`url(#ai-grad-${project.versionId})`}
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            opacity="0.5"
-                          />
                         </svg>
+                        <span className="text-[11px] font-semibold text-[#45515e] group-hover:text-[var(--color-brand-6)]">AI</span>
                       </button>
                       <button
                         type="button"
                         aria-label={t('timeline.showDetailAria', { versionName: project.versionName })}
-                        className="group h-7 w-7 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:border-[var(--color-brand-6)] hover:bg-[var(--color-primary-200)] transition-all duration-300 shadow-subtle cursor-pointer overflow-hidden relative"
+                        className="group h-8 px-3 flex items-center gap-2 rounded-[9999px] border border-gray-100 bg-white hover:border-[var(--color-brand-6)] hover:bg-[var(--color-primary-200)] transition-all duration-300 shadow-subtle cursor-pointer overflow-hidden relative"
                         onClick={(event) => {
                           event.stopPropagation();
                           onVersionReportClick?.({
@@ -412,6 +406,7 @@ export function TimelineChart({
                             strokeLinejoin="round"
                           />
                         </svg>
+                        <span className="text-[11px] font-semibold text-[#45515e] group-hover:text-[var(--color-brand-6)]">{t('common.detail', { defaultValue: 'Detail' })}</span>
                       </button>
                     </div>
                   ) : (

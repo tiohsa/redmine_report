@@ -49,6 +49,8 @@ type TaskDetailsDialogProps = {
 
 type TreeNodeType = TaskDetailIssue & { children: TreeNodeType[] };
 
+type TableDensity = 'compact' | 'standard' | 'relaxed';
+
 type IssueTreeNodeProps = {
   node: TreeNodeType;
   depth: number;
@@ -65,6 +67,7 @@ type IssueTreeNodeProps = {
   masters: TaskMasters | null;
   onFieldUpdate: (issueId: number, field: string, value: string | number | null) => Promise<void>;
   columnWidths: Record<string, number>;
+  density: TableDensity;
 };
 
 type EditingCell = { field: string; value: string };
@@ -142,30 +145,71 @@ const DETAILS_TOP_PANE_MIN_HEIGHT_PX = 180;
 const DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX = 240;
 const DETAILS_LAYOUT_FALLBACK_HEIGHT_PX = 760;
 
+const TABLE_DENSITY_STORAGE_KEY = 'redmine_report_task_details_density';
 const COLUMN_WIDTH_STORAGE_KEY = 'redmine_report_task_details_column_widths';
+
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
-  task: 280,
-  comments: 56,
-  tracker: 90,
-  priority: 90,
-  status: 80,
+  task: 300,
+  comments: 80,
+  tracker: 120,
+  priority: 100,
+  status: 120,
   progress: 120,
-  startDate: 130,
-  dueDate: 130,
-  assignee: 120
+  startDate: 110,
+  dueDate: 110,
+  assignee: 150
+};
+
+const DENSITY_CONFIG = {
+  compact: {
+    rowHeight: 'min-h-[38px]',
+    headerHeight: 'h-9',
+    subjectSize: 'text-[12px]',
+    badgeSize: 'text-[10px]',
+    iconSize: 'w-3.5 h-3.5',
+    idSize: 'text-[10px]',
+    cellPadding: 'px-6',
+    progressTextSize: 'text-[10px]',
+    progressGap: 'gap-2',
+    dateSize: 'text-[10px]'
+  },
+  standard: {
+    rowHeight: 'min-h-[52px]',
+    headerHeight: 'h-11',
+    subjectSize: 'text-[14px]',
+    badgeSize: 'text-[11px]',
+    iconSize: 'w-4 h-4',
+    idSize: 'text-xs',
+    cellPadding: 'px-6',
+    progressTextSize: 'text-[12px]',
+    progressGap: 'gap-3',
+    dateSize: 'text-[11px]'
+  },
+  relaxed: {
+    rowHeight: 'min-h-[64px]',
+    headerHeight: 'h-14',
+    subjectSize: 'text-[16px]',
+    badgeSize: 'text-[12px]',
+    iconSize: 'w-4.5 h-4.5',
+    idSize: 'text-sm',
+    cellPadding: 'px-6',
+    progressTextSize: 'text-[13px]',
+    progressGap: 'gap-4',
+    dateSize: 'text-[12px]'
+  }
 };
 
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY: string = "var(--font-sans)";
-const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[52px] transition-colors relative group px-4 border-b border-gray-100 font-sans text-[var(--color-text-00)]';
-const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-full px-3 py-1 text-[12px] font-medium font-sans truncate shadow-none transition-all';
-const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 px-4 rounded-full border border-gray-200 bg-[#f0f0f0] text-[13px] font-medium font-sans text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer';
+const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[56px] transition-all duration-200 relative group px-6 border-b border-gray-100 font-sans text-[var(--color-text-04)]';
+const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 text-[11px] font-semibold font-sans truncate transition-all duration-300';
+const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 px-4 rounded-[9999px] border border-gray-200 bg-white text-[13px] font-medium font-sans text-[#222222] hover:bg-gray-100 transition-colors cursor-pointer shadow-subtle';
 
-const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 w-8 rounded-full bg-[rgba(0,0,0,0.05)] text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer';
-const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-[80px] px-5 rounded-full bg-[#181e25] text-[13px] font-semibold font-sans text-[#ffffff] hover:bg-black transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm';
+const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-[9999px] bg-[rgba(0,0,0,0.04)] text-[#45515e] hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222] transition-all duration-300 cursor-pointer';
+const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-9 min-w-[100px] px-6 rounded-[9999px] bg-[#181e25] text-[13px] font-semibold font-sans text-[#ffffff] hover:bg-black transition-all shadow-subtle disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
 
-const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[12px] font-display font-medium uppercase text-[#8e8e93] tracking-wider';
-const REDMINE_DIALOG_TEXTAREA_CLASS = 'w-full min-h-[100px] resize-y border border-gray-200 rounded-[12px] bg-white px-4 py-3 text-[16px] leading-[1.50] font-sans text-[#222222] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)] focus:border-[var(--color-primary-500)] transition-all';
-const REDMINE_DIALOG_SECTION_CLASS = 'border-b border-gray-100 px-6 py-5';
+const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[13px] font-display font-semibold uppercase text-[#18181b] tracking-wider';
+const REDMINE_DIALOG_TEXTAREA_CLASS = 'w-full min-h-[120px] resize-y border border-gray-100 rounded-[16px] bg-[#f8fafc] px-4 py-3 text-[16px] leading-[1.50] font-sans text-[#222222] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)] focus:border-[var(--color-primary-500)] transition-all';
+const REDMINE_DIALOG_SECTION_CLASS = 'border-b border-gray-50 px-8 py-6';
 const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   #issue-form p:has(#issue_subject),
                   #new_issue p:has(#issue_subject),
@@ -451,7 +495,8 @@ const IssueTreeNode = ({
   selectedIssueId,
   masters,
   onFieldUpdate,
-  columnWidths
+  columnWidths,
+  density
 }: IssueTreeNodeProps) => {
   const progressRatio = Math.max(0, Math.min(100, Number(node.done_ratio ?? 0)));
   const isDone = progressRatio === 100;
@@ -617,7 +662,7 @@ const IssueTreeNode = ({
       <div
         data-testid={`task-row-${node.issue_id}`}
         data-selected={isSelected ? 'true' : 'false'}
-        className={`${TASK_ROW_BASE_CLASS} ${isSelected ? 'bg-[var(--color-brand-10)] shadow-[inset_0_0_0_1px_var(--color-brand-200)]' : 'bg-white hover:bg-slate-50/80 hover:shadow-subtle'}
+        className={`flex items-center ${DENSITY_CONFIG[density].rowHeight} transition-all duration-200 relative group px-6 border-b border-gray-100 font-sans text-[var(--color-text-04)] ${isSelected ? 'bg-[rgba(20,86,240,0.04)] shadow-[inset_0_0_0_1px_rgba(20,86,240,0.1)]' : 'bg-white hover:bg-slate-50'}
 `}
       >
         {/* Tree connectors */}
@@ -649,7 +694,7 @@ const IssueTreeNode = ({
 
         {/* TASK Column */}
         <div
-          className="shrink-0 flex items-center border-r border-slate-200/80 self-stretch"
+          className="shrink-0 flex items-center border-r border-slate-200/80 self-stretch overflow-hidden"
           style={{ paddingLeft: `${depth * 20}px`, width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}
           onClick={() => onSelectIssue?.(node)}
           data-testid={`task-title-cell-${node.issue_id}`}
@@ -661,7 +706,7 @@ const IssueTreeNode = ({
                 className="p-0.5 !border-0 ring-0 shadow-none bg-transparent appearance-none rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 focus:outline-none cursor-pointer flex-shrink-0 z-10"
                 onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                <svg className={DENSITY_CONFIG[density].iconSize} fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
                   {collapsed
                     ? <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     : <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -672,14 +717,14 @@ const IssueTreeNode = ({
           </div>
           <div className="flex items-center min-w-0 z-10 flex-1">
             <span
-              className="flex-shrink-0 text-slate-400 text-xs font-semibold mr-1.5 cursor-pointer hover:text-blue-500"
+              className={`flex-shrink-0 text-slate-400 ${DENSITY_CONFIG[density].idSize} font-semibold mr-1.5 cursor-pointer hover:text-blue-500`}
               onClick={(e) => { e.stopPropagation(); onSelectIssue?.(node); }}
             >#{node.issue_id}</span>
             {isEditing('subject') ? (
               <input
                 ref={inputRef}
                 type="text"
-                className="flex-1 text-[13px] h-8 px-2 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-800 min-w-0 shadow-sm"
+                className={`flex-1 ${DENSITY_CONFIG[density].subjectSize} h-8 px-2 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-800 min-w-0 shadow-sm`}
                 value={editingCell!.value}
                 onChange={(e) => setEditingCell({ field: 'subject', value: e.target.value })}
                 onBlur={() => { void commitEdit('subject', editingCell!.value); }}
@@ -689,7 +734,7 @@ const IssueTreeNode = ({
             ) : (
               <span
                 data-testid="task-subject"
-                className={`text-[14px] leading-5 ${depth === 0 ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'} truncate hover:text-blue-700 block cursor-pointer`}
+                className={`${DENSITY_CONFIG[density].subjectSize} leading-5 ${depth === 0 ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'} truncate hover:text-blue-700 block cursor-pointer`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onViewIssue(node);
@@ -707,7 +752,7 @@ const IssueTreeNode = ({
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddSubIssue(node); }}
                   title={t('timeline.addSubIssue')}
                 >
-                  <svg className="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                  <svg className={DENSITY_CONFIG[density].iconSize} fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
                 </button>
@@ -758,7 +803,7 @@ const IssueTreeNode = ({
         >
           {isEditing('tracker_id') && masters ? (
             <select
-              className="w-full text-[11px] h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm"
+              className={`w-full ${DENSITY_CONFIG[density].badgeSize} h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm`}
               value={editingCell!.value}
               onChange={(e) => { void commitEdit('tracker_id', e.target.value); }}
               onBlur={() => cancelEdit()}
@@ -771,7 +816,7 @@ const IssueTreeNode = ({
             </select>
           ) : (
             <span
-              className={`${TASK_BADGE_BASE_CLASS} ${trackerBadgeClass} group/cell:hover:ring-1 group/cell:hover:ring-blue-300`}
+              className={`inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 ${DENSITY_CONFIG[density].badgeSize} font-semibold font-sans truncate transition-all duration-300 ${trackerBadgeClass} group/cell:hover:ring-1 group/cell:hover:ring-blue-300`}
               title={node.tracker_name || ''}
             >
               {node.tracker_name || '-'}
@@ -786,7 +831,7 @@ const IssueTreeNode = ({
         >
           {isEditing('priority_id') && masters ? (
             <select
-              className="w-full text-[11px] h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm"
+              className={`w-full ${DENSITY_CONFIG[density].badgeSize} h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm`}
               value={editingCell!.value}
               onChange={(e) => { void commitEdit('priority_id', e.target.value); }}
               onBlur={() => cancelEdit()}
@@ -799,7 +844,7 @@ const IssueTreeNode = ({
             </select>
           ) : (
             <span
-              className={`${TASK_BADGE_BASE_CLASS} ${priorityBadgeClass}`}
+              className={`inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 ${DENSITY_CONFIG[density].badgeSize} font-semibold font-sans truncate transition-all duration-300 ${priorityBadgeClass}`}
               title={node.priority_name || ''}
             >
               {node.priority_name || '-'}
@@ -814,7 +859,7 @@ const IssueTreeNode = ({
         >
           {isEditing('status_id') && masters ? (
             <select
-              className="w-full text-[11px] h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm"
+              className={`w-full ${DENSITY_CONFIG[density].badgeSize} h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm`}
               value={editingCell!.value}
               onChange={(e) => { void commitEdit('status_id', e.target.value); }}
               onBlur={() => cancelEdit()}
@@ -826,7 +871,7 @@ const IssueTreeNode = ({
               ))}
             </select>
           ) : (
-            <span className={`inline-flex items-center justify-center min-w-[56px] text-[11px] font-bold px-2.5 py-1 rounded-full ${statusBg} ${statusText} shadow-sm`}>
+            <span className={`inline-flex items-center justify-center min-w-[56px] ${DENSITY_CONFIG[density].badgeSize} font-bold px-2.5 py-1 rounded-full ${statusBg} ${statusText} shadow-sm`}>
               {statusLabel}
             </span>
           )}
@@ -844,31 +889,28 @@ const IssueTreeNode = ({
               min={0}
               max={100}
               step={10}
-              className="w-[72px] text-[11px] h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm"
+              className={`w-[72px] ${DENSITY_CONFIG[density].progressTextSize} h-8 px-2 border border-[var(--color-brand-6)] rounded-[9999px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)] bg-white text-slate-700 shadow-sm font-sans font-medium`}
               defaultValue={editingCell!.value}
               onBlur={(e) => { void commitEdit('done_ratio', e.currentTarget.value); }}
               onKeyDown={handleKeyDown}
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <>
+            <div className={`flex items-center ${DENSITY_CONFIG[density].progressGap}`}>
               <div
-                className="h-2 w-full max-w-[72px] overflow-hidden rounded-full relative cursor-help"
-                style={{ backgroundColor: getProgressTrackColor() }}
+                className="h-2 w-full max-w-[80px] overflow-hidden rounded-[9999px] relative cursor-help bg-gray-100"
                 title={`${progressRatio}% ${t('timeline.progress')}`}
               >
-
                 <div
-                  className="absolute left-0 top-0 bottom-0 rounded-full transition-all"
+                  className="absolute left-0 top-0 bottom-0 rounded-[9999px] transition-all duration-700 ease-out"
                   style={{
                     width: progressRatio === 0 ? '100%' : `${progressRatio}%`,
                     backgroundColor: getProgressFillColor(progressRatio)
                   }}
                 />
-
               </div>
-              <span className="text-[11px] text-slate-600 font-semibold tabular-nums" data-testid="progress-text">{progressRatio}%</span>
-            </>
+              <span className={`${DENSITY_CONFIG[density].progressTextSize} text-[#45515e] font-semibold tabular-nums min-w-[32px]`} data-testid="progress-text">{progressRatio}%</span>
+            </div>
           )}
         </div>
 
@@ -880,7 +922,7 @@ const IssueTreeNode = ({
           <div className="relative w-full h-8">
             <span
               data-testid={`start-date-display-${node.issue_id}`}
-              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate"
+              className={`inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 ${DENSITY_CONFIG[density].dateSize} text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate`}
               style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
               onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
               onClick={(e) => e.stopPropagation()}
@@ -927,7 +969,7 @@ const IssueTreeNode = ({
           <div className="relative w-full h-8 flex items-center">
             <span
               data-testid={`due-date-display-${node.issue_id}`}
-              className="inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 text-[11px] text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate"
+              className={`inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 ${DENSITY_CONFIG[density].dateSize} text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate`}
               style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
               onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
               onClick={(e) => e.stopPropagation()}
@@ -977,7 +1019,7 @@ const IssueTreeNode = ({
         >
           {isEditing('assigned_to_id') && masters ? (
             <select
-              className="w-full text-[11px] h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700"
+              className={`w-full ${DENSITY_CONFIG[density].dateSize} h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700`}
               value={editingCell!.value}
               onChange={(e) => { void commitEdit('assigned_to_id', e.target.value); }}
               onBlur={() => cancelEdit()}
@@ -991,15 +1033,15 @@ const IssueTreeNode = ({
           ) : (
             node.assignee_name ? (
               <>
-                <div className="w-6 h-6 rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <div className={`${DENSITY_CONFIG[density].idSize === 'text-sm' ? 'w-7 h-7' : 'w-6 h-6'} rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0`}>
+                  <svg className={DENSITY_CONFIG[density].iconSize} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
                   </svg>
                 </div>
-                <span className="text-[12px] font-medium text-slate-700 truncate">{node.assignee_name}</span>
+                <span className={`${DENSITY_CONFIG[density].subjectSize} font-medium text-slate-700 truncate`}>{node.assignee_name}</span>
               </>
             ) : (
-              <span className="text-[11px] text-slate-400">-</span>
+              <span className={`${DENSITY_CONFIG[density].badgeSize} text-slate-400`}>-</span>
             )
           )}
         </div>
@@ -1024,6 +1066,7 @@ const IssueTreeNode = ({
           masters={masters}
           onFieldUpdate={onFieldUpdate}
           columnWidths={columnWidths}
+          density={density}
         />
       ))}
     </>
@@ -2334,18 +2377,27 @@ export function TaskDetailsDialog({
     issueUrl: string;
   } | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<TreeNodeType | null>(null);
-  const [editingDescription, setEditingDescription] = useState<boolean>(false);
-  const [descriptionDraft, setDescriptionDraft] = useState<string>('');
-  const [newCommentDraft, setNewCommentDraft] = useState<string>('');
-  const [isSavingComment, setIsSavingComment] = useState<boolean>(false);
-  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
-  const [editingCommentDraft, setEditingCommentDraft] = useState<string>('');
   const [drilldownPath, setDrilldownPath] = useState<DrilldownCrumb[]>([]);
   const issuesRef = useRef<TaskDetailIssue[]>([]);
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
   const savingIssueIdsRef = useRef<Record<number, boolean>>({});
   const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const hasAnyChangesRef = useRef(false);
+  const [density, setDensity] = useState<TableDensity>(() => {
+    const saved = localStorage.getItem(TABLE_DENSITY_STORAGE_KEY);
+    if (saved && (saved === 'compact' || saved === 'standard' || saved === 'relaxed')) {
+      return saved as TableDensity;
+    }
+    return 'standard';
+  });
+  const [densityMenuOpen, setDensityMenuOpen] = useState(false);
+
+  const handleDensityChange = (next: TableDensity) => {
+    setDensity(next);
+    localStorage.setItem(TABLE_DENSITY_STORAGE_KEY, next);
+    setDensityMenuOpen(false);
+  };
+
   const [processDragSession, setProcessDragSession] = useState<ProcessDragSession | null>(null);
   const [suppressProcessClickIssueId, setSuppressProcessClickIssueId] = useState<number | null>(null);
   const processDragRef = useRef<ProcessDragSession | null>(null);
@@ -2390,11 +2442,6 @@ export function TaskDetailsDialog({
       ? { ...issue, children: 'children' in issue ? issue.children : [] }
       : null;
     setSelectedIssue(nextIssue);
-    setEditingDescription(false);
-    setDescriptionDraft(nextIssue?.description || '');
-    setNewCommentDraft('');
-    setEditingCommentId(null);
-    setEditingCommentDraft('');
   }, []);
 
   // Load master data when dialog opens
@@ -2480,10 +2527,6 @@ export function TaskDetailsDialog({
     setCreateIssueContext(null);
     setEditIssueContext(null);
     setViewIssueContext(null);
-    setEditingDescription(false);
-    setNewCommentDraft('');
-    setEditingCommentId(null);
-    setEditingCommentDraft('');
     onClose();
   }, [onClose, onTaskDatesUpdated]);
 
@@ -3223,7 +3266,6 @@ export function TaskDetailsDialog({
   }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowChartHeight, processStatusStyles, selectedIssueId, processFlowBaseTopPadding]);
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
-  const shouldShowSelectedIssuePanel = Boolean(selectedIssue);
   const currentAutoFitKey = open && !loading && issues.length > 0 && processFlowRenderSteps.length > 0
     ? `${currentRootIssueId}:${processFlowChartHeight}`
     : null;
@@ -3312,13 +3354,13 @@ export function TaskDetailsDialog({
 
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] flex items-center justify-center p-2 sm:p-4 transition-all" onClick={handleClose}>
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[6px] flex items-center justify-center p-4 transition-all duration-500 animate-in fade-in" onClick={handleClose}>
       <div
-        className="bg-white w-full max-w-[98vw] h-[94vh] rounded-[24px] shadow-brand-glow ring-1 ring-gray-200 flex flex-col overflow-hidden transition-all transform font-sans"
+        className="bg-white w-full max-w-[96vw] h-[92vh] rounded-[24px] shadow-brand-glow border border-gray-100 flex flex-col overflow-hidden transition-all transform animate-in slide-in-from-bottom-8 duration-700 ease-out font-sans"
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 flex items-center justify-between gap-3 bg-white relative z-10 border-b border-gray-200 flex-shrink-0 min-h-12 box-border">
+        <div className="px-6 py-4 flex items-center justify-between gap-3 bg-white relative z-40 border-b border-gray-200 flex-shrink-0 min-h-12 box-border">
           <div className="flex flex-row items-center gap-2.5 min-w-0">
             <div className="min-w-0">
               {drilldownPath.length > 1 && (
@@ -3367,6 +3409,63 @@ export function TaskDetailsDialog({
                   {dialogHeaderTitle}
                 </span>
               </h3>
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setDensityMenuOpen(!densityMenuOpen)}
+                title={t('timeline.tableDensity', { defaultValue: 'Table Density' })}
+                className={`${REDMINE_DIALOG_ICON_ACTION_CLASS} ml-1`}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
+                </svg>
+              </button>
+              {densityMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-[60]" onClick={() => setDensityMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-brand-glow border border-gray-100 z-[70] overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {(['compact', 'standard', 'relaxed'] as TableDensity[]).map((d) => (
+                      <button
+                        key={d}
+                        className={`w-full text-left px-4 py-2.5 text-[13px] font-medium transition-colors hover:bg-slate-50 flex items-center gap-3 ${density === d ? 'text-blue-600 bg-blue-50/50' : 'text-slate-700'}`}
+                        onClick={() => handleDensityChange(d)}
+                      >
+                        <div className="flex-shrink-0 w-5 flex justify-center text-slate-400">
+                          {d === 'compact' && (
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                              <rect x="4" y="8" width="16" height="2" rx="0.5" />
+                              <rect x="4" y="11" width="16" height="2" rx="0.5" />
+                              <rect x="4" y="14" width="16" height="2" rx="0.5" />
+                            </svg>
+                          )}
+                          {d === 'standard' && (
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                              <rect x="4" y="7" width="16" height="2" rx="0.5" />
+                              <rect x="4" y="11" width="16" height="2" rx="0.5" />
+                              <rect x="4" y="15" width="16" height="2" rx="0.5" />
+                            </svg>
+                          )}
+                          {d === 'relaxed' && (
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                              <rect x="4" y="5" width="16" height="2" rx="0.5" />
+                              <rect x="4" y="11" width="16" height="2" rx="0.5" />
+                              <rect x="4" y="17" width="16" height="2" rx="0.5" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="flex-1">
+                          {t(`timeline.density${d.charAt(0).toUpperCase() + d.slice(1)}`, { defaultValue: d.charAt(0).toUpperCase() + d.slice(1) })}
+                        </span>
+                        {density === d && (
+                          <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             <button
               onClick={() => void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue?.issue_id ?? null })}
@@ -3538,7 +3637,7 @@ export function TaskDetailsDialog({
                 <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
-                      <div className="flex items-center py-2 px-4 bg-gray-50/80 z-20 border-b border-gray-100/50 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
+                      <div className={`flex items-center py-2 px-6 bg-gray-50/80 z-20 border-b border-gray-100/50 text-slate-600 flex-shrink-0 ${DENSITY_CONFIG[density].headerHeight} box-border sticky top-0 tracking-wide font-semibold ${DENSITY_CONFIG[density].badgeSize}`}>
                       <div className="shrink-0 flex items-center relative group border-r border-slate-200/60 h-full overflow-hidden" style={{ width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}>
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
                         {t('timeline.task', { defaultValue: 'Task' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('task', deltaX)} />
@@ -3586,260 +3685,11 @@ export function TaskDetailsDialog({
                         masters={masters}
                         onFieldUpdate={handleFieldUpdate}
                         columnWidths={columnWidths}
+                        density={density}
                       />
                     ))}
                   </div>
                 </div>
-
-
-                {/* Right Panel - Detail View */}
-                {shouldShowSelectedIssuePanel && selectedIssue && (
-                  <div className="absolute right-0 top-0 bottom-0 w-[50%] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-white border-l border-slate-300 z-30">
-                    {/* Detail Header */}
-                    <div className="px-6 py-5 flex items-start justify-between gap-3 flex-shrink-0 border-b border-gray-100 bg-white sticky top-0 z-10">
-                      <div className="min-w-0">
-                        <div className="flex items-baseline gap-2 min-w-0">
-                          <span className="text-[11px] leading-none font-semibold text-slate-500 shrink-0">
-                            #{selectedIssue.issue_id}
-                          </span>
-                          <h4
-                            className="text-[14px] leading-5 font-semibold text-slate-900 truncate"
-                            data-testid="task-details-selected-title"
-
-
-
-
-
-
-
-                          >
-                            {selectedIssue.subject}
-                          </h4>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <a
-                          href={selectedIssue.issue_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={REDMINE_DIALOG_ICON_ACTION_CLASS}
-                          title={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
-                          aria-label={t('common.openInNewTab', { defaultValue: 'Open in Redmine' })}
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
-                          </svg>
-                        </a>
-                        <button
-                          type="button"
-                          className={REDMINE_DIALOG_ICON_ACTION_CLASS}
-                          title={t('timeline.editIssue')}
-                          aria-label={t('timeline.editIssue')}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditIssueContext({
-                              issueId: selectedIssue.issue_id,
-                              issueUrl: selectedIssue.issue_url
-                            });
-                          }}
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className={REDMINE_DIALOG_ICON_ACTION_CLASS}
-                          onClick={() => selectIssue(null)}
-                          title={t('common.close', { defaultValue: 'Close' })}
-                          aria-label={t('common.close', { defaultValue: 'Close' })}
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Detail Fields removed */}
-
-                    {/* Description */}
-                    <div className={REDMINE_DIALOG_SECTION_CLASS}>
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <h5 className={REDMINE_DIALOG_SECTION_TITLE_CLASS}>{t('timeline.descriptionTab')}</h5>
-                        {!editingDescription && (
-                          <button
-                            type="button"
-                            className={REDMINE_DIALOG_ACTION_CLASS}
-                            onClick={() => {
-                              setDescriptionDraft(selectedIssue.description || '');
-                              setEditingDescription(true);
-                            }}
-                            title={t('common.edit', { defaultValue: 'Edit' })}
-                          >
-                            {t('common.edit', { defaultValue: 'Edit' })}
-                          </button>
-                        )}
-                      </div>
-                      {editingDescription ? (
-                        <div className="flex flex-col gap-2">
-                          <textarea
-                            className={`${REDMINE_DIALOG_TEXTAREA_CLASS} min-h-[120px]`}
-                            value={descriptionDraft}
-                            onChange={(e) => setDescriptionDraft(e.target.value)}
-                            placeholder={t('timeline.noDescription')}
-                            autoFocus
-                          />
-                          <div className="flex justify-start gap-2">
-                            <button
-                              type="button"
-                              className={REDMINE_DIALOG_ACTION_CLASS}
-                              onClick={() => {
-                                setEditingDescription(false);
-                                setDescriptionDraft(selectedIssue.description || '');
-                              }}
-                            >
-                              {t('common.cancel')}
-                            </button>
-                            <button
-                              type="button"
-                              className={REDMINE_DIALOG_PRIMARY_ACTION_CLASS}
-                              onClick={() => { void handleSaveDescription(); }}
-                            >
-                              {t('common.save')}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          className="min-h-[72px] border border-slate-200 bg-white px-3 py-2 text-[13px] leading-6 text-slate-700 whitespace-pre-wrap cursor-pointer hover:bg-slate-50 transition-colors"
-                          onClick={() => {
-                            setDescriptionDraft(selectedIssue.description || '');
-                            setEditingDescription(true);
-                          }}
-                          data-testid="task-details-description"
-                        >
-                          {selectedIssue.description || <span className="text-slate-500 italic">{t('timeline.noDescription')}</span>}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Comments */}
-                    <div className="px-4 py-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h5 className={REDMINE_DIALOG_SECTION_TITLE_CLASS}>{t('timeline.commentsTab')}</h5>
-                        <span className="text-[12px] font-medium text-slate-500">
-                          {selectedIssue.comments?.length ?? 0}
-                        </span>
-                      </div>
-                      <div className="border border-slate-200 bg-white">
-                        {(selectedIssue.comments && selectedIssue.comments.length > 0) ? selectedIssue.comments.map((comment) => (
-                          <div key={comment.id ?? `${comment.created_on}-${comment.author_name}-${comment.notes.slice(0, 12)}`} className="group border-b border-slate-200 last:border-b-0">
-                            {editingCommentId === comment.id && comment.id !== undefined ? (
-                              <div className="flex flex-col gap-2 p-3">
-                                <textarea
-                                  className={REDMINE_DIALOG_TEXTAREA_CLASS}
-                                  value={editingCommentDraft}
-                                  onChange={(e) => setEditingCommentDraft(e.target.value)}
-                                  autoFocus
-                                />
-                                <div className="flex justify-start gap-2">
-                                  <button
-                                    type="button"
-                                    className={REDMINE_DIALOG_ACTION_CLASS}
-                                    onClick={() => {
-                                      setEditingCommentId(null);
-                                      setEditingCommentDraft('');
-                                    }}
-                                  >
-                                    {t('common.cancel')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className={REDMINE_DIALOG_PRIMARY_ACTION_CLASS}
-                                    onClick={() => {
-                                      void handleUpdateComment(comment.id!, editingCommentDraft);
-                                      setEditingCommentId(null);
-                                    }}
-                                  >
-                                    {t('common.save')}
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div
-                                className="relative cursor-pointer px-3 py-2.5 hover:bg-slate-50 transition-colors"
-                                onClick={() => {
-                                  setEditingCommentId(comment.id!);
-                                  setEditingCommentDraft(comment.notes || '');
-                                }}
-                              >
-                                {comment.id !== undefined && (
-                                  <button
-                                    type="button"
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center h-6 min-w-6 px-1.5 border border-slate-300 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 cursor-pointer"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingCommentId(comment.id!);
-                                      setEditingCommentDraft(comment.notes || '');
-                                    }}
-                                    title={t('common.edit', { defaultValue: 'Edit' })}
-                                  >
-                                    {t('common.edit', { defaultValue: 'Edit' })}
-                                  </button>
-                                )}
-                                <div className="mb-2 flex items-center justify-between gap-3 pr-14">
-                                  <span className="text-[12px] font-semibold text-slate-700">
-                                    {comment.author_name || t('common.unknown', { defaultValue: 'Unknown' })}
-                                  </span>
-                                  <span className="text-[11px] text-slate-500 shrink-0">
-                                    {comment.created_on ? comment.created_on.replace('T', ' ').slice(0, 16).replace(/-/g, '/') : ''}
-                                  </span>
-                                </div>
-                                <div className="text-[13px] leading-6 text-slate-700 whitespace-pre-wrap break-words">
-                                  {comment.notes}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )) : (
-                          <div className="px-3 py-4 text-[12px] text-slate-500 text-center" data-testid="task-details-no-comments">
-                            {t('timeline.noComments', { defaultValue: 'No comments' })}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-4 border border-slate-200 bg-white p-3">
-                        <textarea
-                          className={REDMINE_DIALOG_TEXTAREA_CLASS}
-                          placeholder={t('timeline.addCommentPlaceholder', { defaultValue: 'Add a comment...' })}
-                          value={newCommentDraft}
-                          onChange={(e) => setNewCommentDraft(e.target.value)}
-                          disabled={isSavingComment}
-                          data-testid="task-details-new-comment"
-                        />
-                        <div className="mt-2 flex justify-end">
-                          <button
-                            type="button"
-                            className={`${REDMINE_DIALOG_PRIMARY_ACTION_CLASS} flex items-center gap-1`}
-                            onClick={() => { void handleAddComment(); }}
-                            disabled={!newCommentDraft.trim() || isSavingComment}
-                          >
-                            {isSavingComment && (
-                              <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                            )}
-                            {t('common.add', { defaultValue: 'Add' })}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pb-2" />
-                  </div>
-                )}
               </div>
             </>
           )}
