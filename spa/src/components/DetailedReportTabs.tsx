@@ -25,7 +25,7 @@ export const DetailedReportTabs = ({
 
   return (
     <div className="space-y-4 mb-6">
-      <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3 shadow-sm">
+      <div className="rounded-[16px] border border-gray-200 bg-[rgba(0,0,0,0.02)] p-3 shadow-none">
         <nav className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-200" aria-label={t('detailedTabs.projectsAria')}>
           {projectTabs.map((tab) => {
             const active = tab.project_identifier === activeProject.project_identifier;
@@ -34,10 +34,10 @@ export const DetailedReportTabs = ({
                 key={tab.project_identifier}
                 onClick={() => onProjectChange(tab.project_identifier)}
                 className={`
-                  whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 border
+                  whitespace-nowrap px-4 py-2 rounded-full text-[14px] font-sans font-medium transition-all duration-200 border
                   ${active
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    ? 'bg-[#181e25] border-[#181e25] text-white shadow-subtle'
+                    : 'bg-white border-gray-200 text-[#45515e] hover:border-gray-300 hover:bg-gray-50'
                   }
                 `}
               >
@@ -49,7 +49,7 @@ export const DetailedReportTabs = ({
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center justify-center mr-2 px-2.5 py-1 bg-slate-900 rounded-full text-[11px] font-semibold text-white uppercase tracking-wide shadow-sm">
+        <div className="flex items-center justify-center mr-2 px-3 py-1 bg-[#181e25] rounded-full text-[12px] font-sans font-medium text-white uppercase tracking-wide shadow-none">
           {t('detailedTabs.versionsLabel')}
         </div>
 
@@ -60,17 +60,17 @@ export const DetailedReportTabs = ({
               key={`${activeProject.project_identifier}-${version.version_id}`}
               onClick={() => onVersionChange(version.version_id)}
               className={`
-                group relative px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 border
+                group relative px-4 py-1.5 rounded-full text-[14px] font-sans font-medium transition-all duration-200 border
                 ${active
-                  ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-sm'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  ? 'bg-[var(--color-primary-200)] border-[var(--color-brand-6)] text-[var(--color-primary-700)] shadow-subtle'
+                  : 'bg-white border-gray-200 text-[#45515e] hover:border-gray-300 hover:bg-gray-50'
                 }
               `}
             >
               <div className="flex items-center gap-1.5">
                 {version.version_name}
                 {version.has_saved_response && (
-                  <span className={`w-2 h-2 rounded-full ${active ? 'bg-blue-600' : 'bg-slate-300 group-hover:bg-blue-400'} transition-colors`}></span>
+                  <span className={`w-2 h-2 rounded-full ${active ? 'bg-[var(--color-brand-6)]' : 'bg-gray-300 group-hover:bg-[var(--color-primary-light)]'} transition-colors`}></span>
                 )}
               </div>
             </button>

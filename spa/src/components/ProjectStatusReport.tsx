@@ -373,26 +373,26 @@ export const ProjectStatusReport = ({
         }
     };
 
-    const iconButtonStyle = "p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors relative cursor-pointer";
-    const activeIconButtonStyle = "p-2 rounded-lg text-blue-600 bg-blue-50 hover:text-blue-700 hover:bg-blue-100 transition-colors relative shadow-sm cursor-pointer";
+    const iconButtonStyle = "p-2 rounded-full text-[#45515e] hover:text-[#222222] hover:bg-[rgba(0,0,0,0.05)] transition-colors relative cursor-pointer";
+    const activeIconButtonStyle = "p-2 rounded-full text-[var(--color-brand-6)] bg-[var(--color-primary-200)] hover:text-[var(--color-primary-700)] transition-colors relative shadow-subtle cursor-pointer";
     const headerIconStyle = "w-5 h-5";
-    const filterDropdownPanelStyle = "absolute top-full left-0 mt-2 w-72 max-h-[420px] bg-white border border-slate-300 rounded-xl shadow-lg z-50 overflow-hidden";
-    const filterDropdownTitleStyle = "px-4 pt-4 pb-2 text-[13px] font-semibold text-slate-800";
-    const filterDropdownRowStyle = "px-4 py-2.5 flex items-center gap-3 text-[15px] text-slate-700 hover:bg-white/60 cursor-pointer";
-    const filterDropdownDividerStyle = "border-t border-slate-300/70 mx-4";
-    const filterDropdownClearLinkStyle = "text-blue-600 hover:text-blue-700 hover:underline text-sm cursor-pointer bg-transparent border-0 p-0 m-0 shadow-none appearance-none outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0";
+    const filterDropdownPanelStyle = "absolute top-full left-0 mt-2 w-72 max-h-[420px] bg-white border border-gray-200 rounded-[13px] shadow-elevated z-50 overflow-hidden font-sans";
+    const filterDropdownTitleStyle = "px-4 pt-4 pb-2 text-[13px] font-semibold text-[#222222] font-poppins";
+    const filterDropdownRowStyle = "px-4 py-2.5 flex items-center gap-3 text-[15px] text-[#45515e] hover:bg-gray-50 cursor-pointer font-sans";
+    const filterDropdownDividerStyle = "border-t border-gray-200 mx-4";
+    const filterDropdownClearLinkStyle = "text-[var(--color-primary-600)] hover:text-[var(--color-primary-700)] hover:underline text-sm cursor-pointer bg-transparent border-0 p-0 m-0 shadow-none appearance-none outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 font-sans font-medium";
 
     return (
-        <div ref={fullScreenRef} className="bg-white flex-1 font-sans text-[#1e293b]">
-            <div className="w-full bg-white px-6 pt-1 pb-2">
+        <div ref={fullScreenRef} className="bg-white flex-1 font-sans text-[#222222]">
+            <div className="w-full bg-white px-6 pt-2 pb-2">
                 {/* Header Row: Single line layout */}
-                <div className="flex items-center justify-between h-8 border-b border-slate-100 mb-2">
+                <div className="flex items-center justify-between h-10 mb-4">
 
                     {/* Left: Filters */}
                     <div className="flex items-center gap-2">
                         {/* Project Selection */}
                         <div className="relative" ref={projectDropdownRef}>
-                            <button
+                             <button
                                 onClick={() => setIsProjectOpen(!isProjectOpen)}
                                 className={selectedProjectIdentifiers.length > 0 ? activeIconButtonStyle : iconButtonStyle}
                                 title={t('filter.project')}
@@ -401,7 +401,7 @@ export const ProjectStatusReport = ({
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
                                 </svg>
                                 {selectedProjectIdentifiers.length > 0 && (
-                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full border border-white"></span>
+                                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[var(--color-brand-6)] rounded-full border-2 border-white shadow-sm"></span>
                                 )}
                             </button>
                             {isProjectOpen && (
@@ -484,8 +484,8 @@ export const ProjectStatusReport = ({
                                 <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
                                 </svg>
-                                {selectedVersions.length > 0 && (
-                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-500 rounded-full border border-white"></span>
+                                 {selectedVersions.length > 0 && (
+                                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[var(--color-brand-6)] rounded-full border-2 border-white shadow-sm"></span>
                                 )}
                             </button>
                             {isVersionOpen && onVersionChange && (
@@ -563,19 +563,19 @@ export const ProjectStatusReport = ({
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </button>
-                            {isLegendOpen && (
-                                <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl z-50 p-3">
-                                    <div className="flex flex-col gap-2">
+                             {isLegendOpen && (
+                                <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-100 rounded-[16px] shadow-subtle z-50 p-4 animate-in fade-in zoom-in duration-200">
+                                    <div className="flex flex-col gap-3">
                                         {statuses.map((status) => (
-                                            <div key={status.label} className="flex items-center gap-2 text-slate-600">
+                                            <div key={status.label} className="flex items-center gap-3 text-[#222222] font-sans">
                                                 <div
-                                                    className="w-3.5 h-3.5 rounded-sm border"
+                                                    className="w-3.5 h-3.5 rounded-full border shadow-sm"
                                                     style={{
                                                         backgroundColor: status.fill,
                                                         borderColor: status.stroke
                                                     }}
                                                 ></div>
-                                                <span className="text-xs font-semibold">{status.label}</span>
+                                                <span className="text-[13px] font-medium">{status.label}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -587,7 +587,7 @@ export const ProjectStatusReport = ({
 
                         {/* Chart Size Selection */}
                         <div className="relative" ref={sizeDropdownRef}>
-                            <button
+                             <button
                                 onClick={() => setIsSizeOpen(!isSizeOpen)}
                                 className={iconButtonStyle}
                                 title={t('filter.size')}
@@ -595,7 +595,7 @@ export const ProjectStatusReport = ({
                                 <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"></path>
                                 </svg>
-                                <span className="absolute -bottom-1 -right-1 text-[10px] font-bold bg-slate-100 text-slate-600 px-1 rounded border border-slate-200">
+                                <span className="absolute -bottom-1 -right-1 text-[9px] font-bold bg-[#f0f0f0] text-[#222222] px-1.5 py-0.5 rounded-full border border-gray-200 shadow-sm leading-none">
                                     {chartScale === 0.5 ? 'S' : chartScale === 0.75 ? 'M' : chartScale === 1 ? 'L' : 'XL'}
                                 </span>
                             </button>
@@ -648,9 +648,9 @@ export const ProjectStatusReport = ({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                             </svg>
                             <span
-                                className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1 rounded border ${isProcessMode
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'bg-white text-slate-500 border-slate-200'
+                                className={`absolute -bottom-1 -right-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full border shadow-sm leading-none transition-all ${isProcessMode || showAllDates || showTodayLine
+                                    ? 'bg-[var(--color-brand-6)] text-white border-[var(--color-brand-6)]'
+                                    : 'bg-white text-[#8e8e93] border-gray-200'
                                 }`}
                             >
                                 {isLoadingChildren ? '...' : isProcessMode ? 'ON' : 'OFF'}
@@ -794,52 +794,52 @@ export const ProjectStatusReport = ({
 
 
                 {isDateRangeDialogOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4" role="dialog" aria-modal="true" aria-label={t('filter.dateRange')}>
-                        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-                            <h2 className="text-lg font-bold text-slate-800">{t('filter.dateRange')}</h2>
-                            <p className="mt-1 text-sm text-slate-500">{t('filter.dateRangeDescription')}</p>
-                            <div className="mt-4 grid grid-cols-1 gap-4">
-                                <label className="text-sm font-medium text-slate-700">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] px-4" role="dialog" aria-modal="true" aria-label={t('filter.dateRange')}>
+                        <div className="w-full max-w-md rounded-[24px] border border-gray-200 bg-white p-8 shadow-brand-glow animate-in fade-in zoom-in duration-300">
+                            <h2 className="text-[28px] font-display font-medium text-[#222222]">{t('filter.dateRange')}</h2>
+                            <p className="mt-2 text-[14px] text-[#45515e] font-sans">{t('filter.dateRangeDescription')}</p>
+                            <div className="mt-6 grid grid-cols-1 gap-5">
+                                <label className="text-[13px] font-sans font-medium uppercase text-[#8e8e93] tracking-wide">
                                     {t('weeklyDialog.startDate')}
                                     <input
                                         type="date"
                                         value={pendingStartDate}
                                         onChange={(event) => setPendingStartDate(event.target.value)}
-                                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                        className="mt-2 w-full rounded-[8px] border border-gray-200 px-4 py-3 text-[16px] font-sans text-[#222222] focus:outline-none focus:border-[#45515e] transition-colors"
                                     />
                                 </label>
-                                <label className="text-sm font-medium text-slate-700">
+                                <label className="text-[13px] font-sans font-medium uppercase text-[#8e8e93] tracking-wide">
                                     {t('weeklyDialog.endDate')}
                                     <input
                                         type="date"
                                         value={pendingEndDate}
                                         onChange={(event) => setPendingEndDate(event.target.value)}
-                                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                        className="mt-2 w-full rounded-[8px] border border-gray-200 px-4 py-3 text-[16px] font-sans text-[#222222] focus:outline-none focus:border-[#45515e] transition-colors"
                                     />
                                 </label>
                             </div>
                             {dateRangeError && (
                                 <p className="mt-3 text-sm font-semibold text-red-600" role="alert">{dateRangeError}</p>
                             )}
-                            <div className="mt-5 flex items-center justify-end gap-2">
+                            <div className="mt-8 flex items-center justify-end gap-3">
                                 <button
                                     type="button"
                                     onClick={() => setIsDateRangeDialogOpen(false)}
-                                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                                    className="h-10 px-5 rounded-full border border-gray-200 bg-[#f0f0f0] text-[14px] font-sans font-medium text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer"
                                 >
                                     {t('common.cancel')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={clearDateRange}
-                                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                                    className="h-10 px-5 rounded-full border border-gray-200 bg-white text-[14px] font-sans font-medium text-[#222222] hover:bg-gray-50 transition-colors cursor-pointer"
                                 >
                                     {t('filter.clearDateRange')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={applyDateRange}
-                                    className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                    className="h-10 px-6 rounded-full bg-[#181e25] text-[14px] font-sans font-semibold text-white hover:bg-black transition-colors cursor-pointer"
                                 >
                                     {t('common.save')}
                                 </button>

@@ -128,7 +128,7 @@ const PROCESS_FLOW_HEADER_HEIGHT = PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_M
 const PROCESS_FLOW_LANE_HEIGHT = 122;
 const PROCESS_FLOW_BAR_HEIGHT = 36;
 const PROCESS_FLOW_BAR_Y = 28;
-const PROCESS_FLOW_BAR_SPACING_Y = 34;
+const PROCESS_FLOW_BAR_SPACING_Y = 17;
 const PROCESS_FLOW_POINT_DEPTH = 22;
 const PROCESS_FLOW_DIAMOND_WIDTH = PROCESS_FLOW_BAR_HEIGHT;
 const PROCESS_FLOW_TRIANGLE_WIDTH = (PROCESS_FLOW_BAR_HEIGHT * Math.sqrt(3)) / 2;
@@ -155,15 +155,17 @@ const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   assignee: 120
 };
 
-const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
-const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[48px] transition-colors relative group px-4 border-b border-slate-300';
-const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-semibold truncate shadow-sm';
-const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 px-2 border border-slate-300 bg-white text-[12px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer';
-const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-7 w-7 border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer';
-const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-7 min-w-[72px] px-3 border border-slate-400 bg-slate-100 text-[12px] font-semibold text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
-const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[11px] font-bold uppercase tracking-wide text-slate-500';
-const REDMINE_DIALOG_TEXTAREA_CLASS = 'w-full min-h-[88px] resize-y border border-slate-300 bg-white px-3 py-2 text-[13px] leading-5 text-slate-700 focus:outline-none focus:ring-0 focus:border-slate-500';
-const REDMINE_DIALOG_SECTION_CLASS = 'border-b border-slate-200 px-4 py-4';
+const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY: string = "var(--font-sans)";
+const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[52px] transition-colors relative group px-4 border-b border-gray-100 font-sans text-[var(--color-text-00)]';
+const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-full px-3 py-1 text-[12px] font-medium font-sans truncate shadow-none transition-all';
+const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 px-4 rounded-full border border-gray-200 bg-[#f0f0f0] text-[13px] font-medium font-sans text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer';
+
+const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 w-8 rounded-full bg-[rgba(0,0,0,0.05)] text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer';
+const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-[80px] px-5 rounded-full bg-[#181e25] text-[13px] font-semibold font-sans text-[#ffffff] hover:bg-black transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm';
+
+const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[12px] font-display font-medium uppercase text-[#8e8e93] tracking-wider';
+const REDMINE_DIALOG_TEXTAREA_CLASS = 'w-full min-h-[100px] resize-y border border-gray-200 rounded-[12px] bg-white px-4 py-3 text-[16px] leading-[1.50] font-sans text-[#222222] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)] focus:border-[var(--color-primary-500)] transition-all';
+const REDMINE_DIALOG_SECTION_CLASS = 'border-b border-gray-100 px-6 py-5';
 const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   #issue-form p:has(#issue_subject),
                   #new_issue p:has(#issue_subject),
@@ -187,27 +189,52 @@ const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
                   }
 `;
 
+const EMBEDDED_ISSUE_EDIT_EXTRA_CSS = `
+                  ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
+                  #issue-form > .buttons,
+                  #issue-form > p.buttons,
+                  #edit_issue > .buttons,
+                  #edit_issue > p.buttons,
+                  #new_issue > .buttons,
+                  #new_issue > p.buttons {
+                    position: absolute !important;
+                    opacity: 0 !important;
+                    height: 0 !important;
+                    width: 0 !important;
+                    overflow: hidden !important;
+                    pointer-events: none !important;
+                  }
+`;
+
 const EMBEDDED_ISSUE_VIEW_EXTRA_CSS = `
                   ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
+                  body {
+                    font-family: var(--font-sans) !important;
+                    color: var(--color-text-00) !important;
+                    padding: 20px 24px !important;
+                    background: transparent !important;
+                  }
                   /* Contextual menu (Update, Edit etc. links) */
                   .contextual, #content .contextual {
                     display: block !important;
+                    margin-bottom: 16px !important;
                   }
                   .contextual a, #content .contextual a {
                     display: inline-block !important;
+                    border-radius: 9999px !important;
+                    padding: 4px 12px !important;
+                    background: #f3f4f6 !important;
+                    color: #4b5563 !important;
+                    font-size: 12px !important;
+                    border: 1px solid #e5e7eb !important;
+                    transition: all 0.2s !important;
+                  }
+                  .contextual a:hover {
+                    background: #e5e7eb !important;
+                    text-decoration: none !important;
                   }
 
-                  /* Show buttons for journal editing (comment edit) */
-                  div.journal form .buttons,
-                  div.journal form p.buttons,
-                  .edit-journal .buttons,
-                  .edit-journal p.buttons {
-                    display: block !important;
-                  }
-
-                  /* Hide main issue form buttons as per user request (use dialog's Save).
-                     We use opacity and absolute positioning instead of display:none to ensure
-                     Redmine's JavaScript and browser submit logic (click() etc.) still works on them. */
+                  /* Hide main issue form buttons as per user request (use dialog's Save). */
                   #issue-form > .buttons,
                   #issue-form > p.buttons,
                   #edit_issue > .buttons,
@@ -590,7 +617,8 @@ const IssueTreeNode = ({
       <div
         data-testid={`task-row-${node.issue_id}`}
         data-selected={isSelected ? 'true' : 'false'}
-        className={`${TASK_ROW_BASE_CLASS} ${isSelected ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-200/70' : 'bg-white hover:bg-slate-50/90'}`}
+        className={`${TASK_ROW_BASE_CLASS} ${isSelected ? 'bg-[var(--color-brand-10)] shadow-[inset_0_0_0_1px_var(--color-brand-200)]' : 'bg-white hover:bg-slate-50/80 hover:shadow-subtle'}
+`}
       >
         {/* Tree connectors */}
         <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
@@ -1485,8 +1513,9 @@ function IssueEditDialog({
   const footerRef = useRef<HTMLDivElement | null>(null);
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const errorRef = useRef<HTMLDivElement | null>(null);
-  const handledSaveRef = useRef(false);
+  const saveInFlightRef = useRef(false);
   const cleanupIframeEscRef = useRef<(() => void) | null>(null);
+  const cleanupEmbeddedSubmitRef = useRef<(() => void) | null>(null);
   const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
     isOpen: true,
     iframeRef,
@@ -1501,9 +1530,10 @@ function IssueEditDialog({
     setIframeError(null);
     setIframeHeader('');
     setIframeSubject('');
-    handledSaveRef.current = false;
     cleanupIframeEscRef.current?.();
     cleanupIframeEscRef.current = null;
+    cleanupEmbeddedSubmitRef.current?.();
+    cleanupEmbeddedSubmitRef.current = null;
     resetLayout();
   }, [iframeUrl, resetLayout]);
 
@@ -1518,6 +1548,8 @@ function IssueEditDialog({
   useEffect(() => () => {
     cleanupIframeEscRef.current?.();
     cleanupIframeEscRef.current = null;
+    cleanupEmbeddedSubmitRef.current?.();
+    cleanupEmbeddedSubmitRef.current = null;
   }, []);
 
   const createBulkIssues = async (parentIssueId: number, lines: string[], defaults: InheritedSubIssueFields) => {
@@ -1556,6 +1588,9 @@ function IssueEditDialog({
     return { doc, form };
   };
 
+  const parseEmbeddedIssueDocument = (html: string): Document =>
+    new DOMParser().parseFromString(html, 'text/html');
+
   const hasEmbeddedIssueForm = (doc: Document): boolean =>
     Boolean(
       doc.querySelector<HTMLFormElement>('form#issue-form') ||
@@ -1566,30 +1601,87 @@ function IssueEditDialog({
       doc.querySelector<HTMLFormElement>('form.new_issue')
     );
 
-  const submitDefaultIssueForm = () => {
-    try {
-      const { form } = findEmbeddedIssueForm();
-      const submitter =
-        form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
-        form.querySelector<HTMLElement>('button[name="commit"]:not([disabled])') ||
-        form.querySelector<HTMLElement>('input[type="submit"]:not([disabled])') ||
-        form.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
-      if (submitter) {
-        submitter.click();
-        return;
-      }
-      if (typeof form.requestSubmit === 'function') {
-        form.requestSubmit();
-        return;
-      }
-      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-      if (form.dispatchEvent(submitEvent)) form.submit();
-    } catch (err: any) {
-      alert(t('common.alertError', { message: err.message }));
-    }
+  const bindEmbeddedIssueFormSubmit = (doc: Document) => {
+    cleanupEmbeddedSubmitRef.current?.();
+    cleanupEmbeddedSubmitRef.current = null;
+
+    const form =
+      doc.querySelector<HTMLFormElement>('form#issue-form') ||
+      doc.querySelector<HTMLFormElement>('form#edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form#new_issue') ||
+      doc.querySelector<HTMLFormElement>('#issue-form form') ||
+      doc.querySelector<HTMLFormElement>('form.edit_issue') ||
+      doc.querySelector<HTMLFormElement>('form.new_issue');
+    if (!form) return;
+
+    const handleSubmit = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void handleSave();
+    };
+
+    form.addEventListener('submit', handleSubmit);
+    cleanupEmbeddedSubmitRef.current = () => {
+      form.removeEventListener('submit', handleSubmit);
+    };
   };
 
-  const saveEditedIssueFromEmbeddedForm = async (): Promise<number> => {
+  const syncEmbeddedIssueFrame = (doc: Document) => {
+    applyEmbeddedIssueDialogStyles(doc, {
+      contentPadding: '16px',
+      extraCss: EMBEDDED_ISSUE_EDIT_EXTRA_CSS,
+      styleId: `${ISSUE_DIALOG_STYLE_ID}-edit`,
+    });
+    setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
+    bindIframeSizeObservers(doc);
+
+    try {
+      const h2Ele = doc.querySelector('h2');
+      if (h2Ele) setIframeHeader(h2Ele.textContent || '');
+      const subjectInput = doc.querySelector<HTMLInputElement>('#issue_subject');
+      if (subjectInput) {
+        setIframeSubject(subjectInput.value);
+        subjectInput.addEventListener('input', (event) => {
+          setIframeSubject((event.target as HTMLInputElement).value);
+        });
+      } else {
+        const subjectDiv = doc.querySelector('.subject h3');
+        if (subjectDiv) setIframeSubject(subjectDiv.textContent || '');
+      }
+    } catch {
+      // Ignore iframe parsing failures.
+    }
+
+    cleanupIframeEscRef.current?.();
+    cleanupIframeEscRef.current = bindIframeEscapeHandler(doc, onClose);
+    normalizeEmbeddedFormActions(doc);
+    bindEmbeddedIssueFormSubmit(doc);
+
+    requestAnimationFrame(() => {
+      setIframeReady(true);
+      measureDialogHeight();
+    });
+  };
+
+  const renderValidationResponseInIframe = (html: string) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+
+    try {
+      doc.open();
+      doc.write(html);
+      doc.close();
+    } catch {
+      return;
+    }
+
+    syncEmbeddedIssueFrame(doc);
+  };
+
+  const saveEditedIssueFromEmbeddedForm = async (): Promise<
+    | { kind: 'saved'; issueId: number }
+    | { kind: 'validation-error'; errorMessage: string | null }
+  > => {
     const { form } = findEmbeddedIssueForm();
     const action = form.getAttribute('action') || `/issues/${issueId}`;
     const method = (form.getAttribute('method') || 'post').toUpperCase();
@@ -1599,39 +1691,75 @@ function IssueEditDialog({
       credentials: 'same-origin',
       body: formData
     });
-    if (!res.ok) {
-      throw new Error(t('common.alertError', { message: `status=${res.status}` }));
-    }
 
     const locationCandidates = [res.url, res.headers.get('x-response-url') || '', res.headers.get('location') || '', action];
     const matched = locationCandidates
       .map((url) => url.match(/\/issues\/(\d+)(?:[/?#]|$)/))
       .find((match): match is RegExpMatchArray => Boolean(match && match[1]));
-    if (!matched) return issueId;
-    return Number(matched[1]);
+    const updatedIssueId = matched ? Number(matched[1]) : issueId;
+
+    // Redmine redirects (302) to the issue show page after a successful update.
+    // The show page may contain an inline edit form, so we must check for redirect
+    // first to avoid misidentifying a successful save as a validation error.
+    const isRedirectedToShowPage = res.redirected ||
+      /\/issues\/\d+(?:[/?#]|$)/.test(new URL(res.url, window.location.origin).pathname);
+
+    if (isRedirectedToShowPage && res.ok) {
+      return {
+        kind: 'saved',
+        issueId: updatedIssueId
+      };
+    }
+
+    const responseHtml = await res.text();
+    const responseDoc = parseEmbeddedIssueDocument(responseHtml);
+    const validationMessage = getEmbeddedIssueDialogErrorMessage(responseDoc);
+
+    if (validationMessage || hasEmbeddedIssueForm(responseDoc)) {
+      renderValidationResponseInIframe(responseHtml);
+      return {
+        kind: 'validation-error',
+        errorMessage: validationMessage
+      };
+    }
+
+    if (!res.ok) {
+      throw new Error(t('common.alertError', { message: `status=${res.status}` }));
+    }
+
+    return {
+      kind: 'saved',
+      issueId: updatedIssueId
+    };
   };
 
   const handleSave = async () => {
     const lines = bulkText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
 
-    if (lines.length === 0) {
-      submitDefaultIssueForm();
-      return;
-    }
-
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
     setIsSubmitting(true);
     try {
       const { form } = findEmbeddedIssueForm();
-      const defaults = extractInheritedSubIssueFieldsFromForm(form);
-      const updatedIssueId = await saveEditedIssueFromEmbeddedForm();
-      await createBulkIssues(updatedIssueId, lines, defaults);
-      setBulkText('');
-      setBulkOpen(false);
-      onSaved?.(updatedIssueId);
+      const saveResult = await saveEditedIssueFromEmbeddedForm();
+
+      if (saveResult.kind === 'validation-error') {
+        return;
+      }
+
+      if (lines.length > 0) {
+        const defaults = extractInheritedSubIssueFieldsFromForm(form);
+        await createBulkIssues(saveResult.issueId, lines, defaults);
+        setBulkText('');
+        setBulkOpen(false);
+      }
+
+      onSaved?.(saveResult.issueId);
       onClose();
     } catch (err: any) {
       alert(t('common.alertError', { message: err.message }));
     } finally {
+      saveInFlightRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -1728,53 +1856,10 @@ function IssueEditDialog({
               try {
                 const doc = (e.target as HTMLIFrameElement).contentDocument;
                 if (!doc) return;
-
-                applyEmbeddedIssueDialogStyles(doc, {
-                  contentPadding: '16px',
-                  extraCss: EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
-                  styleId: `${ISSUE_DIALOG_STYLE_ID}-edit`,
-                });
-                setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
-                bindIframeSizeObservers(doc);
-
-                try {
-                  const h2Ele = doc.querySelector('h2');
-                  if (h2Ele) setIframeHeader(h2Ele.textContent || '');
-                  const subjectInput = doc.querySelector<HTMLInputElement>('#issue_subject');
-                  if (subjectInput) {
-                    setIframeSubject(subjectInput.value);
-                    subjectInput.addEventListener('input', (event) => {
-                      setIframeSubject((event.target as HTMLInputElement).value);
-                    });
-                  } else {
-                    const subjectDiv = doc.querySelector('.subject h3');
-                    if (subjectDiv) setIframeSubject(subjectDiv.textContent || '');
-                  }
-                } catch {
-                  // Ignore iframe parsing failures.
-                }
-                cleanupIframeEscRef.current?.();
-                cleanupIframeEscRef.current = bindIframeEscapeHandler(doc, onClose);
-                normalizeEmbeddedFormActions(doc);
-
-                const pathname = doc.location?.pathname || '';
-                if (
-                  !handledSaveRef.current &&
-                  new RegExp(`^/issues/${issueId}(?:/)?$`).test(pathname) &&
-                  !hasEmbeddedIssueForm(doc)
-                ) {
-                  handledSaveRef.current = true;
-                  onSaved?.(issueId);
-                  onClose();
-                  return;
-                }
+                syncEmbeddedIssueFrame(doc);
               } catch {
                 setIframeError(null);
               }
-              requestAnimationFrame(() => {
-                setIframeReady(true);
-                measureDialogHeight();
-              });
             }}
           />
           {!iframeReady && (
@@ -3229,16 +3314,17 @@ export function TaskDetailsDialog({
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px] flex items-center justify-center p-2 sm:p-4 transition-all" onClick={handleClose}>
       <div
-        className="bg-white w-full max-w-[98vw] h-[94vh] rounded-md shadow-[0_18px_60px_rgba(15,23,42,0.22)] ring-1 ring-slate-200/70 flex flex-col overflow-hidden transition-all transform"
+        className="bg-white w-full max-w-[98vw] h-[94vh] rounded-[24px] shadow-brand-glow ring-1 ring-gray-200 flex flex-col overflow-hidden transition-all transform font-sans"
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-2.5 flex items-center justify-between gap-3 bg-[#f8f8f8] relative z-10 border-b border-slate-300 flex-shrink-0 min-h-12 box-border">
+        <div className="px-6 py-4 flex items-center justify-between gap-3 bg-white relative z-10 border-b border-gray-200 flex-shrink-0 min-h-12 box-border">
           <div className="flex flex-row items-center gap-2.5 min-w-0">
             <div className="min-w-0">
               {drilldownPath.length > 1 && (
                 <nav
-                  className="mb-1 flex items-center gap-1 overflow-x-auto whitespace-nowrap text-[11px] font-medium text-slate-400"
+                  className="mb-1.5 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[12px] font-medium font-sans text-[#8e8e93]"
+
                   aria-label={t('timeline.breadcrumbAria', { defaultValue: 'Issue hierarchy' })}
                   data-testid="task-details-breadcrumb"
                 >
@@ -3264,7 +3350,7 @@ export function TaskDetailsDialog({
                   })}
                 </nav>
               )}
-              <h3 className="text-[16px] font-semibold text-slate-900 flex items-center gap-2 min-w-0" data-testid="task-details-title">
+              <h3 className="text-[28px] font-display font-semibold text-[var(--color-text-00)] flex items-center gap-3 min-w-0" data-testid="task-details-title">
                 <span className="truncate">
 
 
@@ -3452,7 +3538,7 @@ export function TaskDetailsDialog({
                 <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
                   {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
-                      <div className="flex items-center py-2 px-4 bg-[#f8f8f8] z-20 border-b border-slate-400/40 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
+                      <div className="flex items-center py-2 px-4 bg-gray-50/80 z-20 border-b border-gray-100/50 text-[11px] font-semibold text-slate-600 flex-shrink-0 h-11 box-border sticky top-0 tracking-wide">
                       <div className="shrink-0 flex items-center relative group border-r border-slate-200/60 h-full overflow-hidden" style={{ width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}>
                         <div className="w-5 mr-1" /> {/* Spacer for expand button */}
                         {t('timeline.task', { defaultValue: 'Task' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('task', deltaX)} />
@@ -3510,7 +3596,7 @@ export function TaskDetailsDialog({
                 {shouldShowSelectedIssuePanel && selectedIssue && (
                   <div className="absolute right-0 top-0 bottom-0 w-[50%] min-w-[360px] flex flex-col min-h-0 overflow-auto bg-white border-l border-slate-300 z-30">
                     {/* Detail Header */}
-                    <div className="px-4 pt-3 pb-2.5 flex items-start justify-between gap-3 flex-shrink-0 border-b border-slate-300 bg-[#f8f8f8] sticky top-0 z-10">
+                    <div className="px-6 py-5 flex items-start justify-between gap-3 flex-shrink-0 border-b border-gray-100 bg-white sticky top-0 z-10">
                       <div className="min-w-0">
                         <div className="flex items-baseline gap-2 min-w-0">
                           <span className="text-[11px] leading-none font-semibold text-slate-500 shrink-0">
@@ -3803,11 +3889,11 @@ export function TaskDetailsDialog({
             inheritedFields={(() => {
               const issue = issues.find((i) => i.issue_id === viewIssueContext.issueId);
               return issue ? {
-                tracker_id: issue.tracker_id,
-                priority_id: issue.priority_id,
-                assigned_to_id: issue.assignee_id,
-                start_date: issue.start_date,
-                due_date: issue.due_date
+                tracker_id: issue.tracker_id ?? undefined,
+                priority_id: issue.priority_id ?? undefined,
+                assigned_to_id: issue.assignee_id ?? undefined,
+                start_date: issue.start_date ?? undefined,
+                due_date: issue.due_date ?? undefined
               } : {};
             })()}
             onSaved={(updatedIssueId) => {

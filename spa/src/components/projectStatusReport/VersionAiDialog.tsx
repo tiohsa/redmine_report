@@ -238,22 +238,22 @@ export const VersionAiDialog = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4" onClick={onClose}>
       <div
-        className="relative w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-100"
+        className="relative w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col rounded-[24px] bg-white shadow-brand-glow border border-gray-100 animate-in fade-in zoom-in duration-300 font-sans"
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex-none px-6 py-4 border-b border-slate-50 flex items-center justify-between bg-white">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-50 rounded-lg">
-              <svg className="w-5 h-5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="flex-none px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-white">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 bg-[#f0f7ff] rounded-2xl">
+              <svg className="w-6 h-6 text-[var(--color-brand-6)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z" fill="currentColor" fillOpacity="0.2" />
               </svg>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">{t('weeklyDialog.title')}</h2>
-              <p className="text-xs text-slate-500 font-medium">{versionName}</p>
+              <h2 className="text-[24px] font-display font-medium text-[#222222] leading-tight">{t('weeklyDialog.title')}</h2>
+              <p className="text-[14px] text-[#45515e] font-sans font-medium">{versionName}</p>
             </div>
           </div>
           <button
@@ -272,19 +272,19 @@ export const VersionAiDialog = ({
             return (
               <div key={step} className="flex items-center flex-1 last:flex-none">
                 <div className="flex flex-col items-center gap-1.5 relative">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${currentStep >= step ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-110' : 'bg-white border-2 border-slate-200 text-slate-400'
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${currentStep >= step ? 'bg-[var(--color-brand-6)] text-white shadow-lg shadow-blue-100 scale-110' : 'bg-white border-2 border-slate-200 text-slate-400'
                     }`}>
                     {currentStep > step ? (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
                     ) : step}
                   </div>
-                  <span className={`text-[10px] font-bold tracking-wider uppercase ${currentStep >= step ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  <span className={`text-[10px] font-bold tracking-wider uppercase font-sans ${currentStep >= step ? 'text-[var(--color-brand-6)]' : 'text-slate-400'}`}>
                     {label}
                   </span>
                 </div>
                 {idx < 3 && (
                   <div className="flex-1 h-0.5 mx-4 bg-slate-200 overflow-hidden">
-                    <div className="h-full bg-indigo-600 transition-all duration-1000" style={{ width: currentStep > step ? '100%' : '0%' }}></div>
+                    <div className="h-full bg-[var(--color-brand-6)] transition-all duration-1000" style={{ width: currentStep > step ? '100%' : '0%' }}></div>
                   </div>
                 )}
               </div>
@@ -296,8 +296,8 @@ export const VersionAiDialog = ({
         <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-thin scrollbar-thumb-slate-200">
           {/* Section 1: Target Selection */}
           <section className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
-              <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+            <div className="flex items-center gap-3 text-[14px] font-sans font-bold text-[#222222]">
+              <div className="w-1.5 h-1.5 bg-[var(--color-brand-6)] rounded-full"></div>
               {t('weeklyDialog.sectionTarget')}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -380,8 +380,8 @@ export const VersionAiDialog = ({
           {/* Section 2: AI Prompt */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+              <div className="flex items-center gap-3 text-[14px] font-sans font-bold text-[#222222]">
+                <div className="w-1.5 h-1.5 bg-[var(--color-brand-6)] rounded-full"></div>
                 {t('weeklyDialog.sectionPrompt')}
               </div>
               <button
@@ -403,7 +403,7 @@ export const VersionAiDialog = ({
             {promptText && (
               <div className="relative group animate-in zoom-in-95 duration-300">
                 <textarea
-                  className="w-full min-h-[160px] p-4 rounded-2xl bg-slate-50 border-none text-xs text-slate-700 font-mono leading-relaxed focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  className="w-full min-h-[160px] p-6 rounded-[16px] bg-slate-50 border-none text-[13px] text-[#222222] font-mono leading-relaxed focus:ring-2 focus:ring-blue-500/10 transition-all"
                   value={promptText}
                   onChange={(e) => setPromptText(e.target.value)}
                 />
@@ -430,15 +430,15 @@ export const VersionAiDialog = ({
           {/* Section 3: AI Generation */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+              <div className="flex items-center gap-3 text-[14px] font-sans font-bold text-[#222222]">
+                <div className="w-1.5 h-1.5 bg-[var(--color-brand-6)] rounded-full"></div>
                 {t('weeklyDialog.sectionPreview')}
               </div>
               <button
                 type="button"
                 onClick={submitToLlm}
                 disabled={loadingGenerate || !promptText}
-                className="group relative h-10 px-8 overflow-hidden rounded-xl bg-violet-700 text-white text-[11px] font-black tracking-tight transition-all hover:bg-violet-800 hover:shadow-xl hover:shadow-violet-100 disabled:opacity-50 cursor-pointer"
+                className="group relative h-11 px-8 overflow-hidden rounded-full bg-[#181e25] text-white text-[14px] font-sans font-semibold transition-all hover:bg-black hover:shadow-xl hover:shadow-gray-200 disabled:opacity-50 cursor-pointer shadow-subtle"
               >
                 <div className="relative z-10 flex items-center gap-2">
                   {loadingGenerate ? (
@@ -476,15 +476,15 @@ export const VersionAiDialog = ({
         </div>
 
         {/* Footer */}
-        <div className="flex-none px-8 py-5 bg-white border-t border-slate-50 flex items-center justify-between">
+        <div className="flex-none px-8 py-6 bg-white border-t border-gray-50 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {message && <span className="text-xs font-bold text-emerald-600 animate-in fade-in slide-in-from-bottom-1">{message}</span>}
+            {message && <span className="text-sm font-semibold text-emerald-600 animate-in fade-in slide-in-from-bottom-1">{message}</span>}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <button
               type="button"
               onClick={onClose}
-              className="h-10 px-6 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
+              className="h-11 px-6 rounded-full text-[#45515e] text-[14px] font-sans font-medium hover:bg-gray-50 transition-all cursor-pointer"
             >
               {t('common.close')}
             </button>
@@ -492,13 +492,13 @@ export const VersionAiDialog = ({
               type="button"
               onClick={saveReport}
               disabled={!saveEnabled || loadingSave}
-              className="relative group h-10 px-10 overflow-hidden rounded-xl bg-slate-900 text-white text-[11px] font-black tracking-tight transition-all hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-100 disabled:opacity-30 cursor-pointer"
+              className="relative group h-11 px-10 overflow-hidden rounded-full bg-[var(--color-brand-6)] text-white text-[14px] font-sans font-semibold transition-all hover:opacity-90 hover:shadow-xl hover:shadow-blue-100 disabled:opacity-30 cursor-pointer shadow-subtle"
             >
               <div className="relative z-10 flex items-center gap-2">
                 {loadingSave ? (
-                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 ) : (
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V3"></path></svg>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V3"></path></svg>
                 )}
                 {loadingSave ? t('weeklyDialog.saving') : t('weeklyDialog.saveReport')}
               </div>

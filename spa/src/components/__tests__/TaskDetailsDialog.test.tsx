@@ -77,6 +77,7 @@ describe('TaskDetailsDialog', () => {
     updateTaskFieldsMock.mockReset();
     createIssueMock.mockReset();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
 
     if (!(globalThis as any).ResizeObserver) {
       (globalThis as any).ResizeObserver = class {
@@ -2047,12 +2048,23 @@ describe('TaskDetailsDialog', () => {
       }
     ]);
 
+    const onClose = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      redirected: false,
+      url: 'http://localhost/issues/10',
+      headers: { get: () => null },
+      text: async () =>
+        '<!doctype html><html><body><div id="errorExplanation"><ul><li>Validation failed</li></ul></div><form id="edit_issue"></form></body></html>'
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
     render(
       <TaskDetailsDialog
         open
         projectIdentifier="ecookbook"
         issueId={10}
-        onClose={vi.fn()}
+        onClose={onClose}
       />
     );
 
@@ -2060,24 +2072,187 @@ describe('TaskDetailsDialog', () => {
     fireEvent.click(screen.getAllByTitle(/Edit in Redmine|チケットを編集/)[0]);
 
     const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
-    const styleElement = { textContent: '' } as unknown as HTMLStyleElement;
-    const fakeDoc = {
-      head: { appendChild: vi.fn() },
-      createElement: vi.fn(() => styleElement),
-      querySelectorAll: vi.fn(() => []),
-      querySelector: vi.fn((selector: string) => (selector === 'form#issue-form' ? ({}) : null)),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      location: { pathname: '/issues/10' }
-    } as unknown as Document;
+    const { doc, form } = buildEmbeddedIssueDocument({
+      formId: 'edit_issue',
+      action: '/issues/10',
+      trackerId: '8',
+      priorityId: '2',
+      assignedToId: '15',
+      startDate: '2026-02-07',
+      dueDate: '2026-02-18',
+      subject: 'Edited parent issue'
+    });
     Object.defineProperty(iframe, 'contentDocument', {
       configurable: true,
-      value: fakeDoc
+      value: doc
     });
 
     fireEvent.load(iframe);
 
+    await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeTruthy());
+    act(() => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === '/issues/10')).toBe(true));
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByTestId('edit-issue-dialog-error').textContent).toContain('Validation failed');
+    });
     expect(screen.queryByTitle(/Edit Issue|チケット編集/)).toBeTruthy();
+  });
+
+  it('closes the edit issue dialog immediately after a successful save', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      }
+    ]);
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      redirected: true,
+      url: 'http://localhost/issues/10',
+      headers: { get: () => null },
+      text: async () => '<!doctype html><html><body><div id="content"><div class="issue">Updated issue</div></div></body></html>'
+    });
+    createIssueMock.mockResolvedValue({ success: true });
+    vi.stubGlobal('fetch', fetchMock);
+
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      const handleClose = () => {
+        setOpen(false);
+      };
+      return open ? (
+        <TaskDetailsDialog
+          open
+          projectIdentifier="ecookbook"
+          issueId={10}
+          onClose={handleClose}
+        />
+      ) : null;
+    }
+
+    render(<Harness />);
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTitle(/Edit in Redmine|チケットを編集/));
+
+    const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
+    const { doc } = buildEmbeddedIssueDocument({
+      formId: 'edit_issue',
+      action: '/issues/10',
+      trackerId: '8',
+      priorityId: '2',
+      assignedToId: '15',
+      startDate: '2026-02-07',
+      dueDate: '2026-02-18',
+      subject: 'Edited parent issue'
+    });
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: doc
+    });
+
+    fireEvent.load(iframe);
+
+    fireEvent.click(screen.getByText('チケット一括登録'));
+    fireEvent.change(screen.getByPlaceholderText('作成するチケットの件名を1行に1つずつ入力してください...'), {
+      target: { value: 'Child C' }
+    });
+
+    const saveButton = screen.getByRole('button', { name: '保存' });
+    await waitFor(() => expect((saveButton as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(saveButton);
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url, options]) => url === '/issues/10' && (options as RequestInit | undefined)?.credentials === 'same-origin')
+      ).toBe(true)
+    );
+    await waitFor(() => expect(createIssueMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(screen.queryByTitle(/Edit Issue|チケット編集/)).toBeNull();
+    });
+  });
+
+  it('closes the edit issue dialog when the embedded form submits successfully', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      }
+    ]);
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      redirected: true,
+      url: 'http://localhost/issues/10',
+      headers: { get: () => null },
+      text: async () => '<!doctype html><html><body><div id="content"><div class="issue">Updated issue</div></div></body></html>'
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return open ? (
+        <TaskDetailsDialog
+          open
+          projectIdentifier="ecookbook"
+          issueId={10}
+          onClose={() => setOpen(false)}
+        />
+      ) : null;
+    }
+
+    render(<Harness />);
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTitle(/Edit in Redmine|チケットを編集/));
+
+    const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
+    const { doc, form } = buildEmbeddedIssueDocument({
+      formId: 'edit_issue',
+      action: '/issues/10',
+      trackerId: '8',
+      priorityId: '2',
+      assignedToId: '15',
+      startDate: '2026-02-07',
+      dueDate: '2026-02-18',
+      subject: 'Edited parent issue'
+    });
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: doc
+    });
+
+    fireEvent.load(iframe);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeTruthy());
+    act(() => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url, options]) => url === '/issues/10' && (options as RequestInit | undefined)?.credentials === 'same-origin')
+      ).toBe(true)
+    );
+    await waitFor(() => {
+      expect(screen.queryByTitle(/Edit Issue|チケット編集/)).toBeNull();
+    });
   });
 
   it('uses compact canvas-gantt dialog chrome for sub-issue dialog', async () => {
@@ -2335,19 +2510,26 @@ describe('TaskDetailsDialog', () => {
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
+      redirected: true,
       url: 'http://localhost/issues/10',
-      headers: { get: () => null }
+      headers: { get: () => null },
+      text: async () => '<!doctype html><html><body><div id="content"><div class="issue">Updated issue</div></div></body></html>'
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(
-      <TaskDetailsDialog
-        open
-        projectIdentifier="ecookbook"
-        issueId={10}
-        onClose={vi.fn()}
-      />
-    );
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return open ? (
+        <TaskDetailsDialog
+          open
+          projectIdentifier="ecookbook"
+          issueId={10}
+          onClose={() => setOpen(false)}
+        />
+      ) : null;
+    }
+
+    render(<Harness />);
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
@@ -2387,6 +2569,9 @@ describe('TaskDetailsDialog', () => {
       assigned_to_id: 15,
       start_date: '2026-02-07',
       due_date: '2026-02-18'
+    });
+    await waitFor(() => {
+      expect(screen.queryByTitle(/Edit Issue|チケット編集/)).toBeNull();
     });
   });
 });

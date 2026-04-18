@@ -1,29 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=Poppins:wght@400;500;600&family=Roboto:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-poppins: "Poppins", sans-serif;
+  --font-data: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  --color-brand-6: #1456f0;
+  --color-brand-00: #3daeff;
+  --color-brand-02: #ea5ec1;
+  --color-brand-2: #5f5f5f;
+  --color-brand-3: #17437d;
+  
+  --color-primary-200: #bfdbfe;
+  --color-primary-light: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+
+  --color-text-00: #222222;
+  --color-text-04: #45515e;
+
+  /* Custom Shadow utilities based on DESIGN.md */
+  --shadow-subtle: 0px 4px 6px rgba(0, 0, 0, 0.08);
+  --shadow-ambient: 0px 0px 22.576px rgba(0, 0, 0, 0.08);
+  --shadow-brand-glow: 0px 0px 15px rgba(44, 30, 116, 0.16);
+  --shadow-brand-glow-offset: 6.5px 2px 17.5px rgba(44, 30, 116, 0.11);
+  --shadow-elevated: 0px 12px 16px -4px rgba(36, 36, 36, 0.08);
+}
+
+/* Minimalist Scrollbar Style */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
 
 @layer components {
     .schedule-report-page {
-        @apply flex flex-col h-screen overflow-hidden text-gray-900 font-sans;
+        @apply flex flex-col h-screen overflow-hidden text-[#222222] font-sans bg-[#ffffff];
     }
 
     /* Markdown rendered content styles */
     .markdown-body {
-        @apply text-sm text-gray-700 leading-relaxed;
+        @apply text-[16px] text-[#222222] font-sans leading-[1.50];
     }
 
     .markdown-body h1 {
-        @apply text-lg font-bold text-gray-900 mt-4 mb-2 pb-1 border-b border-gray-200;
+        @apply text-[31px] font-display font-semibold text-[#222222] mt-8 mb-4 pb-2 border-b border-gray-200 leading-[1.50];
     }
 
     .markdown-body h2 {
-        @apply text-base font-bold text-gray-800 mt-3 mb-2;
+        @apply text-[24px] font-poppins font-medium text-[#222222] mt-6 mb-3 leading-[1.50];
     }
 
     .markdown-body h3 {
-        @apply text-sm font-bold text-gray-800 mt-2 mb-1;
+        @apply text-[20px] font-sans font-medium text-[#222222] mt-4 mb-2 leading-[1.50];
     }
 
     .markdown-body h4 {
-        @apply text-sm font-semibold text-gray-700 mt-2 mb-1;
+        @apply text-[18px] font-poppins font-medium text-[#222222] mt-4 mb-2 leading-[1.50];
     }
 
     .markdown-body p {
@@ -39,7 +88,7 @@
     }
 
     .markdown-body li {
-        @apply text-sm text-gray-700;
+        @apply text-[16px] text-[#222222] leading-[1.50];
     }
 
     .markdown-body li > ul,

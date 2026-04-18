@@ -88,22 +88,22 @@ const DRAG_THRESHOLD_PX = 4;
 const RESIZE_HANDLE_PX = 10;
 const MIN_CENTER_CLICK_PX = 14;
 const MIN_HANDLE_ACTIVE_PX = 4;
-const ACTIVE_LANE_BACKGROUND_FILL = '#e0f2fe';
+const ACTIVE_LANE_BACKGROUND_FILL = '#f9fafb';
 const ALT_LANE_BACKGROUND_FILL = '#ffffff';
 const INLINE_REPORT_SLOT_HEIGHT = 392;
 const DATE_LABEL_INSET_PX = 8;
-const SELECTED_BAR_STROKE = '#2563eb';
+const SELECTED_BAR_STROKE = '#1456f0';
 const SELECTED_BAR_DASH = [6, 4];
 const CHEVRON_RIGHT_HEAD_RATIO = 0.62;
 
 
 const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
-  labelClassName: isActive ? 'bg-sky-200/80' : 'bg-white',
-  baseFill: laneIndex % 2 === 0 ? '#ffffff' : ALT_LANE_BACKGROUND_FILL
+  labelClassName: isActive ? 'bg-[var(--color-brand-10)]' : 'bg-white',
+  baseFill: isActive ? ACTIVE_LANE_BACKGROUND_FILL : (laneIndex % 2 === 0 ? '#ffffff' : '#fafafa')
 });
 
 const InlineReportSlot = ({ response, isLoading, errorMessage }: InlineReportSlotProps) => (
-  <section className="flex h-full flex-col gap-3 overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
+  <section className="flex h-full flex-col gap-4 overflow-hidden rounded-[24px] border border-gray-200 bg-white p-6 shadow-brand-glow animate-in fade-in slide-in-from-top-4 duration-500 font-sans">
     <div className="min-h-0 flex-1 overflow-auto">
       <AiResponsePanel response={response} isLoading={isLoading} errorMessage={errorMessage} />
     </div>
@@ -197,7 +197,7 @@ const drawTimelineChevronSelectionOutline = (
   context.strokeStyle = SELECTED_BAR_STROKE;
   context.lineWidth = 2;
   context.setLineDash(SELECTED_BAR_DASH);
-  context.shadowColor = 'rgba(37, 99, 235, 0.18)';
+  context.shadowColor = 'rgba(20, 86, 240, 0.24)';
   context.shadowBlur = 6;
   context.shadowOffsetX = 0;
   context.shadowOffsetY = 1;
@@ -238,7 +238,7 @@ export function TimelineChart({
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
   const barHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
-  const barSpacingY = Math.round(34 * chartScale);
+  const barSpacingY = Math.round(17 * chartScale);
 
   const layoutData = useMemo<Array<TimelineLane & {
     contentHeight: number;
@@ -337,7 +337,7 @@ export function TimelineChart({
                     <div className="flex items-center gap-2">
                       <a
                         href={`/versions/${project.versionId}`}
-                        className="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline"
+                        className="text-[14px] font-display font-medium text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] hover:underline"
                         title={project.versionName}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -346,7 +346,7 @@ export function TimelineChart({
                       <button
                         type="button"
                         aria-label={t('timeline.startAiAria', { versionName: project.versionName })}
-                        className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-indigo-200 hover:bg-indigo-50/30 transition-all duration-300 shadow-sm hover:shadow-indigo-100/50 cursor-pointer overflow-hidden relative"
+                        className="group h-7 w-7 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:border-[var(--color-brand-6)] hover:bg-[var(--color-primary-200)] transition-all duration-300 shadow-subtle cursor-pointer overflow-hidden relative"
                         onClick={(event) => {
                           event.stopPropagation();
                           onVersionAiClick?.({
@@ -385,7 +385,7 @@ export function TimelineChart({
                       <button
                         type="button"
                         aria-label={t('timeline.showDetailAria', { versionName: project.versionName })}
-                        className="group h-7 w-7 flex items-center justify-center rounded-lg border border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-300 shadow-sm hover:shadow-blue-100/50 cursor-pointer overflow-hidden relative"
+                        className="group h-7 w-7 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:border-[var(--color-brand-6)] hover:bg-[var(--color-primary-200)] transition-all duration-300 shadow-subtle cursor-pointer overflow-hidden relative"
                         onClick={(event) => {
                           event.stopPropagation();
                           onVersionReportClick?.({
@@ -415,21 +415,21 @@ export function TimelineChart({
                       </button>
                     </div>
                   ) : (
-                    <div className="text-sm font-bold text-gray-800" title={project.versionName}>
+                    <div className="text-[14px] font-display font-medium text-[#222222]" title={project.versionName}>
                       {project.versionName}
                     </div>
                   )}
                    {project.projectIdentifier ? (
                     <a
                       href={`/projects/${project.projectIdentifier}`}
-                      className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                      className="text-[12px] text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] hover:underline mt-1 font-sans"
                       title={project.projectName}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {project.projectName}
                     </a>
                   ) : (
-                    <div className="text-xs text-gray-500 mt-1" title={project.projectName}>
+                    <div className="text-[12px] text-[#45515e] mt-1 font-sans" title={project.projectName}>
                       {project.projectName}
                     </div>
                   )}
@@ -554,7 +554,7 @@ function TimelineChartSurface({
 }) {
   const chartHeight = Math.ceil(headerHeight + totalTimelineHeight);
   const scaledBarHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
-  const scaledBarSpacingY = Math.round(34 * chartScale);
+  const scaledBarSpacingY = Math.round(17 * chartScale);
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
   const [dragSession, setDragSession] = useState<DragSession | null>(null);
   const [savingIssueId, setSavingIssueId] = useState<number | null>(null);
@@ -1020,7 +1020,7 @@ function TimelineChartSurface({
                 const isFirst = stepIndex === 0;
                 const pointDepth = Math.round(BASE_POINT_DEPTH * chartScale);
                 const barHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
-                const barSpacingY = Math.round(34 * chartScale);
+                const barSpacingY = Math.round(17 * chartScale);
                 const totalBarsHeight = (project.maxLane + 1) * barHeight + project.maxLane * barSpacingY;
                 const baseTopPadding = (project.contentHeight - totalBarsHeight) / 2;
                 const verticalOffset = baseTopPadding + step.laneIndex * (barHeight + barSpacingY);

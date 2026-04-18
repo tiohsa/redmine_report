@@ -22,6 +22,7 @@ const createCanvasContextStub = () => {
     stroke: vi.fn(),
     strokeRect: vi.fn(),
     strokeText: vi.fn(),
+    measureText: vi.fn((text: string) => ({ width: text.length * 8 })),
     createLinearGradient: vi.fn(() => gradient),
     shadowColor: 'transparent',
     shadowBlur: 0,
