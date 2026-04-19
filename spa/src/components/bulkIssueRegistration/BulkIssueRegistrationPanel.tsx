@@ -27,18 +27,20 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
   const [isOpen, setIsOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'error' | 'info'; text: string } | null>(null);
 
   const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
+    setFeedback(null);
     if (!parentIssueId) {
-      alert(t('bulkIssue.parentIssueRequired'));
+      setFeedback({ type: 'error', text: t('bulkIssue.parentIssueRequired') });
       return;
     }
 
     const lines = bulkText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
     if (lines.length === 0) {
-      alert(t('bulkIssue.emptySubjects'));
+      setFeedback({ type: 'error', text: t('bulkIssue.emptySubjects') });
       return;
     }
 
@@ -48,11 +50,11 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
         const payload: BulkIssuePayload = { subject };
         await createIssue(projectIdentifier, parentIssueId, payload);
       }
-      alert(t('bulkIssue.success'));
+      setFeedback({ type: 'info', text: t('bulkIssue.success') });
       setBulkText('');
       setIsOpen(false);
     } catch (err: any) {
-      alert(t('common.alertError', { message: err.message }));
+      setFeedback({ type: 'error', text: t('common.alertError', { message: err.message }) });
     } finally {
       setIsSubmitting(false);
     }
@@ -76,6 +78,11 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
 
       {isOpen && (
         <div className="mt-4 space-y-4">
+          {feedback ? (
+            <div className={feedback.type === 'error' ? reportStyles.alertError : reportStyles.alertInfo} role="alert">
+              {feedback.text}
+            </div>
+          ) : null}
           <textarea
             className={`${reportStyles.textarea} ${reportStyles.textareaMono} h-32 bg-[#f8fafc]`}
             placeholder={t('bulkIssue.placeholder')}

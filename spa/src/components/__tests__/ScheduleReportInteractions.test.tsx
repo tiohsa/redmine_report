@@ -7,10 +7,24 @@ import { useUiStore } from '../../stores/uiStore';
 import { buildSnapshotFixture } from './fixtures/scheduleReportFixture';
 
 vi.mock('../ProjectStatusReport', () => ({
-  ProjectStatusReport: ({ projectIdentifier, fetchError }: { projectIdentifier: string; fetchError?: string | null }) => (
+  ProjectStatusReport: ({
+    projectIdentifier,
+    fetchError,
+    selectedVersions,
+    onTaskDatesUpdated
+  }: {
+    projectIdentifier: string;
+    fetchError?: string | null;
+    selectedVersions?: string[];
+    onTaskDatesUpdated?: () => void;
+  }) => (
     <div data-testid="project-report">
       <div>project:{projectIdentifier}</div>
       <div>{fetchError ? `error:${fetchError}` : 'error:none'}</div>
+      <div>versions:{(selectedVersions || []).join(',')}</div>
+      <button type="button" onClick={() => onTaskDatesUpdated?.()}>
+        refresh
+      </button>
     </div>
   )
 }));
@@ -27,6 +41,7 @@ vi.mock('../../services/scheduleReportApi', async () => {
 describe('Schedule report interactions', () => {
   beforeEach(() => {
     fetchScheduleReportMock.mockReset();
+    window.localStorage.clear();
     useUiStore.setState({
       rootProjectIdentifier: 'ecookbook',
       currentProjectIdentifier: 'ecookbook',
@@ -155,5 +170,95 @@ describe('Schedule report interactions', () => {
       expect(useTaskStore.getState().rows).toHaveLength(0);
       expect(useTaskStore.getState().bars).toHaveLength(0);
     });
+  });
+
+  it('restores persisted version selection filtered by available versions', async () => {
+    window.localStorage.setItem(
+      'redmine_report.schedule.selectedVersions.ecookbook',
+      JSON.stringify(['Beta', 'Missing'])
+    );
+    fetchScheduleReportMock.mockResolvedValueOnce(buildSnapshotFixture({
+      bars: [
+        {
+          bar_key: 'b1',
+          project_id: 1,
+          category_id: 1,
+          category_name: 'Alpha',
+          version_name: 'Alpha',
+          start_date: '2026-02-01',
+          end_date: '2026-02-05',
+          issue_count: 1,
+          delayed_issue_count: 0,
+          progress_rate: 30,
+          is_delayed: false,
+          dependencies: []
+        },
+        {
+          bar_key: 'b2',
+          project_id: 1,
+          category_id: 2,
+          category_name: 'Beta',
+          version_name: 'Beta',
+          start_date: '2026-02-02',
+          end_date: '2026-02-06',
+          issue_count: 1,
+          delayed_issue_count: 0,
+          progress_rate: 40,
+          is_delayed: false,
+          dependencies: []
+        }
+      ]
+    }));
+
+    render(<ScheduleReportPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('versions:Beta')).toBeTruthy();
+    });
+    expect(window.localStorage.getItem('redmine_report.schedule.selectedVersions.ecookbook')).toBe(
+      JSON.stringify(['Beta'])
+    );
+  });
+
+  it('refreshes schedule data when ProjectStatusReport requests a reload', async () => {
+    fetchScheduleReportMock
+      .mockResolvedValueOnce(buildSnapshotFixture({
+        bars: [{
+          bar_key: 'before',
+          project_id: 1,
+          category_id: 1,
+          category_name: 'Before',
+          start_date: '2026-02-01',
+          end_date: '2026-02-03',
+          issue_count: 1,
+          delayed_issue_count: 0,
+          progress_rate: 20,
+          is_delayed: false,
+          dependencies: []
+        }]
+      }))
+      .mockResolvedValueOnce(buildSnapshotFixture({
+        bars: [{
+          bar_key: 'after',
+          project_id: 1,
+          category_id: 1,
+          category_name: 'After',
+          start_date: '2026-02-04',
+          end_date: '2026-02-07',
+          issue_count: 1,
+          delayed_issue_count: 0,
+          progress_rate: 60,
+          is_delayed: false,
+          dependencies: []
+        }]
+      }));
+
+    render(<ScheduleReportPage />);
+    await waitFor(() => expect(useTaskStore.getState().bars[0]?.bar_key).toBe('before'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'refresh' }));
+
+    await waitFor(() => expect(fetchScheduleReportMock).toHaveBeenCalledTimes(2));
+    expect(useTaskStore.getState().bars[0]?.bar_key).toBe('after');
   });
 });

@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchScheduleReport,
   fetchChildIssues,
   fetchTaskDetails,
   fetchWeeklyAiResponses,
   generateWeeklyReport,
   saveWeeklyReport,
+  updateTaskFields,
   updateTaskDates,
+  updateTaskJournal,
   validateWeeklyDestination,
   WeeklyApiError
 } from '../scheduleReportApi';
@@ -13,6 +16,132 @@ import {
 describe('scheduleReportApi weekly methods', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('builds the fetchScheduleReport query string from filters and selected project', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        rows: [],
+        bars: [],
+        available_projects: [],
+        selection_summary: {
+          total_candidates: 0,
+          excluded_not_visible: 0,
+          excluded_invalid_hierarchy: 0,
+          displayed_top_parent_count: 0
+        },
+        meta: {
+          generated_at: '2026-02-15T10:00:00+09:00',
+          stale_after_seconds: 300,
+          limits: { max_rows: 500, max_bars: 2000 },
+          warnings: [],
+          applied_filters: {
+            include_subprojects: false,
+            months: 6,
+            start_month: '2026-02',
+            status_scope: 'all'
+          }
+        }
+      })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchScheduleReport('ecookbook', 'roadmap', {
+      include_subprojects: false,
+      months: 6,
+      start_month: '2026-02',
+      status_scope: 'all'
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      '/projects/ecookbook/schedule_report/data?include_subprojects=0&months=6&start_month=2026-02&status_scope=all&selected_project_identifier=roadmap'
+    );
+    expect(fetchMock.mock.calls[0][1]).toEqual({ credentials: 'same-origin' });
+  });
+
+  it.each([
+    {
+      name: 'updateTaskDates',
+      run: () => updateTaskDates('ecookbook', 10, { start_date: '2026-02-02', due_date: '2026-02-11' }),
+      response: {
+        ok: true,
+        json: async () => ({
+          issue: { issue_id: 10, subject: 'Parent', start_date: '2026-02-02', due_date: '2026-02-11', issue_url: '/issues/10' }
+        })
+      }
+    },
+    {
+      name: 'updateTaskFields',
+      run: () => updateTaskFields('ecookbook', 10, {
+        subject: 'Parent',
+        tracker_id: 3,
+        status_id: 4,
+        priority_id: 5,
+        assigned_to_id: 9,
+        done_ratio: 50
+      }),
+      response: {
+        ok: true,
+        json: async () => ({
+          issue: { issue_id: 10, subject: 'Parent', start_date: '2026-02-02', due_date: '2026-02-11', issue_url: '/issues/10' }
+        })
+      }
+    },
+    {
+      name: 'updateTaskJournal',
+      run: () => updateTaskJournal('ecookbook', 5, 'Updated note'),
+      response: { ok: true, json: async () => ({}) }
+    }
+  ])('sends the CSRF header for $name', async ({ run, response }) => {
+    const fetchMock = vi.fn().mockResolvedValue(response);
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(document, 'querySelector').mockReturnValue({ content: 'csrf-token' } as HTMLMetaElement);
+
+    await run();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({
+      method: 'PATCH',
+      headers: expect.objectContaining({
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': 'csrf-token'
+      })
+    }));
+  });
+
+  it('exposes message, code, and retryable from the error body', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        code: 'REVISION_CONFLICT',
+        message: 'conflict',
+        retryable: true
+      })
+    }));
+
+    try {
+      await saveWeeklyReport('ecookbook', {
+        project_id: 1,
+        version_id: 2,
+        week_from: '2026-02-09',
+        week_to: '2026-02-15',
+        week: '2026-W07',
+        destination_issue_id: 3,
+        markdown: 'm',
+        generated_at: '2026-02-15T10:00:00+09:00'
+      });
+      throw new Error('expected saveWeeklyReport to reject');
+    } catch (error) {
+      expect(error).toBeInstanceOf(WeeklyApiError);
+      const apiError = error as WeeklyApiError;
+      expect(apiError.message).toBe('conflict');
+      expect(apiError.status).toBe(409);
+      expect(apiError.code).toBe('REVISION_CONFLICT');
+      expect(apiError.retryable).toBe(true);
+    }
   });
 
   it('maps validate response payload', async () => {
@@ -51,27 +180,6 @@ describe('scheduleReportApi weekly methods', () => {
 
     expect(res.markdown).toBe('preview');
     expect(res.header_preview.week).toBe('2026-W07');
-  });
-
-  it('throws WeeklyApiError on save failure', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: async () => ({ code: 'REVISION_CONFLICT', message: 'conflict', retryable: true })
-    }));
-
-    await expect(
-      saveWeeklyReport('ecookbook', {
-        project_id: 1,
-        version_id: 2,
-        week_from: '2026-02-09',
-        week_to: '2026-02-15',
-        week: '2026-W07',
-        destination_issue_id: 3,
-        markdown: 'm',
-        generated_at: '2026-02-15T10:00:00+09:00'
-      })
-    ).rejects.toBeInstanceOf(WeeklyApiError);
   });
 
   it('maps ai response tabs payload', async () => {

@@ -16,19 +16,14 @@ module RedmineReport
       def call
         candidates = selectable_candidates
         selection = @visibility_scope.select_visible_top_level_parents(candidates)
-        display_issues = resolve_display_issues(candidates, selection.display_root_issue_ids)
+        display_issues = display_issues_for_roots(candidates, selection.display_root_issue_ids)
         bars = build_bars(display_issues)
-        filtered_rows = filter_rows_with_ancestors(build_rows, bars)
+        filtered_rows = filtered_rows_for(bars)
 
         {
           rows: filtered_rows,
           bars: bars,
-          selection_summary: {
-            total_candidates: selection.total_candidates,
-            excluded_not_visible: selection.excluded_not_visible,
-            excluded_invalid_hierarchy: selection.excluded_invalid_hierarchy,
-            displayed_top_parent_count: selection.display_root_issue_ids.size
-          },
+          selection_summary: build_selection_summary(selection),
           filter_rule: 'open_version_top_parent'
         }
       end
@@ -39,22 +34,26 @@ module RedmineReport
         open_version_candidates(apply_status_scope(@issues))
       end
 
-      def resolve_display_issues(candidates, display_root_issue_ids)
+      def display_issues_for_roots(candidates, display_root_issue_ids)
         visible_root_ids = display_root_issue_ids.to_set
-        root_issue_ids_in_order = ordered_visible_root_issue_ids(candidates, visible_root_ids)
-        candidate_issue_map = candidates.index_by(&:id)
-        fetched_roots = fetch_missing_root_issues(root_issue_ids_in_order, candidate_issue_map)
+        root_issue_ids_in_order = visible_root_issue_ids_in_order(candidates, visible_root_ids)
+        candidate_issue_map = candidate_issue_index(candidates)
+        fetched_roots = fetched_display_root_issues(root_issue_ids_in_order, candidate_issue_map)
 
         root_issue_ids_in_order.filter_map do |root_id|
           candidate_issue_map[root_id] || fetched_roots[root_id]
         end
       end
 
-      def ordered_visible_root_issue_ids(candidates, visible_root_ids)
+      def visible_root_issue_ids_in_order(candidates, visible_root_ids)
         candidates
           .map { |issue| issue_root_id(issue) }
           .select { |root_id| visible_root_ids.include?(root_id) }
           .uniq
+      end
+
+      def candidate_issue_index(candidates)
+        candidates.index_by(&:id)
       end
 
       def fetch_root_issues(root_issue_ids)
@@ -62,43 +61,71 @@ module RedmineReport
         Issue.where(id: root_issue_ids).index_by(&:id)
       end
 
-      def fetch_missing_root_issues(root_issue_ids_in_order, candidate_issue_map)
+      def fetched_display_root_issues(root_issue_ids_in_order, candidate_issue_map)
         missing_root_ids = root_issue_ids_in_order.reject { |root_id| candidate_issue_map.key?(root_id) }
         fetch_root_issues(missing_root_ids)
       end
 
       def filter_rows_with_ancestors(rows, bars)
-        rows_by_project_id = rows.index_by { |row| row[:project_id] }
-        rows_to_keep = Set.new
-
-        bars.map { |bar| bar[:project_id] }.uniq.each do |project_id|
-          keep_row_ancestors(project_id, rows_by_project_id, rows_to_keep)
-        end
+        rows_by_project_id = row_index_by_project_id(rows)
+        rows_to_keep = ancestor_project_ids_for_bars(bars, rows_by_project_id)
 
         rows.select { |row| rows_to_keep.include?(row[:project_id]) }
       end
 
-      def keep_row_ancestors(project_id, rows_by_project_id, rows_to_keep)
-        row = rows_by_project_id[project_id]
-        while row
-          rows_to_keep << row[:project_id]
-          parent_id = row[:parent_project_id]
-          row = parent_id ? rows_by_project_id[parent_id] : nil
+      def filtered_rows_for(bars)
+        filter_rows_with_ancestors(build_rows, bars)
+      end
+
+      def build_selection_summary(selection)
+        {
+          total_candidates: selection.total_candidates,
+          excluded_not_visible: selection.excluded_not_visible,
+          excluded_invalid_hierarchy: selection.excluded_invalid_hierarchy,
+          displayed_top_parent_count: selection.display_root_issue_ids.size
+        }
+      end
+
+      def bar_project_ids(bars)
+        bars.map { |bar| bar[:project_id] }.uniq
+      end
+
+      def row_index_by_project_id(rows)
+        rows.index_by { |row| row[:project_id] }
+      end
+
+      def ancestor_project_ids_for_bars(bars, rows_by_project_id)
+        bar_project_ids(bars).each_with_object(Set.new) do |project_id, rows_to_keep|
+          rows_to_keep.merge(ancestor_project_ids(project_id, rows_by_project_id))
         end
       end
 
+      def ancestor_project_ids(project_id, rows_by_project_id)
+        ancestor_ids = Set.new
+        row = rows_by_project_id[project_id]
+        while row
+          ancestor_ids << row[:project_id]
+          parent_id = row[:parent_project_id]
+          row = parent_id ? rows_by_project_id[parent_id] : nil
+        end
+        ancestor_ids
+      end
+
       def build_rows
-        projects = [@project] + (@filters.include_subprojects ? @project.descendants.to_a : [])
-        projects.map do |p|
+        visible_projects.map do |project|
           {
-            project_id: p.id,
-            identifier: p.identifier,
-            name: p.name,
-            parent_project_id: p.parent_id,
-            level: hierarchy_level_resolver.call(p),
+            project_id: project.id,
+            identifier: project.identifier,
+            name: project.name,
+            parent_project_id: project.parent_id,
+            level: hierarchy_level_resolver.call(project),
             expanded: true
           }
         end
+      end
+
+      def visible_projects
+        [@project] + (@filters.include_subprojects ? @project.descendants.to_a : [])
       end
 
       def hierarchy_level_resolver
@@ -123,52 +150,88 @@ module RedmineReport
       end
 
       def build_bars(issues)
-        groups = grouped_bar_issues(issues)
-        issue_to_bar_key = build_issue_to_bar_key_map(groups)
+        groups = bar_groups_for(issues)
+        issue_to_bar_key = issue_to_bar_key_index(groups)
         dependencies = build_dependencies(issue_to_bar_key)
 
-        groups.map do |(project_id, issue_id, issue_subject), grouped_issues|
-          build_bar_payload(
-            project_id: project_id,
-            issue_id: issue_id,
-            issue_subject: issue_subject,
-            grouped_issues: grouped_issues,
-            dependencies: dependencies
-          )
-        end.compact
+        bar_payloads_for(groups, dependencies).compact
       end
 
-      def grouped_bar_issues(issues)
+      def bar_groups_for(issues)
         issues
           .select { |issue| issue.fixed_version }
           .group_by { |issue| [issue.project_id, issue.id, issue.subject] }
       end
 
-      def build_bar_payload(project_id:, issue_id:, issue_subject:, grouped_issues:, dependencies:)
-        start_date, end_date = date_range_for_bar(grouped_issues)
+      def bar_payloads_for(groups, dependencies)
+        groups.map do |group_key, grouped_issues|
+          build_bar_from_group(group_key, grouped_issues, dependencies)
+        end
+      end
+
+      def build_bar_from_group(group_key, grouped_issues, dependencies)
+        project_id, issue_id, issue_subject = group_key
+        identity = bar_identity_for(project_id: project_id, issue_id: issue_id, issue_subject: issue_subject, grouped_issues: grouped_issues)
+        metrics = bar_metrics_for(grouped_issues)
+        start_date = metrics[:start_date]
+        end_date = metrics[:end_date]
         return nil unless start_date && end_date
 
-        delayed_count = delayed_issue_count(grouped_issues)
-        key = bar_key_for(project_id, issue_id)
+        {
+          bar_key: identity[:bar_key],
+          project_id: identity[:project_id],
+          # Keep legacy category fields for SPA compatibility; values now represent issue grouping.
+          category_id: identity[:category_id],
+          category_name: identity[:category_name],
+          version_id: identity[:version_id],
+          version_name: identity[:version_name],
+          ticket_subject: identity[:ticket_subject],
+          start_date: start_date,
+          end_date: end_date,
+          issue_count: metrics[:issue_count],
+          delayed_issue_count: metrics[:delayed_issue_count],
+          progress_rate: metrics[:progress_rate],
+          is_delayed: metrics[:is_delayed],
+          dependencies: dependencies[identity[:bar_key]].to_a
+        }
+      end
+
+      def bar_identity_for(project_id:, issue_id:, issue_subject:, grouped_issues:)
         version = grouped_issues.first&.fixed_version
         version_name = version&.name
 
         {
-          bar_key: key,
+          bar_key: bar_key_for(project_id, issue_id),
           project_id: project_id,
-          # Keep legacy category fields for SPA compatibility; values now represent issue grouping.
           category_id: issue_id,
           category_name: issue_subject || version_name || 'Issue',
           version_id: version&.id,
           version_name: version_name,
-          ticket_subject: issue_subject,
+          ticket_subject: issue_subject
+        }
+      end
+
+      def bar_metrics_for(grouped_issues)
+        bar_schedule_metrics(grouped_issues).merge(bar_progress_metrics(grouped_issues))
+      end
+
+      def bar_schedule_metrics(grouped_issues)
+        start_date, end_date = date_range_for_bar(grouped_issues)
+
+        {
           start_date: start_date,
           end_date: end_date,
-          issue_count: grouped_issues.size,
-          delayed_issue_count: delayed_count,
+          issue_count: grouped_issues.size
+        }
+      end
+
+      def bar_progress_metrics(grouped_issues)
+        delay_count = delayed_issue_count(grouped_issues)
+
+        {
+          delayed_issue_count: delay_count,
           progress_rate: progress_rate(grouped_issues),
-          is_delayed: delayed_count.positive?,
-          dependencies: dependencies[key].to_a
+          is_delayed: delay_count.positive?
         }
       end
 
@@ -196,7 +259,7 @@ module RedmineReport
         "#{project_id}:issue:#{issue_id}"
       end
 
-      def build_issue_to_bar_key_map(groups)
+      def issue_to_bar_key_index(groups)
         issue_to_bar_key = {}
         groups.each do |(project_id, issue_id, _), grouped_issues|
           bar_key = bar_key_for(project_id, issue_id)
@@ -209,10 +272,7 @@ module RedmineReport
         issue_ids = issue_to_bar_key.keys
         return empty_dependency_map if issue_ids.empty?
 
-        accumulate_dependencies(
-          issue_to_bar_key: issue_to_bar_key,
-          relations: preceding_relations_for(issue_ids)
-        )
+        accumulate_dependencies(issue_to_bar_key: issue_to_bar_key, relations: preceding_relations_for(issue_ids))
       end
 
       def preceding_relations_for(issue_ids)

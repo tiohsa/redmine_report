@@ -1,43 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { t } from '../../i18n';
 import {
-  applyEmbeddedIssueDialogStyles,
-  bindIframeEscapeHandler,
   COMPACT_ACTION_BUTTON_HEIGHT,
   COMPACT_ACTION_BUTTON_MIN_WIDTH,
   COMPACT_ICON_BUTTON_SIZE,
   DEFAULT_DIALOG_WIDTH_PX,
+  EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
+  extractIssueIdFromLocationCandidates,
+  findEmbeddedIssueForm as findEmbeddedIssueFormElement,
   getEmbeddedDialogDefaultHeight,
-  getEmbeddedIssueDialogErrorMessage,
-  ISSUE_DIALOG_STYLE_ID,
   MAX_DIALOG_VIEWPORT_HEIGHT_RATIO,
+  submitEmbeddedIssueForm,
+  setupEmbeddedIssueDialogIframe,
   useEmbeddedIssueDialogLayout,
 } from './embeddedIssueDialog';
+import { reportStyles } from '../designSystem';
+import { Button } from '../ui/Button';
+import { Icon } from '../ui/Icon';
 
 const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
-const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
-                  #issue-form p:has(#issue_subject),
-                  #new_issue p:has(#issue_subject),
-                  #edit_issue p:has(#issue_subject) {
-                    margin-bottom: 8px !important;
-                  }
-                  #issue-form label[for="issue_subject"],
-                  #new_issue label[for="issue_subject"],
-                  #edit_issue label[for="issue_subject"] {
-                    margin-bottom: 2px !important;
-                    font-size: 12px !important;
-                    line-height: 1.2 !important;
-                  }
-                  #issue_subject {
-                    min-height: 28px !important;
-                    height: 28px !important;
-                    padding-top: 3px !important;
-                    padding-bottom: 3px !important;
-                    font-size: 13px !important;
-                    line-height: 1.2 !important;
-                  }
-`;
-
 type CreateDestinationIssueDialogProps = {
   projectIdentifier: string;
   onCreated?: (createdIssueId?: number) => void;
@@ -52,6 +33,7 @@ export function CreateDestinationIssueDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
   const [iframeError, setIframeError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const footerRef = useRef<HTMLDivElement | null>(null);
@@ -90,74 +72,41 @@ export function CreateDestinationIssueDialog({
     iframeEscapeCleanupRef.current = null;
   }, []);
 
-  const createIssueFromEmbeddedForm = async (): Promise<number> => {
-    const doc = iframeRef.current?.contentDocument;
-    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
-
-    const form =
-      doc.querySelector<HTMLFormElement>('form#issue-form') ||
-      doc.querySelector<HTMLFormElement>('form#new_issue') ||
-      doc.querySelector<HTMLFormElement>('#issue-form form') ||
-      doc.querySelector<HTMLFormElement>('form.new_issue');
-
-    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
-
-    const action = form.getAttribute('action') || '/issues';
-    const method = (form.getAttribute('method') || 'post').toUpperCase();
-    const formData = new FormData(form);
-    const res = await fetch(action, {
-      method,
-      credentials: 'same-origin',
-      body: formData,
-    });
-
-    if (!res.ok) {
-      throw new Error(t('embeddedIssueForm.createIssueFailed', { status: res.status }));
-    }
-
-    const locationCandidates = [res.url, res.headers.get('x-response-url') || '', res.headers.get('location') || ''];
-    const createdIssueId = locationCandidates
-      .map((url) => url.match(/\/issues\/(\d+)(?:[/?#]|$)/))
-      .find((match): match is RegExpMatchArray => Boolean(match && match[1]));
-
-    if (!createdIssueId) {
-      throw new Error(t('embeddedIssueForm.createdIssueIdNotFound'));
-    }
-    return Number(createdIssueId[1]);
-  };
-
   const handleSave = async () => {
-    setIsSubmitting(true);
     try {
-      const newIssueId = await createIssueFromEmbeddedForm();
-      onCreated?.(newIssueId);
+      const doc = iframeRef.current?.contentDocument;
+      if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
+    const form = findEmbeddedIssueFormElement(doc);
+      if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
+
+      setIsSubmitting(true);
+      setSubmitError(null);
+      const res = await submitEmbeddedIssueForm(form);
+
+      if (!res.ok) {
+        throw new Error(t('embeddedIssueForm.createIssueFailed', { status: res.status }));
+      }
+
+      const createdIssueId = extractIssueIdFromLocationCandidates([
+        res.url,
+        res.headers.get('x-response-url'),
+        res.headers.get('location'),
+      ]);
+      if (!createdIssueId) {
+        throw new Error(t('embeddedIssueForm.createdIssueIdNotFound'));
+      }
+
+      onCreated?.(createdIssueId);
       onClose();
     } catch (err: any) {
-      alert(t('common.alertError', { message: err.message }));
-    } finally {
+      setSubmitError(t('common.alertError', { message: err.message }));
       setIsSubmitting(false);
     }
   };
 
-  const normalizeEmbeddedFormActions = (doc: Document) => {
-    const forms = Array.from(doc.querySelectorAll('form[action]'));
-    forms.forEach((form) => {
-      const rawAction = form.getAttribute('action');
-      if (!rawAction) return;
-      try {
-        const actionUrl = new URL(rawAction, window.location.origin);
-        if (actionUrl.origin === window.location.origin) return;
-        const normalized = `${actionUrl.pathname}${actionUrl.search}${actionUrl.hash}`;
-        form.setAttribute('action', normalized);
-      } catch {
-        // Ignore invalid URL and keep original action.
-      }
-    });
-  };
-
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] sm:p-6"
+      className={`${reportStyles.dialogOverlay} z-[70] sm:p-6`}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -185,19 +134,22 @@ export function CreateDestinationIssueDialog({
             </h4>
           </div>
           <div className="flex items-center gap-[6px] flex-shrink-0">
-          <button
-            type="button"
+          <Button
+            variant="icon-muted"
             aria-label={t('destinationIssueDialog.closeAria')}
-            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+            className="h-8 w-8"
             style={{ width: '24px', height: '24px' }}
             onClick={onClose}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+            <Icon name="close" className="h-4 w-4" />
+          </Button>
           </div>
         </div>
 
         <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
+          {submitError ? (
+            <div className="report-alert-error mx-4 mt-4" role="alert">{submitError}</div>
+          ) : null}
           {iframeError ? (
             <div
               ref={errorRef}
@@ -224,22 +176,18 @@ export function CreateDestinationIssueDialog({
                 const doc = (e.target as HTMLIFrameElement).contentDocument;
                 if (!doc) return;
 
-                applyEmbeddedIssueDialogStyles(doc, {
-                  contentPadding: '16px',
+                const createdIssueId = setupEmbeddedIssueDialogIframe(doc, {
+                  onClose,
+                  setIframeError,
+                  bindIframeSizeObservers,
+                  cleanupEscapeHandlerRef: iframeEscapeCleanupRef,
                   extraCss: EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
-                  styleId: `${ISSUE_DIALOG_STYLE_ID}-destination`,
+                  styleId: 'rr-embedded-issue-dialog-style-destination',
                 });
-                setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
-                bindIframeSizeObservers(doc);
-                iframeEscapeCleanupRef.current?.();
-                iframeEscapeCleanupRef.current = bindIframeEscapeHandler(doc, onClose);
-                normalizeEmbeddedFormActions(doc);
 
-                const pathname = doc.location?.pathname || '';
-                if (!handledCreationRef.current && /^\/issues\/\d+(?:\/)?$/.test(pathname)) {
+                if (!handledCreationRef.current && createdIssueId) {
                   handledCreationRef.current = true;
-                  const createdIssueId = Number(pathname.split('/').pop());
-                  onCreated?.(Number.isFinite(createdIssueId) ? createdIssueId : undefined);
+                  onCreated?.(createdIssueId);
                   onClose();
                   return;
                 }
@@ -249,6 +197,7 @@ export function CreateDestinationIssueDialog({
 
               requestAnimationFrame(() => {
                 setIframeReady(true);
+                setIsSubmitting(false);
                 measureDialogHeight();
               });
             }}
@@ -273,30 +222,22 @@ export function CreateDestinationIssueDialog({
             target="_blank"
             rel="noreferrer"
             aria-label={t('common.openInNewTab')}
-            className="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600"
+            className={`${reportStyles.iconButtonMuted} h-8 w-8`}
             style={{ width: '24px', height: '24px' }}
           >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 3h7v7m0-7L10 14m-4 0H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
-            </svg>
+            <Icon name="open-in-new" className="h-3.5 w-3.5" />
           </a>
-          <button
-            type="button"
-            className="inline-flex h-7 min-w-[88px] items-center justify-center rounded-full border border-gray-200 bg-[#f0f0f0] px-4 text-[13px] font-medium text-[#222222] transition-colors hover:bg-gray-200"
-            style={{ height: '28px', minWidth: '88px' }}
-            onClick={onClose}
-          >
+          <Button variant="secondary" className="min-w-[88px]" style={{ height: '28px', minWidth: '88px' }} onClick={onClose}>
             {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-7 min-w-[88px] items-center justify-center rounded-full bg-[#181e25] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-black disabled:opacity-50 disabled:pointer-events-none"
-            style={{ height: '28px', minWidth: '88px' }}
+          </Button>
+          <Button
             disabled={isSubmitting || !iframeReady}
             onClick={handleSave}
+            className="min-w-[88px]"
+            style={{ height: '28px', minWidth: '88px' }}
           >
             {isSubmitting ? t('common.saving') : t('common.save')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -3,6 +3,9 @@ import { useUiStore } from '../stores/uiStore';
 import { useTaskStore } from '../stores/taskStore';
 import { t } from '../i18n';
 import { reportStyles } from './designSystem';
+import { Button } from './ui/Button';
+import { Icon } from './ui/Icon';
+import { SelectionList, SelectionRow, CheckboxRow } from './ui/SelectionList';
 
 interface FilterToolbarProps {
   allVersions?: string[];
@@ -64,43 +67,38 @@ export function FilterToolbar(props: FilterToolbarProps) {
       {/* Project Selection */}
       <div className="flex items-center gap-2 relative" ref={projectDropdownRef}>
         <label className="text-sm font-medium text-[#45515e]">{t('filter.projects')}</label>
-        <button
+        <Button
           onClick={() => setIsProjectOpen(!isProjectOpen)}
-          className="flex min-w-[200px] items-center justify-between gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)]"
+          variant="secondary"
+          className={`${reportStyles.selectTrigger} min-w-[200px]`}
         >
-          <span className="truncate max-w-[180px]">{buttonLabel}</span>
-          <svg className={`w-4 h-4 transition-transform ${isProjectOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-          </svg>
-        </button>
+          <span className={`${reportStyles.selectTriggerLabel} max-w-[180px]`}>{buttonLabel}</span>
+          <Icon name="chevron-down" className={`h-4 w-4 transition-transform ${isProjectOpen ? 'rotate-180' : ''}`} />
+        </Button>
 
         {isProjectOpen && (
           <div className={`${reportStyles.dropdownPanel} left-0 top-full mt-2 w-64 max-h-96 overflow-y-auto`}>
-            {availableProjects.map((p) => {
-              const isSelected = selectedProjectIdentifiers.includes(p.identifier);
-              const isDisabled = p.selectable === false;
-              return (
-                <div
-                  key={p.project_id}
-                  className={`flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-gray-50 ${isDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                  onClick={() => !isDisabled && toggleProject(p.identifier)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    readOnly
+            <SelectionList>
+              {availableProjects.map((p) => {
+                const isSelected = selectedProjectIdentifiers.includes(p.identifier);
+                const isDisabled = p.selectable === false;
+                return (
+                  <SelectionRow
+                    key={p.project_id}
+                    active={isSelected}
                     disabled={isDisabled}
-                    className="rounded border-gray-300 text-[var(--color-primary-600)] focus:ring-[var(--color-primary-200)]"
-                  />
-                  <span className={`text-sm ${isSelected ? 'font-medium text-gray-900' : 'text-gray-700'}`} style={{ paddingLeft: `${p.level * 12}px` }}>
+                    indent={p.level * 12}
+                    leading={<CheckboxRow checked={isSelected} />}
+                    onClick={() => toggleProject(p.identifier)}
+                  >
                     {p.name}
-                  </span>
-                </div>
-              );
-            })}
-            {availableProjects.length === 0 && (
-              <div className="px-3 py-2 text-sm text-gray-500">{t('filter.noProjects')}</div>
-            )}
+                  </SelectionRow>
+                );
+              })}
+              {availableProjects.length === 0 && (
+                <div className="px-4 py-3 text-sm text-gray-500">{t('filter.noProjects')}</div>
+              )}
+            </SelectionList>
           </div>
         )}
       </div>
@@ -110,17 +108,16 @@ export function FilterToolbar(props: FilterToolbarProps) {
       {/* Version Selection */}
       <div className="flex items-center gap-2 relative" ref={versionDropdownRef}>
         <label className="text-sm font-medium text-[#45515e]">{t('filter.versions')}</label>
-        <button
+        <Button
           onClick={() => setIsVersionOpen(!isVersionOpen)}
-          className="flex min-w-[150px] items-center justify-between gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)]"
+          variant="secondary"
+          className={`${reportStyles.selectTrigger} min-w-[150px]`}
         >
-          <span className="truncate max-w-[130px]">
+          <span className={`${reportStyles.selectTriggerLabel} max-w-[130px]`}>
             {selectedVersions.length === allVersions.length ? t('filter.allVersions') : t('filter.selectedCount', { count: selectedVersions.length })}
           </span>
-          <svg className={`w-4 h-4 transition-transform ${isVersionOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-          </svg>
-        </button>
+          <Icon name="chevron-down" className={`h-4 w-4 transition-transform ${isVersionOpen ? 'rotate-180' : ''}`} />
+        </Button>
 
         {isVersionOpen && onVersionChange && (
           <div className={`${reportStyles.dropdownPanel} left-0 top-full mt-2 w-64 max-h-96 overflow-y-auto`}>
@@ -138,29 +135,26 @@ export function FilterToolbar(props: FilterToolbarProps) {
                 {t('filter.clear')}
               </button>
             </div>
-            {allVersions.map((version) => (
-              <div
-                key={version}
-                className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-gray-50"
-                onClick={() => {
-                  if (selectedVersions.includes(version)) {
-                    onVersionChange(selectedVersions.filter(v => v !== version));
-                  } else {
-                    onVersionChange([...selectedVersions, version]);
-                  }
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedVersions.includes(version)}
-                  readOnly
-                  className="pointer-events-none rounded border-gray-300 text-[var(--color-primary-600)] focus:ring-[var(--color-primary-200)]"
-                />
-                <span className="truncate text-sm text-gray-700">{version}</span>
-              </div>
-            ))}
+            <SelectionList>
+              {allVersions.map((version) => (
+                <SelectionRow
+                  key={version}
+                  active={selectedVersions.includes(version)}
+                  leading={<CheckboxRow checked={selectedVersions.includes(version)} />}
+                  onClick={() => {
+                    if (selectedVersions.includes(version)) {
+                      onVersionChange(selectedVersions.filter(v => v !== version));
+                    } else {
+                      onVersionChange([...selectedVersions, version]);
+                    }
+                  }}
+                >
+                  {version}
+                </SelectionRow>
+              ))}
+            </SelectionList>
             {allVersions.length === 0 && (
-              <div className="px-3 py-2 text-sm text-gray-500">{t('filter.noVersions')}</div>
+              <div className="px-4 py-3 text-sm text-gray-500">{t('filter.noVersions')}</div>
             )}
           </div>
         )}

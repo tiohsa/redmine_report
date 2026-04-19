@@ -14,6 +14,10 @@ import { VersionAiDialog } from './projectStatusReport/VersionAiDialog';
 import type { AiResponseView } from '../types/weeklyReport';
 import { getDateFnsLocale, getLocale, t } from '../i18n';
 import { reportStyles } from './designSystem';
+import { Button } from './ui/Button';
+import { Icon } from './ui/Icon';
+import { SelectionList, SelectionRow, CheckboxRow } from './ui/SelectionList';
+import { FieldLabel } from './ui/FieldLabel';
 
 const CHART_SCALE_STORAGE_KEY = 'redmine_report.schedule.chartScale';
 const SHOW_ALL_DATES_STORAGE_KEY = 'redmine_report.schedule.showAllDates';
@@ -394,7 +398,6 @@ export const ProjectStatusReport = ({
 
     const iconButtonStyle = reportStyles.iconButton;
     const activeIconButtonStyle = reportStyles.iconButtonActive;
-    const headerIconStyle = "w-5 h-5";
     const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-3 w-72 max-h-[420px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
     const filterDropdownTitleStyle = reportStyles.dropdownTitle;
     const filterDropdownRowStyle = reportStyles.dropdownRow;
@@ -411,23 +414,24 @@ export const ProjectStatusReport = ({
                     <div className="flex items-center gap-2">
                         {/* Project Selection */}
                         <div className="relative" ref={projectDropdownRef}>
-                             <button
+                             <Button
                                 onClick={() => setIsProjectOpen(!isProjectOpen)}
-                                className={selectedProjectIdentifiers.length > 0 ? activeIconButtonStyle : iconButtonStyle}
+                                variant={selectedProjectIdentifiers.length > 0 ? 'icon-active' : 'icon'}
+                                className="h-11 w-11"
                                 title={t('filter.project')}
                             >
-                                <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-                                </svg>
+                                <Icon name="folder" className="h-5 w-5" />
                                 {selectedProjectIdentifiers.length > 0 && (
                                     <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[var(--color-brand-6)] shadow-sm"></span>
                                 )}
-                            </button>
+                            </Button>
                             {isProjectOpen && (
                                 <div className={filterDropdownPanelStyle}>
                                     <div className={filterDropdownTitleStyle}>{t('filter.project')}</div>
-                                    <div
+                                    <SelectionRow
                                         className={filterDropdownRowStyle}
+                                        active={allSelectableProjectsSelected}
+                                        leading={<CheckboxRow checked={allSelectableProjectsSelected} />}
                                         onClick={() => {
                                             if (allSelectableProjectsSelected) {
                                                 setSelectedProjectIdentifiers([]);
@@ -436,42 +440,28 @@ export const ProjectStatusReport = ({
                                             }
                                         }}
                                     >
-                                        <input
-                                            type="checkbox"
-                                            checked={allSelectableProjectsSelected}
-                                            readOnly
-                                            className="w-4 h-4 rounded border-slate-400 text-blue-600 accent-blue-600 pointer-events-none"
-                                        />
-                                        <span>{t('filter.selectAll')}</span>
-                                    </div>
+                                        {t('filter.selectAll')}
+                                    </SelectionRow>
                                     <div className={filterDropdownDividerStyle}></div>
-                                    <div className="max-h-[280px] overflow-y-auto py-1">
+                                    <SelectionList className="max-h-[280px] overflow-y-auto">
                                         {availableProjects.map((p) => {
                                             const isSelected = selectedProjectIdentifiers.includes(p.identifier);
                                             const isDisabled = p.selectable === false;
                                             return (
-                                                <div
+                                                <SelectionRow
                                                     key={p.project_id}
-                                                    className={`${filterDropdownRowStyle} ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                    onClick={() => !isDisabled && toggleProject(p.identifier)}
+                                                    className={filterDropdownRowStyle}
+                                                    active={isSelected}
+                                                    disabled={isDisabled}
+                                                    indent={p.level * 12}
+                                                    leading={<CheckboxRow checked={isSelected} />}
+                                                    onClick={() => toggleProject(p.identifier)}
                                                 >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        readOnly
-                                                        disabled={isDisabled}
-                                                        className="w-4 h-4 rounded border-slate-400 text-blue-600 accent-blue-600 pointer-events-none"
-                                                    />
-                                                    <span
-                                                        className={`${isSelected ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
-                                                        style={{ paddingLeft: `${p.level * 12}px` }}
-                                                    >
-                                                        {p.name}
-                                                    </span>
-                                                </div>
+                                                    {p.name}
+                                                </SelectionRow>
                                             );
                                         })}
-                                    </div>
+                                    </SelectionList>
                                     <div className={filterDropdownDividerStyle}></div>
                                     <div className="px-4 py-2.5">
                                         <span
@@ -495,39 +485,36 @@ export const ProjectStatusReport = ({
 
                         {/* Version Selection */}
                         <div className="relative" ref={versionDropdownRef}>
-                            <button
+                            <Button
                                 onClick={() => setIsVersionOpen(!isVersionOpen)}
-                                className={selectedVersions.length > 0 ? activeIconButtonStyle : iconButtonStyle}
+                                variant={selectedVersions.length > 0 ? 'icon-active' : 'icon'}
+                                className="h-11 w-11"
                                 title={t('filter.version')}
                             >
-                                <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                                </svg>
+                                <Icon name="tag" className="h-5 w-5" />
                                 {selectedVersions.length > 0 && (
                                     <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[var(--color-brand-6)] shadow-sm"></span>
                                 )}
-                            </button>
+                            </Button>
                             {isVersionOpen && onVersionChange && (
                                 <div className={filterDropdownPanelStyle}>
                                     <div className={filterDropdownTitleStyle}>{t('filter.version')}</div>
-                                    <div
+                                    <SelectionRow
                                         className={filterDropdownRowStyle}
+                                        active={allVersionsSelected}
+                                        leading={<CheckboxRow checked={allVersionsSelected} />}
                                         onClick={() => onVersionChange(allVersionsSelected ? [] : allVersions)}
                                     >
-                                        <input
-                                            type="checkbox"
-                                            checked={allVersionsSelected}
-                                            readOnly
-                                            className="w-4 h-4 rounded border-slate-400 text-blue-600 accent-blue-600 pointer-events-none"
-                                        />
-                                        <span>{t('filter.selectAll')}</span>
-                                    </div>
+                                        {t('filter.selectAll')}
+                                    </SelectionRow>
                                     <div className={filterDropdownDividerStyle}></div>
-                                    <div className="max-h-[280px] overflow-y-auto py-1">
+                                    <SelectionList className="max-h-[280px] overflow-y-auto">
                                         {allVersions.map((version) => (
-                                            <div
+                                            <SelectionRow
                                                 key={version}
                                                 className={filterDropdownRowStyle}
+                                                active={selectedVersions.includes(version)}
+                                                leading={<CheckboxRow checked={selectedVersions.includes(version)} />}
                                                 onClick={() => {
                                                     if (selectedVersions.includes(version)) {
                                                         onVersionChange(selectedVersions.filter(v => v !== version));
@@ -536,16 +523,10 @@ export const ProjectStatusReport = ({
                                                     }
                                                 }}
                                             >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedVersions.includes(version)}
-                                                    readOnly
-                                                    className="w-4 h-4 rounded border-slate-400 text-blue-600 accent-blue-600 pointer-events-none"
-                                                />
-                                                <span className="truncate font-medium">{version}</span>
-                                            </div>
+                                                {version}
+                                            </SelectionRow>
                                         ))}
-                                    </div>
+                                    </SelectionList>
                                     <div className={filterDropdownDividerStyle}></div>
                                     <div className="px-4 py-2.5">
                                         <span
@@ -572,16 +553,15 @@ export const ProjectStatusReport = ({
                     <div className="flex items-center gap-2">
                         {/* Status Legend Info */}
                         <div className="relative" ref={legendDropdownRef}>
-                            <button
+                            <Button
                                 onClick={() => setIsLegendOpen(!isLegendOpen)}
                                 onMouseEnter={() => setIsLegendOpen(true)}
-                                className={iconButtonStyle}
+                                variant="icon"
+                                className="h-11 w-11"
                                 title="Status Legend"
                             >
-                                <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </button>
+                                <Icon name="info" className="h-5 w-5" />
+                            </Button>
                              {isLegendOpen && (
                                 <div className="report-dropdown-panel right-0 top-full mt-2 w-48 p-4 animate-in fade-in zoom-in duration-200">
                                     <div className="flex flex-col gap-3">
@@ -606,66 +586,49 @@ export const ProjectStatusReport = ({
 
                         {/* Chart Size Selection */}
                         <div className="relative" ref={sizeDropdownRef}>
-                             <button
+                             <Button
                                 onClick={() => setIsSizeOpen(!isSizeOpen)}
-                                className={iconButtonStyle}
+                                variant="icon"
+                                className="h-11 w-11"
                                 title={t('filter.size')}
                             >
-                                <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"></path>
-                                </svg>
+                                <Icon name="sliders" className="h-5 w-5" />
                                 <span className="absolute -bottom-1 -right-1 rounded-full border border-gray-200 bg-[#f0f0f0] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[#222222] shadow-sm">
                                     {chartScale === 0.5 ? 'S' : chartScale === 0.75 ? 'M' : chartScale === 1 ? 'L' : 'XL'}
                                 </span>
-                            </button>
+                            </Button>
                             {isSizeOpen && (
                                 <div className="report-dropdown-panel right-0 top-full mt-3 w-32 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <SelectionList>
                                     {[
                                         { label: 'S', value: 0.5 },
                                         { label: 'M', value: 0.75 },
                                         { label: 'L', value: 1 },
                                         { label: 'XL', value: 1.5 }
                                     ].map((option) => (
-                                        <div
+                                        <SelectionRow
                                             key={option.label}
-                                            onClick={() => {
-                                                setChartScale(option.value);
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    setChartScale(option.value);
-                                                }
-                                            }}
-                                            role="button"
-                                            tabIndex={0}
-                                            className={`block w-full m-0 flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 cursor-pointer ${chartScale === option.value ? 'text-blue-600 bg-blue-50' : 'text-slate-600'}`}
+                                            active={chartScale === option.value}
+                                            leading={<CheckboxRow checked={chartScale === option.value} />}
+                                            onClick={() => { setChartScale(option.value); }}
                                         >
-                                            <input
-                                                type="checkbox"
-                                                checked={chartScale === option.value}
-                                                readOnly
-                                                tabIndex={-1}
-                                                className="w-4 h-4 rounded border-slate-300 text-blue-600 accent-blue-600 pointer-events-none"
-                                                aria-hidden="true"
-                                            />
                                             <span className={chartScale === option.value ? 'font-bold' : 'font-medium'}>{option.label}</span>
-                                        </div>
+                                        </SelectionRow>
                                     ))}
+                                    </SelectionList>
                                 </div>
                             )}
                         </div>
 
                         {/* Process Mode Toggle */}
-                        <button
+                        <Button
                             onClick={() => setIsProcessMode(!isProcessMode)}
-                            className={isProcessMode ? activeIconButtonStyle : iconButtonStyle}
+                            variant={isProcessMode ? 'icon-active' : 'icon'}
+                            className="h-11 w-11"
                             title={t('filter.processMode', { defaultValue: 'Process Mode' })}
                             aria-pressed={isProcessMode}
                         >
-                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                            </svg>
+                            <Icon name="process" className="h-5 w-5" />
                                 <span
                                     className={`absolute -bottom-1 -right-1 rounded-full border px-1.5 py-0.5 text-[8px] font-bold leading-none shadow-sm transition-all ${isProcessMode || showAllDates || showTodayLine
                                     ? 'bg-[var(--color-brand-6)] text-white border-[var(--color-brand-6)]'
@@ -674,34 +637,32 @@ export const ProjectStatusReport = ({
                             >
                                 {isLoadingChildren ? '...' : isProcessMode ? 'ON' : 'OFF'}
                             </span>
-                        </button>
+                        </Button>
 
                         {/* Date Range Setting */}
-                        <button
+                        <Button
                             onClick={openDateRangeDialog}
-                            className={isCustomDateRangeActive ? activeIconButtonStyle : iconButtonStyle}
+                            variant={isCustomDateRangeActive ? 'icon-active' : 'icon'}
+                            className="h-11 w-11"
                             title={t('filter.dateRange')}
                             aria-haspopup="dialog"
                             aria-expanded={isDateRangeDialogOpen}
                         >
-                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 2v4m8-4v4M3 10h18M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm3 10h6m-2-2 2 2-2 2"></path>
-                            </svg>
+                            <Icon name="calendar" className="h-5 w-5" />
                             {isCustomDateRangeActive && (
                                 <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border border-white bg-blue-500"></span>
                             )}
-                        </button>
+                        </Button>
 
                         {/* Date Display Toggle */}
-                        <button
+                        <Button
                             onClick={() => setShowAllDates(!showAllDates)}
-                            className={showAllDates ? activeIconButtonStyle : iconButtonStyle}
+                            variant={showAllDates ? 'icon-active' : 'icon'}
+                            className="h-11 w-11"
                             title={t('filter.dateDisplay')}
                             aria-pressed={showAllDates}
                         >
-                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
+                            <Icon name="calendar" className="h-5 w-5" />
                             <span
                                 className={`absolute -bottom-1 -right-1 rounded border px-1 text-[9px] font-bold ${showAllDates
                                     ? 'bg-blue-600 text-white border-blue-600'
@@ -710,19 +671,17 @@ export const ProjectStatusReport = ({
                             >
                                 {showAllDates ? 'ON' : 'OFF'}
                             </span>
-                        </button>
+                        </Button>
 
                         {/* Today Line Toggle */}
-                        <button
+                        <Button
                             onClick={() => setShowTodayLine(!showTodayLine)}
-                            className={showTodayLine ? activeIconButtonStyle : iconButtonStyle}
+                            variant={showTodayLine ? 'icon-active' : 'icon'}
+                            className="h-11 w-11"
                             title={t('timeline.todayLineToggle', { defaultValue: 'Today line' })}
                             aria-pressed={showTodayLine}
                         >
-                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6h16M4 12h6m4 0h6M4 18h16" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16" />
-                            </svg>
+                            <Icon name="today" className="h-5 w-5" />
                             <span
                                 className={`absolute -bottom-1 -right-1 rounded border px-1 text-[9px] font-bold ${showTodayLine
                                     ? 'bg-blue-600 text-white border-blue-600'
@@ -731,30 +690,28 @@ export const ProjectStatusReport = ({
                             >
                                 {showTodayLine ? 'ON' : 'OFF'}
                             </span>
-                        </button>
+                        </Button>
 
                         <div className="w-px h-6 bg-slate-200 mx-1"></div>
 
                         {/* Fullscreen */}
-                        <button
+                        <Button
                             onClick={toggleFullScreen}
-                            className={iconButtonStyle}
+                            variant="icon"
+                            className="h-11 w-11"
                             title={t('report.fullscreen')}
                         >
-                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
-                            </svg>
-                        </button>
+                            <Icon name="fullscreen" className="h-5 w-5" />
+                        </Button>
 
                         {/* Export */}
-                        <button
-                            className={iconButtonStyle}
+                        <Button
+                            variant="icon"
+                            className="h-11 w-11"
                             title={t('report.export')}
                         >
-                            <svg className={headerIconStyle} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3"></path>
-                            </svg>
-                        </button>
+                            <Icon name="download" className="h-5 w-5" />
+                        </Button>
                     </div>
                 </div>
 
@@ -822,12 +779,13 @@ export const ProjectStatusReport = ({
 
 
                  {isDateRangeDialogOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-[4px]" role="dialog" aria-modal="true" aria-label={t('filter.dateRange')}>
-                        <div className="report-surface-elevated w-full max-w-md animate-in fade-in zoom-in slide-in-from-bottom-4 duration-500 p-8">
+                    <div className={reportStyles.dialogOverlay} role="dialog" aria-modal="true" aria-label={t('filter.dateRange')}>
+                        <div className={`${reportStyles.dialogPanel} ${reportStyles.dialogPanelSm} animate-in fade-in zoom-in slide-in-from-bottom-4 duration-500`}>
+                        <div className={reportStyles.dialogBody}>
                             <h2 className="report-section-title">{t('filter.dateRange')}</h2>
                             <p className="mt-3 text-[16px] font-sans leading-relaxed text-[#45515e]">{t('filter.dateRangeDescription')}</p>
                             <div className="mt-6 grid grid-cols-1 gap-5">
-                                <label className="text-[13px] font-sans font-medium uppercase tracking-wide text-[#8e8e93]">
+                                <FieldLabel className="block">
                                     {t('weeklyDialog.startDate')}
                                     <input
                                         type="date"
@@ -835,8 +793,8 @@ export const ProjectStatusReport = ({
                                         onChange={(event) => setPendingStartDate(event.target.value)}
                                         className="report-input mt-2"
                                     />
-                                </label>
-                                <label className="text-[13px] font-sans font-medium uppercase tracking-wide text-[#8e8e93]">
+                                </FieldLabel>
+                                <FieldLabel className="block">
                                     {t('weeklyDialog.endDate')}
                                     <input
                                         type="date"
@@ -844,34 +802,31 @@ export const ProjectStatusReport = ({
                                         onChange={(event) => setPendingEndDate(event.target.value)}
                                         className="report-input mt-2"
                                     />
-                                </label>
+                                </FieldLabel>
                             </div>
                             {dateRangeError && (
                                 <p className="mt-3 text-sm font-semibold text-red-600" role="alert">{dateRangeError}</p>
                             )}
                             <div className="mt-8 flex items-center justify-end gap-3">
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="secondary"
                                     onClick={() => setIsDateRangeDialogOpen(false)}
-                                    className={reportStyles.pillSecondary}
                                 >
                                     {t('common.cancel')}
-                                </button>
-                                <button
-                                    type="button"
+                                </Button>
+                                <Button
+                                    variant="secondary"
                                     onClick={clearDateRange}
-                                    className={reportStyles.pillSecondary}
                                 >
                                     {t('filter.clearDateRange')}
-                                </button>
-                                <button
-                                    type="button"
+                                </Button>
+                                <Button
                                     onClick={applyDateRange}
-                                    className={reportStyles.pillPrimary}
                                 >
                                     {t('common.save')}
-                                </button>
+                                </Button>
                             </div>
+                        </div>
                         </div>
                     </div>
                 )}

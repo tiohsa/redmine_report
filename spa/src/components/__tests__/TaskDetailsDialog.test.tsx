@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskDetailsDialog } from '../projectStatusReport/TaskDetailsDialog';
@@ -70,6 +70,24 @@ const buildEmbeddedIssueDocument = ({
   return { doc, form };
 };
 
+const flushDateSaveDebounce = async () => {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+  });
+};
+
+const openDateEditor = async (displayTestId: string) => {
+  fireEvent.doubleClick(screen.getByTestId(displayTestId));
+  return screen.findByTestId(displayTestId.replace('-display-', '-input-'));
+};
+
+const getLocalIsoDate = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 describe('TaskDetailsDialog', () => {
   beforeEach(() => {
     fetchTaskDetailsMock.mockReset();
@@ -91,7 +109,7 @@ describe('TaskDetailsDialog', () => {
     }
   });
 
-  it('triggers timeline refresh only when dialog closes after date changes', async () => {
+  it('commits a date edit on Enter and refreshes the timeline only after the dialog closes', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -124,7 +142,7 @@ describe('TaskDetailsDialog', () => {
     const onTaskDatesUpdated = vi.fn();
     const onClose = vi.fn();
 
-    const { container } = render(
+    render(
       <TaskDetailsDialog
         open
         projectIdentifier="ecookbook"
@@ -140,29 +158,19 @@ describe('TaskDetailsDialog', () => {
     expect(screen.queryByTestId('task-details-process-step-hit-10')).toBeNull();
     expect(screen.getByTestId('task-details-process-step-hit-11')).toBeTruthy();
 
-    expect(screen.queryAllByTestId('start-date-input')).toHaveLength(0);
-
-    const startDateDisplay = screen.getByTestId('start-date-display-10');
-    fireEvent.doubleClick(startDateDisplay);
-
-    const startDateInput = await screen.findByTestId('start-date-input-10');
+    const startDateInput = (await openDateEditor('start-date-display-10')) as HTMLInputElement;
     expect(screen.getByTestId('start-date-display-10').textContent).toBe('2026/02/01');
 
     fireEvent.change(startDateInput as HTMLInputElement, { target: { value: '2026-02-03' } });
+    fireEvent.keyDown(startDateInput, { key: 'Enter', code: 'Enter' });
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-    });
-
-    expect(updateTaskDatesMock).not.toHaveBeenCalled();
-
-    fireEvent.blur(startDateInput);
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-    });
+    await flushDateSaveDebounce();
 
     await waitFor(() => expect(updateTaskDatesMock).toHaveBeenCalledTimes(1));
+    expect(updateTaskDatesMock).toHaveBeenCalledWith('ecookbook', 10, {
+      start_date: '2026-02-03',
+      due_date: '2026-02-10'
+    });
     expect(onTaskDatesUpdated).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: /Close dialog|ダイアログを閉じる/ }));
@@ -206,184 +214,11 @@ describe('TaskDetailsDialog', () => {
 
     expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/02/03');
     expect(screen.getByTestId('due-date-display-11').textContent).toBe('2026/02/08');
-    expect(screen.queryAllByTestId('start-date-input')).toHaveLength(0);
-    expect(screen.queryAllByTestId('due-date-input')).toHaveLength(0);
   });
 
-  it('keeps the date editor open after a date value changes until blur', async () => {
-    fetchTaskDetailsMock.mockResolvedValue([
-      {
-        issue_id: 10,
-        parent_id: null,
-        subject: 'Root issue',
-        start_date: '2026-02-01',
-        due_date: '2026-02-10',
-        done_ratio: 65,
-        issue_url: '/issues/10'
-      },
-      {
-        issue_id: 11,
-        parent_id: 10,
-        subject: 'Leaf issue',
-        start_date: '2026-02-03',
-        due_date: '2026-02-08',
-        done_ratio: 40,
-        issue_url: '/issues/11'
-      }
-    ]);
+  it('supports Today action in the inline date picker', async () => {
+    const today = getLocalIsoDate();
 
-    render(
-      <TaskDetailsDialog
-        open
-        projectIdentifier="ecookbook"
-        issueId={10}
-        onClose={vi.fn()}
-      />
-    );
-
-    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
-
-    const showPickerMock = vi.fn();
-    Object.defineProperty(HTMLInputElement.prototype, 'showPicker', {
-      configurable: true,
-      value: showPickerMock
-    });
-
-    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
-
-    const startDateInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
-    await waitFor(() => expect(showPickerMock).toHaveBeenCalledTimes(1));
-    fireEvent.change(startDateInput, { target: { value: '2026-02-04' } });
-
-    expect(screen.getByTestId('start-date-input-11')).toBeTruthy();
-    expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/02/04');
-
-    fireEvent.doubleClick(startDateInput);
-
-    expect(showPickerMock).toHaveBeenCalledTimes(2);
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-    });
-
-    expect(updateTaskDatesMock).not.toHaveBeenCalled();
-
-    fireEvent.blur(startDateInput);
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('start-date-input-11')).toBeNull();
-    });
-  });
-
-  it('reopens the date editor immediately after committing a date change', async () => {
-    fetchTaskDetailsMock.mockResolvedValue([
-      {
-        issue_id: 10,
-        parent_id: null,
-        subject: 'Root issue',
-        start_date: '2026-02-01',
-        due_date: '2026-02-10',
-        done_ratio: 65,
-        issue_url: '/issues/10'
-      },
-      {
-        issue_id: 11,
-        parent_id: 10,
-        subject: 'Leaf issue',
-        start_date: '2026-02-03',
-        due_date: '2026-02-08',
-        done_ratio: 40,
-        issue_url: '/issues/11'
-      }
-    ]);
-    updateTaskDatesMock.mockResolvedValue({
-      issue_id: 11,
-      parent_id: 10,
-      subject: 'Leaf issue',
-      start_date: '2026-02-04',
-      due_date: '2026-02-08',
-      issue_url: '/issues/11'
-    });
-
-    render(
-      <TaskDetailsDialog
-        open
-        projectIdentifier="ecookbook"
-        issueId={10}
-        onClose={vi.fn()}
-      />
-    );
-
-    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
-
-    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
-
-    const firstInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
-    fireEvent.change(firstInput, { target: { value: '2026-02-04' } });
-    fireEvent.blur(firstInput);
-
-    await waitFor(() => {
-      expect(updateTaskDatesMock).toHaveBeenCalledWith('ecookbook', 11, {
-        start_date: '2026-02-04',
-        due_date: '2026-02-08'
-      });
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByTestId('start-date-input-11')).toBeNull();
-    });
-
-    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
-
-    expect(await screen.findByTestId('start-date-input-11')).toBeTruthy();
-  });
-
-  it('constrains start and due dates in the inline date editor', async () => {
-    fetchTaskDetailsMock.mockResolvedValue([
-      {
-        issue_id: 10,
-        parent_id: null,
-        subject: 'Root issue',
-        start_date: '2026-02-01',
-        due_date: '2026-02-10',
-        done_ratio: 65,
-        issue_url: '/issues/10'
-      },
-      {
-        issue_id: 11,
-        parent_id: 10,
-        subject: 'Leaf issue',
-        start_date: '2026-02-03',
-        due_date: '2026-02-08',
-        done_ratio: 40,
-        issue_url: '/issues/11'
-      }
-    ]);
-
-    render(
-      <TaskDetailsDialog
-        open
-        projectIdentifier="ecookbook"
-        issueId={10}
-        onClose={vi.fn()}
-      />
-    );
-
-    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
-
-    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
-
-    const startDateInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
-    expect(startDateInput.max).toBe('2026-02-08');
-
-    fireEvent.blur(startDateInput);
-    fireEvent.doubleClick(screen.getByTestId('due-date-display-11'));
-
-    const dueDateInput = await screen.findByTestId('due-date-input-11') as HTMLInputElement;
-    expect(dueDateInput.min).toBe('2026-02-03');
-  });
-
-  it('keeps date input constraints unset when the counterpart date is missing', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
         issue_id: 10,
@@ -402,15 +237,108 @@ describe('TaskDetailsDialog', () => {
         due_date: null,
         done_ratio: 40,
         issue_url: '/issues/11'
+      }
+    ]);
+    updateTaskDatesMock.mockResolvedValue({
+      issue_id: 11,
+      parent_id: 10,
+      subject: 'Leaf issue',
+      start_date: today,
+      due_date: null,
+      issue_url: '/issues/11'
+    });
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    await openDateEditor('start-date-display-11');
+    const picker = screen.getByRole('dialog', { name: 'Choose Date' });
+
+    fireEvent.click(within(picker).getByText(/Today|今日/));
+    await flushDateSaveDebounce();
+
+    await waitFor(() => expect(updateTaskDatesMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('start-date-display-11').textContent).toBe(today.replace(/-/g, '/'));
+  });
+
+  it('supports Clear action in the inline date picker', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-04-19',
+        due_date: '2026-04-30',
+        done_ratio: 65,
+        issue_url: '/issues/10'
       },
       {
-        issue_id: 12,
+        issue_id: 11,
         parent_id: 10,
-        subject: 'Another leaf issue',
-        start_date: null,
-        due_date: '2026-02-12',
-        done_ratio: 20,
-        issue_url: '/issues/12'
+        subject: 'Leaf issue',
+        start_date: '2026-04-19',
+        due_date: null,
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+    updateTaskDatesMock.mockResolvedValue({
+      issue_id: 11,
+      parent_id: 10,
+      subject: 'Leaf issue',
+      start_date: null,
+      due_date: null,
+      issue_url: '/issues/11'
+    });
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    await openDateEditor('start-date-display-11');
+    const clearButton = screen.getByTestId('date-clear-start_date-11') as HTMLButtonElement;
+    expect(clearButton).toBeTruthy();
+    fireEvent.click(clearButton);
+    await flushDateSaveDebounce();
+
+    await waitFor(() => expect(updateTaskDatesMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('start-date-display-11').textContent).toBe('-');
+  });
+
+  it('cancels a pending date edit on Escape and outside click', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
       }
     ]);
 
@@ -425,23 +353,69 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
-    expect(screen.getByTestId('due-date-display-11').textContent).toBe('-');
-    expect(screen.getByTestId('start-date-display-12').textContent).toBe('-');
+    const escapeInput = (await openDateEditor('start-date-display-11')) as HTMLInputElement;
+    fireEvent.keyDown(escapeInput, { key: 'Escape', code: 'Escape' });
 
-    fireEvent.doubleClick(screen.getByTestId('start-date-display-11'));
+    await flushDateSaveDebounce();
 
-    const firstStartDateInput = await screen.findByTestId('start-date-input-11') as HTMLInputElement;
-    const firstDueDateInput = await screen.findByTestId('due-date-input-11') as HTMLInputElement;
+    expect(updateTaskDatesMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/02/03');
 
-    expect(firstStartDateInput.max).toBe('');
-    expect(firstDueDateInput.min).toBe('2026-02-03');
+    await openDateEditor('due-date-display-11');
+    fireEvent.click(document.body);
 
-    fireEvent.blur(firstStartDateInput);
-    fireEvent.doubleClick(screen.getByTestId('due-date-display-12'));
+    await flushDateSaveDebounce();
 
-    const secondDueDateInput = await screen.findByTestId('due-date-input-12') as HTMLInputElement;
+    expect(updateTaskDatesMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('due-date-display-11').textContent).toBe('2026/02/08');
+  });
 
-    expect(secondDueDateInput.min).toBe('');
+  it('rejects invalid start and due date selections through observable behavior', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    await openDateEditor('start-date-display-11');
+    fireEvent.click(screen.getByRole('gridcell', { name: /2026年2月9日/ }));
+    await flushDateSaveDebounce();
+
+    expect(updateTaskDatesMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/02/03');
+
+    await openDateEditor('due-date-display-11');
+    fireEvent.click(screen.getByRole('gridcell', { name: /2026年2月2日/ }));
+    await flushDateSaveDebounce();
+
+    expect(updateTaskDatesMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId('due-date-display-11').textContent).toBe('2026/02/08');
   });
 
   it('prevents the browser default action when double clicking a date display', async () => {
@@ -733,7 +707,7 @@ describe('TaskDetailsDialog', () => {
       issue_url: '/issues/11'
     });
 
-    const { container } = render(
+    render(
       <TaskDetailsDialog
         open
         projectIdentifier="ecookbook"
@@ -760,17 +734,13 @@ describe('TaskDetailsDialog', () => {
       target: { value: '2026-02-10' }
     });
 
-    expect(Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('width'))).toBe(initialWidth);
-
-    fireEvent.blur(screen.getByTestId('due-date-input-11'));
+    fireEvent.keyDown(screen.getByTestId('due-date-input-11'), { key: 'Enter', code: 'Enter' });
 
     await waitFor(() => {
       expect(Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('width'))).toBeGreaterThan(initialWidth);
     });
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-    });
+    await flushDateSaveDebounce();
 
     await waitFor(() => {
       expect(updateTaskDatesMock).toHaveBeenCalledWith('ecookbook', 11, {

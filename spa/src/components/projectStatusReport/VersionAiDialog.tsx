@@ -15,6 +15,9 @@ import type {
 import { t, tList } from '../../i18n';
 import { CreateDestinationIssueDialog } from './CreateDestinationIssueDialog';
 import { reportStyles } from '../designSystem';
+import { Button } from '../ui/Button';
+import { FieldLabel } from '../ui/FieldLabel';
+import { Icon } from '../ui/Icon';
 
 type Props = {
   open: boolean;
@@ -239,31 +242,25 @@ export const VersionAiDialog = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px] p-4" onClick={onClose}>
+    <div className={reportStyles.dialogOverlay} onClick={onClose}>
       <div
-        className="report-surface-elevated relative flex max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden animate-in fade-in zoom-in duration-300 font-sans"
+        className={`${reportStyles.dialogPanel} ${reportStyles.dialogPanelLg} relative max-h-[95vh] animate-in fade-in zoom-in duration-300`}
         onClick={(event) => event.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex flex-none items-center justify-between border-b border-gray-100 bg-white px-8 py-6">
+        <div className={reportStyles.dialogHeader}>
           <div className="flex items-center gap-4">
             <div className="rounded-2xl bg-[var(--color-primary-200)]/55 p-2.5">
-              <svg className="w-6 h-6 text-[var(--color-brand-6)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z" fill="currentColor" fillOpacity="0.2" />
-              </svg>
+              <Icon name="sparkles" className="h-6 w-6 text-[var(--color-brand-6)]" />
             </div>
             <div>
               <h2 className={reportStyles.sectionHeading}>{t('weeklyDialog.title')}</h2>
               <p className="text-[14px] font-sans font-medium text-[#45515e]">{versionName}</p>
             </div>
           </div>
-          <button
-            type="button"
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-600"
-            onClick={onClose}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
-          </button>
+          <Button variant="icon-muted" className="h-10 w-10" onClick={onClose} aria-label={t('common.close')}>
+            <Icon name="close" className="h-5 w-5" />
+          </Button>
         </div>
 
         {/* Step Indicator */}
@@ -303,7 +300,7 @@ export const VersionAiDialog = ({
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400">{t('weeklyDialog.startDate')}</label>
+                <FieldLabel>{t('weeklyDialog.startDate')}</FieldLabel>
                 <input
                   type="date"
                   className={reportStyles.input}
@@ -312,7 +309,7 @@ export const VersionAiDialog = ({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400">{t('weeklyDialog.endDate')}</label>
+                <FieldLabel>{t('weeklyDialog.endDate')}</FieldLabel>
                 <input
                   type="date"
                   className={reportStyles.input}
@@ -323,7 +320,7 @@ export const VersionAiDialog = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400">{t('weeklyDialog.destinationIssueId')}</label>
+              <FieldLabel>{t('weeklyDialog.destinationIssueId')}</FieldLabel>
               <div className="flex items-center gap-3">
                 <div className="relative group w-48">
                   <input
@@ -340,39 +337,33 @@ export const VersionAiDialog = ({
                   {validation && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       {validation.valid ? (
-                        <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
+                        <Icon name="check-circle" className="h-5 w-5 text-emerald-500" />
                       ) : (
-                        <svg className="w-5 h-5 text-rose-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"></path></svg>
+                        <Icon name="warning" className="h-5 w-5 text-rose-500" />
                       )}
                     </div>
                   )}
                 </div>
-                <button
-                  type="button"
+                <Button
                   title={t('weeklyDialog.createDestinationIssue')}
                   onClick={() => setCreateTicketOpen(true)}
-                  className={`${reportStyles.iconButtonMuted} h-10 w-10 flex-shrink-0 rounded-[16px]`}
+                  variant="icon-muted"
+                  className="h-10 w-10 flex-shrink-0 rounded-[16px]"
                 >
-                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
+                  <Icon name="plus" className="h-5 w-5" />
+                </Button>
+                <Button
                   onClick={validateDestination}
                   disabled={loadingValidate || !destinationIssueId}
-                  className={reportStyles.pillPrimary}
                 >
                   {loadingValidate ? t('weeklyDialog.validating') : t('weeklyDialog.validateDestination')}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
                   onClick={saveMapping}
                   disabled={!destinationValid}
-                  className={reportStyles.pillPrimary}
                 >
                   {t('weeklyDialog.saveSetting')}
-                </button>
+                </Button>
                 {message && !error && currentStep < 3 && <span className="text-[11px] font-black text-emerald-600 animate-in fade-in slide-in-from-left-2">{message}</span>}
               </div>
             </div>
@@ -385,21 +376,20 @@ export const VersionAiDialog = ({
                 <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand-6)]"></div>
                 {t('weeklyDialog.sectionPrompt')}
               </div>
-              <button
-                type="button"
+              <Button
                 onClick={preparePrompt}
                 disabled={loadingPrepare}
-                className={`${reportStyles.pillPrimary} group relative`}
+                className="group relative"
               >
                 <div className="relative z-10 flex items-center gap-2">
                   {loadingPrepare ? (
                     <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                   ) : (
-                    <svg className="w-3.5 h-3.5 transition-transform group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <Icon name="process" className="h-3.5 w-3.5 transition-transform group-hover:rotate-12" />
                   )}
                   {loadingPrepare ? t('weeklyDialog.promptPreparing') : t('weeklyDialog.preparePrompt')}
                 </div>
-              </button>
+              </Button>
             </div>
             {promptText && (
               <div className="relative group animate-in zoom-in-95 duration-300">
@@ -435,21 +425,20 @@ export const VersionAiDialog = ({
                 <div className="h-1.5 w-1.5 rounded-full bg-[var(--color-brand-6)]"></div>
                 {t('weeklyDialog.sectionPreview')}
               </div>
-              <button
-                type="button"
+              <Button
                 onClick={submitToLlm}
                 disabled={loadingGenerate || !promptText}
-                className={`${reportStyles.pillPrimary} group relative`}
+                className="group relative"
               >
                 <div className="relative z-10 flex items-center gap-2">
                   {loadingGenerate ? (
                     <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                   ) : (
-                    <svg className="w-3.5 h-3.5 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z" fill="currentColor" fillOpacity="0.2" /></svg>
+                    <Icon name="sparkles" className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />
                   )}
                   {loadingGenerate ? t('weeklyDialog.generating') : t('weeklyDialog.sendToLlm')}
                 </div>
-              </button>
+              </Button>
             </div>
             <div className="report-panel-muted relative min-h-[120px] animate-in slide-in-from-bottom-2 duration-500 p-6">
               <div className="prose prose-sm prose-slate max-w-none text-xs text-slate-700 leading-relaxed font-medium">
@@ -482,18 +471,12 @@ export const VersionAiDialog = ({
             {message && <span className="text-sm font-semibold text-emerald-600 animate-in fade-in slide-in-from-bottom-1">{message}</span>}
           </div>
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className={reportStyles.pillSecondary}
-            >
-              {t('common.close')}
-            </button>
-            <button
-              type="button"
+              <Button variant="secondary" onClick={onClose}>
+                {t('common.close')}
+              </Button>
+            <Button
               onClick={saveReport}
               disabled={!saveEnabled || loadingSave}
-              className={reportStyles.pillPrimary}
             >
               <div className="relative z-10 flex items-center gap-2">
                 {loadingSave ? (
@@ -503,7 +486,7 @@ export const VersionAiDialog = ({
                 )}
                 {loadingSave ? t('weeklyDialog.saving') : t('weeklyDialog.saveReport')}
               </div>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

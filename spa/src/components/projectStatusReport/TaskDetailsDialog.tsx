@@ -2,29 +2,10 @@ import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../../i18n';
 import {
-  fetchTaskDetails,
-  fetchTaskMasters,
-  TaskDetailIssue,
-  TaskMasters,
-  updateTaskDates,
-  updateTaskFields,
-  WeeklyApiError
+  TaskDetailIssue
 } from '../../services/scheduleReportApi';
-import { createIssue, BulkIssuePayload } from '../bulkIssueRegistration/bulkIssueApi';
-import {
-  applyEmbeddedIssueDialogStyles,
-  bindIframeEscapeHandler,
-  COMPACT_ACTION_BUTTON_HEIGHT,
-  COMPACT_ACTION_BUTTON_MIN_WIDTH,
-  COMPACT_ICON_BUTTON_SIZE,
-  DEFAULT_DIALOG_WIDTH_PX,
-  getEmbeddedDialogDefaultHeight,
-  getEmbeddedIssueDialogErrorMessage,
-  ISSUE_DIALOG_STYLE_ID,
-  MAX_DIALOG_VIEWPORT_HEIGHT_RATIO,
-  useEmbeddedIssueDialogLayout,
-} from './embeddedIssueDialog';
 import { buildTimelineAxis, calculateStaggeredLanes, createDateToX, createRangeToWidth } from './timelineAxis';
+import { type InlineDateRangeValue } from './InlineDateRangeEditor';
 import {
   drawChevron,
   drawDiamond, truncateCanvasText,
@@ -33,7 +14,23 @@ import {
   prepareHiDPICanvas
 } from './canvasTimelineRenderer';
 import { getProgressFillColor, getProgressTrackColor } from './constants';
-import { reportStyles } from '../designSystem';
+import { IssueTreeTable } from './taskDetails/IssueTreeTable';
+import {
+  IssueEditDialog,
+  IssueViewDialog,
+  SubIssueCreationDialog
+} from './taskDetails/EmbeddedIssueDialogs';
+import {
+  buildInheritedSubIssueFields,
+  COLUMN_WIDTH_STORAGE_KEY,
+  DEFAULT_COLUMN_WIDTHS,
+  DENSITY_CONFIG,
+  TABLE_DENSITY_STORAGE_KEY,
+  type InheritedSubIssueFields,
+  type TableDensity,
+  type TreeNodeType
+} from './taskDetails/shared';
+import { useTaskDetailsData } from './taskDetails/useTaskDetailsData';
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -46,37 +43,6 @@ type TaskDetailsDialogProps = {
 
   onTaskDatesUpdated?: () => void;
   onClose: () => void;
-};
-
-type TreeNodeType = TaskDetailIssue & { children: TreeNodeType[] };
-
-type TableDensity = 'compact' | 'standard' | 'relaxed';
-
-type IssueTreeNodeProps = {
-  node: TreeNodeType;
-  depth: number;
-  activeLines: boolean[];
-  isLast: boolean;
-  rootIssueId: number;
-  savingIssueIds: Record<number, boolean>;
-  handleDateChange: (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => void;
-  onAddSubIssue: (parentIssue: TaskDetailIssue) => void;
-  onEditIssue: (issue: TaskDetailIssue) => void;
-  onViewIssue: (issue: TaskDetailIssue) => void;
-  selectedIssueId?: number | null;
-  registerRowRef?: (issueId: number, element: HTMLDivElement | null) => void;
-  masters: TaskMasters | null;
-  onFieldUpdate: (issueId: number, field: string, value: string | number | null) => Promise<void>;
-  columnWidths: Record<string, number>;
-  density: TableDensity;
-};
-
-type EditingCell = { field: string; value: string };
-type EditingDateRange = {
-  issueId: number;
-  focusField: 'start_date' | 'due_date';
-  startDate: string;
-  dueDate: string;
 };
 
 type ProcessFlowStep = {
@@ -146,153 +112,8 @@ const DETAILS_TOP_PANE_MIN_HEIGHT_PX = 180;
 const DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX = 240;
 const DETAILS_LAYOUT_FALLBACK_HEIGHT_PX = 760;
 
-const TABLE_DENSITY_STORAGE_KEY = 'redmine_report_task_details_density';
-const COLUMN_WIDTH_STORAGE_KEY = 'redmine_report_task_details_column_widths';
-
-const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
-  task: 300,
-  comments: 80,
-  tracker: 120,
-  priority: 100,
-  status: 120,
-  progress: 120,
-  startDate: 110,
-  dueDate: 110,
-  assignee: 150
-};
-
-const DENSITY_CONFIG = {
-  compact: {
-    rowHeight: 'min-h-[38px]',
-    headerHeight: 'h-9',
-    subjectSize: 'text-[12px]',
-    badgeSize: 'text-[10px]',
-    iconSize: 'w-3.5 h-3.5',
-    idSize: 'text-[10px]',
-    cellPadding: 'px-6',
-    progressTextSize: 'text-[10px]',
-    progressGap: 'gap-2',
-    dateSize: 'text-[10px]'
-  },
-  standard: {
-    rowHeight: 'min-h-[52px]',
-    headerHeight: 'h-11',
-    subjectSize: 'text-[14px]',
-    badgeSize: 'text-[11px]',
-    iconSize: 'w-4 h-4',
-    idSize: 'text-xs',
-    cellPadding: 'px-6',
-    progressTextSize: 'text-[12px]',
-    progressGap: 'gap-3',
-    dateSize: 'text-[11px]'
-  },
-  relaxed: {
-    rowHeight: 'min-h-[64px]',
-    headerHeight: 'h-14',
-    subjectSize: 'text-[16px]',
-    badgeSize: 'text-[12px]',
-    iconSize: 'w-4.5 h-4.5',
-    idSize: 'text-sm',
-    cellPadding: 'px-6',
-    progressTextSize: 'text-[13px]',
-    progressGap: 'gap-4',
-    dateSize: 'text-[12px]'
-  }
-};
-
-const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY: string = "var(--font-sans)";
-const TASK_ROW_BASE_CLASS = 'flex items-center min-h-[56px] transition-all duration-200 relative group px-6 border-b border-gray-100 font-sans text-[var(--color-text-04)]';
-const TASK_BADGE_BASE_CLASS = 'inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 text-[11px] font-semibold font-sans truncate transition-all duration-300';
 const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 px-4 rounded-full border border-gray-200 bg-[#f0f0f0] text-[13px] font-medium font-sans text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer shadow-subtle';
 const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-full bg-[rgba(0,0,0,0.04)] text-[#45515e] hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222] transition-all duration-300 cursor-pointer';
-const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-9 min-w-[100px] px-6 rounded-full bg-[#181e25] text-[13px] font-semibold font-sans text-white hover:bg-black transition-all shadow-subtle disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
-
-const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[13px] font-display font-semibold uppercase tracking-wider text-[#18181b]';
-const REDMINE_DIALOG_TEXTAREA_CLASS = `${reportStyles.textarea} min-h-[120px] bg-[#f8fafc]`;
-const REDMINE_DIALOG_SECTION_CLASS = 'border-b border-gray-100 px-8 py-6';
-const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
-                  #issue-form p:has(#issue_subject),
-                  #new_issue p:has(#issue_subject),
-                  #edit_issue p:has(#issue_subject) {
-                    margin-bottom: 8px !important;
-                  }
-                  #issue-form label[for="issue_subject"],
-                  #new_issue label[for="issue_subject"],
-                  #edit_issue label[for="issue_subject"] {
-                    margin-bottom: 2px !important;
-                    font-size: 12px !important;
-                    line-height: 1.2 !important;
-                  }
-                  #issue_subject {
-                    min-height: 28px !important;
-                    height: 28px !important;
-                    padding-top: 3px !important;
-                    padding-bottom: 3px !important;
-                    font-size: 13px !important;
-                    line-height: 1.2 !important;
-                  }
-`;
-
-const EMBEDDED_ISSUE_EDIT_EXTRA_CSS = `
-                  ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
-                  #issue-form > .buttons,
-                  #issue-form > p.buttons,
-                  #edit_issue > .buttons,
-                  #edit_issue > p.buttons,
-                  #new_issue > .buttons,
-                  #new_issue > p.buttons {
-                    position: absolute !important;
-                    opacity: 0 !important;
-                    height: 0 !important;
-                    width: 0 !important;
-                    overflow: hidden !important;
-                    pointer-events: none !important;
-                  }
-`;
-
-const EMBEDDED_ISSUE_VIEW_EXTRA_CSS = `
-                  ${EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS}
-                  body {
-                    font-family: var(--font-sans) !important;
-                    color: var(--color-text-00) !important;
-                    padding: 20px 24px !important;
-                    background: transparent !important;
-                  }
-                  /* Contextual menu (Update, Edit etc. links) */
-                  .contextual, #content .contextual {
-                    display: block !important;
-                    margin-bottom: 16px !important;
-                  }
-                  .contextual a, #content .contextual a {
-                    display: inline-block !important;
-                    border-radius: 9999px !important;
-                    padding: 4px 12px !important;
-                    background: #f3f4f6 !important;
-                    color: #4b5563 !important;
-                    font-size: 12px !important;
-                    border: 1px solid #e5e7eb !important;
-                    transition: all 0.2s !important;
-                  }
-                  .contextual a:hover {
-                    background: #e5e7eb !important;
-                    text-decoration: none !important;
-                  }
-
-                  /* Hide main issue form buttons as per user request (use dialog's Save). */
-                  #issue-form > .buttons,
-                  #issue-form > p.buttons,
-                  #edit_issue > .buttons,
-                  #edit_issue > p.buttons,
-                  #new_issue > .buttons,
-                  #new_issue > p.buttons {
-                    position: absolute !important;
-                    opacity: 0 !important;
-                    height: 0 !important;
-                    width: 0 !important;
-                    overflow: hidden !important;
-                    pointer-events: none !important;
-                  }
-`;
 
 const getProcessChevronMetrics = (width: number, pointDepth: number) => {
   const leftNotchDepth = Math.min(pointDepth * PROCESS_FLOW_LEFT_NOTCH_RATIO, Math.max(width * 0.18, 8));
@@ -443,1898 +264,6 @@ type ProcessDragSession = {
   moved: boolean;
 };
 
-const ColumnResizer = ({ onResize }: { onResize: (deltaX: number) => void }) => {
-  const [resizing, setResizing] = useState(false);
-  const startXRef = useRef(0);
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setResizing(true);
-    startXRef.current = e.clientX;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!resizing) return;
-    const deltaX = e.clientX - startXRef.current;
-    if (deltaX !== 0) {
-      onResize(deltaX);
-      startXRef.current = e.clientX;
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    setResizing(false);
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
-  return (
-    <div
-      className={`absolute right-0 top-0 bottom-0 w-1 border-r border-slate-300 cursor-ew-resize z-30 transition-colors ${resizing ? 'bg-blue-500 border-blue-500' : 'hover:bg-blue-400 group-hover:bg-slate-300'}`}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    />
-  );
-};
-
-const IssueTreeNode = ({
-  node,
-  depth,
-  activeLines,
-  isLast,
-  rootIssueId,
-  savingIssueIds,
-  handleDateChange,
-  onAddSubIssue,
-  onEditIssue,
-  onViewIssue,
-  selectedIssueId,
-  registerRowRef,
-  masters,
-  onFieldUpdate,
-  columnWidths,
-  density
-}: IssueTreeNodeProps) => {
-  const progressRatio = Math.max(0, Math.min(100, Number(node.done_ratio ?? 0)));
-  const isDone = progressRatio === 100;
-  const isSelected = selectedIssueId === node.issue_id;
-  const [collapsed, setCollapsed] = useState(false);
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-  const [editingDateRange, setEditingDateRange] = useState<EditingDateRange | null>(null);
-  const [isSavingField, setIsSavingField] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const startDateInputRef = useRef<HTMLInputElement | null>(null);
-  const dueDateInputRef = useRef<HTMLInputElement | null>(null);
-
-  const openDatePicker = (input: HTMLInputElement | null) => {
-    if (!input) return;
-
-    try {
-      if (typeof input.showPicker === 'function') {
-        input.showPicker();
-      }
-    } catch {
-      // ignore browsers that block scripted picker opening
-    }
-
-    input.focus();
-  };
-
-  useEffect(() => {
-    if (editingCell && inputRef.current) {
-      inputRef.current.focus();
-      if (inputRef.current.type === 'text') {
-        inputRef.current.select();
-      }
-    }
-  }, [editingCell]);
-
-  useEffect(() => {
-    if (!editingDateRange || editingDateRange.issueId !== node.issue_id) return;
-
-    const targetInput = editingDateRange.focusField === 'start_date'
-      ? startDateInputRef.current
-      : dueDateInputRef.current;
-
-    if (!targetInput) return;
-
-    const timer = window.setTimeout(() => {
-      openDatePicker(targetInput);
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, [editingDateRange, node.issue_id]);
-
-  const statusLabel = node.status_name || t('status.pending');
-  const isClosed = node.status_is_closed ?? false;
-  const isInProgress = !isClosed && progressRatio > 0;
-  const statusBg = isClosed ? 'bg-blue-600' : isInProgress ? 'bg-blue-500' : 'bg-slate-300';
-  const statusText = isClosed ? 'text-white' : isInProgress ? 'text-white' : 'text-slate-600';
-  const commentCount = node.comments?.length ?? 0;
-  const hasComments = commentCount > 0;
-
-  const dateRange = (() => {
-    const s = node.start_date ? node.start_date.replace(/-/g, '/') : '';
-    const d = node.due_date ? node.due_date.replace(/-/g, '/') : '';
-    if (s && d) return `${s} - ${d}`;
-    if (s) return s;
-    if (d) return d;
-    return '';
-  })();
-  const hasBothDates = Boolean(node.start_date && node.due_date);
-  const trackerBadgeClass = node.tracker_name
-    ? 'bg-slate-100 text-slate-700 ring-1 ring-slate-200'
-    : 'bg-slate-50 text-slate-400 ring-1 ring-slate-200/70';
-  const priorityBadgeClass = (() => {
-    const priorityId = Number(node.priority_id ?? 0);
-    if (!node.priority_name) return 'bg-slate-50 text-slate-400 ring-1 ring-slate-200/70';
-    if (priorityId >= 5) return 'bg-rose-50 text-rose-700 ring-1 ring-rose-200';
-    if (priorityId >= 4) return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200';
-    if (priorityId >= 3) return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200';
-    return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
-  })();
-
-  const startEdit = (field: string, currentValue: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingCell({ field, value: currentValue });
-    setEditingDateRange(null);
-  };
-
-  const cancelEdit = () => setEditingCell(null);
-  const cancelDateRangeEdit = () => setEditingDateRange(null);
-  const startDateRangeEdit = (field: 'start_date' | 'due_date', e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setEditingCell(null);
-    setEditingDateRange({
-      issueId: node.issue_id,
-      focusField: field,
-      startDate: node.start_date || '',
-      dueDate: node.due_date || ''
-    });
-  };
-  const updateDateRangeDraft = (key: 'startDate' | 'dueDate', value: string) => {
-    setEditingDateRange((prev) => {
-      if (!prev || prev.issueId !== node.issue_id) return prev;
-      return { ...prev, [key]: value };
-    });
-  };
-  const commitDateRangeEdit = () => {
-    if (!editingDateRange || editingDateRange.issueId !== node.issue_id) return;
-
-    if ((node.start_date || '') !== editingDateRange.startDate) {
-      handleDateChange(node, 'start_date', editingDateRange.startDate);
-    }
-
-    if ((node.due_date || '') !== editingDateRange.dueDate) {
-      handleDateChange(node, 'due_date', editingDateRange.dueDate);
-    }
-
-    cancelDateRangeEdit();
-  };
-
-  const commitEdit = async (field: string, rawValue: string) => {
-    setEditingCell(null);
-    let value: string | number | null = rawValue;
-    if (field === 'done_ratio') {
-      if (rawValue === '') {
-        await onFieldUpdate(node.issue_id, field, progressRatio);
-        return;
-      }
-      value = Math.max(0, Math.min(100, Number(rawValue)));
-    } else if (['tracker_id', 'status_id', 'priority_id'].includes(field)) {
-      value = rawValue === '' ? null : Number(rawValue);
-    } else if (field === 'assigned_to_id') {
-      value = rawValue === '' || rawValue === '0' ? null : Number(rawValue);
-    }
-    setIsSavingField(true);
-    try {
-      await onFieldUpdate(node.issue_id, field, value);
-    } finally {
-      setIsSavingField(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      void commitEdit(editingCell!.field, e.currentTarget.value);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelEdit();
-    }
-  };
-
-  const isEditing = (field: string) => editingCell?.field === field;
-  const isEditingDateRange = editingDateRange?.issueId === node.issue_id;
-  const isSaving = savingIssueIds[node.issue_id] || isSavingField;
-  const dateRangeDraft = isEditingDateRange ? editingDateRange : null;
-  const displayStartDate = dateRangeDraft?.startDate || node.start_date || '';
-  const displayDueDate = dateRangeDraft?.dueDate || node.due_date || '';
-
-  const cellClass = 'group/cell cursor-pointer';
-
-  return (
-    <>
-      <div
-        ref={(element) => registerRowRef?.(node.issue_id, element)}
-        data-testid={`task-row-${node.issue_id}`}
-        data-selected={isSelected ? 'true' : 'false'}
-        className={`flex items-center ${DENSITY_CONFIG[density].rowHeight} transition-all duration-200 relative group px-6 border-b border-gray-100 font-sans text-[var(--color-text-04)] ${isSelected ? 'bg-[rgba(20,86,240,0.04)] shadow-[inset_0_0_0_1px_rgba(20,86,240,0.1)]' : 'bg-white hover:bg-slate-50'}
-`}
-      >
-        {/* Tree connectors */}
-        <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
-          {activeLines.map((isActive, level) => (
-            <svg key={level} width="20" height="100%" className="flex-shrink-0 overflow-visible">
-              {isActive && (
-                <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1.5" />
-              )}
-            </svg>
-          ))}
-          {depth > 0 && (
-            <svg width="20" height="100%" className="flex-shrink-0 overflow-visible">
-              <line x1="10" y1="0" x2="10" y2={isLast ? '50%' : '100%'} stroke="#cbd5e1" strokeWidth="1.5" />
-              <line x1="10" y1="50%" x2="20" y2="50%" stroke="#cbd5e1" strokeWidth="1.5" />
-            </svg>
-          )}
-        </div>
-
-        {node.children.length > 0 && (
-          <div className="absolute pointer-events-none" style={{ left: `${16 + depth * 20}px`, top: '50%', bottom: 0, width: '20px' }}>
-            {!collapsed && (
-              <svg width="20" height="100%" className="overflow-visible">
-                <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1.5" />
-              </svg>
-            )}
-          </div>
-        )}
-
-        {/* TASK Column */}
-        <div
-          className="shrink-0 flex items-center border-r border-slate-200/80 self-stretch overflow-hidden"
-          style={{ paddingLeft: `${depth * 20}px`, width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}
-          data-testid={`task-title-cell-${node.issue_id}`}
-        >
-          <div className="w-5 mr-1 flex-shrink-0 flex items-center justify-center">
-            {node.children.length > 0 && (
-              <button
-                type="button"
-                className="p-0.5 !border-0 ring-0 shadow-none bg-transparent appearance-none rounded-sm text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 focus:outline-none cursor-pointer flex-shrink-0 z-10"
-                onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
-              >
-                <svg className={DENSITY_CONFIG[density].iconSize} fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
-                  {collapsed
-                    ? <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    : <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  }
-                </svg>
-              </button>
-            )}
-          </div>
-          <div className="flex items-center min-w-0 z-10 flex-1">
-            <span
-              className={`flex-shrink-0 text-slate-400 ${DENSITY_CONFIG[density].idSize} font-semibold mr-1.5`}
-            >#{node.issue_id}</span>
-            {isEditing('subject') ? (
-              <input
-                ref={inputRef}
-                type="text"
-                className={`flex-1 ${DENSITY_CONFIG[density].subjectSize} h-8 px-2 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-800 min-w-0 shadow-sm`}
-                value={editingCell!.value}
-                onChange={(e) => setEditingCell({ field: 'subject', value: e.target.value })}
-                onBlur={() => { void commitEdit('subject', editingCell!.value); }}
-                onKeyDown={handleKeyDown}
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <span
-                data-testid="task-subject"
-                className={`${DENSITY_CONFIG[density].subjectSize} leading-5 ${depth === 0 ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'} truncate hover:text-blue-700 block cursor-pointer`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewIssue(node);
-                }}
-                title={depth === 0 ? t('timeline.viewIssue') : `${node.subject} (${t('timeline.viewIssue')})`}
-              >
-                {node.subject}
-              </span>
-            )}
-            {!isEditing('subject') && (
-              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1 flex-shrink-0">
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddSubIssue(node); }}
-                  title={t('timeline.addSubIssue')}
-                >
-                  <svg className={DENSITY_CONFIG[density].iconSize} fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEditIssue(node); }}
-                  title={t('timeline.editIssue')}
-                  aria-label={t('timeline.editIssue')}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.25">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487a2.625 2.625 0 113.712 3.713L8.25 20.524 3 21l.476-5.25L16.862 4.487z" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* COMMENTS Column */}
-        <div className="shrink-0 flex items-center justify-center px-2 border-r border-slate-200/80 self-stretch" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>
-          {hasComments ? (
-            <span
-              data-testid="task-comment-indicator"
-              role="img"
-              className="inline-flex items-center justify-center text-blue-600"
-              title={t('timeline.hasCommentsCount', {
-                count: commentCount,
-                defaultValue: `${commentCount} comments`
-              })}
-              aria-label={t('timeline.hasCommentsCount', {
-                count: commentCount,
-                defaultValue: `${commentCount} comments`
-              })}
-            >
-              <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-9 6l2.8-2.1a2 2 0 011.2-.4H19a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h.5a2 2 0 011.2.4L8 20z" />
-              </svg>
-            </span>
-          ) : null}
-        </div>
-
-        {/* TRACKER Column */}
-        <div
-          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`}
-          style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}
-          onDoubleClick={(e) => startEdit('tracker_id', String(node.tracker_id || ''), e)}
-        >
-          {isEditing('tracker_id') && masters ? (
-            <select
-              className={`w-full ${DENSITY_CONFIG[density].badgeSize} h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm`}
-              value={editingCell!.value}
-              onChange={(e) => { void commitEdit('tracker_id', e.target.value); }}
-              onBlur={() => cancelEdit()}
-              onClick={(e) => e.stopPropagation()}
-              autoFocus
-            >
-              {masters.trackers.map((tr) => (
-                <option key={tr.id} value={String(tr.id)}>{tr.name}</option>
-              ))}
-            </select>
-          ) : (
-            <span
-              className={`inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 ${DENSITY_CONFIG[density].badgeSize} font-semibold font-sans truncate transition-all duration-300 ${trackerBadgeClass} group/cell:hover:ring-1 group/cell:hover:ring-blue-300`}
-              title={node.tracker_name || ''}
-            >
-              {node.tracker_name || '-'}
-            </span>
-          )}
-        </div>
-
-        {/* PRIORITY Column */}
-        <div
-          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}
-          onDoubleClick={(e) => startEdit('priority_id', String(node.priority_id || ''), e)}
-        >
-          {isEditing('priority_id') && masters ? (
-            <select
-              className={`w-full ${DENSITY_CONFIG[density].badgeSize} h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm`}
-              value={editingCell!.value}
-              onChange={(e) => { void commitEdit('priority_id', e.target.value); }}
-              onBlur={() => cancelEdit()}
-              onClick={(e) => e.stopPropagation()}
-              autoFocus
-            >
-              {masters.priorities.filter(p => p.id !== null).map((p) => (
-                <option key={p.id} value={String(p.id)}>{p.name}</option>
-              ))}
-            </select>
-          ) : (
-            <span
-              className={`inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 ${DENSITY_CONFIG[density].badgeSize} font-semibold font-sans truncate transition-all duration-300 ${priorityBadgeClass}`}
-              title={node.priority_name || ''}
-            >
-              {node.priority_name || '-'}
-            </span>
-          )}
-        </div>
-
-        {/* STATUS Column */}
-        <div
-          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}
-          onDoubleClick={(e) => startEdit('status_id', String(node.status_id || ''), e)}
-        >
-          {isEditing('status_id') && masters ? (
-            <select
-              className={`w-full ${DENSITY_CONFIG[density].badgeSize} h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm`}
-              value={editingCell!.value}
-              onChange={(e) => { void commitEdit('status_id', e.target.value); }}
-              onBlur={() => cancelEdit()}
-              onClick={(e) => e.stopPropagation()}
-              autoFocus
-            >
-              {masters.statuses.map((s) => (
-                <option key={s.id} value={String(s.id)}>{s.name}</option>
-              ))}
-            </select>
-          ) : (
-            <span className={`inline-flex items-center justify-center min-w-[56px] ${DENSITY_CONFIG[density].badgeSize} font-bold px-2.5 py-1 rounded-full ${statusBg} ${statusText} shadow-sm`}>
-              {statusLabel}
-            </span>
-          )}
-        </div>
-
-        {/* PROGRESS Column */}
-        <div
-          className={`shrink-0 flex items-center gap-2 justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}
-          onDoubleClick={(e) => startEdit('done_ratio', String(progressRatio), e)}
-        >
-          {isEditing('done_ratio') ? (
-            <input
-              ref={inputRef}
-              type="number"
-              min={0}
-              max={100}
-              step={10}
-              className={`w-[72px] ${DENSITY_CONFIG[density].progressTextSize} h-8 px-2 border border-[var(--color-brand-6)] rounded-[9999px] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)] bg-white text-slate-700 shadow-sm font-sans font-medium`}
-              defaultValue={editingCell!.value}
-              onBlur={(e) => { void commitEdit('done_ratio', e.currentTarget.value); }}
-              onKeyDown={handleKeyDown}
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <div className={`flex items-center ${DENSITY_CONFIG[density].progressGap}`}>
-              <div
-                className="h-2 w-full max-w-[80px] overflow-hidden rounded-[9999px] relative cursor-help bg-gray-100"
-                title={`${progressRatio}% ${t('timeline.progress')}`}
-              >
-                <div
-                  className="absolute left-0 top-0 bottom-0 rounded-[9999px] transition-all duration-700 ease-out"
-                  style={{
-                    width: progressRatio === 0 ? '100%' : `${progressRatio}%`,
-                    backgroundColor: getProgressFillColor(progressRatio)
-                  }}
-                />
-              </div>
-              <span className={`${DENSITY_CONFIG[density].progressTextSize} text-[#45515e] font-semibold tabular-nums min-w-[32px]`} data-testid="progress-text">{progressRatio}%</span>
-            </div>
-          )}
-        </div>
-
-        {/* START DATE Column */}
-        <div
-          className={`shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`}
-          style={{ width: `${columnWidths.startDate ?? 130}px`, minWidth: `${columnWidths.startDate ?? 130}px` }}
-        >
-          <div className="relative w-full h-8">
-            <span
-              data-testid={`start-date-display-${node.issue_id}`}
-              className={`inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 ${DENSITY_CONFIG[density].dateSize} text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate`}
-              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-              onDoubleClick={(e) => startDateRangeEdit('start_date', e)}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayStartDate ? displayStartDate.replace(/-/g, '/') : '-'}
-            </span>
-            {isEditingDateRange && (editingDateRange.focusField === 'start_date' || !node.start_date) && (
-              <input
-                ref={startDateInputRef}
-                type="date"
-                data-testid={`start-date-input-${node.issue_id}`}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                value={dateRangeDraft?.startDate || ''}
-                max={dateRangeDraft?.dueDate || undefined}
-                onChange={(e) => {
-                  updateDateRangeDraft('startDate', e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    cancelDateRangeEdit();
-                  } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    commitDateRangeEdit();
-                  }
-                }}
-                onBlur={commitDateRangeEdit}
-                onDoubleClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openDatePicker(e.currentTarget);
-                }}
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* DUE DATE Column */}
-        <div
-          className={`shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`}
-          style={{ width: `${columnWidths.dueDate ?? 130}px`, minWidth: `${columnWidths.dueDate ?? 130}px` }}
-        >
-          <div className="relative w-full h-8 flex items-center">
-            <span
-              data-testid={`due-date-display-${node.issue_id}`}
-              className={`inline-flex w-full h-full items-center rounded-md border border-transparent px-1.5 ${DENSITY_CONFIG[density].dateSize} text-slate-700 tabular-nums select-none hover:border-blue-200 hover:bg-blue-50/70 truncate`}
-              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-              onDoubleClick={(e) => startDateRangeEdit('due_date', e)}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayDueDate ? displayDueDate.replace(/-/g, '/') : '-'}
-            </span>
-            {isEditingDateRange && (editingDateRange.focusField === 'due_date' || !node.due_date) && (
-              <input
-                ref={dueDateInputRef}
-                type="date"
-                data-testid={`due-date-input-${node.issue_id}`}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                value={dateRangeDraft?.dueDate || ''}
-                min={dateRangeDraft?.startDate || undefined}
-                onChange={(e) => {
-                  updateDateRangeDraft('dueDate', e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    e.preventDefault();
-                    cancelDateRangeEdit();
-                  } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    commitDateRangeEdit();
-                  }
-                }}
-                onBlur={commitDateRangeEdit}
-                onDoubleClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openDatePicker(e.currentTarget);
-                }}
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
-            {isSaving && (
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 ml-1 flex-shrink-0"></div>
-            )}
-          </div>
-        </div>
-
-        {/* ASSIGNEE Column */}
-        <div
-          className={`shrink-0 flex items-center justify-start gap-1.5 px-2 overflow-hidden ${cellClass}`}
-          style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}
-          onDoubleClick={(e) => startEdit('assigned_to_id', String(node.assignee_id || ''), e)}
-        >
-          {isEditing('assigned_to_id') && masters ? (
-            <select
-              className={`w-full ${DENSITY_CONFIG[density].dateSize} h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700`}
-              value={editingCell!.value}
-              onChange={(e) => { void commitEdit('assigned_to_id', e.target.value); }}
-              onBlur={() => cancelEdit()}
-              onClick={(e) => e.stopPropagation()}
-              autoFocus
-            >
-              {masters.members.map((m) => (
-                <option key={m.id ?? 'none'} value={m.id === null ? '' : String(m.id)}>{m.name}</option>
-              ))}
-            </select>
-          ) : (
-            node.assignee_name ? (
-              <>
-                <div className={`${DENSITY_CONFIG[density].idSize === 'text-sm' ? 'w-7 h-7' : 'w-6 h-6'} rounded-full bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center flex-shrink-0`}>
-                  <svg className={DENSITY_CONFIG[density].iconSize} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
-                  </svg>
-                </div>
-                <span className={`${DENSITY_CONFIG[density].subjectSize} font-medium text-slate-700 truncate`}>{node.assignee_name}</span>
-              </>
-            ) : (
-              <span className={`${DENSITY_CONFIG[density].badgeSize} text-slate-400`}>-</span>
-            )
-          )}
-        </div>
-
-      </div>
-
-      {!collapsed && node.children.map((child, idx) => (
-        <IssueTreeNode
-          key={child.issue_id}
-          node={child}
-          depth={depth + 1}
-          activeLines={depth === 0 ? [] : [...activeLines, !isLast]}
-          isLast={idx === node.children.length - 1}
-          rootIssueId={rootIssueId}
-          savingIssueIds={savingIssueIds}
-          handleDateChange={handleDateChange}
-          onAddSubIssue={onAddSubIssue}
-          onEditIssue={onEditIssue}
-          onViewIssue={onViewIssue}
-          selectedIssueId={selectedIssueId}
-          registerRowRef={registerRowRef}
-          masters={masters}
-          onFieldUpdate={onFieldUpdate}
-          columnWidths={columnWidths}
-          density={density}
-        />
-      ))}
-    </>
-  );
-};
-
-type SubIssueCreationDialogProps = {
-  projectIdentifier: string;
-  parentIssueId: number;
-  inheritedFields: InheritedSubIssueFields;
-  onCreated?: (createdIssueId?: number) => void;
-  onClose: () => void;
-};
-
-type IssueEditDialogProps = {
-  projectIdentifier: string;
-  issueId: number;
-  issueUrl: string;
-  onSaved?: (updatedIssueId?: number) => void;
-  onClose: () => void;
-};
-
-type InheritedSubIssueFields = Pick<BulkIssuePayload, 'tracker_id' | 'priority_id' | 'assigned_to_id' | 'start_date' | 'due_date'>;
-
-const readNumericField = (formData: FormData, fieldName: string): number | undefined => {
-  const raw = formData.get(fieldName);
-  if (typeof raw !== 'string') return undefined;
-  const trimmed = raw.trim();
-  if (trimmed === '') return undefined;
-
-  const parsed = Number(trimmed);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-};
-
-const readDateField = (formData: FormData, fieldName: string): string | undefined => {
-  const raw = formData.get(fieldName);
-  if (typeof raw !== 'string') return undefined;
-  const trimmed = raw.trim();
-  return trimmed === '' ? undefined : trimmed;
-};
-
-const buildInheritedSubIssueFields = (source: {
-  trackerId?: number | null;
-  priorityId?: number | null;
-  assignedToId?: number | null;
-  startDate?: string | null;
-  dueDate?: string | null;
-}): InheritedSubIssueFields => ({
-  tracker_id: source.trackerId && source.trackerId > 0 ? source.trackerId : undefined,
-  priority_id: source.priorityId && source.priorityId > 0 ? source.priorityId : undefined,
-  assigned_to_id: source.assignedToId && source.assignedToId > 0 ? source.assignedToId : undefined,
-  start_date: source.startDate || undefined,
-  due_date: source.dueDate || undefined
-});
-
-const extractInheritedSubIssueFieldsFromForm = (form: HTMLFormElement): InheritedSubIssueFields => {
-  const formData = new FormData(form);
-  return {
-    tracker_id: readNumericField(formData, 'issue[tracker_id]'),
-    priority_id: readNumericField(formData, 'issue[priority_id]'),
-    assigned_to_id: readNumericField(formData, 'issue[assigned_to_id]'),
-    start_date: readDateField(formData, 'issue[start_date]'),
-    due_date: readDateField(formData, 'issue[due_date]')
-  };
-};
-
-const buildSubIssueQuery = (parentIssueId: number, inheritedFields: InheritedSubIssueFields): string => {
-  const params = new URLSearchParams();
-  params.set('issue[parent_issue_id]', String(parentIssueId));
-
-  if (inheritedFields.tracker_id) params.set('issue[tracker_id]', String(inheritedFields.tracker_id));
-  if (inheritedFields.priority_id) params.set('issue[priority_id]', String(inheritedFields.priority_id));
-  if (inheritedFields.assigned_to_id) params.set('issue[assigned_to_id]', String(inheritedFields.assigned_to_id));
-  if (inheritedFields.start_date) {
-    params.set('issue[start_date]', inheritedFields.start_date);
-    params.set('start_date', inheritedFields.start_date);
-  }
-  if (inheritedFields.due_date) {
-    params.set('issue[due_date]', inheritedFields.due_date);
-    params.set('due_date', inheritedFields.due_date);
-  }
-
-  return params.toString();
-};
-
-function SubIssueCreationDialog({
-  projectIdentifier,
-  parentIssueId,
-  inheritedFields,
-  onCreated,
-  onClose
-}: SubIssueCreationDialogProps) {
-  const issueQuery = useMemo(
-    () => buildSubIssueQuery(parentIssueId, inheritedFields),
-    [inheritedFields, parentIssueId]
-  );
-  const iframeUrl = `/projects/${projectIdentifier}/issues/new?${issueQuery}`;
-  const externalUrl = iframeUrl;
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkText, setBulkText] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [iframeReady, setIframeReady] = useState(false);
-  const [iframeHeader, setIframeHeader] = useState('');
-  const [iframeSubject, setIframeSubject] = useState('');
-  const [iframeError, setIframeError] = useState<string | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const headerRef = useRef<HTMLDivElement | null>(null);
-  const sectionRef = useRef<HTMLDivElement | null>(null);
-  const footerRef = useRef<HTMLDivElement | null>(null);
-  const errorRef = useRef<HTMLDivElement | null>(null);
-  const handledCreationRef = useRef(false);
-  const cleanupIframeEscRef = useRef<(() => void) | null>(null);
-  const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
-    isOpen: true,
-    iframeRef,
-    headerRef,
-    footerRef,
-    sectionRef,
-    errorRef,
-  });
-
-  useEffect(() => {
-    setIframeReady(false);
-    setIframeError(null);
-    setIframeHeader('');
-    setIframeSubject('');
-    handledCreationRef.current = false;
-    cleanupIframeEscRef.current?.();
-    cleanupIframeEscRef.current = null;
-    resetLayout();
-  }, [iframeUrl, resetLayout]);
-
-  useEffect(() => {
-    const onEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-
-    window.addEventListener('keydown', onEsc, true);
-    return () => window.removeEventListener('keydown', onEsc, true);
-  }, [onClose]);
-
-  useEffect(() => () => {
-    cleanupIframeEscRef.current?.();
-    cleanupIframeEscRef.current = null;
-  }, []);
-
-  const findEmbeddedNewIssueForm = () => {
-    const doc = iframeRef.current?.contentDocument;
-    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
-
-    const form =
-      doc.querySelector<HTMLFormElement>('form#issue-form') ||
-      doc.querySelector<HTMLFormElement>('form#new_issue') ||
-      doc.querySelector<HTMLFormElement>('#issue-form form') ||
-      doc.querySelector<HTMLFormElement>('form.new_issue');
-    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
-
-    return { doc, form };
-  };
-
-  const createBulkIssues = async (newParentIssueId: number, lines: string[], defaults: InheritedSubIssueFields) => {
-    for (const subject of lines) {
-      const payload: BulkIssuePayload = { subject, ...defaults };
-      await createIssue(projectIdentifier, newParentIssueId, payload);
-    }
-  };
-
-  const submitDefaultIssueForm = () => {
-    try {
-      const { form } = findEmbeddedNewIssueForm();
-      const submitter =
-        form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
-        form.querySelector<HTMLElement>('button[name="commit"]:not([disabled])') ||
-        form.querySelector<HTMLElement>('input[type="submit"]:not([disabled])') ||
-        form.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
-      if (submitter) {
-        submitter.click();
-        return;
-      }
-      if (typeof form.requestSubmit === 'function') {
-        form.requestSubmit();
-        return;
-      }
-      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-      if (form.dispatchEvent(submitEvent)) form.submit();
-    } catch (err: any) {
-      alert(t('common.alertError', { message: err.message }));
-    }
-  };
-
-  const createParentIssueFromEmbeddedForm = async (form: HTMLFormElement): Promise<number> => {
-    const action = form.getAttribute('action') || '/issues';
-    const method = (form.getAttribute('method') || 'post').toUpperCase();
-    const formData = new FormData(form);
-    const res = await fetch(action, {
-      method,
-      credentials: 'same-origin',
-      body: formData,
-    });
-    if (!res.ok) {
-      throw new Error(t('embeddedIssueForm.createParentIssueFailed', { status: res.status }));
-    }
-
-    const locationCandidates = [res.url, res.headers.get('x-response-url') || '', res.headers.get('location') || ''];
-    const createdIssueId = locationCandidates
-      .map((url) => url.match(/\/issues\/(\d+)(?:[/?#]|$)/))
-      .find((match): match is RegExpMatchArray => Boolean(match && match[1]));
-
-    if (!createdIssueId) {
-      throw new Error(t('embeddedIssueForm.createdParentIssueIdNotFound'));
-    }
-    return Number(createdIssueId[1]);
-  };
-
-  const handleSave = async () => {
-    const lines = bulkText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
-
-    if (lines.length === 0) {
-      submitDefaultIssueForm();
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const { form } = findEmbeddedNewIssueForm();
-      const defaults = extractInheritedSubIssueFieldsFromForm(form);
-      const newParentIssueId = await createParentIssueFromEmbeddedForm(form);
-      await createBulkIssues(newParentIssueId, lines, defaults);
-      setBulkText('');
-      setBulkOpen(false);
-      onCreated?.(newParentIssueId);
-      onClose();
-    } catch (err: any) {
-      alert(t('common.alertError', { message: err.message }));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const normalizeEmbeddedFormActions = (doc: Document) => {
-    const forms = Array.from(doc.querySelectorAll('form[action]'));
-    forms.forEach((form) => {
-      const rawAction = form.getAttribute('action');
-      if (!rawAction) return;
-      try {
-        const actionUrl = new URL(rawAction, window.location.origin);
-        if (actionUrl.origin === window.location.origin) return;
-        const normalized = `${actionUrl.pathname}${actionUrl.search}${actionUrl.hash}`;
-        form.setAttribute('action', normalized);
-      } catch {
-        // Ignore invalid URL and keep original action.
-      }
-    });
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-white rounded-[6px] shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden"
-        style={{
-          width: `${DEFAULT_DIALOG_WIDTH_PX}px`,
-          maxWidth: '98vw',
-          height: `${dialogHeightPx ?? getEmbeddedDialogDefaultHeight()}px`,
-          maxHeight: `${Math.floor(window.innerHeight * MAX_DIALOG_VIEWPORT_HEIGHT_RATIO)}px`,
-          boxSizing: 'border-box',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          ref={headerRef}
-          data-testid="sub-issue-dialog-header"
-          className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white"
-          style={{ padding: '2px 12px' }}
-        >
-          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-            {iframeHeader ? (
-              <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} #${parentIssueId} ${iframeSubject}`}>
-                {iframeHeader} #{parentIssueId} {iframeSubject}
-              </span>
-            ) : (
-              <React.Fragment>
-                <span className="text-[14px] font-bold text-slate-800 truncate">
-                  {t('subIssueDialog.iframeTitle')} #{parentIssueId}
-                </span>
-              </React.Fragment>
-            )}
-          </div>
-          <div className="flex items-center gap-[6px] flex-shrink-0">
-            <a
-              href={externalUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
-              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
-              title={t('common.openInNewTab')}
-              aria-label={t('common.openInNewTab')}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
-              </svg>
-            </a>
-            <button
-              type="button"
-              aria-label={t('timeline.closeCreateIssueDialogAria')}
-              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
-              onClick={onClose}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div className="relative flex-1 min-h-0 bg-white overflow-hidden">
-          {iframeError ? (
-            <div
-              ref={errorRef}
-              data-testid="sub-issue-dialog-error"
-              style={{
-                flex: '0 0 auto',
-                padding: '12px 16px',
-                backgroundColor: '#fdecea',
-                color: '#b71c1c',
-                borderBottom: '1px solid #f5c6cb',
-                fontSize: 13,
-              }}
-            >
-              {iframeError}
-            </div>
-          ) : null}
-          <iframe
-            ref={iframeRef}
-            title={t('subIssueDialog.iframeTitle')}
-            src={iframeUrl}
-            className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
-            onLoad={(e) => {
-              try {
-                const doc = (e.target as HTMLIFrameElement).contentDocument;
-                if (!doc) return;
-
-                applyEmbeddedIssueDialogStyles(doc, {
-                  contentPadding: '16px',
-                  extraCss: EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
-                  styleId: `${ISSUE_DIALOG_STYLE_ID}-subissue`,
-                });
-                setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
-                bindIframeSizeObservers(doc);
-                cleanupIframeEscRef.current?.();
-                cleanupIframeEscRef.current = bindIframeEscapeHandler(doc, onClose);
-                normalizeEmbeddedFormActions(doc);
-
-                try {
-                  const h2Ele = doc.querySelector('h2');
-                  if (h2Ele) setIframeHeader(h2Ele.textContent || '');
-                  const subjectInput = doc.querySelector<HTMLInputElement>('#issue_subject');
-                  if (subjectInput) {
-                    setIframeSubject(subjectInput.value);
-                    subjectInput.addEventListener('input', (event) => {
-                      setIframeSubject((event.target as HTMLInputElement).value);
-                    });
-                  }
-                } catch {
-                  // Ignore iframe parsing failures.
-                }
-
-                const pathname = doc.location?.pathname || '';
-                if (!handledCreationRef.current && /^\/issues\/\d+(?:\/)?$/.test(pathname)) {
-                  handledCreationRef.current = true;
-                  const createdIssueId = Number(pathname.split('/').pop());
-                  onCreated?.(Number.isFinite(createdIssueId) ? createdIssueId : undefined);
-                  onClose();
-                  return;
-                }
-              } catch {
-                setIframeError(null);
-              }
-              requestAnimationFrame(() => {
-                setIframeReady(true);
-                measureDialogHeight();
-              });
-            }}
-          />
-          {!iframeReady ? (
-            <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
-              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div>
-            </div>
-          ) : null}
-        </div>
-
-        <div
-          ref={sectionRef}
-          className="border-t border-slate-200 bg-white flex-shrink-0"
-          style={{ padding: '8px 12px 0 12px' }}
-        >
-          <button
-            type="button"
-            className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
-            onClick={() => setBulkOpen(!bulkOpen)}
-          >
-            <span
-              className="inline-block transition-transform duration-200 text-xs"
-              style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-            >
-              ▶
-            </span>
-            <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
-          </button>
-
-          {bulkOpen ? (
-            <div className="mt-3">
-              <textarea
-                className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y"
-                placeholder={t('subIssueDialog.bulkPlaceholder')}
-                value={bulkText}
-                onChange={(e) => setBulkText(e.target.value)}
-              />
-            </div>
-          ) : null}
-        </div>
-
-        <div
-          ref={footerRef}
-          data-testid="sub-issue-dialog-footer"
-          className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center"
-          style={{ padding: '2px 12px 4px 12px' }}
-        >
-          <button
-            type="button"
-            className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
-            style={{
-              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
-              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
-              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
-              borderColor: '#cbd5e1',
-              color: '#334155',
-            }}
-            onClick={onClose}
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            className="rounded-[6px] text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
-            style={{
-              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
-              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
-              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
-              backgroundColor: '#1b69e3',
-              color: '#fff',
-            }}
-            disabled={isSubmitting || !iframeReady}
-            onClick={handleSave}
-          >
-            {isSubmitting ? t('common.saving') : t('common.save')}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function IssueEditDialog({
-  projectIdentifier,
-  issueId,
-  issueUrl,
-  onSaved,
-  onClose
-}: IssueEditDialogProps) {
-  const iframeUrl = `${issueUrl}/edit`;
-  const externalUrl = iframeUrl;
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkText, setBulkText] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [iframeReady, setIframeReady] = useState(false);
-  const [iframeError, setIframeError] = useState<string | null>(null);
-  const [iframeHeader, setIframeHeader] = useState('');
-  const [iframeSubject, setIframeSubject] = useState('');
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const headerRef = useRef<HTMLDivElement | null>(null);
-  const footerRef = useRef<HTMLDivElement | null>(null);
-  const sectionRef = useRef<HTMLDivElement | null>(null);
-  const errorRef = useRef<HTMLDivElement | null>(null);
-  const saveInFlightRef = useRef(false);
-  const cleanupIframeEscRef = useRef<(() => void) | null>(null);
-  const cleanupEmbeddedSubmitRef = useRef<(() => void) | null>(null);
-  const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
-    isOpen: true,
-    iframeRef,
-    headerRef,
-    footerRef,
-    sectionRef,
-    errorRef,
-  });
-
-  useEffect(() => {
-    setIframeReady(false);
-    setIframeError(null);
-    setIframeHeader('');
-    setIframeSubject('');
-    cleanupIframeEscRef.current?.();
-    cleanupIframeEscRef.current = null;
-    cleanupEmbeddedSubmitRef.current?.();
-    cleanupEmbeddedSubmitRef.current = null;
-    resetLayout();
-  }, [iframeUrl, resetLayout]);
-
-  useEffect(() => {
-    const onEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onEsc, true);
-    return () => window.removeEventListener('keydown', onEsc, true);
-  }, [onClose]);
-
-  useEffect(() => () => {
-    cleanupIframeEscRef.current?.();
-    cleanupIframeEscRef.current = null;
-    cleanupEmbeddedSubmitRef.current?.();
-    cleanupEmbeddedSubmitRef.current = null;
-  }, []);
-
-  const createBulkIssues = async (parentIssueId: number, lines: string[], defaults: InheritedSubIssueFields) => {
-    for (const subject of lines) {
-      const payload: BulkIssuePayload = { subject, ...defaults };
-      await createIssue(projectIdentifier, parentIssueId, payload);
-    }
-  };
-
-  const normalizeEmbeddedFormActions = (doc: Document) => {
-    const forms = Array.from(doc.querySelectorAll('form[action]'));
-    forms.forEach((form) => {
-      const rawAction = form.getAttribute('action');
-      if (!rawAction) return;
-      try {
-        const actionUrl = new URL(rawAction, window.location.origin);
-        if (actionUrl.origin === window.location.origin) return;
-        form.setAttribute('action', `${actionUrl.pathname}${actionUrl.search}${actionUrl.hash}`);
-      } catch {
-        // Ignore invalid URL and keep original action.
-      }
-    });
-  };
-
-  const findEmbeddedIssueForm = () => {
-    const doc = iframeRef.current?.contentDocument;
-    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
-    const form =
-      doc.querySelector<HTMLFormElement>('form#issue-form') ||
-      doc.querySelector<HTMLFormElement>('form#edit_issue') ||
-      doc.querySelector<HTMLFormElement>('form#new_issue') ||
-      doc.querySelector<HTMLFormElement>('#issue-form form') ||
-      doc.querySelector<HTMLFormElement>('form.edit_issue') ||
-      doc.querySelector<HTMLFormElement>('form.new_issue');
-    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
-    return { doc, form };
-  };
-
-  const parseEmbeddedIssueDocument = (html: string): Document =>
-    new DOMParser().parseFromString(html, 'text/html');
-
-  const hasEmbeddedIssueForm = (doc: Document): boolean =>
-    Boolean(
-      doc.querySelector<HTMLFormElement>('form#issue-form') ||
-      doc.querySelector<HTMLFormElement>('form#edit_issue') ||
-      doc.querySelector<HTMLFormElement>('form#new_issue') ||
-      doc.querySelector<HTMLFormElement>('#issue-form form') ||
-      doc.querySelector<HTMLFormElement>('form.edit_issue') ||
-      doc.querySelector<HTMLFormElement>('form.new_issue')
-    );
-
-  const bindEmbeddedIssueFormSubmit = (doc: Document) => {
-    cleanupEmbeddedSubmitRef.current?.();
-    cleanupEmbeddedSubmitRef.current = null;
-
-    const form =
-      doc.querySelector<HTMLFormElement>('form#issue-form') ||
-      doc.querySelector<HTMLFormElement>('form#edit_issue') ||
-      doc.querySelector<HTMLFormElement>('form#new_issue') ||
-      doc.querySelector<HTMLFormElement>('#issue-form form') ||
-      doc.querySelector<HTMLFormElement>('form.edit_issue') ||
-      doc.querySelector<HTMLFormElement>('form.new_issue');
-    if (!form) return;
-
-    const handleSubmit = (event: Event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      void handleSave();
-    };
-
-    form.addEventListener('submit', handleSubmit);
-    cleanupEmbeddedSubmitRef.current = () => {
-      form.removeEventListener('submit', handleSubmit);
-    };
-  };
-
-  const syncEmbeddedIssueFrame = (doc: Document) => {
-    applyEmbeddedIssueDialogStyles(doc, {
-      contentPadding: '16px',
-      extraCss: EMBEDDED_ISSUE_EDIT_EXTRA_CSS,
-      styleId: `${ISSUE_DIALOG_STYLE_ID}-edit`,
-    });
-    setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
-    bindIframeSizeObservers(doc);
-
-    try {
-      const h2Ele = doc.querySelector('h2');
-      if (h2Ele) setIframeHeader(h2Ele.textContent || '');
-      const subjectInput = doc.querySelector<HTMLInputElement>('#issue_subject');
-      if (subjectInput) {
-        setIframeSubject(subjectInput.value);
-        subjectInput.addEventListener('input', (event) => {
-          setIframeSubject((event.target as HTMLInputElement).value);
-        });
-      } else {
-        const subjectDiv = doc.querySelector('.subject h3');
-        if (subjectDiv) setIframeSubject(subjectDiv.textContent || '');
-      }
-    } catch {
-      // Ignore iframe parsing failures.
-    }
-
-    cleanupIframeEscRef.current?.();
-    cleanupIframeEscRef.current = bindIframeEscapeHandler(doc, onClose);
-    normalizeEmbeddedFormActions(doc);
-    bindEmbeddedIssueFormSubmit(doc);
-
-    requestAnimationFrame(() => {
-      setIframeReady(true);
-      measureDialogHeight();
-    });
-  };
-
-  const renderValidationResponseInIframe = (html: string) => {
-    const doc = iframeRef.current?.contentDocument;
-    if (!doc) return;
-
-    try {
-      doc.open();
-      doc.write(html);
-      doc.close();
-    } catch {
-      return;
-    }
-
-    syncEmbeddedIssueFrame(doc);
-  };
-
-  const saveEditedIssueFromEmbeddedForm = async (): Promise<
-    | { kind: 'saved'; issueId: number }
-    | { kind: 'validation-error'; errorMessage: string | null }
-  > => {
-    const { form } = findEmbeddedIssueForm();
-    const action = form.getAttribute('action') || `/issues/${issueId}`;
-    const method = (form.getAttribute('method') || 'post').toUpperCase();
-    const formData = new FormData(form);
-    const res = await fetch(action, {
-      method,
-      credentials: 'same-origin',
-      body: formData
-    });
-
-    const locationCandidates = [res.url, res.headers.get('x-response-url') || '', res.headers.get('location') || '', action];
-    const matched = locationCandidates
-      .map((url) => url.match(/\/issues\/(\d+)(?:[/?#]|$)/))
-      .find((match): match is RegExpMatchArray => Boolean(match && match[1]));
-    const updatedIssueId = matched ? Number(matched[1]) : issueId;
-
-    // Redmine typically redirects (302) to the issue show page after a successful update.
-    // Use the redirected flag rather than the final URL so a 200 response from /issues/:id
-    // that re-renders the edit form is still treated as a validation error.
-    if (res.redirected && res.ok) {
-      return {
-        kind: 'saved',
-        issueId: updatedIssueId
-      };
-    }
-
-    const responseHtml = await res.text();
-    const responseDoc = parseEmbeddedIssueDocument(responseHtml);
-    const validationMessage = getEmbeddedIssueDialogErrorMessage(responseDoc);
-
-    if (validationMessage || hasEmbeddedIssueForm(responseDoc)) {
-      renderValidationResponseInIframe(responseHtml);
-      return {
-        kind: 'validation-error',
-        errorMessage: validationMessage
-      };
-    }
-
-    if (!res.ok) {
-      throw new Error(t('common.alertError', { message: `status=${res.status}` }));
-    }
-
-    return {
-      kind: 'saved',
-      issueId: updatedIssueId
-    };
-  };
-
-  const handleSave = async () => {
-    const lines = bulkText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
-
-    if (saveInFlightRef.current) return;
-    saveInFlightRef.current = true;
-    setIsSubmitting(true);
-    try {
-      const { form } = findEmbeddedIssueForm();
-      const saveResult = await saveEditedIssueFromEmbeddedForm();
-
-      if (saveResult.kind === 'validation-error') {
-        return;
-      }
-
-      if (lines.length > 0) {
-        const defaults = extractInheritedSubIssueFieldsFromForm(form);
-        await createBulkIssues(saveResult.issueId, lines, defaults);
-        setBulkText('');
-        setBulkOpen(false);
-      }
-
-      onSaved?.(saveResult.issueId);
-      onClose();
-    } catch (err: any) {
-      alert(t('common.alertError', { message: err.message }));
-    } finally {
-      saveInFlightRef.current = false;
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-white rounded-[6px] shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden"
-        style={{
-          width: `${DEFAULT_DIALOG_WIDTH_PX}px`,
-          maxWidth: '98vw',
-          height: `${dialogHeightPx ?? getEmbeddedDialogDefaultHeight()}px`,
-          maxHeight: `${Math.floor(window.innerHeight * MAX_DIALOG_VIEWPORT_HEIGHT_RATIO)}px`,
-          boxSizing: 'border-box',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          ref={headerRef}
-          data-testid="edit-issue-dialog-header"
-          className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white"
-          style={{ padding: '2px 12px' }}
-        >
-          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-            {iframeHeader ? (
-              <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} ${iframeSubject}`}>
-                {iframeHeader} {iframeSubject}
-              </span>
-            ) : (
-              <React.Fragment>
-                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
-                  #{issueId}
-                </span>
-                <span className="text-[14px] font-bold text-slate-800 truncate">{t('timeline.editIssueDialogTitle')}</span>
-              </React.Fragment>
-            )}
-          </div>
-          <div className="flex items-center gap-[6px] flex-shrink-0">
-            <a
-              href={externalUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
-              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
-              title={t('common.openInNewTab')}
-              aria-label={t('common.openInNewTab')}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
-              </svg>
-            </a>
-            <button
-              type="button"
-              aria-label={t('timeline.closeEditIssueDialogAria')}
-              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
-              onClick={onClose}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div className="relative flex-1 min-h-0 bg-white overflow-hidden">
-          {iframeError ? (
-            <div
-              ref={errorRef}
-              data-testid="edit-issue-dialog-error"
-              style={{
-                flex: '0 0 auto',
-                padding: '12px 16px',
-                backgroundColor: '#fdecea',
-                color: '#b71c1c',
-                borderBottom: '1px solid #f5c6cb',
-                fontSize: 13,
-              }}
-            >
-              {iframeError}
-            </div>
-          ) : null}
-          <iframe
-            ref={iframeRef}
-            title={t('timeline.editIssueDialogTitle')}
-            src={iframeUrl}
-            className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
-            onLoad={(e) => {
-              try {
-                const doc = (e.target as HTMLIFrameElement).contentDocument;
-                if (!doc) return;
-                syncEmbeddedIssueFrame(doc);
-              } catch {
-                setIframeError(null);
-              }
-            }}
-          />
-          {!iframeReady && (
-            <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
-              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div>
-            </div>
-          )}
-        </div>
-
-        <div
-          ref={sectionRef}
-          className="border-t border-slate-200 bg-white flex-shrink-0"
-          style={{ padding: '8px 12px 0 12px' }}
-        >
-          <button
-            type="button"
-            className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
-            onClick={() => setBulkOpen(!bulkOpen)}
-          >
-            <span
-              className="inline-block transition-transform duration-200 text-xs"
-              style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-            >
-              ▶
-            </span>
-            <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
-          </button>
-
-          {bulkOpen && (
-            <div className="mt-3">
-              <textarea
-                className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y"
-                placeholder={t('subIssueDialog.bulkPlaceholder')}
-                value={bulkText}
-                onChange={(e) => setBulkText(e.target.value)}
-              />
-            </div>
-          )}
-        </div>
-
-        <div
-          ref={footerRef}
-          data-testid="edit-issue-dialog-footer"
-          className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center"
-          style={{ padding: '2px 12px 4px 12px' }}
-        >
-          <button
-            type="button"
-            className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
-            style={{
-              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
-              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
-              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
-              borderColor: '#cbd5e1',
-              color: '#334155',
-            }}
-            onClick={onClose}
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            className="rounded-[6px] text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased"
-            style={{
-              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
-              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
-              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
-              backgroundColor: '#1b69e3',
-              color: '#fff',
-            }}
-            disabled={isSubmitting || !iframeReady}
-            onClick={handleSave}
-          >
-            {isSubmitting ? t('common.saving') : t('common.save')}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function IssueViewDialog({
-  projectIdentifier,
-  issueId,
-  issueUrl,
-  inheritedFields = {},
-  onSaved,
-  onClose
-}: {
-  projectIdentifier: string;
-  issueId: number;
-  issueUrl: string;
-  inheritedFields?: InheritedSubIssueFields;
-  onSaved?: (updatedIssueId?: number) => void;
-  onClose: () => void;
-}) {
-  const iframeUrl = issueUrl;
-  const externalUrl = iframeUrl;
-  const [iframeReady, setIframeReady] = useState(false);
-  const [iframeError, setIframeError] = useState<string | null>(null);
-  const [iframeHeader, setIframeHeader] = useState('');
-  const [iframeSubject, setIframeSubject] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkText, setBulkText] = useState('');
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const headerRef = useRef<HTMLDivElement | null>(null);
-  const footerRef = useRef<HTMLDivElement | null>(null);
-  const errorRef = useRef<HTMLDivElement | null>(null);
-  const sectionRef = useRef<HTMLDivElement | null>(null);
-  const cleanupIframeEscRef = useRef<(() => void) | null>(null);
-  const handledSaveRef = useRef(false);
-  const awaitingRedirectRef = useRef(false);
-
-  const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
-    isOpen: true,
-    iframeRef,
-    headerRef,
-    footerRef,
-    errorRef,
-    sectionRef,
-  });
-
-  const createBulkIssues = async (parentIssueId: number, lines: string[], defaults: InheritedSubIssueFields) => {
-    for (const subject of lines) {
-      const payload: BulkIssuePayload = { subject, ...defaults };
-      await createIssue(projectIdentifier, parentIssueId, payload);
-    }
-  };
-
-  const findEmbeddedIssueForm = () => {
-    const doc = iframeRef.current?.contentDocument;
-    if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
-    const form =
-      doc.querySelector<HTMLFormElement>('form#issue-form') ||
-      doc.querySelector<HTMLFormElement>('form#edit_issue') ||
-      doc.querySelector<HTMLFormElement>('form#new_issue') ||
-      doc.querySelector<HTMLFormElement>('#issue-form form') ||
-      doc.querySelector<HTMLFormElement>('form.edit_issue') ||
-      doc.querySelector<HTMLFormElement>('form.new_issue');
-    if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
-    return { doc, form };
-  };
-
-  const submitDefaultIssueForm = () => {
-    try {
-      const { form } = findEmbeddedIssueForm();
-      const submitter =
-        form.querySelector<HTMLElement>('input[name="commit"]:not([disabled])') ||
-        form.querySelector<HTMLElement>('button[name="commit"]:not([disabled])') ||
-        form.querySelector<HTMLElement>('input[type="submit"]:not([disabled])') ||
-        form.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
-      if (submitter) {
-        submitter.click();
-        return;
-      }
-      if (typeof form.requestSubmit === 'function') {
-        form.requestSubmit();
-        return;
-      }
-      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-      if (form.dispatchEvent(submitEvent)) form.submit();
-    } catch (err: any) {
-      alert(t('common.alertError', { message: err.message }));
-    }
-  };
-
-  const handleSave = async () => {
-    const lines = bulkText.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
-
-    if (lines.length === 0) {
-      const doc = iframeRef.current?.contentDocument;
-      if (doc) {
-        awaitingRedirectRef.current = true;
-        submitDefaultIssueForm();
-        return;
-      }
-      onClose();
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await createBulkIssues(issueId, lines, inheritedFields);
-      setBulkText('');
-      setBulkOpen(false);
-      onSaved?.(issueId);
-      onClose();
-    } catch (err: any) {
-      alert(t('common.alertError', { message: err.message }));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  useEffect(() => {
-    setIframeReady(false);
-    setIframeError(null);
-    setIframeHeader('');
-    setIframeSubject('');
-    cleanupIframeEscRef.current?.();
-    cleanupIframeEscRef.current = null;
-    handledSaveRef.current = false;
-    awaitingRedirectRef.current = false;
-    resetLayout();
-  }, [iframeUrl, resetLayout]);
-
-  useEffect(() => {
-    const onEsc = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onEsc, true);
-    return () => window.removeEventListener('keydown', onEsc, true);
-  }, [onClose]);
-
-  useEffect(() => () => {
-    cleanupIframeEscRef.current?.();
-    cleanupIframeEscRef.current = null;
-  }, []);
-
-  return (
-    <div
-      className="fixed inset-0 z-[60] bg-slate-900/50 flex items-center justify-center p-4 sm:p-6"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-white rounded-[6px] shadow-2xl ring-1 ring-slate-900/5 flex flex-col overflow-hidden"
-        style={{
-          width: `${DEFAULT_DIALOG_WIDTH_PX}px`,
-          maxWidth: '98vw',
-          height: `${dialogHeightPx ?? getEmbeddedDialogDefaultHeight()}px`,
-          maxHeight: `${Math.floor(window.innerHeight * MAX_DIALOG_VIEWPORT_HEIGHT_RATIO)}px`,
-          boxSizing: 'border-box',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          ref={headerRef}
-          data-testid="view-issue-dialog-header"
-          className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white"
-          style={{ padding: '2px 12px' }}
-        >
-          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
-            {iframeHeader ? (
-              <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} ${iframeSubject}`}>
-                {iframeHeader} {iframeSubject}
-              </span>
-            ) : (
-              <React.Fragment>
-                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">
-                  #{issueId}
-                </span>
-                <span className="text-[14px] font-bold text-slate-800 truncate">{t('timeline.viewIssueDialogTitle')}</span>
-              </React.Fragment>
-            )}
-          </div>
-          <div className="flex items-center gap-[6px] flex-shrink-0">
-            <a
-              href={externalUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
-              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
-              title={t('common.openInNewTab')}
-              aria-label={t('common.openInNewTab')}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" />
-              </svg>
-            </a>
-            <button
-              type="button"
-              aria-label={t('timeline.closeDialogAria')}
-              className="inline-flex items-center justify-center rounded-[6px] border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-              style={{ width: `${COMPACT_ICON_BUTTON_SIZE}px`, height: `${COMPACT_ICON_BUTTON_SIZE}px` }}
-              onClick={onClose}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div className="relative flex-1 min-h-0 bg-white overflow-hidden">
-          {iframeError ? (
-            <div
-              ref={errorRef}
-              data-testid="view-issue-dialog-error"
-              style={{
-                flex: '0 0 auto',
-                padding: '12px 16px',
-                backgroundColor: '#fdecea',
-                color: '#b71c1c',
-                borderBottom: '1px solid #f5c6cb',
-                fontSize: 13,
-              }}
-            >
-              {iframeError}
-            </div>
-          ) : null}
-          <iframe
-            ref={iframeRef}
-            title={t('timeline.viewIssueDialogTitle')}
-            src={iframeUrl}
-            className={`absolute inset-0 w-full h-full border-0 bg-white ${iframeReady ? 'opacity-100' : 'opacity-0'}`}
-            onLoad={(e) => {
-              try {
-                const doc = (e.target as HTMLIFrameElement).contentDocument;
-                if (!doc) return;
-
-                const iframeErrorMessage = getEmbeddedIssueDialogErrorMessage(doc);
-                applyEmbeddedIssueDialogStyles(doc, {
-                  contentPadding: '16px',
-                  extraCss: EMBEDDED_ISSUE_VIEW_EXTRA_CSS,
-                  styleId: `${ISSUE_DIALOG_STYLE_ID}-view`,
-                });
-                setIframeError(iframeErrorMessage);
-                bindIframeSizeObservers(doc);
-
-                const pathname = doc.location?.pathname || '';
-                if (
-                  !handledSaveRef.current &&
-                  awaitingRedirectRef.current &&
-                  new RegExp(`^/issues/${issueId}(?:[/?#]|$)`).test(pathname) &&
-                  !iframeErrorMessage
-                ) {
-                  handledSaveRef.current = true;
-                  awaitingRedirectRef.current = false;
-                  onSaved?.(issueId);
-                  onClose();
-                  return;
-                }
-
-                try {
-                  const h2Ele = doc.querySelector('h2');
-                  if (h2Ele) setIframeHeader(h2Ele.textContent || '');
-                  const subjectDiv = doc.querySelector('.subject h3');
-                  if (subjectDiv) setIframeSubject(subjectDiv.textContent || '');
-                } catch {
-                  // Ignore iframe parsing failures.
-                }
-                cleanupIframeEscRef.current?.();
-                cleanupIframeEscRef.current = bindIframeEscapeHandler(doc, onClose);
-              } catch {
-                setIframeError(null);
-              }
-              requestAnimationFrame(() => {
-                setIframeReady(true);
-                measureDialogHeight();
-              });
-            }}
-          />
-          {!iframeReady && (
-            <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none">
-              <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div>
-            </div>
-          )}
-        </div>
-
-        <div
-          ref={sectionRef}
-          className="border-t border-slate-200 bg-white flex-shrink-0"
-          style={{ padding: '8px 12px 0 12px' }}
-        >
-          <button
-            type="button"
-            className="flex items-center gap-2 cursor-pointer text-slate-800 font-bold bg-transparent border-0 p-0 hover:text-blue-600 transition-colors"
-            onClick={() => setBulkOpen(!bulkOpen)}
-          >
-            <span
-              className="inline-block transition-transform duration-200 text-xs"
-              style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-            >
-              ▶
-            </span>
-            <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
-          </button>
-
-          {bulkOpen && (
-            <div className="mt-3">
-              <textarea
-                className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y"
-                placeholder={t('subIssueDialog.bulkPlaceholder')}
-                value={bulkText}
-                onChange={(e) => setBulkText(e.target.value)}
-              />
-            </div>
-          )}
-        </div>
-
-        <div
-          ref={footerRef}
-          data-testid="view-issue-dialog-footer"
-          className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-slate-200"
-          style={{ padding: '8px 12px 12px 12px' }}
-        >
-          <button
-            type="button"
-            className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
-            style={{
-              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
-              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
-              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
-              borderColor: '#cbd5e1',
-              color: '#334155',
-            }}
-            onClick={onClose}
-          >
-            {t('common.close')}
-          </button>
-          <button
-            type="button"
-            className="rounded-[6px] border text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased"
-            style={{
-              fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
-              height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`,
-              minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
-              borderColor: '#2563eb',
-              backgroundColor: '#1b69e3',
-              color: '#fff',
-            }}
-            disabled={isSubmitting || !iframeReady}
-            onClick={handleSave}
-          >
-            {isSubmitting ? t('common.saving') : t('common.save')}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
 export function TaskDetailsDialog({
   open,
   projectIdentifier,
@@ -2355,11 +284,6 @@ export function TaskDetailsDialog({
   const scaledDiamondWidth = Math.round(PROCESS_FLOW_DIAMOND_WIDTH * effectiveScale);
   const scaledProgressLabelY = Math.round(PROCESS_FLOW_PROGRESS_LABEL_Y * effectiveScale);
 
-  const [issues, setIssues] = useState<TaskDetailIssue[]>([]);
-  const [baselineById, setBaselineById] = useState<Record<number, TaskDetailIssue>>({});
-  const [savingIssueIds, setSavingIssueIds] = useState<Record<number, boolean>>({});
-  const [loading, setLoading] = useState(false);
-  const [masters, setMasters] = useState<import('../../services/scheduleReportApi').TaskMasters | null>(null);
   const [createIssueContext, setCreateIssueContext] = useState<{
     issueId: number;
     inheritedFields: InheritedSubIssueFields;
@@ -2379,12 +303,28 @@ export function TaskDetailsDialog({
   const [isSavingComment, setIsSavingComment] = useState<boolean>(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentDraft, setEditingCommentDraft] = useState<string>('');
+  const [editingDateRange, setEditingDateRange] = useState<InlineDateRangeValue | null>(null);
   const [drilldownPath, setDrilldownPath] = useState<DrilldownCrumb[]>([]);
-  const issuesRef = useRef<TaskDetailIssue[]>([]);
-  const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
-  const savingIssueIdsRef = useRef<Record<number, boolean>>({});
-  const saveTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
-  const hasAnyChangesRef = useRef(false);
+  const editingDateRangeRef = useRef<InlineDateRangeValue | null>(null);
+  const {
+    issues,
+    setIssues,
+    loading,
+    masters,
+    savingIssueIds,
+    feedback,
+    showFeedback,
+    clearFeedback,
+    resetData,
+    reloadTaskDetails,
+    handleDateChange,
+    handleFieldUpdate,
+    handleUpdateComment: updateComment,
+    saveProcessFlowDates,
+    issuesRef,
+    savingIssueIdsRef,
+    hasAnyChangesRef
+  } = useTaskDetailsData(projectIdentifier, open);
   const [density, setDensity] = useState<TableDensity>(() => {
     const saved = localStorage.getItem(TABLE_DENSITY_STORAGE_KEY);
     if (saved && (saved === 'compact' || saved === 'standard' || saved === 'relaxed')) {
@@ -2399,6 +339,10 @@ export function TaskDetailsDialog({
     localStorage.setItem(TABLE_DENSITY_STORAGE_KEY, next);
     setDensityMenuOpen(false);
   };
+
+  useEffect(() => {
+    editingDateRangeRef.current = editingDateRange;
+  }, [editingDateRange]);
 
   const [processDragSession, setProcessDragSession] = useState<ProcessDragSession | null>(null);
   const [suppressProcessClickIssueId, setSuppressProcessClickIssueId] = useState<number | null>(null);
@@ -2434,8 +378,6 @@ export function TaskDetailsDialog({
       return next;
     });
   }, []);
-
-  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   const currentRoot = drilldownPath[drilldownPath.length - 1] || { issueId, title: issueTitle };
   const currentRootIssueId = currentRoot.issueId;
   const currentRootIssueTitle = currentRoot.title;
@@ -2456,11 +398,13 @@ export function TaskDetailsDialog({
     issueRowRefs.current[issueId] = element;
   }, []);
 
-  // Load master data when dialog opens
-  useEffect(() => {
-    if (!open) return;
-    fetchTaskMasters(projectIdentifier).then(setMasters).catch(() => { /* best-effort */ });
-  }, [open, projectIdentifier]);
+  const syncSelectionAfterReload = useCallback((rows: TaskDetailIssue[], selectedIssueId?: number | null) => {
+    if (!selectedIssueId) {
+      selectIssue(null);
+      return;
+    }
+    selectIssue(rows.find((row) => row.issue_id === selectedIssueId) || null);
+  }, [selectIssue]);
 
   useLayoutEffect(() => {
     if (!open || loading || issues.length === 0 || !processFlowContainerRef.current) return;
@@ -2482,60 +426,13 @@ export function TaskDetailsDialog({
     return () => observer.disconnect();
   }, [open, loading, issues.length]);
 
-  const reloadTaskDetails = useCallback(async (
-    targetIssueId: number,
-    options: {
-      expectedIssueId?: number;
-      selectedIssueId?: number | null;
-    } = {}
-  ) => {
-    setLoading(true);
-    try {
-      let latestRows: TaskDetailIssue[] = [];
-      const maxAttempts = options.expectedIssueId ? 3 : 1;
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        latestRows = await fetchTaskDetails(projectIdentifier, targetIssueId);
-        const found = !options.expectedIssueId || latestRows.some((row) => row.issue_id === options.expectedIssueId);
-        if (found) break;
-        if (attempt < maxAttempts - 1) {
-          await sleep(250);
-        }
-      }
-
-      setIssues(latestRows);
-      setBaselineById(latestRows.reduce<Record<number, TaskDetailIssue>>((acc, row) => {
-        acc[row.issue_id] = row;
-        return acc;
-      }, {}));
-
-      const rootRow = latestRows.find((row) => row.issue_id === targetIssueId);
-      if (rootRow) {
-        setDrilldownPath((prev) => {
-          if (prev.length === 0) {
-            return [{ issueId: targetIssueId, title: rootRow.subject }];
-          }
-          const next = [...prev];
-          next[next.length - 1] = { ...next[next.length - 1], issueId: targetIssueId, title: rootRow.subject };
-          return next;
-        });
-      }
-
-      const nextSelectedIssue = options.selectedIssueId
-        ? latestRows.find((row) => row.issue_id === options.selectedIssueId) || null
-        : null;
-      selectIssue(nextSelectedIssue);
-    } catch (error: unknown) {
-      alert(error instanceof Error ? error.message : t('timeline.detailsLoadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [projectIdentifier, selectIssue]);
 
   const handleClose = useCallback(() => {
     if (hasAnyChangesRef.current) {
       onTaskDatesUpdated?.();
       hasAnyChangesRef.current = false;
     }
+    setEditingDateRange(null);
     setCreateIssueContext(null);
     setEditIssueContext(null);
     setViewIssueContext(null);
@@ -2552,6 +449,11 @@ export function TaskDetailsDialog({
 
     const onEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        if (editingDateRangeRef.current) {
+          event.preventDefault();
+          setEditingDateRange(null);
+          return;
+        }
         handleClose();
       }
     };
@@ -2563,9 +465,7 @@ export function TaskDetailsDialog({
   useEffect(() => {
     if (!open) return;
     setDrilldownPath([{ issueId, title: issueTitle }]);
-    setIssues([]);
-    setBaselineById({});
-    setSavingIssueIds({});
+    resetData();
     setProcessDragSession(null);
     processDragRef.current = null;
     setTopPaneHeight(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
@@ -2574,23 +474,16 @@ export function TaskDetailsDialog({
     lastAutoFitKeyRef.current = null;
     manualResizeSuppressedKeyRef.current = null;
     setSuppressProcessClickIssueId(null);
+    clearFeedback();
     selectIssue(null);
-    void reloadTaskDetails(issueId, { selectedIssueId: null }).catch(() => {
-      // Errors are handled in reloadTaskDetails.
+    void reloadTaskDetails(issueId).then((latestRows) => {
+      const rootRow = latestRows.find((row) => row.issue_id === issueId);
+      if (rootRow) {
+        setDrilldownPath([{ issueId, title: rootRow.subject }]);
+      }
+      syncSelectionAfterReload(latestRows, null);
     });
-  }, [open, issueId, issueTitle, reloadTaskDetails, selectIssue]);
-
-  useEffect(() => {
-    issuesRef.current = issues;
-  }, [issues]);
-
-  useEffect(() => {
-    baselineByIdRef.current = baselineById;
-  }, [baselineById]);
-
-  useEffect(() => {
-    savingIssueIdsRef.current = savingIssueIds;
-  }, [savingIssueIds]);
+  }, [clearFeedback, issueId, issueTitle, open, reloadTaskDetails, resetData, selectIssue, syncSelectionAfterReload]);
 
   useEffect(() => {
     processDragRef.current = processDragSession;
@@ -2600,135 +493,54 @@ export function TaskDetailsDialog({
     verticalResizeRef.current = verticalResizeSession;
   }, [verticalResizeSession]);
 
-  useEffect(() => () => {
-    Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
-    saveTimersRef.current = {};
+
+  const handleStartDateRangeEdit = useCallback((row: TaskDetailIssue, field: 'start_date' | 'due_date', event?: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    setEditingDateRange({
+      issueId: row.issue_id,
+      focusField: field,
+      startDate: row.start_date || '',
+      dueDate: row.due_date || ''
+    });
   }, []);
 
-  const isRowDirty = (row: TaskDetailIssue) => {
-    const baseline = baselineByIdRef.current[row.issue_id];
-    if (!baseline) return false;
-    return baseline.start_date !== row.start_date || baseline.due_date !== row.due_date;
-  };
+  const handleCommitDateRangeEdit = useCallback((row: TaskDetailIssue, next: InlineDateRangeValue) => {
+    const activeEdit = editingDateRangeRef.current;
+    if (!activeEdit || activeEdit.issueId !== row.issue_id) return;
 
-  const saveRow = async (row: TaskDetailIssue) => {
-    setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: true }));
-    try {
-      const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
-        start_date: row.start_date,
-        due_date: row.due_date
-      });
-      // Preserve parent_id in the updated row
-      updated.parent_id = row.parent_id;
-      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
-      setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
-      hasAnyChangesRef.current = true;
-    } catch (error: unknown) {
-      const message =
-        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
-      alert(message);
-      const baseline = baselineByIdRef.current[row.issue_id];
-      if (baseline) {
-        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
-      }
-    } finally {
-      setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
-    }
-  };
-
-  const saveProcessFlowDates = useCallback(async (row: TaskDetailIssue, startDate: string, dueDate: string) => {
-    if (saveTimersRef.current[row.issue_id]) {
-      clearTimeout(saveTimersRef.current[row.issue_id]);
-      delete saveTimersRef.current[row.issue_id];
+    if ((row.start_date || '') !== next.startDate) {
+      handleDateChange(row, 'start_date', next.startDate);
     }
 
-    setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: true }));
-    setIssues((prev) => prev.map((item) => (
-      item.issue_id === row.issue_id ? { ...item, start_date: startDate, due_date: dueDate } : item
-    )));
-
-    try {
-      const updated = await updateTaskDates(projectIdentifier, row.issue_id, {
-        start_date: startDate,
-        due_date: dueDate
-      });
-      updated.parent_id = row.parent_id;
-      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
-      setBaselineById((prev) => ({ ...prev, [updated.issue_id]: updated }));
-      setSelectedIssue((prev) => (
-        prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
-      ));
-      hasAnyChangesRef.current = true;
-    } catch (error: unknown) {
-      const message =
-        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
-      alert(message);
-      const baseline = baselineByIdRef.current[row.issue_id];
-      if (baseline) {
-        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
-      }
-    } finally {
-      setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
+    if ((row.due_date || '') !== next.dueDate) {
+      handleDateChange(row, 'due_date', next.dueDate);
     }
-  }, [projectIdentifier, setSelectedIssue]);
 
-  const handleDateChange = (row: TaskDetailIssue, key: 'start_date' | 'due_date', value: string) => {
-    setIssues((prev) => {
-      const next = prev.map((item) => (item.issue_id === row.issue_id ? { ...item, [key]: value || null } : item));
-      const updatedRow = next.find((item) => item.issue_id === row.issue_id);
-      if (!updatedRow) return next;
+    setEditingDateRange(null);
+  }, []);
 
-      if (saveTimersRef.current[row.issue_id]) {
-        clearTimeout(saveTimersRef.current[row.issue_id]);
-      }
+  const handleCancelDateRangeEdit = useCallback(() => {
+    setEditingDateRange(null);
+  }, []);
 
-      if (!isRowDirty(updatedRow)) {
-        delete saveTimersRef.current[row.issue_id];
-        return next;
-      }
-
-      saveTimersRef.current[row.issue_id] = setTimeout(() => {
-        const latestRow = issuesRef.current.find((item) => item.issue_id === row.issue_id);
-        delete saveTimersRef.current[row.issue_id];
-        if (!latestRow || !isRowDirty(latestRow) || savingIssueIdsRef.current[row.issue_id]) return;
-        void saveRow(latestRow);
-      }, 500);
-
-      return next;
+  const handleIssueFieldUpdate = useCallback(async (targetIssueId: number, field: string, value: string | number | null) => {
+    const updated = await handleFieldUpdate(targetIssueId, field, value, {
+      rootIssueId: currentRootIssueId,
+      selectedIssueId: selectedIssue?.issue_id ?? null
     });
-  };
-
-  const handleFieldUpdate = useCallback(async (issueId: number, field: string, value: string | number | null) => {
-    const payload: Record<string, unknown> = { [field]: value };
-    try {
-      const updated = await updateTaskFields(projectIdentifier, issueId, payload as import('../../services/scheduleReportApi').TaskUpdatePayload);
-      setIssues(prev => prev.map(item => item.issue_id === updated.issue_id ? { ...item, ...updated } : item));
-      setBaselineById(prev => ({ ...prev, [updated.issue_id]: { ...prev[updated.issue_id], ...updated } }));
-      setSelectedIssue(prev => prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev);
-      hasAnyChangesRef.current = true;
-
-      if (field === 'done_ratio') {
-        // 進捗更新時は親チケットにも影響があるため、全体を再読み込みする
-        void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue?.issue_id ?? null });
-      }
-    } catch (error: unknown) {
-      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
-      alert(message);
-
-      const baseline = baselineByIdRef.current[issueId];
-      if (baseline) {
-        setIssues((prev) => prev.map((item) => (item.issue_id === issueId ? { ...item, ...baseline } : item)));
-        setSelectedIssue((prev) => (prev?.issue_id === issueId ? { ...prev, ...baseline, children: prev.children } : prev));
-      }
-
-      throw error;
-    }
-  }, [projectIdentifier, issues, setSelectedIssue, reloadTaskDetails, currentRootIssueId]);
+    setSelectedIssue((prev) => (
+      prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
+    ));
+    return updated;
+  }, [currentRootIssueId, handleFieldUpdate, selectedIssue?.issue_id]);
 
   const handleSaveDescription = async () => {
     if (!selectedIssue) return;
     try {
-      await handleFieldUpdate(selectedIssue.issue_id, 'description', descriptionDraft);
+      await handleIssueFieldUpdate(selectedIssue.issue_id, 'description', descriptionDraft);
       setEditingDescription(false);
     } catch (error) {
       // Error is handled in handleFieldUpdate
@@ -2739,7 +551,7 @@ export function TaskDetailsDialog({
     if (!selectedIssue || !newCommentDraft.trim()) return;
     setIsSavingComment(true);
     try {
-      await handleFieldUpdate(selectedIssue.issue_id, 'notes', newCommentDraft.trim());
+      await handleIssueFieldUpdate(selectedIssue.issue_id, 'notes', newCommentDraft.trim());
       setNewCommentDraft('');
     } catch (error) {
       // Error is handled in handleFieldUpdate
@@ -2750,14 +562,7 @@ export function TaskDetailsDialog({
 
   const handleUpdateComment = async (journalId: number, notes: string) => {
     if (!selectedIssue) return;
-    try {
-      await import('../../services/scheduleReportApi').then(m => m.updateTaskJournal(projectIdentifier, journalId, notes));
-      void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue.issue_id });
-      hasAnyChangesRef.current = true;
-    } catch (error: unknown) {
-      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
-      alert(message);
-    }
+    await updateComment(journalId, notes, currentRootIssueId, selectedIssue.issue_id);
   };
 
   const startVerticalResize = (e: React.PointerEvent) => {
@@ -3015,7 +820,12 @@ export function TaskDetailsDialog({
       if (session.moved) {
         const row = issuesRef.current.find((item) => item.issue_id === session.issueId);
         if (row) {
-          await saveProcessFlowDates(row, session.currentStartDate, session.currentDueDate);
+          const updated = await saveProcessFlowDates(row, session.currentStartDate, session.currentDueDate);
+          if (updated) {
+            setSelectedIssue((prev) => (
+              prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
+            ));
+          }
         }
       }
       setProcessDragSession(null);
@@ -3363,28 +1173,51 @@ export function TaskDetailsDialog({
     if (!issue) return;
 
     setDrilldownPath((prev) => [...prev, { issueId: step.id, title: issue.subject }]);
-    void reloadTaskDetails(step.id, { selectedIssueId: null });
-  }, [reloadTaskDetails]);
+    void reloadTaskDetails(step.id).then((rows) => {
+      syncSelectionAfterReload(rows, null);
+    });
+  }, [reloadTaskDetails, syncSelectionAfterReload]);
 
   const handleBreadcrumbClick = useCallback((index: number) => {
     setDrilldownPath((prev) => {
       const next = prev.slice(0, index + 1);
       const target = next[next.length - 1];
       if (target) {
-        void reloadTaskDetails(target.issueId, { selectedIssueId: target.issueId });
+        void reloadTaskDetails(target.issueId).then((rows) => {
+          syncSelectionAfterReload(rows, target.issueId);
+        });
       }
       return next;
     });
-  }, [reloadTaskDetails]);
+  }, [reloadTaskDetails, syncSelectionAfterReload]);
+
+  const handleBackdropClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (editingDateRangeRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      setEditingDateRange(null);
+      return;
+    }
+    handleClose();
+  }, [handleClose]);
+
+  const handleDialogMouseDownCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!editingDateRangeRef.current) return;
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('[data-date-editor-root="true"]') && !target?.closest('[data-date-editor-popper="true"]')) {
+      setEditingDateRange(null);
+    }
+  }, []);
 
   if (!open) return null;
 
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[6px] flex items-center justify-center p-4 transition-all duration-500 animate-in fade-in" onClick={handleClose}>
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-[6px] flex items-center justify-center p-4 transition-all duration-500 animate-in fade-in" onClick={handleBackdropClick}>
       <div
         className="report-surface-elevated flex h-[92vh] w-full max-w-[96vw] flex-col overflow-hidden font-sans transition-all transform animate-in slide-in-from-bottom-8 duration-700 ease-out"
         onClick={(event) => event.stopPropagation()}
+        onMouseDownCapture={handleDialogMouseDownCapture}
       >
         {/* Header */}
         <div className="px-5 py-2.5 flex items-center justify-between gap-2.5 bg-white relative z-40 border-b border-gray-200 flex-shrink-0 min-h-10 box-border">
@@ -3495,7 +1328,9 @@ export function TaskDetailsDialog({
               )}
             </div>
             <button
-              onClick={() => void reloadTaskDetails(currentRootIssueId, { selectedIssueId: selectedIssue?.issue_id ?? null })}
+              onClick={() => void reloadTaskDetails(currentRootIssueId).then((rows) => {
+                syncSelectionAfterReload(rows, selectedIssue?.issue_id ?? null);
+              })}
               title={t('timeline.reloadTasks')}
               className={`${REDMINE_DIALOG_ICON_ACTION_CLASS} ml-1`}
             >
@@ -3529,6 +1364,11 @@ export function TaskDetailsDialog({
             </svg>
           </button>
         </div>
+        {feedback ? (
+          <div className={feedback.type === 'error' ? 'report-alert-error m-4 mb-0' : 'report-alert-info m-4 mb-0'} role="alert">
+            {feedback.text}
+          </div>
+        ) : null}
 
         {/* Split Panel Body */}
         <div className="flex-1 flex flex-col min-h-0 bg-[#f3f3f3] relative" ref={detailsLayoutRef}>
@@ -3662,59 +1502,41 @@ export function TaskDetailsDialog({
               {/* Left Panel - Task List */}
               <div className="flex-1 flex min-h-0 relative bg-white" data-testid="task-details-bottom-pane">
                 <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
-                  {/* Column Headers */}
                   <div className="overflow-auto flex-1 bg-white">
-                      <div className={`flex items-center py-2 px-6 bg-gray-50/80 z-20 border-b border-gray-100/50 text-slate-600 flex-shrink-0 ${DENSITY_CONFIG[density].headerHeight} box-border sticky top-0 tracking-wide font-semibold ${DENSITY_CONFIG[density].badgeSize}`}>
-                      <div className="shrink-0 flex items-center relative group border-r border-slate-200/60 h-full overflow-hidden" style={{ width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}>
-                        <div className="w-5 mr-1" /> {/* Spacer for expand button */}
-                        {t('timeline.task', { defaultValue: 'Task' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('task', deltaX)} />
-                      </div>
-                      <div className="shrink-0 text-center px-2 relative group border-r border-slate-200/60 h-full flex items-center justify-center underline decoration-slate-300 decoration-dotted underline-offset-4 overflow-hidden" style={{ width: `${columnWidths.comments}px`, minWidth: `${columnWidths.comments}px` }}>{t('timeline.commentsCol', { defaultValue: 'Comments' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('comments', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}>{t('timeline.trackerCol', { defaultValue: 'Tracker' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('tracker', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}>{t('timeline.priorityCol', { defaultValue: 'Priority' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('priority', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}>{t('timeline.statusCol', { defaultValue: 'Status' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('status', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.progress}px`, minWidth: `${columnWidths.progress}px` }}>{t('timeline.progressCol', { defaultValue: 'Progress' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('progress', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.startDate}px`, minWidth: `${columnWidths.startDate}px` }}>{t('timeline.startDateCol', { defaultValue: 'Start Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('startDate', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group border-r border-slate-200/60 h-full flex items-center overflow-hidden" style={{ width: `${columnWidths.dueDate}px`, minWidth: `${columnWidths.dueDate}px` }}>{t('timeline.dueDateCol', { defaultValue: 'Due Date' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('dueDate', deltaX)} /></div>
-                      <div className="shrink-0 text-left px-2 relative group flex items-center h-full overflow-hidden" style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}>{t('timeline.assigneeCol', { defaultValue: 'Assignee' })}<ColumnResizer onResize={(deltaX) => handleColumnResize('assignee', deltaX)} /></div>
-                    </div>
-                    {/* Task Tree */}
-                    {treeRoots.map((rootNode) => (
-                      <IssueTreeNode
-                        key={rootNode.issue_id}
-                        node={rootNode}
-                        depth={0}
-                        activeLines={[]}
-                        isLast={true}
-                        rootIssueId={issueId}
-                        savingIssueIds={savingIssueIds}
-                        handleDateChange={handleDateChange}
-                        onAddSubIssue={(parentIssue) => setCreateIssueContext({
-                          issueId: parentIssue.issue_id,
-                          inheritedFields: buildInheritedSubIssueFields({
-                            trackerId: parentIssue.tracker_id,
-                            priorityId: parentIssue.priority_id,
-                            assignedToId: parentIssue.assignee_id,
-                            startDate: parentIssue.start_date,
-                            dueDate: parentIssue.due_date
-                          })
-                        })}
-                        onEditIssue={(issue) => setEditIssueContext({
-                          issueId: issue.issue_id,
-                          issueUrl: issue.issue_url
-                        })}
-                        onViewIssue={(issue) => setViewIssueContext({
-                          issueId: issue.issue_id,
-                          issueUrl: issue.issue_url
-                        })}
-                        selectedIssueId={selectedIssue?.issue_id}
-                        registerRowRef={registerIssueRowRef}
-                        masters={masters}
-                        onFieldUpdate={handleFieldUpdate}
-                        columnWidths={columnWidths}
-                        density={density}
-                      />
-                    ))}
+                    <IssueTreeTable
+                      treeRoots={treeRoots}
+                      rootIssueId={issueId}
+                      savingIssueIds={savingIssueIds}
+                      editingDateRange={editingDateRange}
+                      onStartDateRangeEdit={handleStartDateRangeEdit}
+                      onCommitDateRangeEdit={handleCommitDateRangeEdit}
+                      onCancelDateRangeEdit={handleCancelDateRangeEdit}
+                      onAddSubIssue={(parentIssue) => setCreateIssueContext({
+                        issueId: parentIssue.issue_id,
+                        inheritedFields: buildInheritedSubIssueFields({
+                          trackerId: parentIssue.tracker_id,
+                          priorityId: parentIssue.priority_id,
+                          assignedToId: parentIssue.assignee_id,
+                          startDate: parentIssue.start_date,
+                          dueDate: parentIssue.due_date
+                        })
+                      })}
+                      onEditIssue={(issue) => setEditIssueContext({
+                        issueId: issue.issue_id,
+                        issueUrl: issue.issue_url
+                      })}
+                      onViewIssue={(issue) => setViewIssueContext({
+                        issueId: issue.issue_id,
+                        issueUrl: issue.issue_url
+                      })}
+                      selectedIssueId={selectedIssue?.issue_id}
+                      registerRowRef={registerIssueRowRef}
+                      masters={masters}
+                      onFieldUpdate={handleIssueFieldUpdate}
+                      columnWidths={columnWidths}
+                      onColumnResize={handleColumnResize}
+                      density={density}
+                    />
                   </div>
                 </div>
 
@@ -3733,8 +1555,9 @@ export function TaskDetailsDialog({
             onCreated={(createdIssueId) => {
               hasAnyChangesRef.current = true;
               void reloadTaskDetails(currentRootIssueId, {
-                expectedIssueId: createdIssueId,
-                selectedIssueId: createdIssueId ?? currentRootIssueId
+                expectedIssueId: createdIssueId
+              }).then((rows) => {
+                syncSelectionAfterReload(rows, createdIssueId ?? currentRootIssueId);
               });
             }}
             onClose={() => setCreateIssueContext(null)}
@@ -3750,8 +1573,9 @@ export function TaskDetailsDialog({
             onSaved={(updatedIssueId) => {
               hasAnyChangesRef.current = true;
               void reloadTaskDetails(currentRootIssueId, {
-                expectedIssueId: updatedIssueId ?? editIssueContext.issueId,
-                selectedIssueId: updatedIssueId ?? editIssueContext.issueId
+                expectedIssueId: updatedIssueId ?? editIssueContext.issueId
+              }).then((rows) => {
+                syncSelectionAfterReload(rows, updatedIssueId ?? editIssueContext.issueId);
               });
             }}
             onClose={() => setEditIssueContext(null)}
@@ -3777,8 +1601,9 @@ export function TaskDetailsDialog({
             onSaved={(updatedIssueId) => {
               hasAnyChangesRef.current = true;
               void reloadTaskDetails(currentRootIssueId, {
-                expectedIssueId: updatedIssueId ?? viewIssueContext.issueId,
-                selectedIssueId: updatedIssueId ?? viewIssueContext.issueId
+                expectedIssueId: updatedIssueId ?? viewIssueContext.issueId
+              }).then((rows) => {
+                syncSelectionAfterReload(rows, updatedIssueId ?? viewIssueContext.issueId);
               });
             }}
             onClose={() => setViewIssueContext(null)}

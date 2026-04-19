@@ -21,6 +21,52 @@ type EmbeddedIssueDialogStyleOptions = {
   styleId?: string;
 };
 
+type EmbeddedIssueIframeCleanupRef = {
+  current: (() => void) | null;
+};
+
+type EmbeddedIssueIframeSetupOptions = {
+  onClose: () => void;
+  setIframeError: (message: string | null) => void;
+  bindIframeSizeObservers: (doc: Document) => void;
+  cleanupEscapeHandlerRef?: EmbeddedIssueIframeCleanupRef;
+  contentPadding?: string;
+  extraCss?: string;
+  styleId?: string;
+};
+
+export const EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS = `
+                  #issue-form p:has(#issue_subject),
+                  #new_issue p:has(#issue_subject),
+                  #edit_issue p:has(#issue_subject) {
+                    margin-bottom: 8px !important;
+                  }
+                  #issue-form label[for="issue_subject"],
+                  #new_issue label[for="issue_subject"],
+                  #edit_issue label[for="issue_subject"] {
+                    margin-bottom: 2px !important;
+                    font-size: 12px !important;
+                    line-height: 1.2 !important;
+                  }
+                  #issue_subject {
+                    min-height: 28px !important;
+                    height: 28px !important;
+                    padding-top: 3px !important;
+                    padding-bottom: 3px !important;
+                    font-size: 13px !important;
+                    line-height: 1.2 !important;
+                  }
+`;
+
+const DEFAULT_EMBEDDED_ISSUE_FORM_SELECTORS = [
+  'form#issue-form',
+  'form#edit_issue',
+  'form#new_issue',
+  '#issue-form form',
+  'form.edit_issue',
+  'form.new_issue',
+] as const;
+
 const ISSUE_DIALOG_HIDE_SELECTORS = [
   '#top-menu',
   '#header',
@@ -146,6 +192,90 @@ export const getEmbeddedIssueDialogErrorMessage = (doc: Document): string | null
     if (text) return text;
   }
   return null;
+};
+
+export const findEmbeddedIssueForm = (
+  doc: Document,
+  selectors: readonly string[] = DEFAULT_EMBEDDED_ISSUE_FORM_SELECTORS,
+): HTMLFormElement | null => {
+  for (const selector of selectors) {
+    const form = doc.querySelector<HTMLFormElement>(selector);
+    if (form) return form;
+  }
+
+  return null;
+};
+
+export const submitEmbeddedIssueForm = (form: HTMLFormElement): Promise<Response> => {
+  const action = form.getAttribute('action') || '/issues';
+  const method = (form.getAttribute('method') || 'post').toUpperCase();
+  const formData = new FormData(form);
+
+  return fetch(action, {
+    method,
+    credentials: 'same-origin',
+    body: formData,
+  });
+};
+
+export const normalizeEmbeddedFormActions = (doc: Document): void => {
+  const forms = Array.from(doc.querySelectorAll('form[action]'));
+  forms.forEach((form) => {
+    const rawAction = form.getAttribute('action');
+    if (!rawAction) return;
+
+    try {
+      const actionUrl = new URL(rawAction, window.location.origin);
+      if (actionUrl.origin === window.location.origin) return;
+
+      form.setAttribute('action', `${actionUrl.pathname}${actionUrl.search}${actionUrl.hash}`);
+    } catch {
+      // Ignore invalid URL and keep original action.
+    }
+  });
+};
+
+export const setupEmbeddedIssueDialogIframe = (
+  doc: Document,
+  {
+    onClose,
+    setIframeError,
+    bindIframeSizeObservers,
+    cleanupEscapeHandlerRef,
+    contentPadding = '16px',
+    extraCss = '',
+    styleId = ISSUE_DIALOG_STYLE_ID,
+  }: EmbeddedIssueIframeSetupOptions,
+): number | null => {
+  applyEmbeddedIssueDialogStyles(doc, { contentPadding, extraCss, styleId });
+  setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
+  bindIframeSizeObservers(doc);
+  if (cleanupEscapeHandlerRef) {
+    cleanupEscapeHandlerRef.current?.();
+    cleanupEscapeHandlerRef.current = bindIframeEscapeHandler(doc, onClose);
+  }
+  normalizeEmbeddedFormActions(doc);
+
+  return extractIssueIdFromLocationCandidates([doc.location?.pathname || '']);
+};
+
+export const extractIssueIdFromLocationCandidates = (
+  locationCandidates: Array<string | null | undefined>,
+): number | null => {
+  const match = locationCandidates
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .map((url) => url.match(/\/issues\/(\d+)(?:[/?#]|$)/))
+    .find((candidate): candidate is RegExpMatchArray => Boolean(candidate && candidate[1]));
+
+  return match ? Number(match[1]) : null;
+};
+
+export const readEmbeddedIssueHeader = (doc: Document): { header: string; subject: string } => {
+  const header = doc.querySelector('h2')?.textContent || '';
+  const subjectInput = doc.querySelector<HTMLInputElement>('#issue_subject');
+  const subject = subjectInput?.value || doc.querySelector('.subject h3')?.textContent || '';
+
+  return { header, subject };
 };
 
 export const bindIframeEscapeHandler = (
