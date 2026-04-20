@@ -68,5 +68,3 @@ export const useVersionSelectionPersistence = (rootProjectIdentifier: string, al
     setSelectedVersions
   };
 };
-
-export type UseVersionSelectionPersistenceResult = ReturnType<typeof useVersionSelectionPersistence>;

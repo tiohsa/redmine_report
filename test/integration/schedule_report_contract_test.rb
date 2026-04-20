@@ -2,11 +2,8 @@
 
 require File.expand_path('../test_helper', __dir__)
 require 'yaml'
-require File.expand_path('./schedule_report_project_selection_helper', __dir__)
 
 class ScheduleReportContractTest < ActiveSupport::TestCase
-  include ScheduleReportProjectSelectionHelper
-
   def test_contract_contains_required_paths
     doc = YAML.load_file(schedule_report_contract_path)
 
@@ -37,5 +34,22 @@ class ScheduleReportContractTest < ActiveSupport::TestCase
 
     assert_equal true, option[:selectable]
     assert_equal 'ecookbook', option[:identifier]
+  end
+
+  private
+
+  def schedule_report_contract_path
+    File.expand_path('../../../specs/001-valid-version-parent/contracts/ticket-display-criteria.openapi.yaml', __dir__)
+  end
+
+  def build_project_option(id:, identifier:, name:, level:, parent_id: nil)
+    {
+      project_id: id,
+      identifier: identifier,
+      name: name,
+      level: level,
+      parent_project_id: parent_id,
+      selectable: true
+    }
   end
 end

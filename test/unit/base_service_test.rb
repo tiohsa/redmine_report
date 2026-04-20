@@ -1,19 +1,9 @@
 # frozen_string_literal: true
 
 require File.expand_path('../test_helper', __dir__)
+require File.expand_path('../support/weekly_report_fake_project', __dir__)
 
 class BaseServiceTest < ActiveSupport::TestCase
-  FakeVersions = Struct.new(:version) do
-    def find_by(id:)
-      return version if version.id == id
-
-      nil
-    end
-  end
-
-  FakeProject = Struct.new(:id, :versions)
-  FakeVersion = Struct.new(:id)
-
   class DummyService < RedmineReport::WeeklyReport::BaseService
     def resolve(project_id:, version_id:)
       ensure_project_and_find_version!(project_id: project_id, version_id: version_id)

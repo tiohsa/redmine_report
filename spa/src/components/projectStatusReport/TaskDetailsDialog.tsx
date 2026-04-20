@@ -534,7 +534,6 @@ export function TaskDetailsDialog({
     setSelectedIssue((prev) => (
       prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
     ));
-    return updated;
   }, [currentRootIssueId, handleFieldUpdate, selectedIssue?.issue_id]);
 
   const handleSaveDescription = async () => {

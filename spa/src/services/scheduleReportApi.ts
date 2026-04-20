@@ -204,7 +204,7 @@ const requestJsonWithBody = <T>(
   method: 'POST' | 'PATCH',
   body: unknown,
   parseError: ResponseErrorParser,
-  init?: Omit<RequestInit, 'method' | 'headers' | 'body'>
+  init?: Omit<RequestInit, 'method' | 'body'>
 ) =>
   requestJson<T>(path, parseError, {
     ...init,

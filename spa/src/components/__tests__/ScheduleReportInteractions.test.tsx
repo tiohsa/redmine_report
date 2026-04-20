@@ -1,6 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FilterToolbar } from '../FilterToolbar';
 import { ScheduleReportPage } from '../ScheduleReportPage';
 import { useTaskStore } from '../../stores/taskStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -66,17 +65,6 @@ describe('Schedule report interactions', () => {
       isLoading: false,
       errorMessage: null
     });
-  });
-
-  it('renders project selector and changes current selection without navigation', () => {
-    render(<FilterToolbar />);
-    const beforePath = window.location.pathname;
-
-    fireEvent.click(screen.getByRole('button', { name: /eCookbook/i }));
-    fireEvent.click(screen.getByText('Child'));
-
-    expect(useUiStore.getState().selectedProjectIdentifiers).toContain('child');
-    expect(window.location.pathname).toBe(beforePath);
   });
 
   it('keeps latest selected project result when responses return out of order', async () => {

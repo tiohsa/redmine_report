@@ -9,21 +9,22 @@ module RedmineReport
       end
 
       def call
-        {
-          ok: true,
+        ServiceResult.success(
           trackers: serialize_trackers,
           statuses: serialize_statuses,
           priorities: serialize_priorities,
           members: serialize_members
-        }
+        )
       rescue StandardError => e
-        { ok: false, code: 'UPSTREAM_FAILURE', message: e.message, status: :service_unavailable }
+        ServiceResult.error(code: 'UPSTREAM_FAILURE', message: e.message, status: :service_unavailable)
       end
 
       private
 
+      attr_reader :project
+
       def serialize_trackers
-        @project.trackers.map { |t| { id: t.id, name: t.name } }
+        project.trackers.map { |t| { id: t.id, name: t.name } }
       end
 
       def serialize_statuses
@@ -35,7 +36,7 @@ module RedmineReport
       end
 
       def serialize_members
-        members = @project.members
+        members = project.members
                           .includes(user: [])
                           .select { |m| m.user.present? && m.user.active? }
                           .map { |m| { id: m.user.id, name: m.user.name } }

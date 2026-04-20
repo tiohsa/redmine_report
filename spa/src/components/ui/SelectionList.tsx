@@ -1,84 +1,18 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { reportStyles } from '../designSystem';
 import { cn } from './cn';
-import { CheckboxRow } from './CheckboxRow';
-
-export type SelectionListItem = {
-  id: string;
-  label: ReactNode;
-  description?: ReactNode;
-  leading?: ReactNode;
-  trailing?: ReactNode;
-  selected?: boolean;
-  disabled?: boolean;
-  indentLevel?: number;
-  className?: string;
-};
+import { CheckboxRow as BaseCheckboxRow } from './CheckboxRow';
 
 type SelectionListProps = {
-  items?: SelectionListItem[];
-  emptyState?: ReactNode;
   className?: string;
-  onItemSelect?: (item: SelectionListItem) => void;
   children?: ReactNode;
 };
 
-export const SelectionList = ({
-  items,
-  emptyState,
-  className,
-  onItemSelect,
-  children
-}: SelectionListProps) => {
-  if (children) {
-    return <div className={cn(reportStyles.selectionList, className)} role="list">{children}</div>;
-  }
-
-  if (!items || items.length === 0) {
-    return <div className={reportStyles.selectionListEmpty}>{emptyState ?? 'No options available.'}</div>;
-  }
-
-  return (
-    <div className={cn(reportStyles.selectionList, className)} role="list">
-      {items.map((item) => {
-        const isDisabled = item.disabled === true;
-        const isSelected = item.selected === true;
-
-        return (
-          <button
-            key={item.id}
-            type="button"
-            className={cn(
-              reportStyles.selectionListItem,
-              isSelected && reportStyles.selectionListItemSelected,
-              isDisabled && reportStyles.selectionListItemDisabled,
-              item.className
-            )}
-            disabled={isDisabled}
-            aria-pressed={isSelected}
-            onClick={() => onItemSelect?.(item)}
-            style={
-              item.indentLevel
-                ? { paddingLeft: `calc(1rem + ${item.indentLevel * 0.75}rem)` }
-                : undefined
-            }
-          >
-            {item.leading ? <span className="mt-0.5 shrink-0">{item.leading}</span> : null}
-
-            <span className="min-w-0 flex-1 text-left">
-              <span className={reportStyles.selectionListLabel}>{item.label}</span>
-              {item.description ? (
-                <span className={reportStyles.selectionListDescription}>{item.description}</span>
-              ) : null}
-            </span>
-
-            {item.trailing ? <span className="mt-0.5 shrink-0">{item.trailing}</span> : null}
-          </button>
-        );
-      })}
-    </div>
-  );
-};
+export const SelectionList = ({ className, children }: SelectionListProps) => (
+  <div className={cn(reportStyles.selectionList, className)} role="list">
+    {children}
+  </div>
+);
 
 type SelectionRowProps = {
   active?: boolean;
@@ -128,4 +62,22 @@ export const SelectionRow = ({
   </div>
 );
 
-export { CheckboxRow };
+type CheckboxIndicatorProps = {
+  checked: boolean;
+  disabled?: boolean;
+};
+
+export const CheckboxRow = ({ checked, disabled = false }: CheckboxIndicatorProps) => (
+  <span className="pointer-events-none" aria-hidden="true">
+    <BaseCheckboxRow
+      checked={checked}
+      disabled={disabled}
+      label=""
+      onCheckedChange={() => undefined}
+      className="bg-transparent p-0"
+      contentClassName="hidden"
+      inputClassName={cn('m-0', checked && reportStyles.checkboxRowSelected)}
+      tabIndex={-1}
+    />
+  </span>
+);
