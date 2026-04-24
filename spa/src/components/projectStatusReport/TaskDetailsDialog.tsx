@@ -1,36 +1,37 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../../i18n';
 import {
   TaskDetailIssue
 } from '../../services/scheduleReportApi';
-import { buildTimelineAxis, calculateStaggeredLanes, createDateToX, createRangeToWidth } from './timelineAxis';
+import { buildTimelineAxis } from './timelineAxis';
 import { type InlineDateRangeValue } from './InlineDateRangeEditor';
-import {
-  drawChevron,
-  drawDiamond, truncateCanvasText,
-  drawTriangle,
-  drawStrokeText,
-  prepareHiDPICanvas
-} from './canvasTimelineRenderer';
-import { getProgressFillColor, getProgressTrackColor } from './constants';
 import { IssueTreeTable } from './taskDetails/IssueTreeTable';
+import { ProcessFlowCanvas } from './taskDetails/ProcessFlowCanvas';
+import { TaskDetailsSidePanel } from './taskDetails/TaskDetailsSidePanel';
 import {
   IssueEditDialog,
   IssueViewDialog,
   SubIssueCreationDialog
 } from './taskDetails/EmbeddedIssueDialogs';
 import {
+  buildProcessFlowRenderSteps,
+  buildProcessFlowScaleMetrics,
+  buildProcessFlowSteps,
+  getProcessFlowLayout,
+  getProcessFlowTimelineWidth,
+  type ProcessFlowRenderStep
+} from './taskDetails/processFlowGeometry';
+import {
   buildInheritedSubIssueFields,
   COLUMN_WIDTH_STORAGE_KEY,
   DEFAULT_COLUMN_WIDTHS,
-  DENSITY_CONFIG,
-  TABLE_DENSITY_STORAGE_KEY,
-  type InheritedSubIssueFields,
   type TableDensity,
   type TreeNodeType
 } from './taskDetails/shared';
+import { useProcessFlowInteraction } from './taskDetails/useProcessFlowInteraction';
 import { useTaskDetailsData } from './taskDetails/useTaskDetailsData';
+import { useTaskDetailsDialogState } from './taskDetails/useTaskDetailsDialogState';
+import { useTaskDetailsLayout } from './taskDetails/useTaskDetailsLayout';
 
 type TaskDetailsDialogProps = {
   open: boolean;
@@ -45,224 +46,13 @@ type TaskDetailsDialogProps = {
   onClose: () => void;
 };
 
-type ProcessFlowStep = {
-  id: number;
-  title: string;
-  rangeLabel: string;
-  startDate: string | null;
-  dueDate: string | null;
-  anchorDate: string;
-  shapeKind: 'range' | 'start-only' | 'due-only';
-  status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
-  progress: number;
-  hasChildren: boolean;
-};
-
-type ProcessFlowRenderStep = ProcessFlowStep & {
-  anchorX: number;
-  shapeX: number;
-  visualWidth: number;
-  hitX: number;
-  hitWidth: number;
-  laneIndex: number;
-  isFirst: boolean;
-  hasLeftNotch: boolean;
-  joinsPrevious: boolean;
-  x: number;
-  width: number;
-  textX: number;
-};
-
 type DrilldownCrumb = {
   issueId: number;
   title?: string;
 };
 
-const processStatusStyles: Record<ProcessFlowStep['status'], {
-  fill: string;
-  text: string;
-  stroke: string;
-  accent: string;
-  progressText: string;
-  dateText: string;
-}> = {
-  COMPLETED: { fill: '#253248', text: '#1e293b', stroke: '#94a3b8', accent: '#2563eb', progressText: '#1f2937', dateText: '#475569' },
-  IN_PROGRESS: { fill: '#253248', text: '#1e293b', stroke: '#94a3b8', accent: '#f97316', progressText: '#1f2937', dateText: '#475569' },
-  PENDING: { fill: '#253248', text: '#1e293b', stroke: '#94a3b8', accent: '#64748b', progressText: '#1f2937', dateText: '#475569' }
-};
-
-const PROCESS_FLOW_MIN_WIDTH = 640;
-const PROCESS_FLOW_YEAR_ROW_HEIGHT = 23;
-const PROCESS_FLOW_MONTH_ROW_HEIGHT = 23;
-const PROCESS_FLOW_HEADER_HEIGHT = PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT;
-const PROCESS_FLOW_LANE_HEIGHT = 136;
-const PROCESS_FLOW_BAR_HEIGHT = 36;
-const PROCESS_FLOW_BAR_Y = 28;
-const PROCESS_FLOW_BAR_SPACING_Y = 34;
-const PROCESS_FLOW_POINT_DEPTH = 22;
-const PROCESS_FLOW_DIAMOND_WIDTH = PROCESS_FLOW_BAR_HEIGHT;
-const PROCESS_FLOW_TRIANGLE_WIDTH = (PROCESS_FLOW_BAR_HEIGHT * Math.sqrt(3)) / 2;
-const PROCESS_FLOW_PROGRESS_LABEL_Y = PROCESS_FLOW_BAR_Y + PROCESS_FLOW_BAR_HEIGHT + 18;
-const PROCESS_FLOW_LEFT_NOTCH_RATIO = 0.55;
-const PROCESS_FLOW_RIGHT_HEAD_RATIO = 0.62;
-const PROCESS_FLOW_DATE_LABEL_INSET = 8;
-const PROCESS_FLOW_DRAG_THRESHOLD_PX = 4;
-const DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX = 320;
-const DETAILS_TOP_PANE_MIN_HEIGHT_PX = 180;
-const DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX = 240;
-const DETAILS_LAYOUT_FALLBACK_HEIGHT_PX = 760;
-
 const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 px-4 rounded-full border border-gray-200 bg-[#f0f0f0] text-[13px] font-medium font-sans text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer shadow-subtle';
 const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-full bg-[rgba(0,0,0,0.04)] text-[#45515e] hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222] transition-all duration-300 cursor-pointer';
-
-const getProcessChevronMetrics = (width: number, pointDepth: number) => {
-  const leftNotchDepth = Math.min(pointDepth * PROCESS_FLOW_LEFT_NOTCH_RATIO, Math.max(width * 0.18, 8));
-  const rightHeadDepth = Math.min(pointDepth * PROCESS_FLOW_RIGHT_HEAD_RATIO, Math.max(width * 0.16, 10));
-  const leftShoulder = Math.max(4, Math.round(leftNotchDepth * 0.38));
-
-  return {
-    leftNotchDepth,
-    rightHeadDepth,
-    leftShoulder
-  };
-};
-
-const buildProcessChevronPathData = (
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  pointDepth: number,
-  hasLeftNotch: boolean
-) => {
-  const { leftNotchDepth, rightHeadDepth, leftShoulder } = getProcessChevronMetrics(width, pointDepth);
-  const leftShoulderX = x + leftShoulder;
-  const leftNotchTipX = x + leftNotchDepth;
-  const rightBaseX = x + Math.max(width - rightHeadDepth, leftShoulder);
-  const rightTipX = x + width;
-
-  const pathData = [
-    `M ${hasLeftNotch ? leftShoulderX : x} ${y}`,
-    hasLeftNotch ? `L ${leftNotchTipX} ${y + height / 2}` : '',
-    hasLeftNotch ? `L ${leftShoulderX} ${y + height}` : `L ${x} ${y + height}`,
-    `L ${rightBaseX} ${y + height}`,
-    `L ${rightTipX} ${y + height / 2}`,
-    `L ${rightBaseX} ${y}`,
-    'Z'
-  ].filter(Boolean).join(' ');
-
-  return {
-    pathData,
-    leftShoulderX,
-    leftNotchTipX,
-    rightBaseX,
-    rightTipX
-  };
-};
-
-const drawSelectedProcessOutline = (
-  context: CanvasRenderingContext2D,
-  step: {
-    shapeKind: 'range' | 'start-only' | 'due-only';
-    stepY: number;
-    x: number;
-    width: number;
-    hasLeftNotch: boolean;
-    shapeX: number;
-    visualWidth: number;
-        textX: number;
-    barHeight: number;
-    pointDepth: number;
-  }
-
-
-) => {
-  context.save();
-  context.strokeStyle = '#2563eb';
-  context.lineWidth = 2;
-  context.setLineDash([6, 4]);
-  context.shadowColor = 'rgba(37, 99, 235, 0.18)';
-  context.shadowBlur = 6;
-  context.shadowOffsetX = 0;
-  context.shadowOffsetY = 1;
-
-  if (step.shapeKind === 'due-only') {
-    const halfWidth = step.visualWidth / 2;
-    const halfHeight = step.barHeight / 2;
-    context.beginPath();
-    context.moveTo(step.textX, step.stepY - 3);
-    context.lineTo(step.textX + halfWidth + 3, step.stepY + halfHeight);
-    context.lineTo(step.textX, step.stepY + step.barHeight + 3);
-    context.lineTo(step.textX - halfWidth - 3, step.stepY + halfHeight);
-    context.closePath();
-    context.stroke();
-    context.restore();
-    return;
-  }
-
-  if (step.shapeKind === 'start-only') {
-    context.beginPath();
-    context.moveTo(step.shapeX - 3, step.stepY - 3);
-    context.lineTo(step.shapeX + step.visualWidth + 4, step.stepY + step.barHeight / 2);
-    context.lineTo(step.shapeX - 3, step.stepY + step.barHeight + 3);
-    context.closePath();
-    context.stroke();
-    context.restore();
-    return;
-  }
-
-  const leftEdgeX = step.x - 3;
-  const topY = step.stepY - 3;
-  const bottomY = step.stepY + step.barHeight + 3;
-  const {
-    leftShoulderX,
-    leftNotchTipX,
-    rightBaseX,
-    rightTipX
-  } = buildProcessChevronPathData(step.x, step.stepY, step.width, step.barHeight, step.pointDepth, step.hasLeftNotch);
-
-  context.beginPath();
-  if (step.hasLeftNotch) {
-    context.moveTo(leftShoulderX - 3, topY);
-    context.lineTo(leftNotchTipX + 3, step.stepY + step.barHeight / 2);
-    context.lineTo(leftShoulderX - 3, bottomY);
-  } else {
-    context.moveTo(leftEdgeX, topY);
-    context.lineTo(leftEdgeX, bottomY);
-  }
-  context.lineTo(rightBaseX + 3, bottomY);
-  context.lineTo(rightTipX + 3, step.stepY + step.barHeight / 2);
-  context.lineTo(rightBaseX + 3, topY);
-  context.closePath();
-  context.stroke();
-  context.restore();
-};
-
-const shiftIsoDate = (isoDate: string, deltaDays: number) => format(addDays(parseISO(isoDate), deltaDays), 'yyyy-MM-dd');
-const extractMD = (isoDate: string) => {
-  const parts = isoDate.split('-');
-  return `${Number(parts[1])}/${Number(parts[2])}`;
-};
-
-type ProcessDragMode = 'move' | 'resize-left' | 'resize-right';
-type DetailsVerticalResizeSession = {
-  pointerId: number;
-  startClientY: number;
-  startTopPaneHeight: number;
-  containerHeight: number;
-};
-
-type ProcessDragSession = {
-  issueId: number;
-  pointerId: number;
-  mode: ProcessDragMode;
-  startClientX: number;
-  originalStartDate: string;
-  originalDueDate: string;
-  currentStartDate: string;
-  currentDueDate: string;
-  moved: boolean;
-};
 
 export function TaskDetailsDialog({
   open,
@@ -275,45 +65,47 @@ export function TaskDetailsDialog({
   onClose
 }: TaskDetailsDialogProps) {
   const effectiveScale = chartScale ?? 1;
-  const scaledLaneHeight = Math.round(PROCESS_FLOW_LANE_HEIGHT * effectiveScale);
-  const scaledBarHeight = Math.round(PROCESS_FLOW_BAR_HEIGHT * effectiveScale);
-  const scaledBarY = Math.round(PROCESS_FLOW_BAR_Y * effectiveScale);
-  const scaledBarSpacingY = Math.round(PROCESS_FLOW_BAR_SPACING_Y * effectiveScale);
-  const scaledPointDepth = Math.round(PROCESS_FLOW_POINT_DEPTH * effectiveScale);
-  const scaledTriangleWidth = Math.round(PROCESS_FLOW_TRIANGLE_WIDTH * effectiveScale);
-  const scaledDiamondWidth = Math.round(PROCESS_FLOW_DIAMOND_WIDTH * effectiveScale);
-  const scaledProgressLabelY = Math.round(PROCESS_FLOW_PROGRESS_LABEL_Y * effectiveScale);
-
-  const [createIssueContext, setCreateIssueContext] = useState<{
-    issueId: number;
-    inheritedFields: InheritedSubIssueFields;
-  } | null>(null);
-  const [editIssueContext, setEditIssueContext] = useState<{
-    issueId: number;
-    issueUrl: string;
-  } | null>(null);
-  const [viewIssueContext, setViewIssueContext] = useState<{
-    issueId: number;
-    issueUrl: string;
-  } | null>(null);
-  const [selectedIssue, setSelectedIssue] = useState<TreeNodeType | null>(null);
-  const [editingDescription, setEditingDescription] = useState<boolean>(false);
-  const [descriptionDraft, setDescriptionDraft] = useState<string>('');
-  const [newCommentDraft, setNewCommentDraft] = useState<string>('');
-  const [isSavingComment, setIsSavingComment] = useState<boolean>(false);
-  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
-  const [editingCommentDraft, setEditingCommentDraft] = useState<string>('');
+  const processFlowScaleMetrics = useMemo(() => buildProcessFlowScaleMetrics(effectiveScale), [effectiveScale]);
+  const {
+    createIssueContext,
+    setCreateIssueContext,
+    editIssueContext,
+    setEditIssueContext,
+    viewIssueContext,
+    setViewIssueContext,
+    selectedIssue,
+    setSelectedIssue,
+    selectIssue,
+    editingDescription,
+    setEditingDescription,
+    descriptionDraft,
+    setDescriptionDraft,
+    newCommentDraft,
+    setNewCommentDraft,
+    isSavingComment,
+    setIsSavingComment,
+    editingCommentId,
+    editingCommentDraft,
+    setEditingCommentDraft,
+    density,
+    densityMenuOpen,
+    setDensityMenuOpen,
+    handleDensityChange,
+    startDescriptionEdit,
+    cancelDescriptionEdit,
+    startCommentEdit,
+    cancelCommentEdit,
+    resetDialogState
+  } = useTaskDetailsDialogState();
   const [editingDateRange, setEditingDateRange] = useState<InlineDateRangeValue | null>(null);
   const [drilldownPath, setDrilldownPath] = useState<DrilldownCrumb[]>([]);
   const editingDateRangeRef = useRef<InlineDateRangeValue | null>(null);
   const {
     issues,
-    setIssues,
     loading,
     masters,
     savingIssueIds,
     feedback,
-    showFeedback,
     clearFeedback,
     resetData,
     reloadTaskDetails,
@@ -325,38 +117,13 @@ export function TaskDetailsDialog({
     savingIssueIdsRef,
     hasAnyChangesRef
   } = useTaskDetailsData(projectIdentifier, open);
-  const [density, setDensity] = useState<TableDensity>(() => {
-    const saved = localStorage.getItem(TABLE_DENSITY_STORAGE_KEY);
-    if (saved && (saved === 'compact' || saved === 'standard' || saved === 'relaxed')) {
-      return saved as TableDensity;
-    }
-    return 'standard';
-  });
-  const [densityMenuOpen, setDensityMenuOpen] = useState(false);
-
-  const handleDensityChange = (next: TableDensity) => {
-    setDensity(next);
-    localStorage.setItem(TABLE_DENSITY_STORAGE_KEY, next);
-    setDensityMenuOpen(false);
-  };
-
   useEffect(() => {
     editingDateRangeRef.current = editingDateRange;
   }, [editingDateRange]);
 
-  const [processDragSession, setProcessDragSession] = useState<ProcessDragSession | null>(null);
-  const [suppressProcessClickIssueId, setSuppressProcessClickIssueId] = useState<number | null>(null);
-  const processDragRef = useRef<ProcessDragSession | null>(null);
   const processFlowContainerRef = useRef<HTMLDivElement | null>(null);
-  const processFlowCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const issueRowRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const [processFlowContainerWidth, setProcessFlowContainerWidth] = useState(0);
-  const detailsLayoutRef = useRef<HTMLDivElement | null>(null);
-  const [topPaneHeight, setTopPaneHeight] = useState(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
-  const [verticalResizeSession, setVerticalResizeSession] = useState<DetailsVerticalResizeSession | null>(null);
-  const verticalResizeRef = useRef<DetailsVerticalResizeSession | null>(null);
-  const lastAutoFitKeyRef = useRef<string | null>(null);
-  const manualResizeSuppressedKeyRef = useRef<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY);
     if (saved) {
@@ -381,18 +148,6 @@ export function TaskDetailsDialog({
   const currentRoot = drilldownPath[drilldownPath.length - 1] || { issueId, title: issueTitle };
   const currentRootIssueId = currentRoot.issueId;
   const currentRootIssueTitle = currentRoot.title;
-
-  const selectIssue = useCallback((issue: TaskDetailIssue | TreeNodeType | null) => {
-    const nextIssue = issue
-      ? { ...issue, children: 'children' in issue ? issue.children : [] }
-      : null;
-    setSelectedIssue(nextIssue);
-    setEditingDescription(false);
-    setDescriptionDraft(nextIssue?.description || '');
-    setNewCommentDraft('');
-    setEditingCommentId(null);
-    setEditingCommentDraft('');
-  }, []);
 
   const registerIssueRowRef = useCallback((issueId: number, element: HTMLDivElement | null) => {
     issueRowRefs.current[issueId] = element;
@@ -433,15 +188,9 @@ export function TaskDetailsDialog({
       hasAnyChangesRef.current = false;
     }
     setEditingDateRange(null);
-    setCreateIssueContext(null);
-    setEditIssueContext(null);
-    setViewIssueContext(null);
-    setEditingDescription(false);
-    setNewCommentDraft('');
-    setEditingCommentId(null);
-    setEditingCommentDraft('');
+    resetDialogState();
     onClose();
-  }, [onClose, onTaskDatesUpdated]);
+  }, [onClose, onTaskDatesUpdated, resetDialogState]);
 
   useEffect(() => {
     if (!open) return;
@@ -466,16 +215,8 @@ export function TaskDetailsDialog({
     if (!open) return;
     setDrilldownPath([{ issueId, title: issueTitle }]);
     resetData();
-    setProcessDragSession(null);
-    processDragRef.current = null;
-    setTopPaneHeight(DETAILS_TOP_PANE_DEFAULT_HEIGHT_PX);
-    setVerticalResizeSession(null);
-    verticalResizeRef.current = null;
-    lastAutoFitKeyRef.current = null;
-    manualResizeSuppressedKeyRef.current = null;
-    setSuppressProcessClickIssueId(null);
+    resetDialogState();
     clearFeedback();
-    selectIssue(null);
     void reloadTaskDetails(issueId).then((latestRows) => {
       const rootRow = latestRows.find((row) => row.issue_id === issueId);
       if (rootRow) {
@@ -483,15 +224,7 @@ export function TaskDetailsDialog({
       }
       syncSelectionAfterReload(latestRows, null);
     });
-  }, [clearFeedback, issueId, issueTitle, open, reloadTaskDetails, resetData, selectIssue, syncSelectionAfterReload]);
-
-  useEffect(() => {
-    processDragRef.current = processDragSession;
-  }, [processDragSession]);
-
-  useEffect(() => {
-    verticalResizeRef.current = verticalResizeSession;
-  }, [verticalResizeSession]);
+  }, [clearFeedback, issueId, issueTitle, open, reloadTaskDetails, resetData, resetDialogState, syncSelectionAfterReload]);
 
 
   const handleStartDateRangeEdit = useCallback((row: TaskDetailIssue, field: 'start_date' | 'due_date', event?: React.MouseEvent) => {
@@ -561,114 +294,10 @@ export function TaskDetailsDialog({
 
   const handleUpdateComment = async (journalId: number, notes: string) => {
     if (!selectedIssue) return;
-    await updateComment(journalId, notes, currentRootIssueId, selectedIssue.issue_id);
-  };
-
-  const startVerticalResize = (e: React.PointerEvent) => {
-    if (!detailsLayoutRef.current) return;
-    const containerHeight = detailsLayoutRef.current.clientHeight;
-    const pointerId = e.pointerId;
-    const session: DetailsVerticalResizeSession = {
-      pointerId,
-      startClientY: e.clientY,
-      startTopPaneHeight: topPaneHeight,
-      containerHeight
-    };
-    setVerticalResizeSession(session);
-    (e.target as HTMLElement).setPointerCapture(pointerId);
-  };
-
-  const startVerticalResizeWithMouse = (e: React.MouseEvent) => {
-    if (e.button !== 0 || !detailsLayoutRef.current) return;
-    const containerHeight = detailsLayoutRef.current.clientHeight;
-    const session: DetailsVerticalResizeSession = {
-      pointerId: -1, // Special value for mouse
-      startClientY: e.clientY,
-      startTopPaneHeight: topPaneHeight,
-      containerHeight
-    };
-    setVerticalResizeSession(session);
-  };
-
-  useEffect(() => {
-    if (!verticalResizeSession) return;
-
-    const handlePointerMove = (e: PointerEvent) => {
-      if (e.pointerId !== verticalResizeSession.pointerId) return;
-      const deltaY = e.clientY - verticalResizeSession.startClientY;
-      const nextHeight = Math.max(
-        100,
-        Math.min(verticalResizeSession.containerHeight - 100, verticalResizeSession.startTopPaneHeight + deltaY)
-      );
-      setTopPaneHeight(nextHeight);
-    };
-
-    const handlePointerUp = (e: PointerEvent) => {
-      if (e.pointerId !== verticalResizeSession.pointerId) return;
-      setVerticalResizeSession(null);
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (verticalResizeSession.pointerId !== -1) return;
-      const deltaY = e.clientY - verticalResizeSession.startClientY;
-      const nextHeight = Math.max(
-        100,
-        Math.min(verticalResizeSession.containerHeight - 100, verticalResizeSession.startTopPaneHeight + deltaY)
-      );
-      setTopPaneHeight(nextHeight);
-    };
-
-    const handleMouseUp = () => {
-      if (verticalResizeSession.pointerId !== -1) return;
-      setVerticalResizeSession(null);
-    };
-
-    if (verticalResizeSession.pointerId === -1) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    } else {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, [verticalResizeSession]);
-
-  const updateVerticalResize = (clientY: number, pointerId?: number) => {
-    if (!verticalResizeRef.current) return;
-    if (pointerId !== undefined && pointerId !== verticalResizeRef.current.pointerId) return;
-    const deltaY = clientY - verticalResizeRef.current.startClientY;
-    const nextHeight = Math.max(
-      100,
-      Math.min(verticalResizeRef.current.containerHeight - 100, verticalResizeRef.current.startTopPaneHeight + deltaY)
-    );
-    setTopPaneHeight(nextHeight);
-  };
-
-  const stopVerticalResize = (pointerId?: number) => {
-    if (!verticalResizeRef.current) return;
-    if (pointerId !== undefined && pointerId !== verticalResizeRef.current.pointerId) return;
-    setVerticalResizeSession(null);
-  };
-
-  const handleVerticalResizeKeyDown = (e: React.KeyboardEvent) => {
-    const step = e.shiftKey ? 50 : 24;
-    if (e.key === 'ArrowUp' || e.key === 'PageUp') {
-      e.preventDefault();
-      setTopPaneHeight((prev) => Math.max(100, prev - step));
-    } else if (e.key === 'ArrowDown' || e.key === 'PageDown') {
-      e.preventDefault();
-      if (!detailsLayoutRef.current) return;
-      const containerHeight =
-        detailsLayoutRef.current.clientHeight ||
-        detailsLayoutRef.current.getBoundingClientRect().height ||
-        DETAILS_LAYOUT_FALLBACK_HEIGHT_PX;
-      setTopPaneHeight((prev) => Math.min(containerHeight - 100, prev + step));
+    const latestRows = await updateComment(journalId, notes, currentRootIssueId, selectedIssue.issue_id);
+    cancelCommentEdit();
+    if (latestRows) {
+      syncSelectionAfterReload(latestRows, selectedIssue.issue_id);
     }
   };
 
@@ -704,59 +333,20 @@ export function TaskDetailsDialog({
     });
   }, [selectedIssueId, issues]);
 
-  const processFlowSteps = useMemo<ProcessFlowStep[]>(() => {
-    const parentIssueIds = new Set(
-      issues
-        .map((issue) => issue.parent_id)
-        .filter((parentId): parentId is number => Number.isInteger(parentId))
-    );
-    return issues
-      .filter((issue) => Boolean(issue.start_date || issue.due_date))
-      // Use the immediate children of the opened task as the top-level segments
-      .filter((issue) => issue.parent_id === currentRootIssueId)
-      .map((issue) => {
-        const progress = Math.max(0, Math.min(100, Number(issue.done_ratio ?? 0)));
-        const status: ProcessFlowStep['status'] = issue.status_is_closed || progress === 100
-          ? 'COMPLETED'
-          : progress > 0
-            ? 'IN_PROGRESS'
-            : 'PENDING';
-        const startDate = issue.start_date ?? null;
-        const dueDate = issue.due_date ?? null;
-        const anchorDate = startDate ?? dueDate;
-        if (!anchorDate) return null;
-        const shapeKind: ProcessFlowStep['shapeKind'] = startDate && dueDate
-          ? 'range'
-          : startDate
-            ? 'start-only'
-            : 'due-only';
-        return {
-          id: issue.issue_id,
-          title: issue.subject,
-          startDate,
-          dueDate,
-          anchorDate,
-          shapeKind,
-          rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : anchorDate,
-          status,
-          progress: progress === 0 ? undefined : progress,
-          hasChildren: parentIssueIds.has(issue.issue_id)
-        };
-      })
-      .filter((step): step is ProcessFlowStep => step !== null)
-      .sort((left, right) =>
-        left.anchorDate.localeCompare(right.anchorDate) ||
-        (left.dueDate ?? left.anchorDate).localeCompare(right.dueDate ?? right.anchorDate) ||
-        left.id - right.id
-      );
-  }, [issues, currentRootIssueId]);
+  const processFlowSteps = useMemo(
+    () => buildProcessFlowSteps(issues, currentRootIssueId),
+    [issues, currentRootIssueId]
+  );
 
-  const processFlowTimelineWidth = processFlowContainerWidth > 0
-    ? Math.max(processFlowContainerWidth, PROCESS_FLOW_MIN_WIDTH)
-    : Math.max(PROCESS_FLOW_MIN_WIDTH, processFlowSteps.length * 180);
+  const processFlowTimelineWidth = useMemo(
+    () => getProcessFlowTimelineWidth(processFlowContainerWidth, processFlowSteps.length),
+    [processFlowContainerWidth, processFlowSteps.length]
+  );
 
   const processFlowAxis = useMemo(() => {
-    if (processFlowSteps.length === 0) return null;
+    if (processFlowSteps.length === 0) {
+      return null;
+    }
 
     return buildTimelineAxis({
       items: processFlowSteps.map((step) => ({
@@ -769,393 +359,66 @@ export function TaskDetailsDialog({
     });
   }, [processFlowSteps, processFlowTimelineWidth]);
 
-  useEffect(() => {
-    if (!processDragSession || !processFlowAxis) return;
+  const handleProcessFlowStepUpdated = useCallback((updated: TaskDetailIssue) => {
+    setSelectedIssue((prev) => (
+      prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
+    ));
+  }, []);
 
-    const handlePointerMove = (e: PointerEvent) => {
-      if (e.pointerId !== processDragSession.pointerId) return;
-      const session = processDragRef.current;
-      if (!session) return;
+  const {
+    processDragSession,
+    startProcessFlowDrag,
+    consumeSuppressedProcessClick,
+    resetProcessFlowInteraction
+  } = useProcessFlowInteraction({
+    pixelsPerDay: processFlowAxis?.pixelsPerDay,
+    issuesRef,
+    savingIssueIdsRef,
+    saveProcessFlowDates,
+    onStepUpdated: handleProcessFlowStepUpdated
+  });
 
-      const deltaX = e.clientX - session.startClientX;
-      if (Math.abs(deltaX) < 3 && !session.moved) return;
-
-      const deltaDays = Math.round(deltaX / processFlowAxis.pixelsPerDay);
-      const originalStart = parseISO(session.originalStartDate);
-      const originalDue = parseISO(session.originalDueDate);
-
-      let nextStartStr = session.originalStartDate;
-      let nextDueStr = session.originalDueDate;
-
-      if (session.mode === 'move') {
-        nextStartStr = format(addDays(originalStart, deltaDays), 'yyyy-MM-dd');
-        nextDueStr = format(addDays(originalDue, deltaDays), 'yyyy-MM-dd');
-      } else if (session.mode === 'resize-left') {
-        const nextStart = addDays(originalStart, deltaDays);
-        if (nextStart > originalDue) return;
-        nextStartStr = format(nextStart, 'yyyy-MM-dd');
-      } else if (session.mode === 'resize-right') {
-        const nextDue = addDays(originalDue, deltaDays);
-        if (nextDue < originalStart) return;
-        nextDueStr = format(nextDue, 'yyyy-MM-dd');
-      }
-
-      setProcessDragSession((prev) => (prev ? {
-        ...prev,
-        currentStartDate: nextStartStr,
-        currentDueDate: nextDueStr,
-        moved: true
-      } : null));
-    };
-
-    const handlePointerUp = async (e: PointerEvent) => {
-      if (e.pointerId !== processDragSession.pointerId) return;
-      const session = processDragRef.current;
-      if (!session) return;
-
-      if (session.mode !== 'move' || session.moved) {
-        setSuppressProcessClickIssueId(session.issueId);
-      }
-      if (session.moved) {
-        const row = issuesRef.current.find((item) => item.issue_id === session.issueId);
-        if (row) {
-          const updated = await saveProcessFlowDates(row, session.currentStartDate, session.currentDueDate);
-          if (updated) {
-            setSelectedIssue((prev) => (
-              prev?.issue_id === updated.issue_id ? { ...prev, ...updated, children: prev.children } : prev
-            ));
-          }
-        }
-      }
-      setProcessDragSession(null);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, [processDragSession, processFlowAxis, saveProcessFlowDates]);
-
-  const processFlowPixelsPerDay = processFlowAxis?.pixelsPerDay ?? 1;
-
-  const processFlowRenderSteps = useMemo<ProcessFlowRenderStep[]>(() => {
-    if (!processFlowAxis) return [];
-
-    const getX = createDateToX(processFlowAxis.minDate, processFlowAxis.pixelsPerDay);
-    const getWidth = createRangeToWidth(processFlowAxis.pixelsPerDay);
-
-    const rawSteps = processFlowSteps.map((step) => {
-      const currentSession = step.shapeKind === 'range' && processDragSession?.issueId === step.id ? processDragSession : null;
-      const startDate = currentSession?.currentStartDate ?? step.startDate;
-      const dueDate = currentSession?.currentDueDate ?? step.dueDate;
-      const anchorDate = startDate ?? dueDate;
-      const anchorX = anchorDate ? getX(anchorDate) : 0;
-      const visualWidth = step.shapeKind === 'range'
-        ? getWidth(startDate, dueDate)
-        : step.shapeKind === 'start-only'
-          ? scaledTriangleWidth
-          : scaledDiamondWidth;
-      const hitWidth = step.shapeKind === 'range'
-        ? visualWidth
-        : Math.max(visualWidth, processFlowAxis.pixelsPerDay);
-      const hitX = (step.shapeKind === 'range' || step.shapeKind === 'start-only')
-        ? anchorX
-        : anchorX - hitWidth / 2;
-      const shapeX = (step.shapeKind === 'range' || step.shapeKind === 'start-only')
-        ? anchorX
-        : anchorX - visualWidth / 2;
-
-      return {
-        ...step,
-        startDate,
-        dueDate,
-        anchorDate: anchorDate ?? step.anchorDate,
-        rangeLabel: startDate && dueDate ? `${startDate} - ${dueDate}` : (anchorDate ?? step.anchorDate),
-        anchorX,
-        shapeX,
-        visualWidth,
-        hitX,
-        hitWidth
-      };
-    });
-
-    const positionedSteps = calculateStaggeredLanes(
-      rawSteps,
-      (step) => step.anchorDate,
-      (step) => step.dueDate ?? step.anchorDate
-    );
-
-    return positionedSteps.map((step, index) => {
-      const isFirst = index === 0;
-      const hasLeftNotch = false;
-      const previousStep = index > 0 ? positionedSteps[index - 1] : null;
-      const joinsPrevious = Boolean(
-        step.shapeKind === 'range' &&
-        previousStep?.shapeKind === 'range' &&
-        previousStep &&
-        step.startDate &&
-        previousStep.dueDate &&
-        differenceInCalendarDays(parseISO(step.startDate), parseISO(previousStep.dueDate)) === 1 &&
-        step.laneIndex === previousStep.laneIndex
-      );
-      return {
-        ...step,
-        isFirst,
-        hasLeftNotch,
-        joinsPrevious,
-        x: step.shapeX,
-        width: step.visualWidth,
-        textX: step.shapeKind === 'due-only' ? step.anchorX : step.shapeX + step.visualWidth / 2
-      };
-    });
-  }, [processFlowAxis, processFlowSteps, processDragSession]);
-
-  const maxProcessFlowLane = useMemo(() => {
-    return processFlowRenderSteps.length > 0 ? Math.max(...processFlowRenderSteps.map(s => s.laneIndex)) : 0;
-  }, [processFlowRenderSteps]);
-
-  const processFlowLaneHeight = Math.max(
-    scaledLaneHeight,
-    40 + (maxProcessFlowLane + 1) * scaledBarHeight + maxProcessFlowLane * scaledBarSpacingY + 40
+  const processFlowRenderSteps = useMemo<ProcessFlowRenderStep[]>(
+    () => buildProcessFlowRenderSteps({
+      axis: processFlowAxis,
+      steps: processFlowSteps,
+      dragSession: processDragSession,
+      scaleMetrics: processFlowScaleMetrics
+    }),
+    [processDragSession, processFlowAxis, processFlowScaleMetrics, processFlowSteps]
   );
-  const processFlowChartHeight = PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight;
-  const processFlowBaseTopPadding = useMemo(() => {
-    const totalBarsHeight = (maxProcessFlowLane + 1) * scaledBarHeight + maxProcessFlowLane * scaledBarSpacingY;
-    return (processFlowLaneHeight - totalBarsHeight) / 2;
-  }, [maxProcessFlowLane, processFlowLaneHeight]);
 
-  useLayoutEffect(() => {
-    if (!processFlowAxis || !processFlowCanvasRef.current) return;
-    const context = prepareHiDPICanvas(
-      processFlowCanvasRef.current,
-      processFlowAxis.timelineWidth,
-      processFlowChartHeight
-    );
-    if (!context) return;
-
-    context.fillStyle = '#f8fafc';
-    context.fillRect(0, 0, processFlowAxis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
-    context.fillRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, processFlowAxis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
-    context.strokeStyle = '#e2e8f0';
-    context.lineWidth = 1;
-    context.strokeRect(0, 0, processFlowAxis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
-    context.strokeRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, processFlowAxis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
-
-    processFlowAxis.headerYears.forEach((year) => {
-      context.strokeRect(year.x, 0, year.width, PROCESS_FLOW_YEAR_ROW_HEIGHT);
-      drawStrokeText(context, {
-        text: year.year,
-        x: year.x + year.width / 2,
-        y: PROCESS_FLOW_YEAR_ROW_HEIGHT / 2,
-        fill: '#334155',
-        stroke: '#f8fafc',
-        strokeWidth: 0,
-        font: '700 11px sans-serif'
-      });
-    });
-
-    processFlowAxis.headerMonths.forEach((month) => {
-      context.strokeRect(month.x, PROCESS_FLOW_YEAR_ROW_HEIGHT, month.width, PROCESS_FLOW_MONTH_ROW_HEIGHT);
-      drawStrokeText(context, {
-        text: month.label,
-        x: month.x + month.width / 2,
-        y: PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT / 2,
-        fill: '#334155',
-        stroke: '#f8fafc',
-        strokeWidth: 0,
-        font: '700 11px sans-serif'
-      });
-    });
-
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, PROCESS_FLOW_HEADER_HEIGHT, processFlowAxis.timelineWidth, processFlowLaneHeight);
-    processFlowAxis.headerMonths.forEach((month) => {
-      context.save();
-      context.strokeStyle = '#e2e8f0';
-      context.setLineDash([4, 3]);
-      context.beginPath();
-      context.moveTo(month.x, PROCESS_FLOW_HEADER_HEIGHT);
-      context.lineTo(month.x, PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight);
-      context.stroke();
-      context.restore();
-    });
-    context.beginPath();
-    context.moveTo(0, PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight);
-    context.lineTo(processFlowAxis.timelineWidth, PROCESS_FLOW_HEADER_HEIGHT + processFlowLaneHeight);
-    context.strokeStyle = '#e2e8f0';
-    context.stroke();
-
-    processFlowRenderSteps.forEach((step) => {
-      const style = processStatusStyles[step.status];
-      const fill = getProgressFillColor(step.progress);
-      const stepY = PROCESS_FLOW_HEADER_HEIGHT + processFlowBaseTopPadding + step.laneIndex * (scaledBarHeight + scaledBarSpacingY);
-      const rangeStartLabelX = step.shapeX + PROCESS_FLOW_DATE_LABEL_INSET;
-      const rangeEndLabelX = step.shapeX + step.visualWidth - PROCESS_FLOW_DATE_LABEL_INSET;
-
-      if (step.shapeKind === 'due-only') {
-        drawDiamond(context, {
-          centerX: step.textX,
-          y: stepY,
-          width: step.visualWidth,
-          height: scaledBarHeight,
-          fill,
-          trackFill: getProgressTrackColor(),
-          stroke: style.stroke,
-          progress: step.progress
-        });
-      } else if (step.shapeKind === 'start-only') {
-        drawTriangle(context, {
-          x: step.shapeX,
-          y: stepY,
-          width: step.visualWidth,
-          height: scaledBarHeight,
-          fill,
-          trackFill: getProgressTrackColor(),
-          stroke: style.stroke,
-          progress: step.progress
-        });
-      } else {
-        drawChevron(context, {
-          x: step.x,
-          y: stepY,
-          width: step.width,
-          height: scaledBarHeight,
-          pointDepth: scaledPointDepth,
-          hasLeftNotch: step.hasLeftNotch,
-          fill,
-          trackFill: getProgressTrackColor(),
-          stroke: style.stroke,
-          progress: step.progress
-        });
-      }
-
-      if (selectedIssueId === step.id) {
-        drawSelectedProcessOutline(context, {
-          shapeKind: step.shapeKind,
-          stepY,
-          x: step.x,
-          width: step.width,
-          hasLeftNotch: step.hasLeftNotch,
-          shapeX: step.shapeX,
-          visualWidth: step.visualWidth,
-          textX: step.textX,
-          barHeight: scaledBarHeight,
-          pointDepth: scaledPointDepth
-        });
-      }
-
-      if (step.shapeKind !== 'range') {
-        drawStrokeText(context, {
-          text: extractMD(step.anchorDate),
-          x: step.textX,
-          y: stepY - 6,
-          fill: style.dateText,
-          stroke: '#ffffff',
-          strokeWidth: 2,
-          font: '700 10px sans-serif'
-        });
-      } else {
-        if (step.startDate) {
-          drawStrokeText(context, {
-            text: extractMD(step.startDate),
-            x: rangeStartLabelX,
-            y: stepY - 6,
-            fill: style.dateText,
-            stroke: '#ffffff',
-            strokeWidth: 2,
-            font: '700 10px sans-serif',
-            textAlign: 'start'
-          });
-        }
-        if (step.dueDate) {
-          drawStrokeText(context, {
-            text: extractMD(step.dueDate),
-            x: rangeEndLabelX,
-            y: stepY - 6,
-            fill: style.dateText,
-            stroke: '#ffffff',
-            strokeWidth: 2,
-            font: '700 10px sans-serif',
-            textAlign: 'end'
-          });
-        }
-      }
-
-      const labelFont = '700 11px sans-serif';
-      const maxLabelWidth = step.visualWidth - 12; // 6px padding on each side
-      const displayTitle = truncateCanvasText(context, step.title, maxLabelWidth, labelFont);
-
-      if (displayTitle) {
-        drawStrokeText(context, {
-          text: displayTitle,
-          x: step.textX,
-          y: stepY + scaledBarHeight / 2,
-          fill: '#ffffff',
-          stroke: step.status === 'IN_PROGRESS' ? '#1e293b' : '#334155',
-          strokeWidth: 2,
-          font: labelFont
-        });
-      }
-    });
-  }, [processFlowAxis, processFlowLaneHeight, processFlowRenderSteps, processFlowChartHeight, processStatusStyles, selectedIssueId, processFlowBaseTopPadding]);
+  const {
+    laneHeight: processFlowLaneHeight,
+    chartHeight: processFlowChartHeight,
+    baseTopPadding: processFlowBaseTopPadding
+  } = useMemo(
+    () => getProcessFlowLayout(processFlowRenderSteps, processFlowScaleMetrics),
+    [processFlowRenderSteps, processFlowScaleMetrics]
+  );
 
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
   const currentAutoFitKey = open && !loading && issues.length > 0 && processFlowRenderSteps.length > 0
     ? `${currentRootIssueId}:${processFlowChartHeight}`
     : null;
-  const clampTopPaneHeight = useCallback((nextHeight: number, containerHeight: number) => {
-    const safeContainerHeight = Number.isFinite(containerHeight) && containerHeight > 0
-      ? containerHeight
-      : DETAILS_LAYOUT_FALLBACK_HEIGHT_PX;
-    const maxHeight = Math.max(
-      DETAILS_TOP_PANE_MIN_HEIGHT_PX,
-      safeContainerHeight - DETAILS_BOTTOM_PANE_MIN_HEIGHT_PX
-    );
-    return Math.min(Math.max(nextHeight, DETAILS_TOP_PANE_MIN_HEIGHT_PX), maxHeight);
-  }, []);
 
-  useLayoutEffect(() => {
-    if (!currentAutoFitKey || !detailsLayoutRef.current) return;
-    if (lastAutoFitKeyRef.current === currentAutoFitKey) return;
-    if (manualResizeSuppressedKeyRef.current === currentAutoFitKey) return;
+  const {
+    detailsLayoutRef,
+    topPaneHeight,
+    verticalResizeSession,
+    startVerticalResize,
+    startVerticalResizeWithMouse,
+    updateVerticalResize,
+    stopVerticalResize,
+    handleVerticalResizeKeyDown,
+    resetLayoutState
+  } = useTaskDetailsLayout({
+    currentAutoFitKey,
+    processFlowChartHeight
+  });
 
-    const containerHeight = detailsLayoutRef.current.getBoundingClientRect().height
-      || detailsLayoutRef.current.clientHeight;
-    const nextHeight = clampTopPaneHeight(processFlowChartHeight, containerHeight);
-
-    lastAutoFitKeyRef.current = currentAutoFitKey;
-    setTopPaneHeight((prev) => (prev === nextHeight ? prev : nextHeight));
-  }, [clampTopPaneHeight, currentAutoFitKey, processFlowChartHeight]);
-  const startProcessFlowDrag = (
-    event: React.PointerEvent<SVGRectElement>,
-    step: ProcessFlowStep,
-    mode: ProcessDragMode
-  ) => {
-    if (savingIssueIdsRef.current[step.id]) return;
-    event.preventDefault();
-    event.stopPropagation();
-
-    const session: ProcessDragSession = {
-      issueId: step.id,
-      pointerId: event.pointerId,
-      mode,
-      startClientX: event.clientX,
-      originalStartDate: step.startDate!,
-      originalDueDate: step.dueDate!,
-      currentStartDate: step.startDate!,
-      currentDueDate: step.dueDate!,
-      moved: false
-    };
-
-    processDragRef.current = session;
-    setProcessDragSession(session);
-  };
-
-  const handleProcessStepClick = useCallback((step: ProcessFlowStep) => {
-    if (suppressProcessClickIssueId === step.id) {
-      setSuppressProcessClickIssueId(null);
+  const handleProcessStepClick = useCallback((step: ProcessFlowRenderStep) => {
+    if (consumeSuppressedProcessClick(step.id)) {
       return;
     }
 
@@ -1163,9 +426,9 @@ export function TaskDetailsDialog({
     if (!issue) return;
 
     selectIssue(issue);
-  }, [selectIssue, suppressProcessClickIssueId]);
+  }, [consumeSuppressedProcessClick, selectIssue]);
 
-  const handleProcessStepDoubleClick = useCallback((step: ProcessFlowStep) => {
+  const handleProcessStepDoubleClick = useCallback((step: ProcessFlowRenderStep) => {
     if (!step.hasChildren) return;
 
     const issue = issuesRef.current.find((item) => item.issue_id === step.id) || null;
@@ -1392,88 +655,20 @@ export function TaskDetailsDialog({
                 style={{ height: `${topPaneHeight}px` }}
               >
                 <div className="h-full overflow-auto" onClick={() => selectIssue(null)}>
-                  <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={processFlowContainerRef}>
-                  {processFlowAxis && processFlowRenderSteps.length > 0 ? (
-                    <div
-                      className="relative"
-                      style={{ width: processFlowAxis.timelineWidth, height: processFlowChartHeight }}
-                    >
-                    <canvas
-                      ref={processFlowCanvasRef}
-                      data-testid="task-details-process-flow-canvas"
-                      width={processFlowAxis.timelineWidth}
-                      height={processFlowChartHeight}
-                      className="absolute inset-0 block"
-                      style={{ width: `${processFlowAxis.timelineWidth}px`, height: `${processFlowChartHeight}px`, pointerEvents: 'none' }}
-                      aria-hidden="true"
-                    />
-                    <svg
-                      width={processFlowAxis.timelineWidth}
-                      height={processFlowChartHeight}
-                    >
-                      {processFlowRenderSteps.map((step) => {
-                        const stepY = PROCESS_FLOW_HEADER_HEIGHT + processFlowBaseTopPadding + step.laneIndex * (scaledBarHeight + scaledBarSpacingY);
-                        const isInteractive = !savingIssueIds[step.id];
-                        const isRangeStep = step.shapeKind === 'range';
-                        const isSelected = selectedIssueId === step.id;
-
-                          return (
-                            <g
-                              key={step.id}
-                              data-testid="task-details-process-step"
-                              data-selected={isSelected ? 'true' : 'false'}
-                              opacity={savingIssueIds[step.id] ? 0.6 : 1}
-                              onClick={(e) => e.stopPropagation()}
-                              onDoubleClick={(e) => e.stopPropagation()}
-                            >
-                              <rect
-                                x={step.hitX}
-                                y={stepY}
-                                width={step.hitWidth}
-                                height={scaledBarHeight}
-                                fill="transparent"
-                                style={{ cursor: isInteractive && isRangeStep ? 'move' : 'pointer' }}
-                                onPointerDown={isRangeStep ? (event) => startProcessFlowDrag(event, step, 'move') : undefined}
-                                onClick={() => handleProcessStepClick(step)}
-                                onDoubleClick={() => handleProcessStepDoubleClick(step)}
-                                data-selected={isSelected ? 'true' : 'false'}
-                                data-testid={`task-details-process-step-hit-${step.id}`}
-                              >
-                                <title>{step.title}</title>
-                              </rect>
-                              {isRangeStep && (
-                                <>
-                                  <rect
-                                    x={step.hitX}
-                                    y={stepY}
-                                    width={10}
-                                    height={scaledBarHeight}
-                                    fill="transparent"
-                                    style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
-                                    onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-left')}
-                                    data-testid={`task-details-process-step-left-${step.id}`}
-                                  />
-                                  <rect
-                                    x={Math.max(step.hitX + step.hitWidth - 10, step.hitX)}
-                                    y={stepY}
-                                    width={10}
-                                    height={scaledBarHeight}
-                                    fill="transparent"
-                                    style={{ cursor: savingIssueIds[step.id] ? 'not-allowed' : 'ew-resize' }}
-                                    onPointerDown={(event) => startProcessFlowDrag(event, step, 'resize-right')}
-                                    data-testid={`task-details-process-step-right-${step.id}`}
-                                  />
-                                </>
-                              )}
-                              </g>
-                            );
-                      })}
-                    </svg>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
-                  )}
-                  </div>
+                  <ProcessFlowCanvas
+                    axis={processFlowAxis}
+                    renderSteps={processFlowRenderSteps}
+                    chartHeight={processFlowChartHeight}
+                    laneHeight={processFlowLaneHeight}
+                    baseTopPadding={processFlowBaseTopPadding}
+                    scaleMetrics={processFlowScaleMetrics}
+                    selectedIssueId={selectedIssueId}
+                    savingIssueIds={savingIssueIds}
+                    containerRef={processFlowContainerRef}
+                    onStepPointerDown={startProcessFlowDrag}
+                    onStepClick={handleProcessStepClick}
+                    onStepDoubleClick={handleProcessStepDoubleClick}
+                  />
                 </div>
               </div>
 
@@ -1538,7 +733,40 @@ export function TaskDetailsDialog({
                     />
                   </div>
                 </div>
-
+                {selectedIssue ? (
+                  <TaskDetailsSidePanel
+                    issue={selectedIssue}
+                    editingDescription={editingDescription}
+                    descriptionDraft={descriptionDraft}
+                    newCommentDraft={newCommentDraft}
+                    isSavingComment={isSavingComment}
+                    editingCommentId={editingCommentId}
+                    editingCommentDraft={editingCommentDraft}
+                    onClose={() => selectIssue(null)}
+                    onEditIssue={() => {
+                      setEditIssueContext({
+                        issueId: selectedIssue.issue_id,
+                        issueUrl: selectedIssue.issue_url
+                      });
+                    }}
+                    onStartDescriptionEdit={startDescriptionEdit}
+                    onCancelDescriptionEdit={cancelDescriptionEdit}
+                    onDescriptionDraftChange={setDescriptionDraft}
+                    onSaveDescription={() => {
+                      void handleSaveDescription();
+                    }}
+                    onNewCommentDraftChange={setNewCommentDraft}
+                    onAddComment={() => {
+                      void handleAddComment();
+                    }}
+                    onStartCommentEdit={startCommentEdit}
+                    onCancelCommentEdit={cancelCommentEdit}
+                    onEditingCommentDraftChange={setEditingCommentDraft}
+                    onSaveComment={(journalId, notes) => {
+                      void handleUpdateComment(journalId, notes);
+                    }}
+                  />
+                ) : null}
               </div>
             </>
           )}

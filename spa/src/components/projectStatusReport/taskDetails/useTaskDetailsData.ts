@@ -235,11 +235,13 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
   ) => {
     try {
       await updateTaskJournal(projectIdentifier, journalId, notes);
-      await reloadTaskDetails(rootIssueId, { expectedIssueId: selectedIssueId ?? undefined });
+      const latestRows = await reloadTaskDetails(rootIssueId, { expectedIssueId: selectedIssueId ?? undefined });
       hasAnyChangesRef.current = true;
+      return latestRows;
     } catch (error: unknown) {
       const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
       showFeedback('error', message);
+      return undefined;
     }
   }, [projectIdentifier, reloadTaskDetails, showFeedback]);
 
