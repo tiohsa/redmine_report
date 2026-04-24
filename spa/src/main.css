@@ -389,22 +389,6 @@
     @apply font-mono text-[13px] leading-relaxed;
   }
 
-  .report-summary-strip {
-    @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-4;
-  }
-
-  .report-summary-metric {
-    @apply rounded-[20px] border border-gray-100 bg-white px-4 py-3 shadow-subtle;
-  }
-
-  .report-summary-label {
-    @apply text-[11px] font-sans font-semibold uppercase tracking-[0.2em] text-[#8e8e93];
-  }
-
-  .report-summary-value {
-    @apply mt-1 text-[16px] font-sans font-semibold text-[#222222];
-  }
-
   .report-chip,
   .report-chip-active {
     @apply inline-flex items-center rounded-[9999px] border px-3 py-1 text-[12px] font-sans font-medium transition-colors;

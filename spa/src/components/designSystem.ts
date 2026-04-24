@@ -39,10 +39,7 @@ export const reportStyles = {
   alertInfo: 'report-alert-info',
   emptyState: 'report-empty-state',
   loadingState: 'report-loading-state',
-  summaryStrip: 'report-summary-strip',
-  summaryMetric: 'report-summary-metric',
-  summaryLabel: 'report-summary-label',
-  summaryValue: 'report-summary-value',
+
   chip: 'report-chip',
   chipActive: 'report-chip-active',
   tabGroup: 'report-tab-group',

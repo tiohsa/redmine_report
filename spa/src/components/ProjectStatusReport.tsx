@@ -202,24 +202,6 @@ export const ProjectStatusReport = ({
     const allVersionsSelected = allVersions.length > 0 && selectedVersions.length === allVersions.length;
 
     const isCustomDateRangeActive = Boolean(displayStartDateIso && displayEndDateIso);
-    const summaryMetrics = [
-        {
-            label: t('report.projectScope'),
-            value: selectedProjectIdentifiers.length > 0
-                ? t('filter.projectsCount', { count: selectedProjectIdentifiers.length })
-                : t('filter.selectProjects')
-        },
-        {
-            label: t('report.versionScope'),
-            value: selectedVersions.length > 0
-                ? t('filter.selectedCount', { count: selectedVersions.length })
-                : t('report.noneSelected')
-        },
-        {
-            label: t('report.taskCount'),
-            value: t('timeline.totalTasks', { count: bars.length })
-        }
-    ];
 
     const openDateRangeDialog = () => {
         setPendingStartDate(displayStartDateIso || axisStartDateIso);
@@ -363,14 +345,6 @@ export const ProjectStatusReport = ({
                     onToggleFullScreen={toggleFullScreen}
                 />
 
-                <div className={reportStyles.summaryStrip}>
-                    {summaryMetrics.map((metric) => (
-                        <div key={metric.label} className={reportStyles.summaryMetric}>
-                            <div className={reportStyles.summaryLabel}>{metric.label}</div>
-                            <div className={reportStyles.summaryValue}>{metric.value}</div>
-                        </div>
-                    ))}
-                </div>
 
                 {fetchError && (
                     <div className="report-alert-error relative" role="alert">
