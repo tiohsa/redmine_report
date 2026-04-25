@@ -3,7 +3,7 @@ import { t } from '../../../i18n';
 import type { TreeNodeType } from './shared';
 
 const REDMINE_DIALOG_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-8 px-4 rounded-full border border-gray-200 bg-[#f0f0f0] text-[13px] font-medium font-sans text-[#222222] hover:bg-gray-200 transition-colors cursor-pointer shadow-subtle';
-const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-full bg-[rgba(0,0,0,0.04)] text-[#45515e] hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222] transition-all duration-300 cursor-pointer';
+const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-[8px] border border-gray-200 bg-white text-[#222222] hover:bg-gray-50 transition-all duration-300 cursor-pointer';
 const REDMINE_DIALOG_PRIMARY_ACTION_CLASS = 'inline-flex items-center justify-center h-8 min-w-[80px] px-5 rounded-full bg-[#181e25] text-[13px] font-semibold font-sans text-[#ffffff] hover:bg-black transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm';
 const REDMINE_DIALOG_SECTION_TITLE_CLASS = 'text-[12px] font-display font-medium uppercase text-[#8e8e93] tracking-wider';
 const REDMINE_DIALOG_TEXTAREA_CLASS = 'w-full min-h-[100px] resize-y border border-gray-200 rounded-[12px] bg-white px-4 py-3 text-[16px] leading-[1.50] font-sans text-[#222222] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)] focus:border-[var(--color-primary-500)] transition-all';

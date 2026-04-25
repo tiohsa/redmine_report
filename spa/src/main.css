@@ -164,11 +164,14 @@
   .report-pill,
   .report-pill-primary,
   .report-pill-secondary,
-  .report-pill-nav,
+  .report-pill-nav {
+    @apply inline-flex items-center justify-center rounded-[9999px] transition-all duration-300 font-sans cursor-pointer;
+  }
+
   .report-icon-button,
   .report-icon-button-active,
   .report-icon-button-muted {
-    @apply inline-flex items-center justify-center rounded-[9999px] transition-all duration-300 font-sans cursor-pointer;
+    @apply inline-flex items-center justify-center rounded-[8px] transition-all duration-300 font-sans cursor-pointer;
   }
 
   .report-pill {
@@ -188,15 +191,15 @@
   }
 
   .report-icon-button {
-    @apply relative p-2 text-[#45515e] hover:text-[#222222] hover:bg-[rgba(0,0,0,0.05)];
+    @apply relative p-2 text-[#222222] border border-gray-200 bg-white hover:bg-gray-50;
   }
 
   .report-icon-button-active {
-    @apply relative p-2 bg-[var(--color-primary-200)] text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] shadow-subtle;
+    @apply relative p-2 bg-[#f0f5ff] text-[var(--color-brand-6)] border border-[var(--color-brand-6)] shadow-sm;
   }
 
   .report-icon-button-muted {
-    @apply relative p-2 bg-[rgba(0,0,0,0.04)] text-[#45515e] hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222];
+    @apply relative p-2 bg-gray-50 text-[#8e8e93] border border-gray-200 hover:bg-gray-100 hover:text-[#45515e];
   }
 
   .report-dropdown-panel {
@@ -208,7 +211,7 @@
   }
 
   .report-dropdown-row {
-    @apply flex items-center gap-3 px-5 py-3 text-[15px] text-[#45515e] transition-colors hover:bg-gray-50 cursor-pointer;
+    @apply flex items-center gap-3 px-5 py-1.5 text-[13px] text-[#45515e] transition-colors hover:bg-gray-50 cursor-pointer;
   }
 
   .report-dropdown-divider {
@@ -236,7 +239,7 @@
   }
 
   .report-selection-row {
-    @apply flex cursor-pointer items-center gap-3 px-4 py-2.5 text-[14px] font-sans text-[#45515e] transition-colors hover:bg-[#fbfdff] focus:outline-none;
+    @apply flex cursor-pointer items-center gap-3 px-4 py-1.5 text-[13px] font-sans text-[#45515e] transition-colors hover:bg-[#fbfdff] focus:outline-none;
   }
 
   .report-selection-row-active {
@@ -284,7 +287,7 @@
   }
 
   .report-inline-date-input {
-    @apply absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 text-transparent caret-transparent outline-none;
+    @apply absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 text-transparent caret-transparent opacity-0 outline-none;
   }
 
   .report-inline-date-input-inactive {
@@ -300,16 +303,16 @@
   }
 
   .report-inline-date-calendar {
-    @apply rounded-[20px] border border-gray-100 bg-white font-sans shadow-elevated;
+    @apply rounded-[10px] border border-gray-200 bg-white font-sans shadow-elevated;
   }
 
   .report-inline-date-calendar .react-datepicker__header {
-    @apply rounded-t-[20px] border-b border-gray-100 bg-[#fbfdff] px-4 pt-4;
+    @apply rounded-t-[10px] border-b border-gray-200 bg-[#fbfdff] px-3 pt-1.5;
   }
 
   .report-inline-date-calendar .react-datepicker__header__dropdown,
   .report-inline-date-calendar .react-datepicker__header__dropdown--scroll {
-    @apply flex flex-wrap items-center gap-2 px-0 pb-2 pt-2;
+    @apply my-2 flex items-center justify-center gap-2 px-0 py-0;
   }
 
   .report-inline-date-calendar .react-datepicker__month-dropdown-container,
@@ -318,37 +321,37 @@
   }
 
   .report-inline-date-calendar select {
-    @apply rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-medium text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
+    @apply cursor-pointer rounded-md border border-gray-300 bg-white px-1 py-0.5 text-[11px] font-medium text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
   }
 
   .report-inline-date-calendar .react-datepicker__current-month,
   .report-inline-date-calendar .react-datepicker-time__header,
   .report-inline-date-calendar .react-datepicker-year-header {
-    @apply mb-2 text-[14px] font-display font-semibold text-[#222222];
+    @apply mb-0 text-[12px] font-display font-semibold text-[#222222];
   }
 
   .report-inline-date-calendar .react-datepicker__day-names {
-    @apply flex justify-between px-3;
+    @apply flex justify-between px-2;
   }
 
   .report-inline-date-calendar .react-datepicker__week {
-    @apply flex justify-between px-3;
+    @apply flex justify-between px-2;
   }
 
   .report-inline-date-calendar .react-datepicker__day-name {
-    @apply m-0 w-8 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8e8e93];
+    @apply mx-[0.12rem] my-0 w-[1.52rem] text-[10px] font-medium text-[#8e8e93];
   }
 
   .report-inline-date-calendar .react-datepicker__month {
-    @apply px-3 pb-3;
+    @apply px-2 pb-2;
   }
 
   .report-inline-date-calendar .react-datepicker__day {
-    @apply m-0 flex h-8 w-8 items-center justify-center rounded-full text-[13px] text-[#222222] transition-colors hover:bg-[rgba(20,86,240,0.1)] hover:text-[var(--color-primary-700)];
+    @apply mx-[0.12rem] my-[0.12rem] flex h-[1.52rem] w-[1.52rem] items-center justify-center rounded-full text-[12px] leading-[1.52rem] text-[#222222] transition-colors hover:bg-[#eef4ff] hover:text-[#222222];
   }
 
   .report-inline-date-calendar .react-datepicker__day--keyboard-selected {
-    @apply bg-[rgba(20,86,240,0.16)] text-[var(--color-primary-700)];
+    @apply bg-[var(--color-primary-200)] text-[#222222];
   }
 
   .report-inline-date-calendar .react-datepicker__day--selected,
@@ -362,23 +365,20 @@
     @apply text-[#cbd5e1] hover:bg-transparent hover:text-[#cbd5e1];
   }
 
-  .report-inline-date-calendar .react-datepicker__today-button {
-    @apply mx-4 mb-4 rounded-full border border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.25)] px-4 py-2 text-[13px] font-semibold text-[var(--color-primary-700)] transition-colors hover:bg-[rgba(191,219,254,0.38)];
+  .report-inline-date-calendar .react-datepicker__navigation {
+    @apply top-1.5;
   }
 
-  .report-inline-date-calendar .react-datepicker__close-icon {
-    @apply right-2 top-2 h-auto w-auto rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#45515e] shadow-subtle transition-colors hover:bg-[#f8fafc] hover:text-[#222222];
+  .report-inline-date-calendar-footer {
+    @apply flex justify-between rounded-b-[10px] border-t border-gray-200 bg-[#fbfdff] px-2.5 py-1.5;
   }
 
-  .report-inline-date-calendar .report-inline-date-clear-button::after {
-    content: 'Clear';
-    background: none;
-    color: inherit;
-    font-size: inherit;
-    font-weight: inherit;
-    line-height: inherit;
-    margin: 0;
-    padding: 0;
+  .report-inline-date-calendar-button {
+    @apply cursor-pointer rounded-md border border-gray-300 bg-white px-3 py-1 text-[10px] font-medium text-[#222222] transition-all hover:border-[var(--color-primary-500)] hover:bg-[var(--color-primary-200)];
+  }
+
+  .report-inline-date-calendar-button-clear {
+    @apply text-[#d94242] hover:border-[#ef4444] hover:bg-[#fee2e2] hover:text-[#b91c1c];
   }
 
   .report-textarea {
@@ -640,7 +640,7 @@
   }
 
   .report-dialog-close {
-    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(0,0,0,0.04)] text-[#45515e] transition-colors hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222];
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-gray-200 bg-white text-[#222222] transition-colors hover:bg-gray-50 hover:text-[#222222];
   }
 
   .report-field-label {
@@ -660,7 +660,7 @@
   }
 
   .report-selection-list-item {
-    @apply flex w-full items-start gap-3 rounded-[16px] border border-gray-100 bg-white px-4 py-3 text-left transition-all duration-200 hover:border-gray-200 hover:bg-[#fbfdff];
+    @apply flex w-full items-start gap-3 rounded-[16px] border border-gray-100 bg-white px-4 py-2 text-left transition-all duration-200 hover:border-gray-200 hover:bg-[#fbfdff];
   }
 
   .report-selection-list-item-selected {
@@ -676,7 +676,7 @@
   }
 
   .report-selection-list-label {
-    @apply text-[15px] font-sans font-medium leading-[1.5] text-[#222222];
+    @apply text-[13px] font-sans font-medium leading-[1.5] text-[#222222];
   }
 
   .report-selection-list-description {
@@ -684,7 +684,7 @@
   }
 
   .report-checkbox-row {
-    @apply flex w-full items-start gap-3 rounded-[16px] border border-gray-100 bg-white px-4 py-3 text-left transition-all duration-200 hover:border-gray-200 hover:bg-[#fbfdff];
+    @apply flex w-full items-start gap-3 rounded-[16px] border border-gray-100 bg-white px-4 py-2 text-left transition-all duration-200 hover:border-gray-200 hover:bg-[#fbfdff];
   }
 
   .report-checkbox-row-selected {
@@ -696,7 +696,7 @@
   }
 
   .report-checkbox-label {
-    @apply text-[15px] font-sans font-medium leading-[1.5] text-[#222222];
+    @apply text-[13px] font-sans font-medium leading-[1.5] text-[#222222];
   }
 
   .report-checkbox-description {
@@ -822,7 +822,7 @@
   }
 
   .report-inline-date-input {
-    @apply absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 text-transparent caret-transparent outline-none;
+    @apply absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 text-transparent caret-transparent opacity-0 outline-none;
   }
 
   .report-inline-date-input-active {
@@ -837,45 +837,85 @@
     @apply z-[70];
   }
 
+  #redmine-report-inline-date-picker-portal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    pointer-events: none;
+  }
+
+  #redmine-report-inline-date-picker-portal .react-datepicker-popper {
+    z-index: 10001;
+    pointer-events: auto;
+  }
+
   .report-inline-date-calendar {
-    @apply overflow-hidden rounded-[18px] border border-gray-100 bg-white font-sans shadow-elevated;
+    @apply rounded-[10px] border border-gray-200 bg-white font-sans shadow-elevated;
   }
 
   .report-inline-date-calendar .react-datepicker__header {
-    @apply border-b border-gray-100 bg-white px-3 pt-3;
+    @apply rounded-t-[10px] border-b border-gray-200 bg-[#fbfdff] px-3 pt-1.5;
+  }
+
+  .report-inline-date-calendar .react-datepicker__header__dropdown,
+  .report-inline-date-calendar .react-datepicker__header__dropdown--scroll {
+    @apply my-2 flex items-center justify-center gap-2 px-0 py-0;
+  }
+
+  .report-inline-date-calendar .react-datepicker__current-month,
+  .report-inline-date-calendar .react-datepicker-time__header,
+  .report-inline-date-calendar .react-datepicker-year-header {
+    @apply mb-0 text-[12px] font-display font-semibold text-[#222222];
+  }
+
+  .report-inline-date-calendar .react-datepicker__day-names,
+  .report-inline-date-calendar .react-datepicker__week {
+    @apply flex justify-between px-2;
   }
 
   .report-inline-date-calendar .react-datepicker__day-name {
-    @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8e8e93];
+    @apply mx-[0.12rem] my-0 w-[1.52rem] text-[10px] font-medium text-[#8e8e93];
+  }
+
+  .report-inline-date-calendar .react-datepicker__month {
+    @apply px-2 pb-2;
   }
 
   .report-inline-date-calendar .react-datepicker__day {
-    @apply rounded-[10px] text-[12px] text-[#222222] transition-colors duration-150;
+    @apply mx-[0.12rem] my-[0.12rem] flex h-[1.52rem] w-[1.52rem] items-center justify-center rounded-full text-[12px] leading-[1.52rem] text-[#222222] transition-colors hover:bg-[#eef4ff] hover:text-[#222222];
   }
 
-  .report-inline-date-calendar .react-datepicker__day:hover {
-    @apply bg-[rgba(20,86,240,0.08)] text-[var(--color-primary-600)];
-  }
-
-  .report-inline-date-calendar .react-datepicker__day--selected,
   .report-inline-date-calendar .react-datepicker__day--keyboard-selected {
-    @apply bg-[var(--color-primary-600)] text-white;
+    @apply bg-[var(--color-primary-200)] text-[#222222];
   }
 
-  .report-inline-date-calendar .react-datepicker__day--outside-month {
-    @apply text-[#cbd5e1];
+  .report-inline-date-calendar .react-datepicker__day--selected {
+    @apply bg-[var(--color-primary-600)] text-white hover:bg-[var(--color-primary-700)] hover:text-white;
   }
 
+  .report-inline-date-calendar .react-datepicker__day--outside-month,
   .report-inline-date-calendar .react-datepicker__day--disabled {
-    @apply text-[#cbd5e1] line-through;
+    @apply text-[#cbd5e1] hover:bg-transparent hover:text-[#cbd5e1];
+  }
+
+  .report-inline-date-calendar .react-datepicker__navigation {
+    @apply top-1.5;
   }
 
   .report-inline-date-calendar .react-datepicker__month-select,
   .report-inline-date-calendar .react-datepicker__year-select {
-    @apply rounded-[12px] border border-gray-200 bg-white px-2 py-1 text-[11px] text-[#222222] outline-none;
+    @apply cursor-pointer rounded-md border border-gray-300 bg-white px-1 py-0.5 text-[11px] font-medium text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
   }
 
-  .report-inline-date-clear-button {
-    @apply rounded-full bg-[rgba(0,0,0,0.05)] px-3 py-1 text-[11px] font-semibold text-[#222222] hover:bg-[rgba(0,0,0,0.1)];
+  .report-inline-date-calendar-footer {
+    @apply flex justify-between rounded-b-[10px] border-t border-gray-200 bg-[#fbfdff] px-2.5 py-1.5;
+  }
+
+  .report-inline-date-calendar-button {
+    @apply cursor-pointer rounded-md border border-gray-300 bg-white px-3 py-1 text-[10px] font-medium text-[#222222] transition-all hover:border-[var(--color-primary-500)] hover:bg-[var(--color-primary-200)];
+  }
+
+  .report-inline-date-calendar-button-clear {
+    @apply text-[#d94242] hover:border-[#ef4444] hover:bg-[#fee2e2] hover:text-[#b91c1c];
   }
 }

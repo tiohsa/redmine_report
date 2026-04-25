@@ -109,11 +109,13 @@ const InlineDateField = ({
   };
 
   return (
-    <div className={`report-inline-date-shell ${isActive ? 'report-inline-date-shell-active' : ''}`}>
+    <div
+      className={`report-inline-date-shell ${isActive ? 'report-inline-date-shell-active' : ''}`}
+      data-date-editor-root="true"
+    >
       <span
         data-testid={field === 'start_date' ? `start-date-display-${issueId}` : `due-date-display-${issueId}`}
         className="report-inline-date-display"
-        style={{ display: isActive ? 'none' : undefined }}
         onDoubleClick={(event) => onActivate(field, event)}
         onClick={(event) => event.stopPropagation()}
         title={displayValue}
@@ -154,7 +156,6 @@ const InlineDateField = ({
           showMonthDropdown
           showYearDropdown
           dropdownMode="select"
-          todayButton={t('common.today', { defaultValue: 'Today' })}
           popperClassName="report-inline-date-popper"
           popperContainer={PopperContainer}
           calendarClassName="report-inline-date-calendar"
@@ -169,22 +170,35 @@ const InlineDateField = ({
             />
           }
           wrapperClassName="report-inline-date-picker-wrapper report-inline-date-picker-wrapper-active"
-        />
-      )}
-
-      {isActive && value ? (
-        <button
-          type="button"
-          data-testid={`date-clear-${field}-${issueId}`}
-          className="report-inline-date-clear-button absolute right-0 top-1/2 z-20 -translate-y-1/2"
-          onClick={(event) => {
-            event.stopPropagation();
-            commitDate(null);
-          }}
         >
-          {t('common.clear', { defaultValue: 'Clear' })}
-        </button>
-      ) : null}
+          <div className="report-inline-date-calendar-footer">
+            <button
+              type="button"
+              data-testid={`date-today-footer-${field}-${issueId}`}
+              className="report-inline-date-calendar-button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                commitDate(new Date());
+              }}
+            >
+              {t('common.today', { defaultValue: 'Today' })}
+            </button>
+            <button
+              type="button"
+              data-testid={`date-clear-footer-${field}-${issueId}`}
+              className="report-inline-date-calendar-button report-inline-date-calendar-button-clear"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                commitDate(null);
+              }}
+            >
+              {t('common.clear', { defaultValue: 'Clear' })}
+            </button>
+          </div>
+        </DatePicker>
+      )}
     </div>
   );
 };
