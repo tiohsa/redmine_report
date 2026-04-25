@@ -214,6 +214,11 @@ describe('TaskDetailsDialog', () => {
 
     expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/02/03');
     expect(screen.getByTestId('due-date-display-11').textContent).toBe('2026/02/08');
+
+    await openDateEditor('start-date-display-11');
+
+    expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/02/03');
+    expect(screen.getByTestId('due-date-display-11').textContent).toBe('2026/02/08');
   });
 
   it('supports Today action in the inline date picker', async () => {
@@ -262,7 +267,7 @@ describe('TaskDetailsDialog', () => {
     await openDateEditor('start-date-display-11');
     const picker = screen.getByRole('dialog', { name: 'Choose Date' });
 
-    fireEvent.click(within(picker).getByText(/Today|今日/));
+    fireEvent.click(within(picker).getByTestId('date-today-footer-start_date-11'));
     await flushDateSaveDebounce();
 
     await waitFor(() => expect(updateTaskDatesMock).toHaveBeenCalledTimes(1));
@@ -311,13 +316,58 @@ describe('TaskDetailsDialog', () => {
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
     await openDateEditor('start-date-display-11');
-    const clearButton = screen.getByTestId('date-clear-start_date-11') as HTMLButtonElement;
+    const picker = screen.getByRole('dialog', { name: 'Choose Date' });
+    const clearButton = within(picker).getByTestId('date-clear-footer-start_date-11') as HTMLButtonElement;
     expect(clearButton).toBeTruthy();
     fireEvent.click(clearButton);
     await flushDateSaveDebounce();
 
     await waitFor(() => expect(updateTaskDatesMock).toHaveBeenCalledTimes(1));
     expect(screen.getByTestId('start-date-display-11').textContent).toBe('-');
+  });
+
+  it('renders the inline date picker calendar inside the dedicated portal layer', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-04-19',
+        due_date: '2026-04-30',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-04-19',
+        due_date: '2026-04-30',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    await openDateEditor('start-date-display-11');
+
+    const portal = document.getElementById('redmine-report-inline-date-picker-portal');
+    expect(portal).toBeTruthy();
+    expect(portal?.querySelector('.react-datepicker-popper')).toBeTruthy();
+
+    fireEvent.mouseDown(within(screen.getByRole('dialog', { name: 'Choose Date' })).getByText('19'));
+
+    expect(screen.getByRole('dialog', { name: 'Choose Date' })).toBeTruthy();
   });
 
   it('cancels a pending date edit on Escape and outside click', async () => {
