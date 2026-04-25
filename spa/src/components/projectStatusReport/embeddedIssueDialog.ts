@@ -181,6 +181,18 @@ ${extraCss}
   doc.head.appendChild(style);
 };
 
+export const applyEmbeddedLinkTargetBlank = (doc: Document): void => {
+  const links = Array.from(doc.querySelectorAll<HTMLAnchorElement>('.wiki a[href]'));
+
+  links.forEach((link) => {
+    const href = link.getAttribute('href')?.trim() ?? '';
+    if (!href || href.startsWith('#') || /^javascript:/i.test(href)) return;
+
+    link.setAttribute('target', '_blank');
+    link.setAttribute('rel', 'noopener noreferrer');
+  });
+};
+
 export const getEmbeddedIssueDialogErrorMessage = (doc: Document): string | null => {
   const querySelector = typeof doc.querySelector === 'function'
     ? doc.querySelector.bind(doc)
@@ -248,6 +260,7 @@ export const setupEmbeddedIssueDialogIframe = (
   }: EmbeddedIssueIframeSetupOptions,
 ): number | null => {
   applyEmbeddedIssueDialogStyles(doc, { contentPadding, extraCss, styleId });
+  applyEmbeddedLinkTargetBlank(doc);
   setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
   bindIframeSizeObservers(doc);
   if (cleanupEscapeHandlerRef) {

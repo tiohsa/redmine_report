@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyEmbeddedLinkTargetBlank,
   extractIssueIdFromLocationCandidates,
   findEmbeddedIssueForm,
   normalizeEmbeddedFormActions,
@@ -49,6 +50,46 @@ describe('embeddedIssueDialog helpers', () => {
     expect(readEmbeddedIssueHeader(doc)).toEqual({
       header: 'Edit issue',
       subject: 'Subject line',
+    });
+  });
+
+  it('sets target blank on wiki links', () => {
+    const doc = document.implementation.createHTMLDocument('iframe');
+    doc.body.innerHTML = '<div class="wiki"><a href="/issues/1">Issue</a></div>';
+    const link = doc.querySelector<HTMLAnchorElement>('.wiki a');
+
+    applyEmbeddedLinkTargetBlank(doc);
+
+    expect(link?.getAttribute('target')).toBe('_blank');
+    expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('does not modify non-wiki operation links', () => {
+    const doc = document.implementation.createHTMLDocument('iframe');
+    doc.body.innerHTML = '<div class="contextual"><a href="/issues/1/edit">Edit</a></div>';
+    const link = doc.querySelector<HTMLAnchorElement>('.contextual a');
+
+    applyEmbeddedLinkTargetBlank(doc);
+
+    expect(link?.hasAttribute('target')).toBe(false);
+    expect(link?.hasAttribute('rel')).toBe(false);
+  });
+
+  it('ignores empty, hash-only, and javascript wiki links', () => {
+    const doc = document.implementation.createHTMLDocument('iframe');
+    doc.body.innerHTML = `
+      <div class="wiki">
+        <a href="">Empty</a>
+        <a href="#anchor">Anchor</a>
+        <a href="javascript:alert(1)">Script</a>
+      </div>
+    `;
+
+    applyEmbeddedLinkTargetBlank(doc);
+
+    doc.querySelectorAll<HTMLAnchorElement>('.wiki a').forEach((link) => {
+      expect(link.hasAttribute('target')).toBe(false);
+      expect(link.hasAttribute('rel')).toBe(false);
     });
   });
 });

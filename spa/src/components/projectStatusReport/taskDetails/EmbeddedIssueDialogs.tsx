@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../../../i18n';
 import { createIssue, type BulkIssuePayload } from '../../bulkIssueRegistration/bulkIssueApi';
 import {
+  applyEmbeddedLinkTargetBlank,
   applyEmbeddedIssueDialogStyles,
   bindIframeEscapeHandler,
   COMPACT_ACTION_BUTTON_HEIGHT,
@@ -272,6 +273,7 @@ export function SubIssueCreationDialog({
                 extraCss: EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
                 styleId: `${ISSUE_DIALOG_STYLE_ID}-subissue`
               });
+              applyEmbeddedLinkTargetBlank(doc);
               setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
               bindIframeSizeObservers(doc);
               cleanupIframeEscRef.current?.();
@@ -409,6 +411,7 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
       extraCss: EMBEDDED_ISSUE_EDIT_EXTRA_CSS,
       styleId: `${ISSUE_DIALOG_STYLE_ID}-edit`
     });
+    applyEmbeddedLinkTargetBlank(doc);
     setIframeError(getEmbeddedIssueDialogErrorMessage(doc));
     bindIframeSizeObservers(doc);
 
@@ -689,6 +692,7 @@ export function IssueViewDialog({ projectIdentifier, issueId, issueUrl, inherite
               extraCss: EMBEDDED_ISSUE_VIEW_EXTRA_CSS,
               styleId: `${ISSUE_DIALOG_STYLE_ID}-view`
             });
+            applyEmbeddedLinkTargetBlank(doc);
             setIframeError(iframeErrorMessage);
             bindIframeSizeObservers(doc);
 
