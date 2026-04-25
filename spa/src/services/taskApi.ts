@@ -50,15 +50,3 @@ export const updateTaskFields = async (
   return json.issue;
 };
 
-export const updateTaskJournal = async (
-  projectIdentifier: string,
-  journalId: number,
-  notes: string
-): Promise<void> => {
-  await requestJsonWithBody<unknown>(
-    `/projects/${projectIdentifier}/schedule_report/task_journal/${journalId}`,
-    'PATCH',
-    { notes },
-    weeklyError((status) => t('api.updateTaskJournal', { status, defaultValue: `Failed to update journal (${status})` }))
-  );
-};

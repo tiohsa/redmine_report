@@ -121,8 +121,7 @@ export const messages = {
       hasComments: 'Has comments',
       hasCommentsCount: '{count} comments',
       noComments: 'No comments',
-      overview: 'Overview',
-      descriptionTab: 'Description',
+
       commentsTab: 'Comments',
       attachmentsTab: 'Attachments',
       titleLabel: 'Title',
@@ -130,8 +129,6 @@ export const messages = {
       tagsLabel: 'Tags',
       seeAll: 'See All',
       historyLabel: 'History',
-      noDescription: 'No description',
-      selectTicket: 'Select a ticket to view details',
       breadcrumbAria: 'Issue hierarchy',
       resizeDetailAreasAria: 'Resize detail areas'
     },
@@ -331,7 +328,6 @@ export const messages = {
       hasComments: 'あり',
       hasCommentsCount: '{count}件のコメント',
       noComments: 'なし',
-      overview: '概要',
       descriptionTab: '説明',
       commentsTab: 'コメント',
       attachmentsTab: '添付ファイル',
@@ -340,8 +336,6 @@ export const messages = {
       tagsLabel: 'タグ',
       seeAll: 'すべて表示',
       historyLabel: '更新履歴',
-      noDescription: '説明なし',
-      selectTicket: 'チケットを選択して詳細を表示',
       breadcrumbAria: 'チケット階層',
       resizeDetailAreasAria: '詳細エリアのサイズを変更'
     },

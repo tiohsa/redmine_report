@@ -77,7 +77,6 @@ export type TaskDetailIssue = {
   assignee_id?: number | null;
   priority_name?: string;
   priority_id?: number;
-  description?: string;
   comments?: Array<{
     id?: number;
     author_name?: string;

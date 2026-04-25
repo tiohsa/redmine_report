@@ -19,8 +19,7 @@ export {
   fetchTaskDetails,
   fetchTaskMasters,
   updateTaskDates,
-  updateTaskFields,
-  updateTaskJournal
+  updateTaskFields
 } from './taskApi';
 export {
   fetchWeeklyAiResponses,

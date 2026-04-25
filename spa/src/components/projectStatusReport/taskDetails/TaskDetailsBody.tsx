@@ -148,7 +148,7 @@ export function TaskDetailsBody({
           </div>
 
           <div className="flex-1 flex min-h-0 relative bg-white" data-testid="task-details-bottom-pane">
-            <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
+            <div className="flex flex-col min-h-0 bg-white flex-1 overflow-hidden">
               <div className="overflow-auto flex-1 bg-white">
                 <IssueTreeTable
                   treeRoots={treeRoots}

@@ -709,7 +709,6 @@ describe('TaskDetailsDialog', () => {
 
     fireEvent.click(screen.getByTestId('task-title-cell-10'));
 
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
     expect(screen.getByTestId('task-row-10').getAttribute('data-selected')).toBe('false');
   });
 
@@ -741,7 +740,6 @@ describe('TaskDetailsDialog', () => {
 
     fireEvent.click(screen.getByTestId('task-title-cell-10'));
 
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
     expect(screen.getByTestId('task-row-10').getAttribute('data-selected')).toBe('false');
   });
 
@@ -1138,7 +1136,6 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('task-details-title').textContent).toBe('Root issue #10');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
     expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
     expect(scrollIntoViewMock).toHaveBeenCalledWith({ block: 'center', inline: 'nearest' });
   });
@@ -1258,7 +1255,6 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('task-details-process-step-hit-12')).toBeTruthy();
     expect(screen.queryByTestId('task-details-process-step-hit-11')).toBeNull();
     expect(screen.queryByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeNull();
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
   });
 
   it('returns to an ancestor subtree from the breadcrumb', async () => {
@@ -1400,7 +1396,6 @@ describe('TaskDetailsDialog', () => {
     fireEvent.click(screen.getByTestId('task-details-process-step-hit-11'));
 
     expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('true');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
   });
@@ -1471,11 +1466,9 @@ describe('TaskDetailsDialog', () => {
     fireEvent.doubleClick(screen.getByTestId('task-details-process-step-hit-11'));
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeNull();
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
 
     fireEvent.click(screen.getByTestId('task-title-cell-11'));
 
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('false');
     expect(screen.queryByTestId('task-details-process-step-hit-11')).toBeNull();
     expect(screen.queryByRole('link', { name: /新しいタブで開く|Open in Redmine|Open in New Tab/ })).toBeNull();
@@ -1518,7 +1511,6 @@ describe('TaskDetailsDialog', () => {
 
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('false');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('false');
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
   });
 
   it('keeps task title clicks from changing the process selection', async () => {
@@ -1555,7 +1547,6 @@ describe('TaskDetailsDialog', () => {
     await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByTestId('task-title-cell-11'));
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
 
     fireEvent.click(screen.getByTestId('task-title-cell-11'));
 
@@ -1598,7 +1589,6 @@ describe('TaskDetailsDialog', () => {
 
     fireEvent.click(screen.getByTestId('task-row-11'));
 
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('false');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('false');
   });
@@ -1779,7 +1769,6 @@ describe('TaskDetailsDialog', () => {
     fireEvent.click(bar);
 
     expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId('task-details-selected-title')).toBeNull();
     expect(bar.getAttribute('data-selected')).toBe('false');
   });
 
