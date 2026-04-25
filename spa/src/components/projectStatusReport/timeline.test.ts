@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildTimelineViewModel } from './timeline';
 import { CategoryBar, ProjectInfo } from '../../services/scheduleReportApi';
-import { format } from 'date-fns';
 
 // Mock t function if needed (though implementation seems safe)
 vi.mock('../../i18n', async () => {
@@ -15,20 +14,36 @@ vi.mock('../../i18n', async () => {
 });
 
 describe('buildTimelineViewModel', () => {
+  const makeBar = (overrides: Partial<CategoryBar> = {}): CategoryBar => ({
+    bar_key: `1:issue:${overrides.category_id ?? 1}`,
+    project_id: 1,
+    category_id: 1,
+    category_name: 'Task 1',
+    version_id: 1,
+    version_name: 'v1',
+    ticket_subject: 'Task 1',
+    start_date: '2026-03-01',
+    end_date: '2026-03-31',
+    issue_count: 1,
+    delayed_issue_count: 0,
+    progress_rate: 0,
+    is_delayed: false,
+    dependencies: [],
+    ...overrides
+  });
+
+  const makeProject = (overrides: Partial<ProjectInfo> = {}): ProjectInfo => ({
+    project_id: 1,
+    identifier: 'p1',
+    name: 'Project 1',
+    level: 0,
+    ...overrides
+  });
+
   it('should include buffer days and partial months in the timeline', () => {
-    const bars: CategoryBar[] = [
-      {
-        category_id: 1,
-        category_name: 'Task 1',
-        start_date: '2026-03-01',
-        end_date: '2026-03-31',
-        progress_rate: 0,
-        project_id: 1,
-        version_name: 'v1'
-      }
-    ];
+    const bars: CategoryBar[] = [makeBar()];
     const projectMap = new Map<number, ProjectInfo>();
-    projectMap.set(1, { id: 1, name: 'Project 1', identifier: 'p1' });
+    projectMap.set(1, makeProject());
 
     const viewModel = buildTimelineViewModel({
       bars,
@@ -77,17 +92,7 @@ describe('buildTimelineViewModel', () => {
      vi.useFakeTimers();
      vi.setSystemTime(today);
 
-     const bars: CategoryBar[] = [
-        {
-          category_id: 1,
-          category_name: 'Task 1',
-          start_date: '2026-03-01',
-          end_date: '2026-03-31',
-          progress_rate: 0,
-          project_id: 1,
-          version_name: 'v1'
-        }
-      ];
+     const bars: CategoryBar[] = [makeBar()];
       const projectMap = new Map<number, ProjectInfo>();
 
       const viewModel = buildTimelineViewModel({
@@ -106,28 +111,18 @@ describe('buildTimelineViewModel', () => {
 
   it('should calculate date range using only selected version bars', () => {
     const bars: CategoryBar[] = [
-      {
-        category_id: 1,
-        category_name: 'Visible Task',
-        start_date: '2026-03-01',
-        end_date: '2026-03-31',
-        progress_rate: 0,
-        project_id: 1,
-        version_name: 'v1'
-      },
-      {
+      makeBar({ category_id: 1, category_name: 'Visible Task' }),
+      makeBar({
         category_id: 2,
         category_name: 'Hidden Task',
         start_date: '2026-06-01',
         end_date: '2026-06-30',
-        progress_rate: 0,
-        project_id: 1,
         version_name: 'v2'
-      }
+      })
     ];
 
     const projectMap = new Map<number, ProjectInfo>();
-    projectMap.set(1, { id: 1, name: 'Project 1', identifier: 'p1' });
+    projectMap.set(1, makeProject());
 
     const viewModel = buildTimelineViewModel({
       bars,
@@ -143,17 +138,7 @@ describe('buildTimelineViewModel', () => {
 
 
   it('should use configured display date range when provided', () => {
-    const bars: CategoryBar[] = [
-      {
-        category_id: 1,
-        category_name: 'Task 1',
-        start_date: '2026-03-01',
-        end_date: '2026-03-31',
-        progress_rate: 0,
-        project_id: 1,
-        version_name: 'v1'
-      }
-    ];
+    const bars: CategoryBar[] = [makeBar()];
 
     const viewModel = buildTimelineViewModel({
       bars,
@@ -174,19 +159,17 @@ describe('buildTimelineViewModel', () => {
     vi.setSystemTime(new Date('2026-02-24'));
 
     const bars: CategoryBar[] = [
-      {
+      makeBar({
         category_id: 1,
         category_name: 'Past Task',
         start_date: '2025-12-01',
         end_date: '2025-12-30',
-        progress_rate: 100,
-        project_id: 1,
-        version_name: 'v1'
-      }
+        progress_rate: 100
+      })
     ];
 
     const projectMap = new Map<number, ProjectInfo>();
-    projectMap.set(1, { id: 1, name: 'Project 1', identifier: 'p1' });
+    projectMap.set(1, makeProject());
 
     const viewModel = buildTimelineViewModel({
       bars,

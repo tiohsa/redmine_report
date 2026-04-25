@@ -171,4 +171,26 @@ class ScheduleReportTaskDetailsServiceTest < ActiveSupport::TestCase
     assert_equal true, result[:ok]
     assert_equal [15, 20], result[:issues].map { |issue| issue[:issue_id] }
   end
+
+  def test_call_returns_invalid_input_for_non_integer_issue_id
+    DummyIssueClass.relation = DummyRelation.new([])
+
+    descendants = Object.new
+    descendants.define_singleton_method(:pluck) do |_column|
+      []
+    end
+
+    project = Struct.new(:id, :descendants).new(1, descendants)
+    service = RedmineReport::ScheduleReport::TaskDetailsService.new(
+      root_project: project,
+      user: Object.new,
+      issue_class: DummyIssueClass
+    )
+
+    result = service.call(issue_id: 'abc')
+
+    assert_equal false, result[:ok]
+    assert_equal 'INVALID_INPUT', result[:code]
+    assert_equal :unprocessable_entity, result[:status]
+  end
 end

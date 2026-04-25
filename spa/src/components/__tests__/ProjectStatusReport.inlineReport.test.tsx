@@ -53,6 +53,7 @@ describe('ProjectStatusReport inline report', () => {
     if (!(globalThis as typeof globalThis & { ResizeObserver?: typeof ResizeObserver }).ResizeObserver) {
       (globalThis as typeof globalThis & { ResizeObserver: typeof ResizeObserver }).ResizeObserver = class {
         observe() {}
+        unobserve() {}
         disconnect() {}
       };
     }

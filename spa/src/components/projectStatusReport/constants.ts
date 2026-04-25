@@ -66,36 +66,36 @@ export const getProgressTrackColor = () => '#d9e2ec';
 export const buildStatusStyles = (): Record<'COMPLETED' | 'IN_PROGRESS' | 'PENDING', StatusStyle> => ({
   COMPLETED: {
     code: 'COMPLETED',
-    fill: '#253248',
-    text: '#1e293b',
-    stroke: '#94a3b8',
+    fill: '#1456f0', // Brand Blue (brand-6)
+    text: '#ffffff',
+    stroke: '#1456f0',
     label: t('status.completed'),
-    accent: '#2563eb',
-    progressText: '#1f2937',
+    accent: '#ffffff',
+    progressText: '#ffffff',
     dateText: '#475569',
     textStroke: 'transparent',
     textStrokeWidth: '0px'
   },
   IN_PROGRESS: {
     code: 'IN_PROGRESS',
-    fill: '#253248',
-    text: '#1e293b',
-    stroke: '#94a3b8',
+    fill: '#3daeff', // Sky Blue (brand-00)
+    text: '#ffffff',
+    stroke: '#3daeff',
     label: t('status.inProgress'),
-    accent: '#f97316',
-    progressText: '#1f2937',
+    accent: '#ea5ec1', // Brand Pink accent
+    progressText: '#ffffff',
     dateText: '#475569',
     textStroke: 'transparent',
     textStrokeWidth: '0px'
   },
   PENDING: {
     code: 'PENDING',
-    fill: '#253248',
-    text: '#1e293b',
-    stroke: '#94a3b8',
+    fill: '#f2f3f5', // Border Light (Surface)
+    text: '#45515e', // Dark Gray (Text-04)
+    stroke: '#e5e7eb', // Border Gray
     label: t('status.pending'),
-    accent: '#64748b',
-    progressText: '#1f2937',
+    accent: '#8e8e93', // Mid Gray
+    progressText: '#45515e',
     dateText: '#475569',
     textStroke: 'transparent',
     textStrokeWidth: '0px'

@@ -4,20 +4,18 @@ require 'set'
 
 module RedmineReport
   module ScheduleReport
-    class ChildIssuesService
+    class ChildIssuesService < BaseIssueService
       def initialize(root_project:, user:, issue_class: Issue, relation_class: IssueRelation)
-        @root_project = root_project
-        @user = user
-        @issue_class = issue_class
+        super(root_project: root_project, user: user, issue_class: issue_class)
         @relation_class = relation_class
       end
 
       def call(parent_issue_ids:)
         ids = normalize_ids(parent_issue_ids)
-        return { ok: true, items: [] } if ids.empty?
+        return success(items: []) if ids.empty?
 
         parents = visible_scope.where(id: ids).includes(:fixed_version).index_by(&:id)
-        return { ok: true, items: [] } if parents.empty?
+        return success(items: []) if parents.empty?
 
         children = visible_scope
                    .where(parent_id: parents.keys)
@@ -42,20 +40,12 @@ module RedmineReport
           }
         end
 
-        { ok: true, items: items }
+        success(items: items)
       rescue ArgumentError, TypeError
         error('INVALID_INPUT', 'parent_issue_ids must be an array of integers', :unprocessable_entity)
       end
 
       private
-
-      def visible_scope
-        @visible_scope ||= @issue_class.visible(@user).where(project_id: allowed_project_ids)
-      end
-
-      def allowed_project_ids
-        @allowed_project_ids ||= [@root_project.id] + @root_project.descendants.pluck(:id)
-      end
 
       def normalize_ids(values)
         Array(values).filter_map do |value|
@@ -119,12 +109,6 @@ module RedmineReport
         dependencies
       rescue StandardError
         Hash.new { |hash, key| hash[key] = Set.new }
-      end
-
-      def error(code, message, status, retryable = nil)
-        payload = { ok: false, code: code, message: message, status: status }
-        payload[:retryable] = retryable unless retryable.nil?
-        payload
       end
     end
   end

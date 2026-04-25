@@ -1,10 +1,3 @@
-export type ReportFilterSet = {
-  include_subprojects: boolean;
-  months: number;
-  start_month: string;
-  status_scope: 'open' | 'all';
-  filter_rule?: 'open_version_top_parent';
-};
 import type {
   AiResponseTabsPayload,
   DestinationValidationResult,
@@ -14,6 +7,14 @@ import type {
   WeeklyVersionItem
 } from '../types/weeklyReport';
 import { t } from '../i18n';
+
+export type ReportFilterSet = {
+  include_subprojects: boolean;
+  months: number;
+  start_month: string;
+  status_scope: 'open' | 'all';
+  filter_rule?: 'open_version_top_parent';
+};
 
 export type ProjectRow = {
   project_id: number;
@@ -95,78 +96,6 @@ export type TaskDetailIssue = {
   }>;
 };
 
-const toQuery = (filters: Partial<ReportFilterSet>) => {
-  const query = new URLSearchParams();
-  if (filters.include_subprojects !== undefined) {
-    query.set('include_subprojects', filters.include_subprojects ? '1' : '0');
-  }
-  if (filters.months !== undefined) query.set('months', String(filters.months));
-  if (filters.start_month) query.set('start_month', filters.start_month);
-  if (filters.status_scope) query.set('status_scope', filters.status_scope);
-  return query.toString();
-};
-
-
-
-
-export const fetchScheduleReport = async (
-  rootProjectIdentifier: string,
-  selectedProjectIdentifier: string,
-  filters: Partial<ReportFilterSet> = {}
-): Promise<ReportSnapshot> => {
-  const qs = toQuery(filters);
-  const query = new URLSearchParams(qs);
-  if (selectedProjectIdentifier) {
-    query.set('selected_project_identifier', selectedProjectIdentifier);
-  }
-  const path = `/projects/${rootProjectIdentifier}/schedule_report/data${query.toString() ? `?${query.toString()}` : ''}`;
-  const res = await fetch(path, { credentials: 'same-origin' });
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.error || t('api.fetchScheduleReport', { status: res.status }));
-  }
-  return (await res.json()) as ReportSnapshot;
-};
-
-export const fetchTaskDetails = async (
-  projectIdentifier: string,
-  issueId: number
-): Promise<TaskDetailIssue[]> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/task_details/${issueId}`;
-  const res = await fetch(path, { credentials: 'same-origin' });
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.fetchTaskDetails', { status: res.status }));
-  }
-  const json = (await res.json()) as { issues: TaskDetailIssue[] };
-  return json.issues || [];
-};
-
-export const updateTaskDates = async (
-  projectIdentifier: string,
-  issueId: number,
-  payload: {
-    start_date?: string | null;
-    due_date?: string | null;
-  }
-): Promise<TaskDetailIssue> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/task_dates/${issueId}`;
-  const res = await fetch(path, {
-    method: 'PATCH',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.updateTaskDates', { status: res.status }));
-  }
-  const json = (await res.json()) as { issue: TaskDetailIssue };
-  return json.issue;
-};
-
 export type TaskMasterItem = { id: number | null; name: string };
 export type TaskStatusItem = { id: number; name: string; is_closed: boolean };
 
@@ -177,15 +106,6 @@ export type TaskMasters = {
   members: TaskMasterItem[];
 };
 
-export const fetchTaskMasters = async (projectIdentifier: string): Promise<TaskMasters> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/task_masters`;
-  const res = await fetch(path, { credentials: 'same-origin' });
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.fetchTaskMasters', { status: res.status, defaultValue: `Failed to load masters (${res.status})` }));
-  }
-  return (await res.json()) as TaskMasters;
-};
-
 export type TaskUpdatePayload = {
   subject?: string;
   tracker_id?: number | null;
@@ -193,50 +113,6 @@ export type TaskUpdatePayload = {
   priority_id?: number | null;
   assigned_to_id?: number | null;
   done_ratio?: number | null;
-};
-
-export const updateTaskFields = async (
-  projectIdentifier: string,
-  issueId: number,
-  payload: TaskUpdatePayload
-): Promise<TaskDetailIssue> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/task_update/${issueId}`;
-  const res = await fetch(path, {
-    method: 'PATCH',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.updateTaskFields', { status: res.status, defaultValue: `Failed to update issue (${res.status})` }));
-  }
-  const json = (await res.json()) as { issue: TaskDetailIssue };
-  return json.issue;
-};
-
-export const updateTaskJournal = async (
-  projectIdentifier: string,
-  journalId: number,
-  notes: string
-): Promise<void> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/task_journal/${journalId}`;
-  const res = await fetch(path, {
-    method: 'PATCH',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-    },
-    body: JSON.stringify({ notes })
-  });
-
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.updateTaskJournal', { status: res.status, defaultValue: `Failed to update journal (${res.status})` }));
-  }
 };
 
 export class WeeklyApiError extends Error {
@@ -252,6 +128,52 @@ export class WeeklyApiError extends Error {
   }
 }
 
+type ResponseErrorParser = (res: Response) => Promise<Error>;
+type ErrorMessageFactory = (status: number) => string;
+
+type ChildIssueBarsResponse = {
+  items?: Array<{
+    parent_issue_id: number;
+    children: CategoryBar[];
+  }>;
+};
+
+const SAME_ORIGIN_CREDENTIALS: RequestCredentials = 'same-origin';
+const JSON_CONTENT_TYPE = 'application/json';
+
+const toQuery = (filters: Partial<ReportFilterSet>) => {
+  const query = new URLSearchParams();
+  if (filters.include_subprojects !== undefined) {
+    query.set('include_subprojects', filters.include_subprojects ? '1' : '0');
+  }
+  if (filters.months !== undefined) query.set('months', String(filters.months));
+  if (filters.start_month) query.set('start_month', filters.start_month);
+  if (filters.status_scope) query.set('status_scope', filters.status_scope);
+  return query.toString();
+};
+
+const appendQuery = (path: string, query: URLSearchParams | string) => {
+  const suffix = typeof query === 'string' ? query : query.toString();
+  return suffix ? `${path}?${suffix}` : path;
+};
+
+const csrfToken = () =>
+  (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content || '';
+
+const jsonHeaders = (headers?: HeadersInit): HeadersInit => ({
+  'Content-Type': JSON_CONTENT_TYPE,
+  'X-CSRF-Token': csrfToken(),
+  ...(headers || {})
+});
+
+const request = (path: string, init?: RequestInit) =>
+  fetch(path, { credentials: SAME_ORIGIN_CREDENTIALS, ...init });
+
+const parseFetchScheduleReportError = async (res: Response) => {
+  const body = await res.json().catch(() => ({} as Record<string, unknown>));
+  return new Error(String(body.error || t('api.fetchScheduleReport', { status: res.status })));
+};
+
 const parseWeeklyError = async (res: Response, fallback: string) => {
   const body = await res.json().catch(() => ({} as Record<string, unknown>));
   return new WeeklyApiError(
@@ -262,37 +184,132 @@ const parseWeeklyError = async (res: Response, fallback: string) => {
   );
 };
 
+const weeklyError = (messageForStatus: ErrorMessageFactory): ResponseErrorParser => (res) =>
+  parseWeeklyError(res, messageForStatus(res.status));
+
+const requestJson = async <T>(
+  path: string,
+  parseError: ResponseErrorParser,
+  init?: RequestInit
+): Promise<T> => {
+  const res = await request(path, init);
+  if (!res.ok) {
+    throw await parseError(res);
+  }
+  return (await res.json()) as T;
+};
+
+const requestJsonWithBody = <T>(
+  path: string,
+  method: 'POST' | 'PATCH',
+  body: unknown,
+  parseError: ResponseErrorParser,
+  init?: Omit<RequestInit, 'method' | 'body'>
+) =>
+  requestJson<T>(path, parseError, {
+    ...init,
+    method,
+    headers: jsonHeaders(init?.headers),
+    body: JSON.stringify(body)
+  });
+
+export const fetchScheduleReport = async (
+  rootProjectIdentifier: string,
+  selectedProjectIdentifier: string,
+  filters: Partial<ReportFilterSet> = {}
+): Promise<ReportSnapshot> => {
+  const query = new URLSearchParams(toQuery(filters));
+  if (selectedProjectIdentifier) {
+    query.set('selected_project_identifier', selectedProjectIdentifier);
+  }
+
+  return requestJson<ReportSnapshot>(
+    appendQuery(`/projects/${rootProjectIdentifier}/schedule_report/data`, query),
+    parseFetchScheduleReportError
+  );
+};
+
+export const fetchTaskDetails = async (
+  projectIdentifier: string,
+  issueId: number
+): Promise<TaskDetailIssue[]> => {
+  const json = await requestJson<{ issues: TaskDetailIssue[] }>(
+    `/projects/${projectIdentifier}/schedule_report/task_details/${issueId}`,
+    weeklyError((status) => t('api.fetchTaskDetails', { status }))
+  );
+  return json.issues || [];
+};
+
+export const updateTaskDates = async (
+  projectIdentifier: string,
+  issueId: number,
+  payload: {
+    start_date?: string | null;
+    due_date?: string | null;
+  }
+): Promise<TaskDetailIssue> => {
+  const json = await requestJsonWithBody<{ issue: TaskDetailIssue }>(
+    `/projects/${projectIdentifier}/schedule_report/task_dates/${issueId}`,
+    'PATCH',
+    payload,
+    weeklyError((status) => t('api.updateTaskDates', { status }))
+  );
+  return json.issue;
+};
+
+export const fetchTaskMasters = async (projectIdentifier: string): Promise<TaskMasters> =>
+  requestJson<TaskMasters>(
+    `/projects/${projectIdentifier}/schedule_report/task_masters`,
+    weeklyError((status) => t('api.fetchTaskMasters', { status, defaultValue: `Failed to load masters (${status})` }))
+  );
+
+export const updateTaskFields = async (
+  projectIdentifier: string,
+  issueId: number,
+  payload: TaskUpdatePayload
+): Promise<TaskDetailIssue> => {
+  const json = await requestJsonWithBody<{ issue: TaskDetailIssue }>(
+    `/projects/${projectIdentifier}/schedule_report/task_update/${issueId}`,
+    'PATCH',
+    payload,
+    weeklyError((status) => t('api.updateTaskFields', { status, defaultValue: `Failed to update issue (${status})` }))
+  );
+  return json.issue;
+};
+
+export const updateTaskJournal = async (
+  projectIdentifier: string,
+  journalId: number,
+  notes: string
+): Promise<void> => {
+  await requestJsonWithBody<unknown>(
+    `/projects/${projectIdentifier}/schedule_report/task_journal/${journalId}`,
+    'PATCH',
+    { notes },
+    weeklyError((status) => t('api.updateTaskJournal', { status, defaultValue: `Failed to update journal (${status})` }))
+  );
+};
+
 export const fetchWeeklyVersions = async (
   projectIdentifier: string
 ): Promise<WeeklyVersionItem[]> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/weekly/versions`;
-  const res = await fetch(path, { credentials: 'same-origin' });
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.fetchWeeklyVersions', { status: res.status }));
-  }
-  const json = (await res.json()) as { versions: WeeklyVersionItem[] };
+  const json = await requestJson<{ versions: WeeklyVersionItem[] }>(
+    `/projects/${projectIdentifier}/schedule_report/weekly/versions`,
+    weeklyError((status) => t('api.fetchWeeklyVersions', { status }))
+  );
   return json.versions || [];
 };
 
 export const validateWeeklyDestination = async (
   projectIdentifier: string,
   payload: { project_id: number; version_id: number; destination_issue_id: number }
-): Promise<DestinationValidationResult> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/weekly/destination/validate`;
-  const res = await fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.validateDestination', { status: res.status }));
-  }
-  return (await res.json()) as DestinationValidationResult;
-};
+): Promise<DestinationValidationResult> =>
+  requestJsonWithBody<DestinationValidationResult>(
+    `/projects/${projectIdentifier}/schedule_report/weekly/destination/validate`,
+    'POST',
+    payload,
+    weeklyError((status) => t('api.validateDestination', { status }))
+  );
 
 export const generateWeeklyReport = async (
   projectIdentifier: string,
@@ -305,22 +322,13 @@ export const generateWeeklyReport = async (
     top_tickets_limit?: number;
     prompt?: string;
   }
-): Promise<WeeklyGenerateResponse> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/weekly/generate`;
-  const res = await fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.generateWeeklyReport', { status: res.status }));
-  }
-  return (await res.json()) as WeeklyGenerateResponse;
-};
+): Promise<WeeklyGenerateResponse> =>
+  requestJsonWithBody<WeeklyGenerateResponse>(
+    `/projects/${projectIdentifier}/schedule_report/weekly/generate`,
+    'POST',
+    payload,
+    weeklyError((status) => t('api.generateWeeklyReport', { status }))
+  );
 
 export const prepareWeeklyPrompt = async (
   projectIdentifier: string,
@@ -332,22 +340,13 @@ export const prepareWeeklyPrompt = async (
     top_topics_limit?: number;
     top_tickets_limit?: number;
   }
-): Promise<WeeklyPrepareResponse> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/weekly/prepare`;
-  const res = await fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.prepareWeeklyPrompt', { status: res.status }));
-  }
-  return (await res.json()) as WeeklyPrepareResponse;
-};
+): Promise<WeeklyPrepareResponse> =>
+  requestJsonWithBody<WeeklyPrepareResponse>(
+    `/projects/${projectIdentifier}/schedule_report/weekly/prepare`,
+    'POST',
+    payload,
+    weeklyError((status) => t('api.prepareWeeklyPrompt', { status }))
+  );
 
 export const saveWeeklyReport = async (
   projectIdentifier: string,
@@ -361,22 +360,13 @@ export const saveWeeklyReport = async (
     markdown: string;
     generated_at: string;
   }
-): Promise<WeeklySaveResponse> => {
-  const path = `/projects/${projectIdentifier}/schedule_report/weekly/save`;
-  const res = await fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.saveWeeklyReport', { status: res.status }));
-  }
-  return (await res.json()) as WeeklySaveResponse;
-};
+): Promise<WeeklySaveResponse> =>
+  requestJsonWithBody<WeeklySaveResponse>(
+    `/projects/${projectIdentifier}/schedule_report/weekly/save`,
+    'POST',
+    payload,
+    weeklyError((status) => t('api.saveWeeklyReport', { status }))
+  );
 
 export const fetchWeeklyAiResponses = async (
   projectIdentifier: string,
@@ -393,20 +383,10 @@ export const fetchWeeklyAiResponses = async (
     query.set('selected_version_id', String(params.selected_version_id));
   }
 
-  const suffix = query.toString() ? `?${query.toString()}` : '';
-  const path = `/projects/${projectIdentifier}/schedule_report/weekly/ai_responses${suffix}`;
-  const res = await fetch(path, { credentials: 'same-origin' });
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.fetchWeeklyAiResponses', { status: res.status }));
-  }
-  return (await res.json()) as AiResponseTabsPayload;
-};
-
-type ChildIssueBarsResponse = {
-  items?: Array<{
-    parent_issue_id: number;
-    children: CategoryBar[];
-  }>;
+  return requestJson<AiResponseTabsPayload>(
+    appendQuery(`/projects/${projectIdentifier}/schedule_report/weekly/ai_responses`, query),
+    weeklyError((status) => t('api.fetchWeeklyAiResponses', { status }))
+  );
 };
 
 export const fetchChildIssues = async (
@@ -414,29 +394,22 @@ export const fetchChildIssues = async (
   parentBars: CategoryBar[],
   signal?: AbortSignal
 ): Promise<Map<number, CategoryBar[]>> => {
-  const parentIssueIds = Array.from(new Set(parentBars.map((bar) => bar.category_id).filter((id) => Number.isInteger(id))));
+  const parentIssueIds = Array.from(
+    new Set(parentBars.map((bar) => bar.category_id).filter((id) => Number.isInteger(id)))
+  );
   if (parentIssueIds.length === 0) return new Map();
 
-  const path = `/projects/${projectIdentifier}/schedule_report/child_issues`;
-  const res = await fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
-    signal,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
-    },
-    body: JSON.stringify({ parent_issue_ids: parentIssueIds })
-  });
+  const json = await requestJsonWithBody<ChildIssueBarsResponse>(
+    `/projects/${projectIdentifier}/schedule_report/child_issues`,
+    'POST',
+    { parent_issue_ids: parentIssueIds },
+    weeklyError((status) => t('api.fetchChildIssues', {
+      status,
+      defaultValue: `Failed to load child issues (${status})`
+    })),
+    { signal }
+  );
 
-  if (!res.ok) {
-    throw await parseWeeklyError(res, t('api.fetchChildIssues', {
-      status: res.status,
-      defaultValue: `Failed to load child issues (${res.status})`
-    }));
-  }
-
-  const json = (await res.json()) as ChildIssueBarsResponse;
   const childMap = new Map<number, CategoryBar[]>();
   (json.items || []).forEach((item) => {
     if (!Number.isInteger(item.parent_issue_id) || !Array.isArray(item.children)) return;

@@ -1,10 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import path from 'node:path';
-
-const root = __dirname;
-const outDir = path.resolve(root, '../assets/build');
 
 export default defineConfig({
   plugins: [
@@ -12,12 +8,12 @@ export default defineConfig({
     tailwindcss(),
   ],
   build: {
-    outDir,
+    outDir: '../assets/build',
     emptyOutDir: true,
     manifest: true,
     sourcemap: true,
     rollupOptions: {
-      input: path.resolve(root, 'src/main.tsx'),
+      input: 'src/main.tsx',
       output: {
         entryFileNames: 'main.js',
         chunkFileNames: 'chunks/[name].js',

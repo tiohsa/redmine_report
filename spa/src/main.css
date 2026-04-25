@@ -1,97 +1,881 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=Poppins:wght@400;500;600&family=Roboto:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-poppins: "Poppins", sans-serif;
+  --font-data: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  --color-brand-6: #1456f0;
+  --color-brand-00: #3daeff;
+  --color-brand-02: #ea5ec1;
+  --color-brand-2: #5f5f5f;
+  --color-brand-3: #17437d;
+  
+  --color-primary-200: #bfdbfe;
+  --color-primary-light: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+
+  --color-text-00: #222222;
+  --color-text-04: #45515e;
+  --color-text-muted: #8e8e93;
+
+  /* Custom Shadow utilities based on DESIGN.md */
+  --shadow-subtle: 0px 4px 6px rgba(0, 0, 0, 0.08);
+  --shadow-ambient: 0px 0px 22.576px rgba(0, 0, 0, 0.08);
+  --shadow-brand-glow: 0px 0px 15px rgba(44, 30, 116, 0.16);
+  --shadow-brand-glow-offset: 6.5px 2px 17.5px rgba(44, 30, 116, 0.11);
+  --shadow-elevated: 0px 12px 16px -4px rgba(36, 36, 36, 0.08);
+
+  /* Border Radii */
+  --radius-pill: 9999px;
+  --radius-generous: 24px;
+  --radius-standard: 13px;
+}
+
+@layer base {
+  #schedule-report-root,
+  .schedule-report-page,
+  .report-page-shell {
+    color: #222222;
+    background:
+      radial-gradient(circle at top, rgba(59, 130, 246, 0.07), transparent 36%),
+      linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  }
+
+  #schedule-report-root button,
+  #schedule-report-root input,
+  #schedule-report-root textarea,
+  #schedule-report-root select,
+  .schedule-report-page button,
+  .schedule-report-page input,
+  .schedule-report-page textarea,
+  .schedule-report-page select,
+  .report-page-shell button,
+  .report-page-shell input,
+  .report-page-shell textarea,
+  .report-page-shell select {
+    font: inherit;
+  }
+
+  #schedule-report-root ::selection,
+  .schedule-report-page ::selection,
+  .report-page-shell ::selection {
+    background: rgba(59, 130, 246, 0.16);
+    color: #18181b;
+  }
+
+  #schedule-report-root *::-webkit-scrollbar,
+  .schedule-report-page *::-webkit-scrollbar,
+  .report-page-shell *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  #schedule-report-root *::-webkit-scrollbar-track,
+  .schedule-report-page *::-webkit-scrollbar-track,
+  .report-page-shell *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  #schedule-report-root *::-webkit-scrollbar-thumb,
+  .schedule-report-page *::-webkit-scrollbar-thumb,
+  .report-page-shell *::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 9999px;
+  }
+
+  #schedule-report-root *::-webkit-scrollbar-thumb:hover,
+  .schedule-report-page *::-webkit-scrollbar-thumb:hover,
+  .report-page-shell *::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
+  }
+}
+
 @layer components {
-    .schedule-report-page {
-        @apply flex flex-col h-screen overflow-hidden text-gray-900 font-sans;
-    }
+  .schedule-report-page,
+  .report-page-shell {
+    @apply flex flex-col h-screen overflow-hidden text-[#222222] font-sans bg-white;
+  }
 
-    /* Markdown rendered content styles */
-    .markdown-body {
-        @apply text-sm text-gray-700 leading-relaxed;
-    }
+  .report-shell-scroll {
+    @apply flex-1 min-h-0 overflow-auto;
+  }
 
-    .markdown-body h1 {
-        @apply text-lg font-bold text-gray-900 mt-4 mb-2 pb-1 border-b border-gray-200;
-    }
+  .report-surface {
+    @apply rounded-[24px] border border-gray-100 bg-white shadow-subtle;
+  }
 
-    .markdown-body h2 {
-        @apply text-base font-bold text-gray-800 mt-3 mb-2;
-    }
+  .report-dialog-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center bg-[#181e25]/30 p-4 backdrop-blur-[4px];
+  }
 
-    .markdown-body h3 {
-        @apply text-sm font-bold text-gray-800 mt-2 mb-1;
-    }
+  .report-dialog-shell {
+    @apply flex w-full flex-col overflow-hidden rounded-[24px] border border-gray-100 bg-white shadow-brand-glow;
+  }
 
-    .markdown-body h4 {
-        @apply text-sm font-semibold text-gray-700 mt-2 mb-1;
-    }
+  .report-dialog-header {
+    @apply flex items-center justify-between gap-4 border-b border-gray-100 bg-white px-8 py-6;
+  }
 
-    .markdown-body p {
-        @apply mb-2 last:mb-0;
-    }
+  .report-dialog-body {
+    @apply flex-1 overflow-y-auto bg-white p-8;
+  }
 
-    .markdown-body ul {
-        @apply list-disc pl-5 mb-2 space-y-1;
-    }
+  .report-dialog-footer {
+    @apply flex items-center justify-between gap-3 border-t border-gray-100 bg-white px-8 py-6;
+  }
 
-    .markdown-body ol {
-        @apply list-decimal pl-5 mb-2 space-y-1;
-    }
+  .report-surface-elevated {
+    @apply rounded-[24px] border border-gray-100 bg-white shadow-brand-glow;
+  }
 
-    .markdown-body li {
-        @apply text-sm text-gray-700;
-    }
+  .report-panel {
+    @apply rounded-[20px] border border-gray-100 bg-white shadow-subtle;
+  }
 
-    .markdown-body li > ul,
-    .markdown-body li > ol {
-        @apply mt-1 mb-0;
-    }
+  .report-panel-muted {
+    @apply rounded-[20px] border border-gray-100 bg-[#f8fafc];
+  }
 
-    .markdown-body strong {
-        @apply font-bold text-gray-900;
-    }
+  .report-section-title {
+    @apply text-[31px] font-display font-medium tracking-tight text-[#222222] leading-[1.10];
+  }
 
-    .markdown-body em {
-        @apply italic;
-    }
+  .report-section-heading {
+    @apply text-[24px] font-display font-medium tracking-tight text-[#222222] leading-[1.20];
+  }
 
-    .markdown-body a {
-        @apply text-blue-600 underline hover:text-blue-800;
-    }
+  .report-subheading {
+    @apply text-[18px] font-poppins font-medium text-[#222222] leading-[1.50];
+  }
 
-    .markdown-body blockquote {
-        @apply border-l-4 border-gray-300 pl-3 py-1 my-2 text-gray-600 italic;
-    }
+  .report-body {
+    @apply text-[16px] font-sans leading-[1.50] text-[#222222];
+  }
 
-    .markdown-body code {
-        @apply bg-gray-100 text-red-600 px-1 py-0.5 rounded text-xs font-mono;
-    }
+  .report-caption {
+    @apply text-[13px] font-sans leading-[1.50] text-[#45515e];
+  }
 
-    .markdown-body pre {
-        @apply bg-gray-50 border border-gray-200 rounded-lg p-3 my-2 overflow-x-auto;
-    }
+  .report-pill,
+  .report-pill-primary,
+  .report-pill-secondary,
+  .report-pill-nav,
+  .report-icon-button,
+  .report-icon-button-active,
+  .report-icon-button-muted {
+    @apply inline-flex items-center justify-center rounded-[9999px] transition-all duration-300 font-sans cursor-pointer;
+  }
 
-    .markdown-body pre code {
-        @apply bg-transparent text-gray-800 p-0;
-    }
+  .report-pill {
+    @apply font-medium;
+  }
 
-    .markdown-body table {
-        @apply w-full border-collapse my-2;
-    }
+  .report-pill-primary {
+    @apply px-5 py-2 font-medium bg-[#181e25] text-white hover:bg-black disabled:opacity-50 disabled:pointer-events-none;
+  }
 
-    .markdown-body th {
-        @apply bg-gray-50 border border-gray-200 px-3 py-1.5 text-left text-xs font-bold text-gray-700;
-    }
+  .report-pill-secondary {
+    @apply px-5 py-2 font-medium bg-[#f0f0f0] text-[#222222] hover:bg-[#e5e7eb] disabled:opacity-50 disabled:pointer-events-none;
+  }
 
-    .markdown-body td {
-        @apply border border-gray-200 px-3 py-1.5 text-xs text-gray-700;
-    }
+  .report-pill-nav {
+    @apply px-4 py-1.5 font-medium bg-[rgba(0,0,0,0.05)] text-[#18181b] hover:bg-[rgba(0,0,0,0.1)];
+  }
 
-    .markdown-body hr {
-        @apply border-t border-gray-200 my-3;
-    }
+  .report-icon-button {
+    @apply relative p-2 text-[#45515e] hover:text-[#222222] hover:bg-[rgba(0,0,0,0.05)];
+  }
 
-    .markdown-body > *:first-child {
-        @apply mt-0;
-    }
+  .report-icon-button-active {
+    @apply relative p-2 bg-[var(--color-primary-200)] text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] shadow-subtle;
+  }
+
+  .report-icon-button-muted {
+    @apply relative p-2 bg-[rgba(0,0,0,0.04)] text-[#45515e] hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222];
+  }
+
+  .report-dropdown-panel {
+    @apply absolute z-50 overflow-hidden rounded-[20px] border border-gray-100 bg-white shadow-elevated font-sans;
+  }
+
+  .report-dropdown-title {
+    @apply px-5 pt-5 pb-3 text-[14px] font-display font-semibold text-[#222222];
+  }
+
+  .report-dropdown-row {
+    @apply flex items-center gap-3 px-5 py-3 text-[15px] text-[#45515e] transition-colors hover:bg-gray-50 cursor-pointer;
+  }
+
+  .report-dropdown-divider {
+    @apply mx-5 border-t border-gray-100;
+  }
+
+  .report-dropdown-clear {
+    @apply bg-transparent border-0 p-0 m-0 appearance-none outline-none text-[var(--color-primary-600)] hover:text-[var(--color-primary-700)] hover:underline text-sm font-sans font-medium cursor-pointer;
+  }
+
+  .report-field-label {
+    @apply text-[11px] font-sans font-semibold uppercase tracking-[0.18em] text-[#8e8e93];
+  }
+
+  .report-select-trigger {
+    @apply inline-flex min-h-10 items-center justify-between gap-3 rounded-full border border-gray-200 bg-white px-4 py-2 text-[14px] font-sans font-medium text-[#222222] shadow-[0_4px_6px_rgba(0,0,0,0.04)] transition-all hover:border-gray-300 hover:bg-[#fbfdff] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)];
+  }
+
+  .report-select-trigger-label {
+    @apply truncate text-left;
+  }
+
+  .report-selection-panel {
+    @apply py-1;
+  }
+
+  .report-selection-row {
+    @apply flex cursor-pointer items-center gap-3 px-4 py-2.5 text-[14px] font-sans text-[#45515e] transition-colors hover:bg-[#fbfdff] focus:outline-none;
+  }
+
+  .report-selection-row-active {
+    @apply bg-[rgba(20,86,240,0.07)] text-[#18181b];
+  }
+
+  .report-selection-checkbox {
+    @apply inline-flex h-4 w-4 items-center justify-center rounded-[4px] border border-gray-300 bg-white text-[10px] font-bold leading-none;
+  }
+
+  .report-section-marker {
+    @apply h-1.5 w-1.5 rounded-full bg-[var(--color-brand-6)];
+  }
+
+  .report-meta-badge {
+    @apply inline-flex items-center rounded-full bg-[#181e25] px-3 py-1 text-[12px] font-sans font-medium uppercase tracking-[0.14em] text-white;
+  }
+
+  .report-input {
+    @apply w-full rounded-[16px] border border-gray-200 bg-white px-4 py-3 text-[16px] font-sans text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
+  }
+
+  .report-inline-date-shell {
+    @apply relative flex h-8 min-w-0 items-stretch rounded-md bg-white;
+  }
+
+  .report-inline-date-shell-active .report-inline-date-display {
+    @apply border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.18)] text-[var(--color-primary-700)];
+  }
+
+  .report-inline-date-display {
+    @apply inline-flex h-full w-full items-center rounded-md border border-transparent px-1.5 text-[11px] font-sans text-[#222222] tabular-nums select-none truncate transition-colors;
+  }
+
+  .report-inline-date-shell:hover .report-inline-date-display {
+    @apply border-blue-200 bg-blue-50/70;
+  }
+
+  .report-inline-date-shell:focus-within .report-inline-date-display {
+    @apply border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.22)] text-[var(--color-primary-700)];
+  }
+
+  .report-inline-date-picker-wrapper {
+    @apply absolute inset-0 h-full w-full;
+  }
+
+  .report-inline-date-input {
+    @apply absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 text-transparent caret-transparent outline-none;
+  }
+
+  .report-inline-date-input-inactive {
+    @apply pointer-events-none;
+  }
+
+  .report-inline-date-input-active {
+    @apply pointer-events-auto;
+  }
+
+  .report-inline-date-popper {
+    @apply z-[80];
+  }
+
+  .report-inline-date-calendar {
+    @apply rounded-[20px] border border-gray-100 bg-white font-sans shadow-elevated;
+  }
+
+  .report-inline-date-calendar .react-datepicker__header {
+    @apply rounded-t-[20px] border-b border-gray-100 bg-[#fbfdff] px-4 pt-4;
+  }
+
+  .report-inline-date-calendar .react-datepicker__header__dropdown,
+  .report-inline-date-calendar .react-datepicker__header__dropdown--scroll {
+    @apply flex flex-wrap items-center gap-2 px-0 pb-2 pt-2;
+  }
+
+  .report-inline-date-calendar .react-datepicker__month-dropdown-container,
+  .report-inline-date-calendar .react-datepicker__year-dropdown-container {
+    @apply inline-flex items-center;
+  }
+
+  .report-inline-date-calendar select {
+    @apply rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-medium text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
+  }
+
+  .report-inline-date-calendar .react-datepicker__current-month,
+  .report-inline-date-calendar .react-datepicker-time__header,
+  .report-inline-date-calendar .react-datepicker-year-header {
+    @apply mb-2 text-[14px] font-display font-semibold text-[#222222];
+  }
+
+  .report-inline-date-calendar .react-datepicker__day-names {
+    @apply flex justify-between px-3;
+  }
+
+  .report-inline-date-calendar .react-datepicker__week {
+    @apply flex justify-between px-3;
+  }
+
+  .report-inline-date-calendar .react-datepicker__day-name {
+    @apply m-0 w-8 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8e8e93];
+  }
+
+  .report-inline-date-calendar .react-datepicker__month {
+    @apply px-3 pb-3;
+  }
+
+  .report-inline-date-calendar .react-datepicker__day {
+    @apply m-0 flex h-8 w-8 items-center justify-center rounded-full text-[13px] text-[#222222] transition-colors hover:bg-[rgba(20,86,240,0.1)] hover:text-[var(--color-primary-700)];
+  }
+
+  .report-inline-date-calendar .react-datepicker__day--keyboard-selected {
+    @apply bg-[rgba(20,86,240,0.16)] text-[var(--color-primary-700)];
+  }
+
+  .report-inline-date-calendar .react-datepicker__day--selected,
+  .report-inline-date-calendar .react-datepicker__day--in-range,
+  .report-inline-date-calendar .react-datepicker__day--in-selecting-range {
+    @apply bg-[var(--color-primary-600)] text-white hover:bg-[var(--color-primary-700)] hover:text-white;
+  }
+
+  .report-inline-date-calendar .react-datepicker__day--outside-month,
+  .report-inline-date-calendar .react-datepicker__day--disabled {
+    @apply text-[#cbd5e1] hover:bg-transparent hover:text-[#cbd5e1];
+  }
+
+  .report-inline-date-calendar .react-datepicker__today-button {
+    @apply mx-4 mb-4 rounded-full border border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.25)] px-4 py-2 text-[13px] font-semibold text-[var(--color-primary-700)] transition-colors hover:bg-[rgba(191,219,254,0.38)];
+  }
+
+  .report-inline-date-calendar .react-datepicker__close-icon {
+    @apply right-2 top-2 h-auto w-auto rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-[#45515e] shadow-subtle transition-colors hover:bg-[#f8fafc] hover:text-[#222222];
+  }
+
+  .report-inline-date-calendar .report-inline-date-clear-button::after {
+    content: 'Clear';
+    background: none;
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    margin: 0;
+    padding: 0;
+  }
+
+  .report-textarea {
+    @apply w-full resize-y rounded-[16px] border border-gray-200 bg-white px-4 py-3 text-[16px] font-sans leading-[1.50] text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
+  }
+
+  .report-textarea-mono {
+    @apply font-mono text-[13px] leading-relaxed;
+  }
+
+  .report-chip,
+  .report-chip-active {
+    @apply inline-flex items-center rounded-[9999px] border px-3 py-1 text-[12px] font-sans font-medium transition-colors;
+  }
+
+  .report-chip {
+    @apply border-gray-200 bg-white text-[#45515e];
+  }
+
+  .report-chip-active {
+    @apply border-[var(--color-primary-200)] bg-[var(--color-primary-200)] text-[var(--color-primary-700)];
+  }
+
+  .report-tab-group {
+    @apply flex gap-2 overflow-x-auto pb-1;
+  }
+
+  .report-tab {
+    @apply whitespace-nowrap rounded-full border border-gray-200 bg-white px-4 py-2 text-[14px] font-sans font-medium text-[#45515e] transition-all duration-200 hover:border-gray-300 hover:bg-gray-50;
+  }
+
+  .report-tab-active {
+    @apply border-[#181e25] bg-[#181e25] text-white shadow-subtle;
+  }
+
+  .report-card-header {
+    @apply flex min-h-[76px] items-center justify-between px-6 py-5;
+  }
+
+  .report-card-accent-blue {
+    @apply bg-[var(--color-brand-6)];
+  }
+
+  .report-card-accent-sky {
+    @apply bg-[var(--color-brand-00)];
+  }
+
+  .report-card-accent-pink {
+    @apply bg-[var(--color-brand-02)];
+  }
+
+  .report-card-accent-dark {
+    @apply bg-[#181e25];
+  }
+
+  .report-empty-state {
+    @apply rounded-[24px] border border-gray-100 bg-[#f8fafc] px-6 py-8 text-center font-sans text-[#45515e];
+  }
+
+  .report-loading-state {
+    @apply rounded-[24px] border border-gray-100 bg-white px-8 py-12 text-center shadow-subtle;
+  }
+
+  .report-alert-error {
+    @apply rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-sans text-red-700;
+  }
+
+  .report-alert-warning {
+    @apply rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-sans text-amber-800;
+  }
+
+  .report-alert-info {
+    @apply rounded-[16px] border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-sans text-blue-800;
+  }
+
+  .report-inline-code {
+    @apply rounded bg-gray-100 px-1 py-0.5 font-mono text-xs text-red-600;
+  }
+
+  .report-table-shell {
+    @apply w-full border-collapse overflow-hidden rounded-[16px] border border-gray-100 bg-white;
+  }
+
+  .markdown-body {
+    @apply text-[16px] font-sans leading-[1.50] text-[#222222];
+  }
+
+  .markdown-body h1 {
+    @apply mt-8 mb-4 border-b border-gray-200 pb-2 text-[31px] font-display font-medium leading-[1.10] text-[#222222];
+  }
+
+  .markdown-body h2 {
+    @apply mt-6 mb-3 text-[24px] font-poppins font-medium leading-[1.20] text-[#222222];
+  }
+
+  .markdown-body h3 {
+    @apply mt-4 mb-2 text-[20px] font-sans font-medium leading-[1.50] text-[#222222];
+  }
+
+  .markdown-body h4 {
+    @apply mt-4 mb-2 text-[18px] font-poppins font-medium leading-[1.50] text-[#222222];
+  }
+
+  .markdown-body p {
+    @apply mb-2 last:mb-0;
+  }
+
+  .markdown-body ul {
+    @apply mb-2 list-disc space-y-1 pl-5;
+  }
+
+  .markdown-body ol {
+    @apply mb-2 list-decimal space-y-1 pl-5;
+  }
+
+  .markdown-body li {
+    @apply text-[16px] leading-[1.50] text-[#222222];
+  }
+
+  .markdown-body li > ul,
+  .markdown-body li > ol {
+    @apply mb-0 mt-1;
+  }
+
+  .markdown-body strong {
+    @apply font-semibold text-[#18181b];
+  }
+
+  .markdown-body em {
+    @apply italic;
+  }
+
+  .markdown-body a {
+    @apply text-[var(--color-primary-600)] underline hover:text-[var(--color-primary-700)];
+  }
+
+  .markdown-body blockquote {
+    @apply my-2 border-l-4 border-gray-300 py-1 pl-3 italic text-[#45515e];
+  }
+
+  .markdown-body code {
+    @apply rounded bg-gray-100 px-1 py-0.5 font-mono text-xs text-red-600;
+  }
+
+  .markdown-body pre {
+    @apply my-2 overflow-x-auto rounded-[16px] border border-gray-200 bg-[#f8fafc] p-4;
+  }
+
+  .markdown-body pre code {
+    @apply bg-transparent p-0 text-[#222222];
+  }
+
+  .markdown-body table {
+    @apply my-2 w-full border-collapse overflow-hidden rounded-[16px] border border-gray-100 bg-white;
+  }
+
+  .markdown-body th {
+    @apply border border-gray-200 bg-gray-50 px-3 py-1.5 text-left text-xs font-bold text-gray-700;
+  }
+
+  .markdown-body td {
+    @apply border border-gray-200 px-3 py-1.5 text-xs text-gray-700;
+  }
+
+  .markdown-body hr {
+    @apply my-3 border-t border-gray-200;
+  }
+
+  .markdown-body > *:first-child {
+    @apply mt-0;
+  }
+
+  .progress-track {
+    @apply relative h-2 w-full overflow-hidden rounded-[9999px] bg-gray-100;
+  }
+
+  .progress-fill {
+    @apply absolute bottom-0 left-0 top-0 rounded-[9999px] transition-all duration-500;
+  }
+
+  .report-button {
+    @apply inline-flex items-center justify-center gap-2 border border-transparent font-sans font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-200)] focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .report-button-primary {
+    @apply rounded-[8px] bg-[#181e25] px-5 py-2 text-[14px] text-white shadow-subtle hover:bg-black;
+  }
+
+  .report-button-secondary {
+    @apply rounded-[8px] bg-[#f0f0f0] px-5 py-2 text-[14px] text-[#222222] hover:bg-[#e5e7eb];
+  }
+
+  .report-button-ghost {
+    @apply rounded-[8px] bg-transparent px-4 py-2 text-[14px] text-[#45515e] hover:bg-[rgba(0,0,0,0.05)] hover:text-[#222222];
+  }
+
+  .report-button-danger {
+    @apply rounded-[8px] bg-red-600 px-5 py-2 text-[14px] text-white hover:bg-red-700;
+  }
+
+  .report-button-sm {
+    @apply px-3 py-1.5 text-[13px];
+  }
+
+  .report-button-md {
+    @apply px-5 py-2 text-[14px];
+  }
+
+  .report-button-lg {
+    @apply px-6 py-3 text-[16px];
+  }
+
+  .report-button-loading {
+    @apply cursor-wait;
+  }
+
+  .report-dialog-shell {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6;
+  }
+
+  .report-dialog-backdrop {
+    @apply absolute inset-0 bg-[rgba(24,30,37,0.52)] backdrop-blur-[2px];
+  }
+
+  .report-dialog-panel {
+    @apply relative z-10 flex max-h-[calc(100vh-2rem)] w-full flex-col overflow-hidden rounded-[24px] border border-gray-100 bg-white shadow-elevated;
+  }
+
+  .report-dialog-panel-sm {
+    @apply max-w-[480px];
+  }
+
+  .report-dialog-panel-md {
+    @apply max-w-[640px];
+  }
+
+  .report-dialog-panel-lg {
+    @apply max-w-[880px];
+  }
+
+  .report-dialog-header {
+    @apply flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5;
+  }
+
+  .report-dialog-title {
+    @apply text-[24px] font-display font-medium leading-[1.2] tracking-tight text-[#222222];
+  }
+
+  .report-dialog-description {
+    @apply mt-1 text-[14px] leading-[1.5] text-[#45515e];
+  }
+
+  .report-dialog-body {
+    @apply flex-1 overflow-y-auto px-6 py-5;
+  }
+
+  .report-dialog-footer {
+    @apply flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 px-6 py-4;
+  }
+
+  .report-dialog-close {
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(0,0,0,0.04)] text-[#45515e] transition-colors hover:bg-[rgba(0,0,0,0.08)] hover:text-[#222222];
+  }
+
+  .report-field-label {
+    @apply block text-[14px] font-sans font-medium leading-[1.5] text-[#222222];
+  }
+
+  .report-field-hint {
+    @apply mt-1 text-[13px] leading-[1.5] text-[#45515e];
+  }
+
+  .report-field-required {
+    @apply ml-1 text-[var(--color-primary-600)];
+  }
+
+  .report-selection-list {
+    @apply space-y-2;
+  }
+
+  .report-selection-list-item {
+    @apply flex w-full items-start gap-3 rounded-[16px] border border-gray-100 bg-white px-4 py-3 text-left transition-all duration-200 hover:border-gray-200 hover:bg-[#fbfdff];
+  }
+
+  .report-selection-list-item-selected {
+    @apply border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.35)] shadow-subtle;
+  }
+
+  .report-selection-list-item-disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .report-selection-list-empty {
+    @apply rounded-[16px] border border-dashed border-gray-200 bg-[#fbfdff] px-4 py-6 text-center text-[13px] leading-[1.5] text-[#8e8e93];
+  }
+
+  .report-selection-list-label {
+    @apply text-[15px] font-sans font-medium leading-[1.5] text-[#222222];
+  }
+
+  .report-selection-list-description {
+    @apply mt-0.5 text-[13px] leading-[1.5] text-[#45515e];
+  }
+
+  .report-checkbox-row {
+    @apply flex w-full items-start gap-3 rounded-[16px] border border-gray-100 bg-white px-4 py-3 text-left transition-all duration-200 hover:border-gray-200 hover:bg-[#fbfdff];
+  }
+
+  .report-checkbox-row-selected {
+    @apply border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.35)] shadow-subtle;
+  }
+
+  .report-checkbox-control {
+    @apply mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-[var(--color-primary-600)] focus:ring-[var(--color-primary-200)];
+  }
+
+  .report-checkbox-label {
+    @apply text-[15px] font-sans font-medium leading-[1.5] text-[#222222];
+  }
+
+  .report-checkbox-description {
+    @apply mt-0.5 text-[13px] leading-[1.5] text-[#45515e];
+  }
+
+  .task-date-editor-root {
+    @apply relative w-full;
+  }
+
+  .task-date-editor-input {
+    @apply h-8 w-full rounded-[12px] border border-transparent bg-transparent px-2 text-[11px] font-data tabular-nums text-[#222222] outline-none transition-all duration-200 placeholder:text-[#8e8e93] hover:border-[var(--color-primary-200)] hover:bg-[#f8fbff] focus:border-[var(--color-primary-500)] focus:bg-white focus:ring-2 focus:ring-[var(--color-primary-200)];
+  }
+
+  .task-date-editor-popper {
+    @apply z-[70];
+  }
+
+  .task-date-editor-popover {
+    @apply overflow-hidden rounded-[18px] border border-gray-100 bg-white shadow-elevated;
+  }
+
+  .task-date-editor-calendar {
+    @apply border-0 bg-white font-sans;
+  }
+
+  .task-date-editor-calendar .react-datepicker__header {
+    @apply border-b border-gray-100 bg-white px-3 pt-3;
+  }
+
+  .task-date-editor-calendar .react-datepicker__current-month,
+  .task-date-editor-calendar .react-datepicker__year-read-view,
+  .task-date-editor-calendar .react-datepicker__month-read-view,
+  .task-date-editor-calendar .react-datepicker__day-name,
+  .task-date-editor-calendar .react-datepicker__day {
+    @apply font-sans;
+  }
+
+  .task-date-editor-calendar .react-datepicker__day-name {
+    @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8e8e93];
+  }
+
+  .task-date-editor-calendar .react-datepicker__day {
+    @apply rounded-[10px] text-[12px] text-[#222222] transition-colors duration-150;
+  }
+
+  .task-date-editor-calendar .react-datepicker__day:hover {
+    @apply bg-[rgba(20,86,240,0.08)] text-[var(--color-brand-6)];
+  }
+
+  .task-date-editor-calendar .react-datepicker__day--selected,
+  .task-date-editor-calendar .react-datepicker__day--keyboard-selected {
+    @apply bg-[var(--color-brand-6)] text-white;
+  }
+
+  .task-date-editor-calendar .react-datepicker__day--outside-month {
+    @apply text-[#cbd5e1];
+  }
+
+  .task-date-editor-calendar .react-datepicker__day--disabled {
+    @apply text-[#cbd5e1] line-through;
+  }
+
+  .task-date-editor-calendar .react-datepicker__month-container {
+    @apply bg-white;
+  }
+
+  .task-date-editor-calendar .react-datepicker__month-dropdown-container,
+  .task-date-editor-calendar .react-datepicker__year-dropdown-container {
+    @apply my-0;
+  }
+
+  .task-date-editor-calendar .react-datepicker__month-select,
+  .task-date-editor-calendar .react-datepicker__year-select {
+    @apply rounded-[12px] border border-gray-200 bg-white px-2 py-1 text-[11px] text-[#222222] outline-none;
+  }
+
+  .task-date-editor-calendar .react-datepicker__navigation {
+    @apply top-3;
+  }
+
+  .task-date-editor-calendar .react-datepicker__navigation-icon::before {
+    @apply border-[var(--color-primary-600)];
+  }
+
+  .task-date-editor-footer {
+    @apply flex items-center justify-between gap-2 border-t border-gray-100 bg-[#fbfdff] px-3 py-2;
+  }
+
+  .task-date-editor-action {
+    @apply inline-flex min-h-8 items-center justify-center rounded-full px-3 text-[11px] font-semibold tracking-[0.08em] transition-all disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .task-date-editor-action-primary {
+    @apply bg-[var(--color-primary-600)] text-white hover:bg-[var(--color-primary-700)];
+  }
+
+  .task-date-editor-action-secondary {
+    @apply bg-[rgba(0,0,0,0.05)] text-[#222222] hover:bg-[rgba(0,0,0,0.1)];
+  }
+
+  .report-inline-date-shell {
+    @apply relative flex h-8 min-w-0 items-stretch rounded-md bg-white;
+  }
+
+  .report-inline-date-shell-active {
+    @apply z-10;
+  }
+
+  .report-inline-date-display {
+    @apply inline-flex h-full w-full items-center truncate rounded-md border border-transparent px-1.5 text-[11px] font-data tabular-nums text-[#222222] select-none transition-all duration-200 hover:border-[var(--color-primary-200)] hover:bg-[#f8fbff];
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .report-inline-date-picker-wrapper {
+    @apply absolute inset-0 h-full w-full;
+  }
+
+  .report-inline-date-picker-wrapper .react-datepicker-wrapper {
+    @apply w-full;
+  }
+
+  .report-inline-date-input {
+    @apply absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 text-transparent caret-transparent outline-none;
+  }
+
+  .report-inline-date-input-active {
+    @apply pointer-events-auto;
+  }
+
+  .report-inline-date-input-inactive {
+    @apply pointer-events-none;
+  }
+
+  .report-inline-date-popper {
+    @apply z-[70];
+  }
+
+  .report-inline-date-calendar {
+    @apply overflow-hidden rounded-[18px] border border-gray-100 bg-white font-sans shadow-elevated;
+  }
+
+  .report-inline-date-calendar .react-datepicker__header {
+    @apply border-b border-gray-100 bg-white px-3 pt-3;
+  }
+
+  .report-inline-date-calendar .react-datepicker__day-name {
+    @apply text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8e8e93];
+  }
+
+  .report-inline-date-calendar .react-datepicker__day {
+    @apply rounded-[10px] text-[12px] text-[#222222] transition-colors duration-150;
+  }
+
+  .report-inline-date-calendar .react-datepicker__day:hover {
+    @apply bg-[rgba(20,86,240,0.08)] text-[var(--color-primary-600)];
+  }
+
+  .report-inline-date-calendar .react-datepicker__day--selected,
+  .report-inline-date-calendar .react-datepicker__day--keyboard-selected {
+    @apply bg-[var(--color-primary-600)] text-white;
+  }
+
+  .report-inline-date-calendar .react-datepicker__day--outside-month {
+    @apply text-[#cbd5e1];
+  }
+
+  .report-inline-date-calendar .react-datepicker__day--disabled {
+    @apply text-[#cbd5e1] line-through;
+  }
+
+  .report-inline-date-calendar .react-datepicker__month-select,
+  .report-inline-date-calendar .react-datepicker__year-select {
+    @apply rounded-[12px] border border-gray-200 bg-white px-2 py-1 text-[11px] text-[#222222] outline-none;
+  }
+
+  .report-inline-date-clear-button {
+    @apply rounded-full bg-[rgba(0,0,0,0.05)] px-3 py-1 text-[11px] font-semibold text-[#222222] hover:bg-[rgba(0,0,0,0.1)];
+  }
 }

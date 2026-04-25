@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { renderMarkdown } from '../utils/markdownRenderer';
 import type { AiResponseView } from '../types/weeklyReport';
 import { t } from '../i18n';
+import { reportStyles } from './designSystem';
 
 type AiResponsePanelProps = {
   response: AiResponseView | null;
@@ -13,10 +14,7 @@ type EditableSectionKey = 'highlights_this_week' | 'next_week_actions' | 'risks_
 
 type EditableSections = Record<EditableSectionKey, string>;
 
-const PANEL_CARD_BASE = 'overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)]';
-const PANEL_SECTION_BODY = 'p-5';
-const PANEL_EMPTY_STATE = 'rounded-2xl border border-slate-200/80 bg-slate-50 px-6 py-8 text-center';
-const PANEL_ALERT = 'rounded-2xl border px-4 py-3 text-sm';
+const PANEL_SECTION_BODY = 'p-6';
 
 const Section = ({
   title,
@@ -40,13 +38,12 @@ const Section = ({
   const html = renderMarkdown(body);
 
   return (
-    <div className={`${PANEL_CARD_BASE} flex flex-col h-full`}>
-      <div
-        className={`${headerColor} px-4 py-3 text-white text-[13px] font-semibold tracking-wide uppercase flex items-center justify-between min-h-[52px]`}
-      >
-        <span>{title}</span>
+    <div className={`${reportStyles.surfaceElevated} flex h-full flex-col overflow-hidden transition-all duration-500 hover:shadow-brand-glow-offset`}>
+      <div className={`${headerColor} h-1.5`} />
+      <div className="flex min-h-[68px] items-center justify-between border-b border-gray-100 px-6 py-4">
+        <span className="text-[18px] font-display font-medium tracking-tight text-[#222222]">{title}</span>
       </div>
-      <div className={`${PANEL_SECTION_BODY} flex-1`}>
+      <div className={PANEL_SECTION_BODY}>
         {isEditing ? (
           <textarea
             value={body}
@@ -62,14 +59,14 @@ const Section = ({
             }}
             autoFocus
             rows={8}
-            className="w-full min-h-[190px] rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[14px] text-slate-700 leading-7 outline-none shadow-sm focus:border-slate-300 focus:ring-2 focus:ring-blue-100"
+            className={`${reportStyles.textarea} min-h-[220px] bg-[#f8fafc]`}
             data-testid={`ai-section-editor-${sectionKey}`}
           />
         ) : (
           <div
             role="button"
             tabIndex={0}
-            className="rounded-xl -m-1 p-1.5 cursor-text hover:bg-slate-50/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+            className="cursor-text rounded-[16px] p-2 -m-2 transition-all duration-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
             onClick={() => onStartEdit(sectionKey)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -81,11 +78,11 @@ const Section = ({
           >
             {html ? (
               <div
-                className="markdown-body text-[14px] text-slate-700 leading-7"
+                className="markdown-body font-sans text-[15px] leading-relaxed text-[#45515e]"
                 dangerouslySetInnerHTML={{ __html: html }}
               />
             ) : (
-              <p className="text-sm text-slate-400 text-center py-4">{t('common.noInfo')}</p>
+              <p className="py-6 text-center text-[14px] italic text-slate-400 font-sans">{t('common.noInfo')}</p>
             )}
           </div>
         )}
@@ -123,9 +120,9 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-slate-200/80 bg-slate-50 px-8 py-10 text-center shadow-sm">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-slate-200 border-t-blue-600 mb-3"></div>
-        <p className="text-sm text-slate-600 font-medium">{t('aiPanel.loading')}</p>
+      <div className={`${reportStyles.loadingState} animate-pulse`}>
+        <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-gray-100 border-t-[var(--color-brand-6)] mb-4"></div>
+        <p className="text-[14px] text-[#45515e] font-sans font-medium">{t('aiPanel.loading')}</p>
       </div>
     );
   }
@@ -133,7 +130,7 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
   if (errorMessage) {
     return (
       <div
-        className={`${PANEL_ALERT} border-red-200 bg-red-50 text-red-700`}
+        className={reportStyles.alertError}
         role="alert"
       >
         <span className="font-bold">{t('common.errorPrefix')}</span> {errorMessage}
@@ -143,21 +140,16 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
 
   if (!response || response.status === 'NOT_SAVED') {
     return (
-      <div className={PANEL_EMPTY_STATE}>
-        <p className="text-slate-600 text-sm font-medium mb-2">{t('aiPanel.notSaved')}</p>
-        <p className="text-slate-400 text-xs leading-6">
-          {t('aiPanel.notSavedHint')}
-        </p>
+      <div className={reportStyles.emptyState}>
+        <p className="mb-2 text-sm font-medium text-slate-600">{t('aiPanel.notSaved')}</p>
+        <p className="text-xs leading-6 text-slate-400">{t('aiPanel.notSavedHint')}</p>
       </div>
     );
   }
 
   if (response.status === 'FETCH_FAILED' || response.status === 'FORBIDDEN') {
     return (
-      <div
-        className={`${PANEL_ALERT} border-amber-200 bg-amber-50 text-amber-800`}
-        role="alert"
-      >
+      <div className={reportStyles.alertWarning} role="alert">
         {response.message || t('aiPanel.fetchFailed')}
       </div>
     );
@@ -166,19 +158,19 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
   return (
     <div className="space-y-4">
       {response.status === 'PARTIAL' && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center gap-2 shadow-sm">
+        <div className={`${reportStyles.alertWarning} mb-2 flex items-center gap-3`}>
           <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          {t('aiPanel.partial')}
+          <span className="font-medium">{t('aiPanel.partial')}</span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 xl:gap-5 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
         <Section
           title={t('aiPanel.sectionHighlights')}
           body={editableSections.highlights_this_week}
-          headerColor="bg-slate-900"
+          headerColor="bg-[var(--color-brand-6)]"
           sectionKey="highlights_this_week"
           isEditing={editingSection === 'highlights_this_week'}
           onStartEdit={setEditingSection}
@@ -193,7 +185,7 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
         <Section
           title={t('aiPanel.sectionNextActions')}
           body={editableSections.next_week_actions}
-          headerColor="bg-blue-700"
+          headerColor="bg-[var(--color-brand-00)]"
           sectionKey="next_week_actions"
           isEditing={editingSection === 'next_week_actions'}
           onStartEdit={setEditingSection}
@@ -208,7 +200,7 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
         <Section
           title={t('aiPanel.sectionRisks')}
           body={editableSections.risks_decisions}
-          headerColor="bg-rose-600"
+          headerColor="bg-[var(--color-brand-02)]"
           sectionKey="risks_decisions"
           isEditing={editingSection === 'risks_decisions'}
           onStartEdit={setEditingSection}

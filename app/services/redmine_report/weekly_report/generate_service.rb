@@ -3,10 +3,6 @@
 module RedmineReport
   module WeeklyReport
     class GenerateService < BaseService
-      def initialize(project:, user:)
-        super
-      end
-
       def prepare(payload)
         validated, version, context = resolve_context(payload)
         prompt = weekly_llm.prepare(context: context, top_topics_limit: validated[:top_topics_limit])

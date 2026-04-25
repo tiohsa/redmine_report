@@ -54,7 +54,7 @@ export function calculateStaggeredLanes<T>(
   });
 }
 
-export type TimelineAxisItem = {
+type TimelineAxisItem = {
   start_date?: string | null;
   end_date?: string | null;
 };

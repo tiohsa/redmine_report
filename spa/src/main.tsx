@@ -4,6 +4,7 @@ import { ScheduleReportPage } from './components/ScheduleReportPage';
 import { BulkIssueRegistrationPanel } from './components/bulkIssueRegistration/BulkIssueRegistrationPanel';
 import { setLocale } from './i18n';
 import { useUiStore } from './stores/uiStore';
+import 'react-datepicker/dist/react-datepicker.css';
 import './main.css';
 
 const mount = document.getElementById('schedule-report-root');

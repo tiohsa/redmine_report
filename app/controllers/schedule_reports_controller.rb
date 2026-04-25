@@ -7,7 +7,6 @@ class ScheduleReportsController < ApplicationController
   skip_after_action :verify_same_origin_request, only: [:bundle_js], raise: false
 
   def index
-    @project = @project
   end
 
   def data
@@ -60,176 +59,79 @@ class ScheduleReportsController < ApplicationController
   end
 
   def task_details
-    service = RedmineReport::ScheduleReport::TaskDetailsService.new(
-      root_project: @project,
-      user: User.current
-    )
-    result = service.call(issue_id: params[:issue_id])
-
-    if result[:ok]
-      render json: { issues: result[:issues] }
-      return
-    end
-
-    render_schedule_report_error(
-      code: result[:code],
-      message: result[:message],
-      status: result[:status],
-      retryable: result[:retryable]
-    )
-  rescue StandardError => e
-    Rails.logger.error("[schedule_report] task_details failed: #{e.class}: #{e.message}")
-    render_schedule_report_error(
-      code: 'UPSTREAM_FAILURE',
-      message: l(:label_schedule_report_unavailable),
-      status: :service_unavailable,
+    run_schedule_report_service_action(
+      service: RedmineReport::ScheduleReport::TaskDetailsService.new(
+        root_project: @project,
+        user: User.current
+      ),
+      service_call: ->(service) { service.call(issue_id: params[:issue_id]) },
+      success_payload: ->(result) { { issues: result[:issues] } },
+      action_name: __method__,
       retryable: true
     )
   end
 
   def child_issues
-    service = RedmineReport::ScheduleReport::ChildIssuesService.new(
-      root_project: @project,
-      user: User.current
-    )
-    result = service.call(parent_issue_ids: child_issues_payload[:parent_issue_ids])
-
-    if result[:ok]
-      render json: { items: result[:items] }
-      return
-    end
-
-    render_schedule_report_error(
-      code: result[:code],
-      message: result[:message],
-      status: result[:status],
-      retryable: result[:retryable]
-    )
-  rescue StandardError => e
-    Rails.logger.error("[schedule_report] child_issues failed: #{e.class}: #{e.message}")
-    render_schedule_report_error(
-      code: 'UPSTREAM_FAILURE',
-      message: l(:label_schedule_report_unavailable),
-      status: :service_unavailable,
+    run_schedule_report_service_action(
+      service: RedmineReport::ScheduleReport::ChildIssuesService.new(
+        root_project: @project,
+        user: User.current
+      ),
+      service_call: ->(service) { service.call(parent_issue_ids: child_issues_payload[:parent_issue_ids]) },
+      success_payload: ->(result) { { items: result[:items] } },
+      action_name: __method__,
       retryable: true
     )
   end
 
   def task_dates
-    service = RedmineReport::ScheduleReport::TaskDateUpdateService.new(
-      root_project: @project,
-      user: User.current
-    )
-    result = service.call(
-      issue_id: params[:issue_id],
-      start_date: task_date_payload.fetch(:start_date, RedmineReport::ScheduleReport::TaskDateUpdateService::MISSING),
-      due_date: task_date_payload.fetch(:due_date, RedmineReport::ScheduleReport::TaskDateUpdateService::MISSING)
-    )
-
-    if result[:ok]
-      render json: { issue: result[:issue] }
-      return
-    end
-
-    render_schedule_report_error(
-      code: result[:code],
-      message: result[:message],
-      status: result[:status],
-      retryable: result[:retryable]
-    )
-  rescue StandardError => e
-    Rails.logger.error("[schedule_report] task_dates failed: #{e.class}: #{e.message}")
-    render_schedule_report_error(
-      code: 'UPSTREAM_FAILURE',
-      message: l(:label_schedule_report_unavailable),
-      status: :service_unavailable,
+    run_schedule_report_service_action(
+      service: RedmineReport::ScheduleReport::TaskDateUpdateService.new(
+        root_project: @project,
+        user: User.current
+      ),
+      service_call: lambda { |service|
+        service.call(
+          issue_id: params[:issue_id],
+          start_date: task_date_payload.fetch(:start_date, RedmineReport::ScheduleReport::TaskDateUpdateService::MISSING),
+          due_date: task_date_payload.fetch(:due_date, RedmineReport::ScheduleReport::TaskDateUpdateService::MISSING)
+        )
+      },
+      success_payload: ->(result) { { issue: result[:issue] } },
+      action_name: __method__,
       retryable: true
     )
   end
 
   def task_masters
-    service = RedmineReport::ScheduleReport::TaskMastersService.new(
-      project: @project,
-      user: User.current
-    )
-    result = service.call
-
-    if result[:ok]
-      render json: result.slice(:trackers, :statuses, :priorities, :members)
-      return
-    end
-
-    render_schedule_report_error(
-      code: result[:code],
-      message: result[:message],
-      status: result[:status]
-    )
-  rescue StandardError => e
-    Rails.logger.error("[schedule_report] task_masters failed: #{e.class}: #{e.message}")
-    render_schedule_report_error(
-      code: 'UPSTREAM_FAILURE',
-      message: l(:label_schedule_report_unavailable),
-      status: :service_unavailable
+    run_schedule_report_service_action(
+      service: RedmineReport::ScheduleReport::TaskMastersService.new(
+        project: @project,
+        user: User.current
+      ),
+      service_call: ->(service) { service.call },
+      success_payload: ->(result) { result.slice(:trackers, :statuses, :priorities, :members) },
+      action_name: __method__
     )
   end
 
   def update_journal
-    journal = Journal.find_by(id: params[:journal_id])
-    if journal.nil?
-      return render_schedule_report_error(
-        code: 'NOT_FOUND',
-        message: 'Journal not found',
-        status: :not_found
-      )
-    end
+    result = RedmineReport::ScheduleReport::JournalUpdateService.new(
+      user: User.current
+    ).call(journal_id: params[:journal_id], notes: params[:notes])
 
-    unless journal.editable_by?(User.current)
-      return render_schedule_report_error(
-        code: 'FORBIDDEN',
-        message: 'You are not authorized to edit this comment',
-        status: :forbidden
-      )
-    end
-
-    journal.safe_attributes = { 'notes' => params[:notes] }
-    if journal.save
-      render json: { ok: true }
-    else
-      render_schedule_report_error(
-        code: 'VALIDATION_ERROR',
-        message: journal.errors.full_messages.join(', '),
-        status: :unprocessable_entity
-      )
-    end
+    render_schedule_report_result(result, success_payload: { ok: true })
   end
 
   def task_update
-    service = RedmineReport::ScheduleReport::TaskUpdateService.new(
-      root_project: @project,
-      user: User.current
-    )
-    result = service.call(
-      issue_id: params[:issue_id],
-      fields: task_update_payload
-    )
-
-    if result[:ok]
-      render json: { issue: result[:issue] }
-      return
-    end
-
-    render_schedule_report_error(
-      code: result[:code],
-      message: result[:message],
-      status: result[:status],
-      retryable: result[:retryable]
-    )
-  rescue StandardError => e
-    Rails.logger.error("[schedule_report] task_update failed: #{e.class}: #{e.message}")
-    render_schedule_report_error(
-      code: 'UPSTREAM_FAILURE',
-      message: l(:label_schedule_report_unavailable),
-      status: :service_unavailable,
+    run_schedule_report_service_action(
+      service: RedmineReport::ScheduleReport::TaskUpdateService.new(
+        root_project: @project,
+        user: User.current
+      ),
+      service_call: ->(service) { service.call(issue_id: params[:issue_id], fields: task_update_payload) },
+      success_payload: ->(result) { { issue: result[:issue] } },
+      action_name: __method__,
       retryable: true
     )
   end
@@ -268,52 +170,41 @@ class ScheduleReportsController < ApplicationController
   end
 
   def weekly_generate
-    service = RedmineReport::WeeklyReport::GenerateService.new(
-      project: @project,
-      user: User.current
+    run_weekly_service_action(
+      service_class: RedmineReport::WeeklyReport::GenerateService,
+      service_method: :call,
+      action_name: __method__
     )
-    result = service.call(weekly_payload)
-    render json: result
-  rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
-    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.invalid_input(e.message))
-  rescue StandardError => e
-    render_weekly_upstream_failure(action_name: __method__, exception: e)
   end
 
   def weekly_prepare
-    service = RedmineReport::WeeklyReport::GenerateService.new(
-      project: @project,
-      user: User.current
+    run_weekly_service_action(
+      service_class: RedmineReport::WeeklyReport::GenerateService,
+      service_method: :prepare,
+      action_name: __method__
     )
-    result = service.prepare(weekly_payload)
-    render json: result
-  rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
-    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.invalid_input(e.message))
-  rescue StandardError => e
-    render_weekly_upstream_failure(action_name: __method__, exception: e)
   end
 
   def weekly_save
-    service = RedmineReport::WeeklyReport::SaveService.new(
-      project: @project,
-      user: User.current
+    run_weekly_service_action(
+      service_class: RedmineReport::WeeklyReport::SaveService,
+      service_method: :call,
+      action_name: __method__,
+      rescue_handlers: {
+        RedmineReport::WeeklyReport::SaveService::DestinationInvalidError => lambda { |error|
+          render_weekly_payload(
+            RedmineReport::WeeklyReport::ErrorPayloadBuilder.destination_invalid(
+              code: error.code,
+              message: error.message,
+              status: error.status
+            )
+          )
+        },
+        RedmineReport::WeeklyReport::SaveService::RevisionConflictError => lambda { |error|
+          render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.revision_conflict(error.message))
+        }
+      }
     )
-    result = service.call(weekly_payload)
-    render json: result
-  rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
-    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.invalid_input(e.message))
-  rescue RedmineReport::WeeklyReport::SaveService::DestinationInvalidError => e
-    render_weekly_payload(
-      RedmineReport::WeeklyReport::ErrorPayloadBuilder.destination_invalid(
-        code: e.code,
-        message: e.message,
-        status: e.status
-      )
-    )
-  rescue RedmineReport::WeeklyReport::SaveService::RevisionConflictError => e
-    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.revision_conflict(e.message))
-  rescue StandardError => e
-    render_weekly_upstream_failure(action_name: __method__, exception: e)
   end
 
   def weekly_ai_responses
@@ -399,9 +290,8 @@ class ScheduleReportsController < ApplicationController
 
   def weekly_payload
     @weekly_payload ||= begin
-      raw = request.request_parameters.presence || {}
       # Prefer JSON body values over query values while preserving fallback.
-      params.to_unsafe_h.merge(raw.to_h).symbolize_keys
+      params.to_unsafe_h.merge(request_payload).symbolize_keys
     end
   end
 
@@ -421,6 +311,33 @@ class ScheduleReportsController < ApplicationController
     render json: payload[:json], status: payload[:status]
   end
 
+  def run_weekly_service_action(service_class:, service_method:, action_name:, rescue_handlers: {})
+    result = build_weekly_service(service_class).public_send(service_method, weekly_payload)
+    render json: result
+  rescue StandardError => e
+    if e.is_a?(RedmineReport::WeeklyReport::RequestValidator::ValidationError)
+      render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.invalid_input(e.message))
+      return
+    end
+
+    handler = weekly_rescue_handler_for(exception: e, rescue_handlers: rescue_handlers)
+    if handler
+      instance_exec(e, &handler)
+      return
+    end
+
+    render_weekly_upstream_failure(action_name: action_name, exception: e)
+  end
+
+  def build_weekly_service(service_class)
+    service_class.new(project: @project, user: User.current)
+  end
+
+  def weekly_rescue_handler_for(exception:, rescue_handlers:)
+    _, handler = rescue_handlers.find { |error_class, _callable| exception.is_a?(error_class) }
+    handler
+  end
+
   def log_weekly_error(action_name:, exception:)
     Rails.logger.error("[schedule_report] #{action_name} failed: #{exception.class}: #{exception.message}")
   end
@@ -431,36 +348,79 @@ class ScheduleReportsController < ApplicationController
     render json: payload, status: status
   end
 
-  def task_date_payload
-    payload = {}
-
-    permitted = params.permit(:start_date, :due_date).to_h
-    payload[:start_date] = permitted['start_date'] if permitted.key?('start_date')
-    payload[:due_date] = permitted['due_date'] if permitted.key?('due_date')
-
-    # Fallback for environments where request parameter parsing differs by content-type.
-    if payload.empty?
-      raw = request.request_parameters.presence || {}
-      payload[:start_date] = raw['start_date'] if raw.key?('start_date')
-      payload[:due_date] = raw['due_date'] if raw.key?('due_date')
+  def render_schedule_report_result(result, success_payload:)
+    if result[:ok]
+      render json: success_payload
+      return
     end
 
-    payload
+    render_schedule_report_error(
+      code: result[:code],
+      message: result[:message],
+      status: result[:status],
+      retryable: result[:retryable]
+    )
+  end
+
+  def render_schedule_report_upstream_failure(action_name:, exception:, code:, message:, status:, retryable: nil)
+    Rails.logger.error("[schedule_report] #{action_name} failed: #{exception.class}: #{exception.message}")
+    render_schedule_report_error(
+      code: code,
+      message: message,
+      status: status,
+      retryable: retryable
+    )
+  end
+
+  def run_schedule_report_service_action(service:, service_call:, success_payload:, action_name:, retryable: nil)
+    result = service_call.call(service)
+    render_schedule_report_result(result, success_payload: success_payload.call(result))
+  rescue StandardError => e
+    render_schedule_report_upstream_failure(
+      action_name: action_name,
+      exception: e,
+      code: 'UPSTREAM_FAILURE',
+      message: l(:label_schedule_report_unavailable),
+      status: :service_unavailable,
+      retryable: retryable
+    )
+  end
+
+  def task_date_payload
+    permitted = params.permit(:start_date, :due_date).to_h
+    payload = extract_keys(permitted, %w[start_date due_date])
+
+    # Fallback for environments where request parameter parsing differs by content-type.
+    return payload unless payload.empty?
+
+    extract_keys(request_payload, %w[start_date due_date])
   end
 
   def task_update_payload
-    raw = request.request_parameters.presence || {}
-    raw.slice(*%w[subject tracker_id status_id priority_id assigned_to_id done_ratio description notes])
-  rescue StandardError
-    {}
+    request_payload.slice(*%w[subject tracker_id status_id priority_id assigned_to_id done_ratio description notes])
   end
 
   def child_issues_payload
-    raw = request.request_parameters.presence || {}
-    merged = raw.to_h.merge(params.permit(parent_issue_ids: [])&.to_h || {})
+    merged = request_payload.merge(params.permit(parent_issue_ids: [])&.to_h || {})
     ids = Array(merged['parent_issue_ids'] || merged[:parent_issue_ids])
     { parent_issue_ids: ids }
+  end
+
+  def request_payload
+    @request_payload ||= begin
+      raw = request.request_parameters.presence || {}
+      raw.to_h
+    rescue StandardError
+      {}
+    end
+  end
+
+  def extract_keys(source, keys)
+    keys.each_with_object({}) do |key, payload|
+      payload[key.to_sym] = source[key] if source.key?(key)
+      payload[key.to_sym] = source[key.to_sym] if source.key?(key.to_sym)
+    end
   rescue StandardError
-    { parent_issue_ids: [] }
+    {}
   end
 end

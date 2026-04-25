@@ -8,7 +8,6 @@ module RedmineReport
   module Llm
     class WeeklyMarkdownGenerator
       class Error < StandardError; end
-      class InvalidLlmPayload < Error; end
 
       RETRYABLE_HTTP_CODES = [408, 429, 500, 502, 503, 504].freeze
       MAX_RETRIES = 2

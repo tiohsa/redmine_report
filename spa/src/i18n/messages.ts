@@ -6,6 +6,7 @@ export const messages = {
       noVersion: 'No Version',
       noInfo: 'No information',
       errorPrefix: 'Error:',
+      today: 'Today',
       close: 'Close',
       cancel: 'Cancel',
       save: 'Save',
@@ -51,7 +52,12 @@ export const messages = {
       fullscreen: 'Fullscreen',
       export: 'Export',
       detailTitle: 'Detailed Report',
-      aiSuffix: '(AI Responses)'
+      aiSuffix: '(AI Responses)',
+      overview: 'Overview',
+      projectScope: 'Projects',
+      versionScope: 'Versions',
+      taskCount: 'Tasks',
+      noneSelected: 'None selected'
     },
     detailedTabs: {
       projectsAria: 'Projects',
@@ -210,6 +216,7 @@ export const messages = {
       noVersion: 'バージョンなし',
       noInfo: '情報なし',
       errorPrefix: 'エラー:',
+      today: '今日',
       close: '閉じる',
       cancel: 'キャンセル',
       save: '保存',
@@ -255,7 +262,12 @@ export const messages = {
       fullscreen: '全画面表示',
       export: 'エクスポート',
       detailTitle: '詳細レポート',
-      aiSuffix: '(生成AIレスポンス)'
+      aiSuffix: '(生成AIレスポンス)',
+      overview: '概要',
+      projectScope: 'プロジェクト',
+      versionScope: 'バージョン',
+      taskCount: '件数',
+      noneSelected: '未選択'
     },
     detailedTabs: {
       projectsAria: 'プロジェクト',

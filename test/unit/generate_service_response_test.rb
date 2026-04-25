@@ -1,19 +1,9 @@
 # frozen_string_literal: true
 
 require File.expand_path('../test_helper', __dir__)
+require File.expand_path('../support/weekly_report_fake_project', __dir__)
 
 class GenerateServiceResponseTest < ActiveSupport::TestCase
-  FakeVersions = Struct.new(:version) do
-    def find_by(id:)
-      return version if version.id == id
-
-      nil
-    end
-  end
-
-  FakeProject = Struct.new(:id, :versions)
-  FakeVersion = Struct.new(:id)
-
   def setup
     @version = FakeVersion.new(20)
     @project = FakeProject.new(10, FakeVersions.new(@version))
