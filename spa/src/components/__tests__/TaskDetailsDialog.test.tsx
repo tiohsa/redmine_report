@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskDetailsDialog } from '../projectStatusReport/TaskDetailsDialog';
 
 const fetchTaskDetailsMock = vi.fn();
+const fetchTaskMastersMock = vi.fn();
 const updateTaskDatesMock = vi.fn();
 const updateTaskFieldsMock = vi.fn();
 const createIssueMock = vi.fn();
@@ -13,6 +14,7 @@ vi.mock('../../services/scheduleReportApi', async () => {
   return {
     ...actual,
     fetchTaskDetails: (...args: unknown[]) => fetchTaskDetailsMock(...args),
+    fetchTaskMasters: (...args: unknown[]) => fetchTaskMastersMock(...args),
     updateTaskDates: (...args: unknown[]) => updateTaskDatesMock(...args),
     updateTaskFields: (...args: unknown[]) => updateTaskFieldsMock(...args)
   };
@@ -81,6 +83,29 @@ const openDateEditor = async (displayTestId: string) => {
   return screen.findByTestId(displayTestId.replace('-display-', '-input-'));
 };
 
+const mockTaskMasters = () => {
+  fetchTaskMastersMock.mockResolvedValue({
+    trackers: [
+      { id: 1, name: 'Bug' },
+      { id: 2, name: 'Feature' }
+    ],
+    priorities: [
+      { id: 3, name: 'Normal' },
+      { id: 4, name: 'High' }
+    ],
+    statuses: [
+      { id: 1, name: 'New', is_closed: false },
+      { id: 2, name: 'In Progress', is_closed: false },
+      { id: 5, name: 'Closed', is_closed: true }
+    ],
+    members: [
+      { id: null, name: '-' },
+      { id: 8, name: 'Alice' },
+      { id: 9, name: 'Bob' }
+    ]
+  });
+};
+
 const getLocalIsoDate = (date = new Date()) => {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -91,11 +116,13 @@ const getLocalIsoDate = (date = new Date()) => {
 describe('TaskDetailsDialog', () => {
   beforeEach(() => {
     fetchTaskDetailsMock.mockReset();
+    fetchTaskMastersMock.mockReset();
     updateTaskDatesMock.mockReset();
     updateTaskFieldsMock.mockReset();
     createIssueMock.mockReset();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    fetchTaskMastersMock.mockRejectedValue(new Error('masters unavailable'));
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
       configurable: true,
       value: vi.fn()
@@ -1841,6 +1868,178 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => {
       expect(updateTaskFieldsMock).toHaveBeenCalledWith('ecookbook', 10, { done_ratio: 25 });
+    });
+  });
+
+  it.each([
+    {
+      label: 'tracker',
+      cellTestId: 'tracker-cell-10',
+      selectTestId: 'tracker-select-10',
+      displayTestId: 'tracker-display-10',
+      field: 'tracker_id',
+      nextValue: '2',
+      nextLabel: 'Feature',
+      updatedFields: { tracker_id: 2, tracker_name: 'Feature' }
+    },
+    {
+      label: 'priority',
+      cellTestId: 'priority-cell-10',
+      selectTestId: 'priority-select-10',
+      displayTestId: 'priority-display-10',
+      field: 'priority_id',
+      nextValue: '4',
+      nextLabel: 'High',
+      updatedFields: { priority_id: 4, priority_name: 'High' }
+    },
+    {
+      label: 'status',
+      cellTestId: 'status-cell-10',
+      selectTestId: 'status-select-10',
+      displayTestId: 'status-display-10',
+      field: 'status_id',
+      nextValue: '2',
+      nextLabel: 'In Progress',
+      updatedFields: { status_id: 2, status_name: 'In Progress', status_is_closed: false }
+    }
+  ])('edits the $label column from a table cell click', async ({
+    cellTestId,
+    selectTestId,
+    displayTestId,
+    field,
+    nextValue,
+    nextLabel,
+    updatedFields
+  }) => {
+    mockTaskMasters();
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 25,
+        issue_url: '/issues/10',
+        tracker_id: 1,
+        tracker_name: 'Bug',
+        priority_id: 3,
+        priority_name: 'Normal',
+        status_id: 1,
+        status_name: 'New',
+        status_is_closed: false,
+        assignee_id: 8,
+        assignee_name: 'Alice'
+      }
+    ]);
+    updateTaskFieldsMock.mockResolvedValue({
+      issue_id: 10,
+      parent_id: null,
+      subject: 'Root issue',
+      start_date: '2026-03-01',
+      due_date: '2026-03-20',
+      done_ratio: 25,
+      issue_url: '/issues/10',
+      tracker_id: 1,
+      tracker_name: 'Bug',
+      priority_id: 3,
+      priority_name: 'Normal',
+      status_id: 1,
+      status_name: 'New',
+      status_is_closed: false,
+      assignee_id: 8,
+      assignee_name: 'Alice',
+      ...updatedFields
+    });
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchTaskMastersMock).toHaveBeenCalledWith('ecookbook'));
+
+    fireEvent.click(screen.getByTestId(cellTestId));
+    const select = await screen.findByTestId(selectTestId);
+
+    fireEvent.change(select, { target: { value: nextValue } });
+
+    await waitFor(() => {
+      expect(updateTaskFieldsMock).toHaveBeenCalledWith('ecookbook', 10, { [field]: Number(nextValue) });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId(displayTestId).textContent).toBe(nextLabel);
+    });
+  });
+
+  it('edits the assignee column from a table cell click and sends null for empty selection', async () => {
+    mockTaskMasters();
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-03-01',
+        due_date: '2026-03-20',
+        done_ratio: 25,
+        issue_url: '/issues/10',
+        tracker_id: 1,
+        tracker_name: 'Bug',
+        priority_id: 3,
+        priority_name: 'Normal',
+        status_id: 1,
+        status_name: 'New',
+        status_is_closed: false,
+        assignee_id: 8,
+        assignee_name: 'Alice'
+      }
+    ]);
+    updateTaskFieldsMock.mockResolvedValue({
+      issue_id: 10,
+      parent_id: null,
+      subject: 'Root issue',
+      start_date: '2026-03-01',
+      due_date: '2026-03-20',
+      done_ratio: 25,
+      issue_url: '/issues/10',
+      tracker_id: 1,
+      tracker_name: 'Bug',
+      priority_id: 3,
+      priority_name: 'Normal',
+      status_id: 1,
+      status_name: 'New',
+      status_is_closed: false,
+      assignee_id: null,
+      assignee_name: ''
+    });
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchTaskMastersMock).toHaveBeenCalledWith('ecookbook'));
+
+    fireEvent.click(screen.getByTestId('assignee-cell-10'));
+    const select = await screen.findByTestId('assignee-select-10');
+
+    fireEvent.change(select, { target: { value: '' } });
+
+    await waitFor(() => {
+      expect(updateTaskFieldsMock).toHaveBeenCalledWith('ecookbook', 10, { assigned_to_id: null });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('assignee-display-10').textContent).toBe('-');
     });
   });
 

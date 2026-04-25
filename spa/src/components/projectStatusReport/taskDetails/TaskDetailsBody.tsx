@@ -5,7 +5,6 @@ import { type ProcessFlowRenderStep, type ProcessFlowScaleMetrics } from './proc
 import { IssueTreeTable } from './IssueTreeTable';
 import { ProcessFlowCanvas } from './ProcessFlowCanvas';
 import { type TableDensity, type TreeNodeType } from './shared';
-import { TaskDetailsSidePanel } from './TaskDetailsSidePanel';
 
 type TaskDetailsBodyProps = {
   loading: boolean;
@@ -46,25 +45,6 @@ type TaskDetailsBodyProps = {
   columnWidths: Record<string, number>;
   onColumnResize: (columnKey: string, deltaX: number) => void;
   density: TableDensity;
-  selectedIssue: TaskDetailIssue | null;
-  editingDescription: boolean;
-  descriptionDraft: string;
-  newCommentDraft: string;
-  isSavingComment: boolean;
-  editingCommentId: number | null;
-  editingCommentDraft: string;
-  onCloseSidePanel: () => void;
-  onEditSelectedIssue: () => void;
-  onStartDescriptionEdit: () => void;
-  onCancelDescriptionEdit: () => void;
-  onDescriptionDraftChange: (value: string) => void;
-  onSaveDescription: () => void;
-  onNewCommentDraftChange: (value: string) => void;
-  onAddComment: () => void;
-  onStartCommentEdit: (journalId: number, notes: string) => void;
-  onCancelCommentEdit: () => void;
-  onEditingCommentDraftChange: (value: string) => void;
-  onSaveComment: (journalId: number, notes: string) => void;
 };
 
 export function TaskDetailsBody({
@@ -105,26 +85,7 @@ export function TaskDetailsBody({
   onFieldUpdate,
   columnWidths,
   onColumnResize,
-  density,
-  selectedIssue,
-  editingDescription,
-  descriptionDraft,
-  newCommentDraft,
-  isSavingComment,
-  editingCommentId,
-  editingCommentDraft,
-  onCloseSidePanel,
-  onEditSelectedIssue,
-  onStartDescriptionEdit,
-  onCancelDescriptionEdit,
-  onDescriptionDraftChange,
-  onSaveDescription,
-  onNewCommentDraftChange,
-  onAddComment,
-  onStartCommentEdit,
-  onCancelCommentEdit,
-  onEditingCommentDraftChange,
-  onSaveComment
+  density
 }: TaskDetailsBodyProps) {
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#f3f3f3] relative" ref={detailsLayoutRef}>
@@ -210,29 +171,6 @@ export function TaskDetailsBody({
                 />
               </div>
             </div>
-            {selectedIssue ? (
-              <TaskDetailsSidePanel
-                issue={selectedIssue}
-                editingDescription={editingDescription}
-                descriptionDraft={descriptionDraft}
-                newCommentDraft={newCommentDraft}
-                isSavingComment={isSavingComment}
-                editingCommentId={editingCommentId}
-                editingCommentDraft={editingCommentDraft}
-                onClose={onCloseSidePanel}
-                onEditIssue={onEditSelectedIssue}
-                onStartDescriptionEdit={onStartDescriptionEdit}
-                onCancelDescriptionEdit={onCancelDescriptionEdit}
-                onDescriptionDraftChange={onDescriptionDraftChange}
-                onSaveDescription={onSaveDescription}
-                onNewCommentDraftChange={onNewCommentDraftChange}
-                onAddComment={onAddComment}
-                onStartCommentEdit={onStartCommentEdit}
-                onCancelCommentEdit={onCancelCommentEdit}
-                onEditingCommentDraftChange={onEditingCommentDraftChange}
-                onSaveComment={onSaveComment}
-              />
-            ) : null}
           </div>
         </>
       )}

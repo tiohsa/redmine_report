@@ -5,7 +5,6 @@ import {
   fetchTaskMasters,
   updateTaskDates,
   updateTaskFields,
-  updateTaskJournal,
   type TaskDetailIssue,
   type TaskMasters,
   type TaskUpdatePayload,
@@ -227,24 +226,6 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
     }
   }, [projectIdentifier, reloadTaskDetails, showFeedback]);
 
-  const handleUpdateComment = useCallback(async (
-    journalId: number,
-    notes: string,
-    rootIssueId: number,
-    selectedIssueId?: number | null
-  ) => {
-    try {
-      await updateTaskJournal(projectIdentifier, journalId, notes);
-      const latestRows = await reloadTaskDetails(rootIssueId, { expectedIssueId: selectedIssueId ?? undefined });
-      hasAnyChangesRef.current = true;
-      return latestRows;
-    } catch (error: unknown) {
-      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
-      showFeedback('error', message);
-      return undefined;
-    }
-  }, [projectIdentifier, reloadTaskDetails, showFeedback]);
-
   return {
     issues,
     setIssues,
@@ -258,7 +239,6 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
     reloadTaskDetails,
     handleDateChange,
     handleFieldUpdate,
-    handleUpdateComment,
     saveProcessFlowDates,
     issuesRef,
     savingIssueIdsRef,

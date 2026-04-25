@@ -47,25 +47,10 @@ export function TaskDetailsDialog({
     selectedIssue,
     setSelectedIssue,
     selectIssue,
-    editingDescription,
-    setEditingDescription,
-    descriptionDraft,
-    setDescriptionDraft,
-    newCommentDraft,
-    setNewCommentDraft,
-    isSavingComment,
-    setIsSavingComment,
-    editingCommentId,
-    editingCommentDraft,
-    setEditingCommentDraft,
     density,
     densityMenuOpen,
     setDensityMenuOpen,
     handleDensityChange,
-    startDescriptionEdit,
-    cancelDescriptionEdit,
-    startCommentEdit,
-    cancelCommentEdit,
     resetDialogState
   } = useTaskDetailsDialogState();
   const [editingDateRange, setEditingDateRange] = useState<InlineDateRangeValue | null>(null);
@@ -82,7 +67,6 @@ export function TaskDetailsDialog({
     reloadTaskDetails,
     handleDateChange,
     handleFieldUpdate,
-    handleUpdateComment: updateComment,
     saveProcessFlowDates,
     issuesRef,
     savingIssueIdsRef,
@@ -277,38 +261,6 @@ export function TaskDetailsDialog({
     ));
   }, [currentRootIssueId, handleFieldUpdate, selectedIssue?.issue_id, setSelectedIssue]);
 
-  const handleSaveDescription = useCallback(async () => {
-    if (!selectedIssue) return;
-    try {
-      await handleIssueFieldUpdate(selectedIssue.issue_id, 'description', descriptionDraft);
-      setEditingDescription(false);
-    } catch (error) {
-      // Error is handled in handleFieldUpdate.
-    }
-  }, [descriptionDraft, handleIssueFieldUpdate, selectedIssue, setEditingDescription]);
-
-  const handleAddComment = useCallback(async () => {
-    if (!selectedIssue || !newCommentDraft.trim()) return;
-    setIsSavingComment(true);
-    try {
-      await handleIssueFieldUpdate(selectedIssue.issue_id, 'notes', newCommentDraft.trim());
-      setNewCommentDraft('');
-    } catch (error) {
-      // Error is handled in handleFieldUpdate.
-    } finally {
-      setIsSavingComment(false);
-    }
-  }, [handleIssueFieldUpdate, newCommentDraft, selectedIssue, setIsSavingComment, setNewCommentDraft]);
-
-  const handleUpdateComment = useCallback(async (journalId: number, notes: string) => {
-    if (!selectedIssue) return;
-    const latestRows = await updateComment(journalId, notes, currentRootIssueId, selectedIssue.issue_id);
-    cancelCommentEdit();
-    if (latestRows) {
-      syncSelectionAfterReload(latestRows, selectedIssue.issue_id);
-    }
-  }, [cancelCommentEdit, currentRootIssueId, selectedIssue, syncSelectionAfterReload, updateComment]);
-
   const handleBreadcrumbClick = useCallback((index: number) => {
     setDrilldownPath((prev) => {
       const next = prev.slice(0, index + 1);
@@ -429,37 +381,6 @@ export function TaskDetailsDialog({
           columnWidths={columnWidths}
           onColumnResize={handleColumnResize}
           density={density}
-          selectedIssue={selectedIssue}
-          editingDescription={editingDescription}
-          descriptionDraft={descriptionDraft}
-          newCommentDraft={newCommentDraft}
-          isSavingComment={isSavingComment}
-          editingCommentId={editingCommentId}
-          editingCommentDraft={editingCommentDraft}
-          onCloseSidePanel={() => selectIssue(null)}
-          onEditSelectedIssue={() => {
-            if (!selectedIssue) return;
-            setEditIssueContext({
-              issueId: selectedIssue.issue_id,
-              issueUrl: selectedIssue.issue_url
-            });
-          }}
-          onStartDescriptionEdit={startDescriptionEdit}
-          onCancelDescriptionEdit={cancelDescriptionEdit}
-          onDescriptionDraftChange={setDescriptionDraft}
-          onSaveDescription={() => {
-            void handleSaveDescription();
-          }}
-          onNewCommentDraftChange={setNewCommentDraft}
-          onAddComment={() => {
-            void handleAddComment();
-          }}
-          onStartCommentEdit={startCommentEdit}
-          onCancelCommentEdit={cancelCommentEdit}
-          onEditingCommentDraftChange={setEditingCommentDraft}
-          onSaveComment={(journalId, notes) => {
-            void handleUpdateComment(journalId, notes);
-          }}
         />
       </div>
       <TaskDetailsEmbeddedDialogs
