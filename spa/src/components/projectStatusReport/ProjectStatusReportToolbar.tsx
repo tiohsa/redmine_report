@@ -126,7 +126,7 @@ export const ProjectStatusReportToolbar = ({
             <Button
               onClick={() => onProjectOpenChange(!isProjectOpen)}
               variant={selectedProjectIdentifiers.length > 0 ? 'icon-active' : 'icon'}
-              className="h-11 w-11"
+              className="h-9 w-9"
               title={t('filter.project')}
             >
               <Icon name="folder" className="h-5 w-5" />
@@ -195,7 +195,7 @@ export const ProjectStatusReportToolbar = ({
             <Button
               onClick={() => onVersionOpenChange(!isVersionOpen)}
               variant={selectedVersions.length > 0 ? 'icon-active' : 'icon'}
-              className="h-11 w-11"
+              className="h-9 w-9"
               title={t('filter.version')}
             >
               <Icon name="tag" className="h-5 w-5" />
@@ -267,14 +267,14 @@ export const ProjectStatusReportToolbar = ({
               onClick={() => onLegendOpenChange(!isLegendOpen)}
               onMouseEnter={() => onLegendOpenChange(true)}
               variant="icon"
-              className="h-11 w-11"
+              className="h-9 w-9"
               title="Status Legend"
             >
               <Icon name="info" className="h-5 w-5" />
             </Button>
             {isLegendOpen && (
               <div className="report-dropdown-panel right-0 top-full mt-2 w-48 p-4 animate-in fade-in zoom-in duration-200">
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   {statuses.map((status) => (
                     <div key={status.label} className="flex items-center gap-3 text-[#222222] font-sans">
                       <div
@@ -298,7 +298,7 @@ export const ProjectStatusReportToolbar = ({
             <Button
               onClick={() => onSizeOpenChange(!isSizeOpen)}
               variant="icon"
-              className="h-11 w-11"
+              className="h-9 w-9"
               title={t('filter.size')}
             >
               <Icon name="sliders" className="h-5 w-5" />
@@ -329,7 +329,7 @@ export const ProjectStatusReportToolbar = ({
           <Button
             onClick={() => onProcessModeChange(!isProcessMode)}
             variant={isProcessMode ? 'icon-active' : 'icon'}
-            className="h-11 w-11"
+            className="h-9 w-9"
             title={t('filter.processMode', { defaultValue: 'Process Mode' })}
             aria-pressed={isProcessMode}
           >
@@ -348,7 +348,7 @@ export const ProjectStatusReportToolbar = ({
           <Button
             onClick={onOpenDateRangeDialog}
             variant={isCustomDateRangeActive ? 'icon-active' : 'icon'}
-            className="h-11 w-11"
+            className="h-9 w-9"
             title={t('filter.dateRange')}
             aria-haspopup="dialog"
             aria-expanded={isDateRangeDialogOpen}
@@ -362,7 +362,7 @@ export const ProjectStatusReportToolbar = ({
           <Button
             onClick={() => onShowAllDatesChange(!showAllDates)}
             variant={showAllDates ? 'icon-active' : 'icon'}
-            className="h-11 w-11"
+            className="h-9 w-9"
             title={t('filter.dateDisplay')}
             aria-pressed={showAllDates}
           >
@@ -381,7 +381,7 @@ export const ProjectStatusReportToolbar = ({
           <Button
             onClick={() => onShowTodayLineChange(!showTodayLine)}
             variant={showTodayLine ? 'icon-active' : 'icon'}
-            className="h-11 w-11"
+            className="h-9 w-9"
             title={t('timeline.todayLineToggle', { defaultValue: 'Today line' })}
             aria-pressed={showTodayLine}
           >
@@ -402,7 +402,7 @@ export const ProjectStatusReportToolbar = ({
           <Button
             onClick={onToggleFullScreen}
             variant="icon"
-            className="h-11 w-11"
+            className="h-9 w-9"
             title={t('report.fullscreen')}
           >
             <Icon name="fullscreen" className="h-5 w-5" />
@@ -410,7 +410,7 @@ export const ProjectStatusReportToolbar = ({
 
           <Button
             variant="icon"
-            className="h-11 w-11"
+            className="h-9 w-9"
             title={t('report.export')}
           >
             <Icon name="download" className="h-5 w-5" />

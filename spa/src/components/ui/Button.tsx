@@ -3,7 +3,7 @@ import { forwardRef } from 'react';
 import { reportStyles } from '../designSystem';
 import { cn } from './cn';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'pill' | 'icon' | 'icon-active' | 'icon-muted';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'pill' | 'pill-primary' | 'pill-secondary' | 'icon' | 'icon-active' | 'icon-muted';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -20,7 +20,9 @@ const variantClassName: Record<ButtonVariant, string> = {
   secondary: reportStyles.buttonSecondary,
   ghost: reportStyles.buttonGhost,
   danger: reportStyles.buttonDanger,
-  pill: 'rounded-[9999px] bg-[rgba(0,0,0,0.05)] text-[#18181b] hover:bg-[rgba(0,0,0,0.1)]',
+  pill: reportStyles.pillNav,
+  'pill-primary': reportStyles.pillPrimary,
+  'pill-secondary': reportStyles.pillSecondary,
   icon: reportStyles.iconButton,
   'icon-active': reportStyles.iconButtonActive,
   'icon-muted': reportStyles.iconButtonMuted,
