@@ -30,5 +30,6 @@ export {
   generateWeeklyReport,
   prepareWeeklyPrompt,
   saveWeeklyReport,
+  updateWeeklyAiResponse,
   validateWeeklyDestination
 } from './weeklyReportApi';

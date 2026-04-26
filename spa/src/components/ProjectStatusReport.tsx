@@ -4,7 +4,8 @@ import {
     fetchChildIssues,
     CategoryBar,
     ProjectInfo,
-    WeeklyApiError
+    WeeklyApiError,
+    updateWeeklyAiResponse
 } from '../services/scheduleReportApi';
 import { buildStatusStyles } from './projectStatusReport/constants';
 import { buildTimelineViewModel } from './projectStatusReport/timeline';
@@ -16,6 +17,7 @@ import { VersionAiDialog } from './projectStatusReport/VersionAiDialog';
 import type { AiResponseView } from '../types/weeklyReport';
 import { t } from '../i18n';
 import { reportStyles } from './designSystem';
+import type { EditableSections } from './AiResponsePanel';
 
 interface ProjectStatusReportProps {
     bars?: CategoryBar[];
@@ -40,6 +42,11 @@ export const ProjectStatusReport = ({
     const [aiLoading, setAiLoading] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
     const [activeReportLaneKey, setActiveReportLaneKey] = useState<string | null>(null);
+    const [activeReportContext, setActiveReportContext] = useState<{
+        projectIdentifier: string;
+        versionId: number;
+    } | null>(null);
+    const [inlineReportDirty, setInlineReportDirty] = useState(false);
     const reportRequestSeqRef = useRef(0);
     const [weeklyDialog, setWeeklyDialog] = useState<{
         open: boolean;
@@ -233,9 +240,15 @@ export const ProjectStatusReport = ({
     };
 
     const handleVersionReportClick = async (payload: { laneKey: string; versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => {
+        if (inlineReportDirty && !window.confirm(t('aiPanel.confirmDiscard'))) {
+            return;
+        }
+
         if (activeReportLaneKey === payload.laneKey) {
             reportRequestSeqRef.current += 1;
             setActiveReportLaneKey(null);
+            setActiveReportContext(null);
+            setInlineReportDirty(false);
             setAiLoading(false);
             setAiError(null);
             return;
@@ -245,6 +258,11 @@ export const ProjectStatusReport = ({
         reportRequestSeqRef.current = requestId;
 
         setActiveReportLaneKey(payload.laneKey);
+        setActiveReportContext({
+            projectIdentifier: payload.projectIdentifier,
+            versionId: payload.versionId
+        });
+        setInlineReportDirty(false);
         setAiLoading(true);
         setAiError(null);
         try {
@@ -275,6 +293,23 @@ export const ProjectStatusReport = ({
             if (requestId !== reportRequestSeqRef.current) return;
             setAiLoading(false);
         }
+    };
+
+    const handleInlineReportSave = async (sections: EditableSections): Promise<AiResponseView> => {
+        if (!activeReportContext || !aiResponse || !aiResponse.destination_issue_id) {
+            throw new Error(t('aiPanel.saveFailed'));
+        }
+
+        const result = await updateWeeklyAiResponse(rootProjectIdentifier || projectIdentifier, {
+            selected_project_identifier: activeReportContext.projectIdentifier,
+            version_id: activeReportContext.versionId,
+            destination_issue_id: aiResponse.destination_issue_id,
+            ...sections
+        });
+
+        setAiResponse(result.response);
+        setInlineReportDirty(false);
+        return result.response;
     };
 
     const toggleProject = (identifier: string) => {
@@ -388,7 +423,12 @@ export const ProjectStatusReport = ({
                         }
                         onVersionReportClick={handleVersionReportClick}
                         onClearSelection={() => {
+                            if (inlineReportDirty && !window.confirm(t('aiPanel.confirmDiscard'))) {
+                                return;
+                            }
                             setActiveReportLaneKey(null);
+                            setActiveReportContext(null);
+                            setInlineReportDirty(false);
                             setAiLoading(false);
                             setAiError(null);
                         }}
@@ -396,6 +436,8 @@ export const ProjectStatusReport = ({
                         detailedReportResponse={aiResponse}
                         detailedReportLoading={aiLoading}
                         detailedReportError={aiError}
+                        onDetailedReportSave={handleInlineReportSave}
+                        onDetailedReportDirtyChange={setInlineReportDirty}
                     />
                 </div>
                 <VersionAiDialog

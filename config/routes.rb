@@ -40,6 +40,9 @@ post '/projects/:project_id/schedule_report/weekly/save',
 get '/projects/:project_id/schedule_report/weekly/ai_responses',
     to: 'schedule_reports#weekly_ai_responses',
     as: 'project_schedule_report_weekly_ai_responses'
+patch '/projects/:project_id/schedule_report/weekly/ai_response',
+      to: 'schedule_reports#weekly_ai_response',
+      as: 'project_schedule_report_weekly_ai_response'
 get '/projects/:project_id/schedule_report/bundle/main.js',
     to: 'schedule_reports#bundle_js',
     as: 'project_schedule_report_bundle_js',

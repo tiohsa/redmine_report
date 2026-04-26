@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { t } from '../../i18n';
 import { updateTaskDates } from '../../services/scheduleReportApi';
-import { AiResponsePanel } from '../AiResponsePanel';
+import { AiResponsePanel, type EditableSections } from '../AiResponsePanel';
 import { getProgressFillColor, getProgressTrackColor } from './constants';
 import { HeaderMonth, HeaderYear, TimelineLane, TimelineStep } from './timeline';
 import { calculateStaggeredLanes } from './timelineAxis';
@@ -39,6 +39,8 @@ type TimelineChartProps = {
   detailedReportResponse?: AiResponseView | null;
   detailedReportLoading?: boolean;
   detailedReportError?: string | null;
+  onDetailedReportSave?: (sections: EditableSections) => Promise<AiResponseView>;
+  onDetailedReportDirtyChange?: (dirty: boolean) => void;
   onClearSelection?: () => void;
 };
 
@@ -64,6 +66,8 @@ type InlineReportSlotProps = {
   response: AiResponseView | null;
   isLoading: boolean;
   errorMessage: string | null;
+  onSave?: (sections: EditableSections) => Promise<AiResponseView>;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 type StepRenderData = {
@@ -103,10 +107,16 @@ const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
   baseFill: isActive ? ACTIVE_LANE_BACKGROUND_FILL : (laneIndex % 2 === 0 ? '#ffffff' : '#fafafa')
 });
 
-const InlineReportSlot = ({ response, isLoading, errorMessage }: InlineReportSlotProps) => (
-  <section className={`${reportStyles.surfaceElevated} flex h-full flex-col gap-4 overflow-hidden p-6 animate-in fade-in slide-in-from-top-4 duration-500 font-sans`}>
+const InlineReportSlot = ({ response, isLoading, errorMessage, onSave, onDirtyChange }: InlineReportSlotProps) => (
+  <section className={`${reportStyles.surfaceElevated} flex h-full flex-col gap-4 overflow-hidden p-4 animate-in fade-in slide-in-from-top-4 duration-500 font-sans`}>
     <div className="min-h-0 flex-1 overflow-auto">
-      <AiResponsePanel response={response} isLoading={isLoading} errorMessage={errorMessage} />
+      <AiResponsePanel
+        response={response}
+        isLoading={isLoading}
+        errorMessage={errorMessage}
+        onSave={onSave}
+        onDirtyChange={onDirtyChange}
+      />
     </div>
   </section>
 );
@@ -235,6 +245,8 @@ export function TimelineChart({
   detailedReportResponse = null,
   detailedReportLoading = false,
   detailedReportError = null,
+  onDetailedReportSave,
+  onDetailedReportDirtyChange,
   onClearSelection
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
@@ -283,6 +295,9 @@ export function TimelineChart({
 
   const handleBackgroundClick = (event: React.MouseEvent) => {
     setSelectedStepId(null);
+    if (activeReportLaneKey) {
+      onClearSelection?.();
+    }
   };
 
   const handleStepOpen = (stepId?: string, issueId?: number, title?: string, projectName?: string, versionName?: string) => {
@@ -463,6 +478,8 @@ export function TimelineChart({
             detailedReportResponse={detailedReportResponse}
             detailedReportLoading={detailedReportLoading}
             detailedReportError={detailedReportError}
+            onDetailedReportSave={onDetailedReportSave}
+            onDetailedReportDirtyChange={onDetailedReportDirtyChange}
           />
         </div>
       </div>
@@ -514,7 +531,9 @@ function TimelineChartSurface({
   showTodayLine = true,
   detailedReportResponse = null,
   detailedReportLoading = false,
-  detailedReportError = null
+  detailedReportError = null,
+  onDetailedReportSave,
+  onDetailedReportDirtyChange
 }: {
   layoutData: (TimelineLane & {
     contentHeight: number;
@@ -547,6 +566,8 @@ function TimelineChartSurface({
   detailedReportResponse?: AiResponseView | null;
   detailedReportLoading?: boolean;
   detailedReportError?: string | null;
+  onDetailedReportSave?: (sections: EditableSections) => Promise<AiResponseView>;
+  onDetailedReportDirtyChange?: (dirty: boolean) => void;
 }) {
   const chartHeight = Math.ceil(headerHeight + totalTimelineHeight);
   const scaledBarHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
@@ -1185,6 +1206,8 @@ function TimelineChartSurface({
                 response={detailedReportResponse}
                 isLoading={detailedReportLoading}
                 errorMessage={detailedReportError}
+                onSave={onDetailedReportSave}
+                onDirtyChange={onDetailedReportDirtyChange}
               />
             </div>
           </div>

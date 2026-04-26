@@ -11,11 +11,25 @@ class AiResponseTabsFetchTest < ActiveSupport::TestCase
     )
   end
 
+  def test_route_for_weekly_ai_response_update_exists
+    assert_recognizes(
+      { controller: 'schedule_reports', action: 'weekly_ai_response', project_id: 'ecookbook' },
+      { path: '/projects/ecookbook/schedule_report/weekly/ai_response', method: :patch }
+    )
+  end
+
   def test_permission_includes_weekly_ai_responses
     permission = Redmine::AccessControl.permission(:view_schedule_report)
 
     assert_not_nil permission
     assert_includes permission.actions.map(&:to_s), 'schedule_reports/weekly_ai_responses'
+  end
+
+  def test_permission_includes_weekly_ai_response_update
+    permission = Redmine::AccessControl.permission(:view_schedule_report)
+
+    assert_not_nil permission
+    assert_includes permission.actions.map(&:to_s), 'schedule_reports/weekly_ai_response'
   end
 
   def test_parse_journal_extracts_three_sections
