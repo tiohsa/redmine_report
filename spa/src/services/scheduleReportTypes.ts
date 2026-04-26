@@ -95,6 +95,23 @@ export type TaskMasters = {
   members: TaskMasterItem[];
 };
 
+export type TaskEditableField = 'tracker_id' | 'priority_id' | 'status_id' | 'assigned_to_id';
+
+export type TaskIssueEditOptions = {
+  editable: boolean;
+  fields: Record<TaskEditableField, boolean>;
+  trackers: TaskMasterItem[];
+  statuses: TaskStatusItem[];
+  priorities: TaskMasterItem[];
+  members: TaskMasterItem[];
+  reasons?: Partial<Record<TaskEditableField, string>>;
+};
+
+export type TaskDetailsResponse = {
+  issues: TaskDetailIssue[];
+  issue_edit_options?: Record<number, TaskIssueEditOptions>;
+};
+
 export type TaskUpdatePayload = {
   subject?: string;
   tracker_id?: number | null;

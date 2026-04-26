@@ -55,11 +55,14 @@ export function TaskDetailsDialog({
   } = useTaskDetailsDialogState();
   const [editingDateRange, setEditingDateRange] = useState<InlineDateRangeValue | null>(null);
   const [drilldownPath, setDrilldownPath] = useState<DrilldownCrumb[]>([]);
+  const [activeIssueId, setActiveIssueId] = useState<number | null>(null);
+  const shouldScrollActiveIssueRef = useRef(true);
   const editingDateRangeRef = useRef<InlineDateRangeValue | null>(null);
   const {
     issues,
     loading,
     masters,
+    editOptionsByIssueId,
     savingIssueIds,
     feedback,
     clearFeedback,
@@ -96,10 +99,33 @@ export function TaskDetailsDialog({
   const syncSelectionAfterReload = useCallback((rows: TaskDetailIssue[], selectedIssueId?: number | null) => {
     if (!selectedIssueId) {
       selectIssue(null);
+      setActiveIssueId(null);
       return;
     }
-    selectIssue(rows.find((row) => row.issue_id === selectedIssueId) || null);
+    const nextIssue = rows.find((row) => row.issue_id === selectedIssueId) || null;
+    selectIssue(nextIssue);
+    setActiveIssueId(nextIssue?.issue_id ?? null);
   }, [selectIssue]);
+
+  const selectIssueFromTable = useCallback((issue: TaskDetailIssue) => {
+    const rowsById = new Map(issuesRef.current.map((row) => [row.issue_id, row]));
+    let processFlowIssue: TaskDetailIssue | null = null;
+    let parentId = issue.parent_id;
+
+    while (parentId) {
+      const parentIssue = rowsById.get(parentId) || null;
+      if (!parentIssue) break;
+      if (parentIssue.parent_id === currentRootIssueId) {
+        processFlowIssue = parentIssue;
+        break;
+      }
+      parentId = parentIssue.parent_id;
+    }
+
+    shouldScrollActiveIssueRef.current = false;
+    setActiveIssueId(issue.issue_id);
+    selectIssue(processFlowIssue || issue);
+  }, [currentRootIssueId, issuesRef, selectIssue]);
 
   const {
     processFlowContainerRef,
@@ -124,12 +150,13 @@ export function TaskDetailsDialog({
     saveProcessFlowDates,
     selectIssue,
     setSelectedIssue,
+    setActiveIssueId,
     setDrilldownPath,
     reloadTaskDetails,
     syncSelectionAfterReload
   });
 
-  const { treeRoots, registerIssueRowRef } = useTaskDetailsTree(issues, selectedIssueId);
+  const { treeRoots, registerIssueRowRef } = useTaskDetailsTree(issues, activeIssueId, shouldScrollActiveIssueRef);
 
   const currentAutoFitKey = open && !loading && issues.length > 0 && processFlowRenderSteps.length > 0
     ? `${currentRootIssueId}:${processFlowChartHeight}`
@@ -167,6 +194,7 @@ export function TaskDetailsDialog({
     }
     setEditingDateRange(null);
     resetDialogState();
+    setActiveIssueId(null);
     resetLayoutState();
     resetProcessFlowInteraction();
     onClose();
@@ -196,6 +224,7 @@ export function TaskDetailsDialog({
     setDrilldownPath([{ issueId, title: issueTitle }]);
     resetData();
     resetDialogState();
+    setActiveIssueId(null);
     resetLayoutState();
     resetProcessFlowInteraction();
     clearFeedback();
@@ -345,12 +374,14 @@ export function TaskDetailsDialog({
           processFlowBaseTopPadding={processFlowBaseTopPadding}
           processFlowScaleMetrics={processFlowScaleMetrics}
           selectedIssueId={selectedIssueId}
+          activeIssueId={activeIssueId}
           savingIssueIds={savingIssueIds}
           processFlowContainerRef={processFlowContainerRef}
           startProcessFlowDrag={startProcessFlowDrag}
           handleProcessStepClick={handleProcessStepClick}
           handleProcessStepDoubleClick={handleProcessStepDoubleClick}
           selectIssue={selectIssue}
+          selectIssueFromTable={selectIssueFromTable}
           treeRoots={treeRoots}
           rootIssueId={issueId}
           editingDateRange={editingDateRange}
@@ -377,6 +408,7 @@ export function TaskDetailsDialog({
           })}
           registerIssueRowRef={registerIssueRowRef}
           masters={masters}
+          editOptionsByIssueId={editOptionsByIssueId}
           onFieldUpdate={handleIssueFieldUpdate}
           columnWidths={columnWidths}
           onColumnResize={handleColumnResize}

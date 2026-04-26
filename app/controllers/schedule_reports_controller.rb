@@ -65,7 +65,7 @@ class ScheduleReportsController < ApplicationController
         user: User.current
       ),
       service_call: ->(service) { service.call(issue_id: params[:issue_id]) },
-      success_payload: ->(result) { { issues: result[:issues] } },
+      success_payload: ->(result) { { issues: result[:issues], issue_edit_options: result[:issue_edit_options] || {} } },
       action_name: __method__,
       retryable: true
     )

@@ -8,7 +8,6 @@ import {
   saveWeeklyReport,
   updateTaskFields,
   updateTaskDates,
-  updateTaskJournal,
   validateWeeklyDestination,
   WeeklyApiError
 } from '../scheduleReportApi';
@@ -88,11 +87,6 @@ describe('scheduleReportApi weekly methods', () => {
           issue: { issue_id: 10, subject: 'Parent', start_date: '2026-02-02', due_date: '2026-02-11', issue_url: '/issues/10' }
         })
       }
-    },
-    {
-      name: 'updateTaskJournal',
-      run: () => updateTaskJournal('ecookbook', 5, 'Updated note'),
-      response: { ok: true, json: async () => ({}) }
     }
   ])('sends the CSRF header for $name', async ({ run, response }) => {
     const fetchMock = vi.fn().mockResolvedValue(response);
@@ -215,9 +209,10 @@ describe('scheduleReportApi weekly methods', () => {
       })
     }));
 
-    const rows = await fetchTaskDetails('ecookbook', 10);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].issue_id).toBe(10);
+    const response = await fetchTaskDetails('ecookbook', 10);
+    expect(response.issues).toHaveLength(1);
+    expect(response.issues[0].issue_id).toBe(10);
+    expect(response.issue_edit_options).toEqual({});
   });
 
   it('maps task date update payload', async () => {

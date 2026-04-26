@@ -6,6 +6,7 @@ import {
   updateTaskDates,
   updateTaskFields,
   type TaskDetailIssue,
+  type TaskIssueEditOptions,
   type TaskMasters,
   type TaskUpdatePayload,
   WeeklyApiError
@@ -25,6 +26,7 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
   const [savingIssueIds, setSavingIssueIds] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [masters, setMasters] = useState<TaskMasters | null>(null);
+  const [editOptionsByIssueId, setEditOptionsByIssueId] = useState<Record<number, TaskIssueEditOptions>>({});
   const [feedback, setFeedback] = useState<{ type: 'error' | 'info'; text: string } | null>(null);
   const baselineByIdRef = useRef<Record<number, TaskDetailIssue>>({});
   const issuesRef = useRef<TaskDetailIssue[]>([]);
@@ -46,6 +48,7 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
     setIssues([]);
     baselineByIdRef.current = {};
     setSavingIssueIds({});
+    setEditOptionsByIssueId({});
     issuesRef.current = [];
     savingIssueIdsRef.current = {};
     setFeedback(null);
@@ -80,7 +83,9 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
       let latestRows: TaskDetailIssue[] = [];
       const maxAttempts = options.expectedIssueId ? 3 : 1;
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        latestRows = await fetchTaskDetails(projectIdentifier, targetIssueId);
+        const response = await fetchTaskDetails(projectIdentifier, targetIssueId);
+        latestRows = Array.isArray(response) ? response : response.issues;
+        setEditOptionsByIssueId(Array.isArray(response) ? {} : response.issue_edit_options || {});
         const found = !options.expectedIssueId || latestRows.some((row) => row.issue_id === options.expectedIssueId);
         if (found) break;
         if (attempt < maxAttempts - 1) {
@@ -231,6 +236,7 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
     setIssues,
     loading,
     masters,
+    editOptionsByIssueId,
     savingIssueIds,
     feedback,
     clearFeedback,

@@ -3,6 +3,12 @@
 require File.expand_path('../test_helper', __dir__)
 
 class ScheduleReportTaskMutationServicesTest < ActiveSupport::TestCase
+  DummyOption = Struct.new(:id, :name) do
+    def is_closed?
+      false
+    end
+  end
+
   class DummyIssue
     attr_accessor :id, :parent_id, :subject, :start_date, :due_date, :done_ratio,
                   :project_id, :tracker_id, :status_id, :assigned_to_id, :priority_id,
@@ -43,12 +49,20 @@ class ScheduleReportTaskMutationServicesTest < ActiveSupport::TestCase
       nil
     end
 
+    def new_statuses_allowed_to(_user)
+      [DummyOption.new(4, 'Allowed status')]
+    end
+
     def assigned_to
       nil
     end
 
     def priority
       nil
+    end
+
+    def assignable_users
+      [DummyOption.new(12, 'Assignable user')]
     end
 
     def journals
@@ -134,6 +148,22 @@ class ScheduleReportTaskMutationServicesTest < ActiveSupport::TestCase
 
     assert_equal false, result[:ok]
     assert_equal 'INVALID_INPUT', result[:code]
+    assert_equal :unprocessable_entity, result[:status]
+  end
+
+  def test_task_update_service_rejects_unassignable_user
+    issue = DummyIssue.new(id: 10, project_id: 1)
+    DummyIssueClass.relation = DummyRelation.new([issue])
+
+    result = RedmineReport::ScheduleReport::TaskUpdateService.new(
+      root_project: @project,
+      user: @user,
+      issue_class: DummyIssueClass
+    ).call(issue_id: '10', fields: { assigned_to_id: '99' })
+
+    assert_equal false, result[:ok]
+    assert_equal 'VALIDATION_ERROR', result[:code]
+    assert_equal 'Assignee is not assignable', result[:message]
     assert_equal :unprocessable_entity, result[:status]
   end
 

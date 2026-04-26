@@ -28,7 +28,7 @@ type TaskDetailsEmbeddedDialogsProps = {
   onCloseCreateIssue: () => void;
   onCloseEditIssue: () => void;
   onCloseViewIssue: () => void;
-  reloadTaskDetails: (issueId: number, options?: { expectedIssueId?: number | null }) => Promise<TaskDetailIssue[]>;
+  reloadTaskDetails: (issueId: number, options?: { expectedIssueId?: number }) => Promise<TaskDetailIssue[]>;
   syncSelectionAfterReload: (rows: TaskDetailIssue[], selectedIssueId?: number | null) => void;
 };
 

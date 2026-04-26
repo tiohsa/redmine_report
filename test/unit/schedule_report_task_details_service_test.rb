@@ -3,6 +3,14 @@
 require File.expand_path('../test_helper', __dir__)
 
 class ScheduleReportTaskDetailsServiceTest < ActiveSupport::TestCase
+  DummyOption = Struct.new(:id, :name) do
+    def is_closed?
+      false
+    end
+  end
+
+  DummyProject = Struct.new(:trackers)
+
   DummyIssue = Struct.new(
     :id,
     :parent_id,
@@ -15,7 +23,43 @@ class ScheduleReportTaskDetailsServiceTest < ActiveSupport::TestCase
     :rgt,
     :root_id,
     keyword_init: true
-  )
+  ) do
+    def editable?(_user)
+      true
+    end
+
+    def tracker
+      DummyOption.new(1, 'Task')
+    end
+
+    def status
+      DummyOption.new(1, 'New')
+    end
+
+    def new_statuses_allowed_to(_user)
+      [DummyOption.new(2, 'In Progress')]
+    end
+
+    def priority
+      DummyOption.new(3, 'Normal')
+    end
+
+    def project
+      DummyProject.new([tracker])
+    end
+
+    def assignable_users
+      [DummyOption.new(8, 'Alice')]
+    end
+
+    def assigned_to
+      nil
+    end
+
+    def journals
+      []
+    end
+  end
 
   class DummyRelation
     def initialize(items)
@@ -113,6 +157,9 @@ class ScheduleReportTaskDetailsServiceTest < ActiveSupport::TestCase
     assert_equal 2, result[:issues].size
     assert_equal 65, result[:issues].first[:done_ratio]
     assert_equal 0, result[:issues].second[:done_ratio]
+    assert_equal true, result[:issue_edit_options][10][:editable]
+    assert_equal [1], result[:issue_edit_options][10][:trackers].map { |tracker| tracker[:id] }
+    assert_equal [1, 2], result[:issue_edit_options][10][:statuses].map { |status| status[:id] }
   end
 
   def test_call_excludes_other_root_issues_when_nested_set_overlaps

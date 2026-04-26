@@ -1,7 +1,11 @@
 import { t } from '../../../i18n';
-import { type TaskDetailIssue, type TaskMasters } from '../../../services/scheduleReportApi';
+import { type TaskDetailIssue, type TaskIssueEditOptions, type TaskMasters } from '../../../services/scheduleReportApi';
 import { type InlineDateRangeValue } from '../InlineDateRangeEditor';
-import { type ProcessFlowRenderStep, type ProcessFlowScaleMetrics } from './processFlowGeometry';
+import {
+  type ProcessFlowDragMode,
+  type ProcessFlowRenderStep,
+  type ProcessFlowScaleMetrics
+} from './processFlowGeometry';
 import { IssueTreeTable } from './IssueTreeTable';
 import { ProcessFlowCanvas } from './ProcessFlowCanvas';
 import { type TableDensity, type TreeNodeType } from './shared';
@@ -24,12 +28,14 @@ type TaskDetailsBodyProps = {
   processFlowBaseTopPadding: number;
   processFlowScaleMetrics: ProcessFlowScaleMetrics;
   selectedIssueId: number | null;
-  savingIssueIds: Set<number>;
+  activeIssueId: number | null;
+  savingIssueIds: Record<number, boolean>;
   processFlowContainerRef: React.RefObject<HTMLDivElement>;
-  startProcessFlowDrag: (step: ProcessFlowRenderStep, event: React.PointerEvent<SVGElement>) => void;
+  startProcessFlowDrag: (event: React.PointerEvent<SVGRectElement>, step: ProcessFlowRenderStep, mode: ProcessFlowDragMode) => void;
   handleProcessStepClick: (step: ProcessFlowRenderStep) => void;
   handleProcessStepDoubleClick: (step: ProcessFlowRenderStep) => void;
   selectIssue: (issue: TaskDetailIssue | null) => void;
+  selectIssueFromTable: (issue: TaskDetailIssue) => void;
   treeRoots: TreeNodeType[];
   rootIssueId: number;
   editingDateRange: InlineDateRangeValue | null;
@@ -41,6 +47,7 @@ type TaskDetailsBodyProps = {
   onViewIssue: (issue: TaskDetailIssue) => void;
   registerIssueRowRef: (issueId: number, element: HTMLDivElement | null) => void;
   masters: TaskMasters | null;
+  editOptionsByIssueId: Record<number, TaskIssueEditOptions>;
   onFieldUpdate: (targetIssueId: number, field: string, value: string | number | null) => Promise<void>;
   columnWidths: Record<string, number>;
   onColumnResize: (columnKey: string, deltaX: number) => void;
@@ -65,12 +72,14 @@ export function TaskDetailsBody({
   processFlowBaseTopPadding,
   processFlowScaleMetrics,
   selectedIssueId,
+  activeIssueId,
   savingIssueIds,
   processFlowContainerRef,
   startProcessFlowDrag,
   handleProcessStepClick,
   handleProcessStepDoubleClick,
   selectIssue,
+  selectIssueFromTable,
   treeRoots,
   rootIssueId,
   editingDateRange,
@@ -82,6 +91,7 @@ export function TaskDetailsBody({
   onViewIssue,
   registerIssueRowRef,
   masters,
+  editOptionsByIssueId,
   onFieldUpdate,
   columnWidths,
   onColumnResize,
@@ -161,9 +171,11 @@ export function TaskDetailsBody({
                   onAddSubIssue={onAddSubIssue}
                   onEditIssue={onEditIssue}
                   onViewIssue={onViewIssue}
-                  selectedIssueId={selectedIssueId ?? undefined}
+                  selectedIssueId={activeIssueId ?? undefined}
+                  onSelectIssue={selectIssueFromTable}
                   registerRowRef={registerIssueRowRef}
                   masters={masters}
+                  editOptionsByIssueId={editOptionsByIssueId}
                   onFieldUpdate={onFieldUpdate}
                   columnWidths={columnWidths}
                   onColumnResize={onColumnResize}

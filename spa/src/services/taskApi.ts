@@ -1,16 +1,19 @@
 import { t } from '../i18n';
 import { requestJson, requestJsonWithBody, weeklyError } from './apiClient';
-import { type TaskDetailIssue, type TaskMasters, type TaskUpdatePayload } from './scheduleReportTypes';
+import { type TaskDetailIssue, type TaskDetailsResponse, type TaskMasters, type TaskUpdatePayload } from './scheduleReportTypes';
 
 export const fetchTaskDetails = async (
   projectIdentifier: string,
   issueId: number
-): Promise<TaskDetailIssue[]> => {
-  const json = await requestJson<{ issues: TaskDetailIssue[] }>(
+): Promise<TaskDetailsResponse> => {
+  const json = await requestJson<TaskDetailsResponse>(
     `/projects/${projectIdentifier}/schedule_report/task_details/${issueId}`,
     weeklyError((status) => t('api.fetchTaskDetails', { status }))
   );
-  return json.issues || [];
+  return {
+    issues: json.issues || [],
+    issue_edit_options: json.issue_edit_options || {}
+  };
 };
 
 export const updateTaskDates = async (
@@ -49,4 +52,3 @@ export const updateTaskFields = async (
   );
   return json.issue;
 };
-

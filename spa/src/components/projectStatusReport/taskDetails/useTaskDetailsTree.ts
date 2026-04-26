@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { type TaskDetailIssue } from '../../../services/scheduleReportApi';
 import { type TreeNodeType } from './shared';
 
 export const useTaskDetailsTree = (
   issues: TaskDetailIssue[],
-  selectedIssueId: number | null
+  selectedIssueId: number | null,
+  shouldScrollSelectedIssueRef?: MutableRefObject<boolean>
 ) => {
   const issueRowRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
@@ -32,6 +33,10 @@ export const useTaskDetailsTree = (
 
   useEffect(() => {
     if (!selectedIssueId) return;
+    if (shouldScrollSelectedIssueRef?.current === false) {
+      shouldScrollSelectedIssueRef.current = true;
+      return;
+    }
 
     const rowElement = issueRowRefs.current[selectedIssueId];
     if (!rowElement) return;
@@ -40,7 +45,7 @@ export const useTaskDetailsTree = (
       block: 'center',
       inline: 'nearest'
     });
-  }, [selectedIssueId, issues]);
+  }, [selectedIssueId, issues, shouldScrollSelectedIssueRef]);
 
   return {
     treeRoots,
