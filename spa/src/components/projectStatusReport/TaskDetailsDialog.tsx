@@ -48,8 +48,6 @@ export function TaskDetailsDialog({
     setSelectedIssue,
     selectIssue,
     density,
-    densityMenuOpen,
-    setDensityMenuOpen,
     handleDensityChange,
     resetDialogState
   } = useTaskDetailsDialogState();
@@ -342,10 +340,7 @@ export function TaskDetailsDialog({
           title={dialogHeaderTitle}
           drilldownPath={drilldownPath}
           density={density}
-          densityMenuOpen={densityMenuOpen}
           issueCount={issues.length}
-          onDensityMenuToggle={() => setDensityMenuOpen(!densityMenuOpen)}
-          onDensityMenuClose={() => setDensityMenuOpen(false)}
           onDensityChange={handleDensityChange}
           onBreadcrumbClick={handleBreadcrumbClick}
           onReload={handleReload}

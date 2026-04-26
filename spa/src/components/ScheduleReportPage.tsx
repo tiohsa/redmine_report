@@ -6,6 +6,7 @@ import { t } from '../i18n';
 import { type CategoryBar } from '../services/scheduleReportApi';
 import { useScheduleReportData } from './useScheduleReportData';
 import { useVersionSelectionPersistence } from './useVersionSelectionPersistence';
+import { reportStyles } from './designSystem';
 
 const collectVersionNames = (bars: CategoryBar[]): string[] => {
   const versions = new Set<string>();
@@ -47,7 +48,9 @@ export function ScheduleReportPage() {
   return (
     <div className="schedule-report-page report-page-shell">
       {showInitialLoading ? (
-        <div className="flex items-center justify-center h-full text-gray-400">{t('common.loading')}</div>
+        <div className="flex h-full items-center justify-center p-6">
+          <div className={reportStyles.loadingState}>{t('common.loading')}</div>
+        </div>
       ) : (
         <ProjectStatusReport
           bars={snapshot.bars}
@@ -60,15 +63,15 @@ export function ScheduleReportPage() {
         />
       )}
       {showUpdatingBanner && (
-        <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">{t('schedule.updating')}</div>
+        <div className={`mx-4 mb-4 ${reportStyles.alertInfo}`}>{t('schedule.updating')}</div>
       )}
       {showBlockingError && (
-        <div className="px-4 py-2 text-sm text-red-600 border-t border-red-100" role="alert">
+        <div className={`mx-4 mb-4 ${reportStyles.alertError}`} role="alert">
           {snapshot.errorMessage}
         </div>
       )}
       {showNonBlockingError && (
-        <div className="px-4 py-2 text-sm text-amber-700 border-t border-amber-100" role="alert">
+        <div className={`mx-4 mb-4 ${reportStyles.alertWarning}`} role="alert">
           {t('schedule.refreshFailedShowingCached')}
         </div>
       )}

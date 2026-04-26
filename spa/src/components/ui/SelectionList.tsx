@@ -39,7 +39,11 @@ export const SelectionRow = ({
     role="button"
     tabIndex={disabled ? -1 : 0}
     aria-disabled={disabled}
-    onClick={disabled ? undefined : onClick}
+    onMouseDown={(e) => e.stopPropagation()}
+    onClick={disabled ? undefined : (e) => {
+      e.stopPropagation();
+      onClick?.();
+    }}
     onKeyDown={(event) => {
       if (disabled || !onClick) return;
       if (event.key === 'Enter' || event.key === ' ') {
@@ -68,15 +72,15 @@ type CheckboxIndicatorProps = {
 };
 
 export const CheckboxRow = ({ checked, disabled = false }: CheckboxIndicatorProps) => (
-  <span className="pointer-events-none" aria-hidden="true">
+  <span className="flex h-5 items-center justify-center pointer-events-none" aria-hidden="true">
     <BaseCheckboxRow
       checked={checked}
       disabled={disabled}
       label=""
       onCheckedChange={() => undefined}
-      className="bg-transparent p-0"
+      className="bg-transparent p-0 border-0"
       contentClassName="hidden"
-      inputClassName={cn('m-0', checked && reportStyles.checkboxRowSelected)}
+      inputClassName="m-0"
       tabIndex={-1}
     />
   </span>

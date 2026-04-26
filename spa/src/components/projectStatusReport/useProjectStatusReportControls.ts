@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useUiStore } from '../../stores/uiStore';
 
 const CHART_SCALE_STORAGE_KEY = 'redmine_report.schedule.chartScale';
 const SHOW_ALL_DATES_STORAGE_KEY = 'redmine_report.schedule.showAllDates';
@@ -45,10 +46,13 @@ export const useProjectStatusReportControls = () => {
   const [showAllDates, setShowAllDates] = useState<boolean>(() => readStoredBoolean(SHOW_ALL_DATES_STORAGE_KEY, false));
   const [showTodayLine, setShowTodayLine] = useState<boolean>(() => readStoredBoolean(SHOW_TODAY_LINE_STORAGE_KEY, true));
   const [isProcessMode, setIsProcessMode] = useState<boolean>(() => readStoredBoolean(PROCESS_MODE_STORAGE_KEY, false));
-  const [isProjectOpen, setIsProjectOpen] = useState(false);
-  const [isVersionOpen, setIsVersionOpen] = useState(false);
-  const [isSizeOpen, setIsSizeOpen] = useState(false);
-  const [isLegendOpen, setIsLegendOpen] = useState(false);
+  
+  const {
+    isProjectOpen, setIsProjectOpen,
+    isVersionOpen, setIsVersionOpen,
+    isSizeOpen, setIsSizeOpen,
+    isLegendOpen, setIsLegendOpen
+  } = useUiStore();
 
   const projectDropdownRef = useRef<HTMLDivElement>(null);
   const versionDropdownRef = useRef<HTMLDivElement>(null);
@@ -57,16 +61,22 @@ export const useProjectStatusReportControls = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      
+      if (!document.body.contains(target)) {
+        return;
+      }
+
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(target)) {
         setIsProjectOpen(false);
       }
-      if (versionDropdownRef.current && !versionDropdownRef.current.contains(event.target as Node)) {
+      if (versionDropdownRef.current && !versionDropdownRef.current.contains(target)) {
         setIsVersionOpen(false);
       }
-      if (sizeDropdownRef.current && !sizeDropdownRef.current.contains(event.target as Node)) {
+      if (sizeDropdownRef.current && !sizeDropdownRef.current.contains(target)) {
         setIsSizeOpen(false);
       }
-      if (legendDropdownRef.current && !legendDropdownRef.current.contains(event.target as Node)) {
+      if (legendDropdownRef.current && !legendDropdownRef.current.contains(target)) {
         setIsLegendOpen(false);
       }
     };
@@ -75,22 +85,22 @@ export const useProjectStatusReportControls = () => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [setIsProjectOpen, setIsVersionOpen, setIsSizeOpen, setIsLegendOpen]);
 
   useEffect(() => {
     writeStoredScheduleViewSetting(CHART_SCALE_STORAGE_KEY, String(chartScale));
   }, [chartScale]);
 
   useEffect(() => {
-    writeStoredScheduleViewSetting(SHOW_ALL_DATES_STORAGE_KEY, String(showAllDates));
+    writeStoredScheduleReportSetting(SHOW_ALL_DATES_STORAGE_KEY, String(showAllDates));
   }, [showAllDates]);
 
   useEffect(() => {
-    writeStoredScheduleViewSetting(SHOW_TODAY_LINE_STORAGE_KEY, String(showTodayLine));
+    writeStoredScheduleReportSetting(SHOW_TODAY_LINE_STORAGE_KEY, String(showTodayLine));
   }, [showTodayLine]);
 
   useEffect(() => {
-    writeStoredScheduleViewSetting(PROCESS_MODE_STORAGE_KEY, String(isProcessMode));
+    writeStoredScheduleReportSetting(PROCESS_MODE_STORAGE_KEY, String(isProcessMode));
   }, [isProcessMode]);
 
   return {
@@ -115,4 +125,14 @@ export const useProjectStatusReportControls = () => {
     sizeDropdownRef,
     legendDropdownRef,
   };
+};
+
+const writeStoredScheduleReportSetting = (key: string, value: string) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures
+  }
 };

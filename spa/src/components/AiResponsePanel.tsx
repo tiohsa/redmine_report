@@ -3,6 +3,7 @@ import { renderMarkdown } from '../utils/markdownRenderer';
 import type { AiResponseView } from '../types/weeklyReport';
 import { t } from '../i18n';
 import { reportStyles } from './designSystem';
+import { Button } from './ui/Button';
 
 type AiResponsePanelProps = {
   response: AiResponseView | null;
@@ -59,7 +60,7 @@ const Section = ({
   const html = renderMarkdown(body);
 
   return (
-    <div className={`${reportStyles.surfaceElevated} flex h-full flex-col overflow-hidden transition-all duration-500 hover:shadow-brand-glow-offset ${isDirty ? 'ring-1 ring-amber-200' : ''}`}>
+    <div className={`${reportStyles.surfaceFeatured} flex h-full flex-col overflow-hidden transition-all duration-500 hover:shadow-brand-glow-offset ${isDirty ? 'ring-1 ring-[var(--color-warning-border)]' : ''}`}>
       <div className={`${headerColor} h-1.5`} />
       <div className="flex min-h-[56px] items-center justify-between border-b border-gray-100 px-4 py-3">
         <span className="text-[16px] font-display font-medium tracking-tight text-[#222222]">{title}</span>
@@ -87,7 +88,7 @@ const Section = ({
           <div
             role="button"
             tabIndex={0}
-            className="cursor-text rounded-[16px] p-2 -m-2 transition-all duration-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+            className="cursor-text rounded-[16px] p-2 -m-2 transition-all duration-300 hover:bg-[#fbfdff] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-200)]"
             onClick={() => onStartEdit(sectionKey)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -103,7 +104,7 @@ const Section = ({
                 dangerouslySetInnerHTML={{ __html: html }}
               />
             ) : (
-              <p className="py-6 text-center text-[12px] italic text-slate-400 font-sans">{t('common.noInfo')}</p>
+              <p className="py-6 text-center text-[12px] italic text-[#8e8e93] font-sans">{t('common.noInfo')}</p>
             )}
           </div>
         )}
@@ -193,8 +194,8 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage, onSave, onD
   if (!response || response.status === 'NOT_SAVED') {
     return (
       <div className={reportStyles.emptyState}>
-        <p className="mb-2 text-sm font-medium text-slate-600">{t('aiPanel.notSaved')}</p>
-        <p className="text-xs leading-6 text-slate-400">{t('aiPanel.notSavedHint')}</p>
+        <p className="mb-2 text-sm font-medium text-[#45515e]">{t('aiPanel.notSaved')}</p>
+        <p className="text-xs leading-6 text-[#8e8e93]">{t('aiPanel.notSavedHint')}</p>
       </div>
     );
   }
@@ -212,38 +213,42 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage, onSave, onD
       <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
         <div className="text-[12px] font-medium">
           {saveError ? (
-            <span className="text-red-700" role="alert">{saveError}</span>
+            <span className="text-[var(--color-danger-text)]" role="alert">{saveError}</span>
           ) : dirty ? (
-            <span className="text-amber-700">{t('aiPanel.unsavedChanges')}</span>
+            <span className="text-[var(--color-warning-text)]">{t('aiPanel.unsavedChanges')}</span>
           ) : savedMessage ? (
-            <span className="text-emerald-700">{savedMessage}</span>
+            <span className="text-[var(--color-success-text)]">{savedMessage}</span>
           ) : null}
         </div>
         <div className="flex items-center gap-2">
           {dirty && (
-            <button
+            <Button
               type="button"
-              className="h-8 rounded-[9999px] border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50"
+              variant="pill-secondary"
+              size="sm"
+              className="h-8 px-3 text-[12px]"
               onClick={handleDiscard}
               disabled={saving}
             >
               {t('aiPanel.discardChanges')}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
-            className="h-8 rounded-[9999px] bg-[var(--color-brand-6)] px-4 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-700)] disabled:cursor-not-allowed disabled:opacity-50"
+            variant="pill-primary"
+            size="sm"
+            className="h-8 px-4 text-[12px]"
             onClick={handleSave}
             disabled={!dirty || saving || !onSave}
           >
             {saving ? t('common.saving') : t('common.save')}
-          </button>
+          </Button>
         </div>
       </div>
 
       {response.status === 'PARTIAL' && (
         <div className={`${reportStyles.alertWarning} mb-2 flex items-center gap-3`}>
-          <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-[var(--color-warning-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <span className="font-medium">{t('aiPanel.partial')}</span>

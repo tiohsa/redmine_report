@@ -80,7 +80,7 @@ describe('TimelineChart', () => {
   it('keeps active lane highlight above alternating backgrounds', () => {
     renderTimelineChart('1:v2');
 
-    expect(screen.getByTestId('timeline-lane-label-1').className).toContain('bg-sky-200/80');
+    expect(screen.getByTestId('timeline-lane-label-1').className).toContain('report-timeline-lane-label-active');
     expect(screen.queryByTestId('timeline-lane-bg-1')).toBeNull();
     expect(screen.queryByTestId('timeline-lane-active-bg-1')).toBeNull();
   });

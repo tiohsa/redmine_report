@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { TaskDetailIssue } from '../../../services/scheduleReportApi';
+import { useUiStore } from '../../../stores/uiStore';
 import {
   TABLE_DENSITY_STORAGE_KEY,
   type InheritedSubIssueFields,
@@ -29,7 +30,11 @@ export function useTaskDetailsDialogState() {
     }
     return 'standard';
   });
-  const [densityMenuOpen, setDensityMenuOpen] = useState(false);
+  
+  const {
+    setIsDensityMenuOpen,
+    setIsDetailLegendOpen
+  } = useUiStore();
 
   const selectIssue = useCallback((issue: TaskDetailIssue | TreeNodeType | null) => {
     const nextIssue = issue
@@ -43,13 +48,13 @@ export function useTaskDetailsDialogState() {
     setEditIssueContext(null);
     setViewIssueContext(null);
     setSelectedIssue(null);
-    setDensityMenuOpen(false);
-  }, []);
+    setIsDensityMenuOpen(false);
+    setIsDetailLegendOpen(false);
+  }, [setIsDensityMenuOpen, setIsDetailLegendOpen]);
 
   const handleDensityChange = useCallback((next: TableDensity) => {
     setDensity(next);
     localStorage.setItem(TABLE_DENSITY_STORAGE_KEY, next);
-    setDensityMenuOpen(false);
   }, []);
 
   return {
@@ -63,8 +68,6 @@ export function useTaskDetailsDialogState() {
     setSelectedIssue,
     selectIssue,
     density,
-    densityMenuOpen,
-    setDensityMenuOpen,
     handleDensityChange,
     resetDialogState
   };

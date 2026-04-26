@@ -24,6 +24,16 @@ type UIStore = {
   setCurrentProjectIdentifier: (value: string) => void;
   selectedProjectIdentifiers: string[];
   setSelectedProjectIdentifiers: (value: string[]) => void;
+  isProjectOpen: boolean;
+  setIsProjectOpen: (value: boolean) => void;
+  isVersionOpen: boolean;
+  setIsVersionOpen: (value: boolean) => void;
+  isSizeOpen: boolean;
+  setIsSizeOpen: (value: boolean) => void;
+  isLegendOpen: boolean;
+  setIsLegendOpen: (value: boolean) => void;
+  isDensityMenuOpen: boolean;
+  setIsDensityMenuOpen: (value: boolean) => void;
 };
 
 const currentMonth = new Date().toISOString().slice(0, 7);
@@ -80,5 +90,17 @@ export const useUiStore = create<UIStore>((set, get) => ({
   setSelectedProjectIdentifiers: (value) => {
     writeStoredSelectedProjectIdentifiers(get().rootProjectIdentifier, value);
     set({ selectedProjectIdentifiers: value });
-  }
+  },
+  isProjectOpen: false,
+  setIsProjectOpen: (value) => set({ isProjectOpen: value }),
+  isVersionOpen: false,
+  setIsVersionOpen: (value) => set({ isVersionOpen: value }),
+  isSizeOpen: false,
+  setIsSizeOpen: (value) => set({ isSizeOpen: value }),
+  isLegendOpen: false,
+  setIsLegendOpen: (value) => set({ isLegendOpen: value }),
+  isDensityMenuOpen: false,
+  setIsDensityMenuOpen: (value) => set({ isDensityMenuOpen: value }),
+  isDetailLegendOpen: false,
+  setIsDetailLegendOpen: (value) => set({ isDetailLegendOpen: value }),
 }));
