@@ -12,7 +12,7 @@
   --color-brand-02: #ea5ec1;
   --color-brand-2: #5f5f5f;
   --color-brand-3: #17437d;
-  
+
   --color-primary-200: #bfdbfe;
   --color-primary-light: #60a5fa;
   --color-primary-500: #3b82f6;
@@ -52,6 +52,7 @@
 }
 
 @layer base {
+
   #schedule-report-root,
   .schedule-report-page,
   .report-page-shell {
@@ -111,6 +112,7 @@
 }
 
 @layer components {
+
   .schedule-report-page,
   .report-page-shell {
     @apply flex flex-col h-screen overflow-hidden text-[#222222] font-sans bg-white;
@@ -157,7 +159,10 @@
   }
 
   .report-surface-elevated {
-    @apply rounded-[24px] border border-gray-100 bg-white shadow-brand-glow;
+    @apply rounded-[13px] border border-[rgba(0,0,0,0.06)] bg-white shadow-brand-glow;
+    box-shadow:
+      0px 0px 22.576px rgba(0, 0, 0, 0.08),
+      6.5px 2px 17.5px rgba(44, 30, 116, 0.11);
   }
 
   .report-panel {
@@ -198,10 +203,12 @@
   .report-icon-button,
   .report-icon-button-active,
   .report-icon-button-muted {
-    @apply inline-flex items-center justify-center transition-all duration-300 font-sans cursor-pointer;
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
+    @apply inline-flex items-center justify-center border transition-all duration-300 font-sans cursor-pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    box-sizing: border-box;
+    border-color: #e0e0e0;
   }
 
   .report-pill {
@@ -221,40 +228,53 @@
   }
 
   .report-icon-button {
-    @apply relative shrink-0 p-0 text-[#181e25] border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-gray-300 hover:bg-[#fbfdff];
+    @apply relative shrink-0 p-0 text-[#333333] bg-white hover:bg-[#f8f9fa];
   }
 
   .report-icon-button-active {
-    @apply relative shrink-0 p-0 bg-white text-[#181e25] border border-[#e5e7eb] shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-gray-300 hover:bg-[#fbfdff];
+    @apply relative shrink-0 p-0 bg-[#e8f0fe] text-[#1a73e8] hover:bg-[#e8f0fe];
+    border-color: #e0e0e0;
   }
 
   .report-icon-button-muted {
-    @apply relative shrink-0 p-0 bg-white text-[#181e25] border border-[#e5e7eb] shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-gray-300 hover:bg-[#fbfdff];
+    @apply relative shrink-0 p-0 bg-white text-[#8e8e93] hover:bg-[#f8f9fa];
   }
 
   .report-icon-button svg,
   .report-icon-button-active svg,
   .report-icon-button-muted svg,
   .report-menu-toggle-icon svg {
-    width: 20px;
-    height: 20px;
-    stroke: #181e25;
-    stroke-width: 1.8;
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
     fill: none;
   }
 
+  .report-toolbar .report-icon-button svg path,
+  .report-toolbar .report-icon-button-active svg path,
+  .report-toolbar .report-icon-button-muted svg path {
+    stroke-width: 2;
+  }
+
+  .report-toolbar-icon-button svg {
+    width: 17px;
+    height: 17px;
+  }
+
   .report-dropdown-panel {
-    @apply absolute z-50 overflow-hidden rounded-[13px] border border-gray-100 bg-white shadow-elevated font-sans;
+    @apply absolute z-50 overflow-hidden rounded-[8px] border border-[#e0e0e0] bg-white font-sans;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 
   .report-dropdown-title {
-    @apply px-4 pt-4 pb-2 text-[12px] font-sans font-semibold uppercase tracking-wider text-[#8e8e93];
+    @apply mb-2 px-0 pt-0 pb-0 text-[13px] font-sans font-semibold tracking-normal normal-case text-[#333333];
   }
 
   .report-dropdown-row {
-    @apply flex items-center gap-3 px-4 py-1 text-[13px] text-[#45515e] transition-colors hover:bg-gray-50 cursor-pointer;
+    @apply flex items-center gap-3 rounded-[6px] px-2 py-1 text-[13px] text-[#45515e] transition-colors hover:bg-[#f8f9fa] cursor-pointer;
   }
 
   .report-dropdown-divider {
@@ -282,11 +302,11 @@
   }
 
   .report-selection-row {
-    @apply flex cursor-pointer items-center gap-2.5 px-4 py-1 text-[13px] font-sans text-[#45515e] transition-colors hover:bg-[var(--color-brand-tint)] focus:outline-none;
+    @apply flex cursor-pointer items-center gap-2.5 rounded-[6px] px-2 py-1 text-[13px] font-sans text-[#45515e] transition-colors hover:bg-[#f8f9fa] focus:outline-none;
   }
 
   .report-selection-row-active {
-    @apply text-[var(--color-brand-6)] font-medium;
+    @apply bg-[#e8f0fe] text-[#1a73e8] font-medium;
   }
 
   .report-selection-checkbox {
@@ -525,6 +545,18 @@
     @apply border-gray-200 bg-white text-[#8e8e93];
   }
 
+  .report-state-dot {
+    @apply absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-[#1a73e8] transition-all;
+  }
+
+  .report-state-dot-loading {
+    @apply animate-pulse;
+  }
+
+  .report-state-dot-hidden {
+    @apply opacity-0;
+  }
+
   .report-timeline-shell {
     @apply flex overflow-hidden rounded-[20px] border border-[var(--color-border-light)] bg-white shadow-subtle;
   }
@@ -550,10 +582,16 @@
   }
 
   .report-menu-toggle-icon {
-    @apply inline-flex shrink-0 items-center justify-center border border-[#e5e7eb] bg-white text-[#181e25] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-300;
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
+    @apply relative inline-flex shrink-0 items-center justify-center border bg-white text-[#333333] transition-all duration-300;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border-color: #e0e0e0;
+  }
+
+  .report-menu-toggle-icon-active {
+    @apply bg-[#e8f0fe] text-[#1a73e8];
+    border-color: #e0e0e0;
   }
 
   .report-timeline-canvas-scroller {
@@ -604,8 +642,8 @@
     @apply text-[16px] leading-[1.50] text-[#222222];
   }
 
-  .markdown-body li > ul,
-  .markdown-body li > ol {
+  .markdown-body li>ul,
+  .markdown-body li>ol {
     @apply mb-0 mt-1;
   }
 
@@ -653,7 +691,7 @@
     @apply my-3 border-t border-gray-200;
   }
 
-  .markdown-body > *:first-child {
+  .markdown-body>*:first-child {
     @apply mt-0;
   }
 
@@ -746,10 +784,11 @@
   }
 
   .report-dialog-close {
-    @apply inline-flex shrink-0 items-center justify-center border border-gray-200 bg-white text-[#222222] transition-colors hover:bg-gray-50 hover:text-[#222222];
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
+    @apply inline-flex shrink-0 items-center justify-center border bg-white text-[#333333] transition-colors hover:bg-[#f8f9fa] hover:text-[#222222];
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border-color: #e0e0e0;
   }
 
   .report-field-label {

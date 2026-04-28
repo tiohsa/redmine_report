@@ -46,9 +46,15 @@ export const reportStyles = {
   toolbar: 'report-toolbar',
   toolbarGroup: 'report-toolbar-group',
   toolbarDivider: 'report-toolbar-divider',
+  toolbarIconButton: 'report-toolbar-icon-button',
   stateBadge: 'report-state-badge',
   stateBadgeActive: 'report-state-badge-active',
   stateBadgeInactive: 'report-state-badge-inactive',
+  stateDot: 'report-state-dot',
+  stateDotLoading: 'report-state-dot-loading',
+  stateDotHidden: 'report-state-dot-hidden',
+  menuToggleIcon: 'report-menu-toggle-icon',
+  menuToggleIconActive: 'report-menu-toggle-icon-active',
   timelineShell: 'report-timeline-shell',
   timelineLaneLabel: 'report-timeline-lane-label',
   timelineLaneLabelActive: 'report-timeline-lane-label-active',
@@ -104,4 +110,25 @@ export const reportStyles = {
   checkboxControl: 'report-checkbox-control',
   checkboxLabel: 'report-checkbox-label',
   checkboxDescription: 'report-checkbox-description',
+} as const;
+
+export const reportCompactIconActionStyle = {
+  width: '32px',
+  height: '32px',
+  borderRadius: '6px'
+} as const;
+
+export const reportCompactIconActionActiveStyle = {
+  width: '32px',
+  height: '32px',
+  borderRadius: '6px',
+  backgroundColor: '#e8f0fe',
+  color: '#1a73e8',
+  borderColor: '#e0e0e0'
+} as const;
+
+export const reportCompactMenuToggleActiveStyle = {
+  backgroundColor: '#e8f0fe',
+  color: '#1a73e8',
+  borderColor: '#e0e0e0'
 } as const;

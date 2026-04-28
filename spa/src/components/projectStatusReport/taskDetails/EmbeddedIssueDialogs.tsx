@@ -28,6 +28,8 @@ import {
   type InheritedSubIssueFields,
   syncEmbeddedIssueHeaderState
 } from './shared';
+import { reportCompactIconActionStyle, reportCompactMenuToggleActiveStyle, reportStyles } from '../../designSystem';
+import { cn } from '../../ui/cn';
 
 type SubIssueCreationDialogProps = {
   projectIdentifier: string;
@@ -235,7 +237,7 @@ export function SubIssueCreationDialog({
 
   return (
     <CompactDialogFrame dialogHeightPx={dialogHeightPx} onClose={onClose}>
-      <div ref={headerRef} data-testid="sub-issue-dialog-header" className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white" style={{ padding: '2px 12px' }}>
+      <div ref={headerRef} data-testid="sub-issue-dialog-header" className="border-b border-[rgba(0,0,0,0.06)] flex items-center justify-between flex-shrink-0 bg-white" style={{ padding: '2px 12px' }}>
         <div className="flex items-center gap-2 min-w-0 overflow-hidden">
           {iframeHeader ? (
             <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} #${parentIssueId} ${iframeSubject}`}>
@@ -246,10 +248,10 @@ export function SubIssueCreationDialog({
           )}
         </div>
         <div className="flex items-center gap-[6px] flex-shrink-0">
-          <a href={iframeUrl} target="_blank" rel="noreferrer" className="report-icon-button-muted" title={t('common.openInNewTab')} aria-label={t('common.openInNewTab')}>
+          <a href={iframeUrl} target="_blank" rel="noreferrer" className="report-icon-button-muted" style={reportCompactIconActionStyle} title={t('common.openInNewTab')} aria-label={t('common.openInNewTab')}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" /></svg>
           </a>
-          <button type="button" aria-label={t('timeline.closeCreateIssueDialogAria')} className="report-icon-button-muted" onClick={onClose}>
+          <button type="button" aria-label={t('timeline.closeCreateIssueDialogAria')} className="report-icon-button-muted" style={reportCompactIconActionStyle} onClick={onClose}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -305,19 +307,30 @@ export function SubIssueCreationDialog({
         {!iframeReady ? <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none"><div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div></div> : null}
       </div>
 
-      <div ref={sectionRef} className="border-t border-slate-200 bg-white flex-shrink-0" style={{ padding: '8px 12px 0 12px' }}>
-        <button type="button" className="report-menu-toggle-button" onClick={() => setBulkOpen(!bulkOpen)}>
-          <span className="report-menu-toggle-icon" style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+      <div ref={sectionRef} className="border-t border-[rgba(0,0,0,0.06)] bg-white flex-shrink-0" style={{ padding: '8px 12px 0 12px' }}>
+        <button
+          type="button"
+          className={cn('report-menu-toggle-button', bulkOpen && 'text-[#1a73e8]')}
+          onClick={() => setBulkOpen(!bulkOpen)}
+        >
+          <span
+            className={cn(reportStyles.menuToggleIcon, bulkOpen && reportStyles.menuToggleIconActive)}
+            style={{
+              transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+              ...(bulkOpen ? reportCompactMenuToggleActiveStyle : {})
+            }}
+          >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="m9 18 6-6-6-6" />
             </svg>
+            {bulkOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </span>
           <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
         </button>
         {bulkOpen ? <div className="mt-3"><textarea className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y" placeholder={t('subIssueDialog.bulkPlaceholder')} value={bulkText} onChange={(e) => setBulkText(e.target.value)} /></div> : null}
       </div>
 
-      <div ref={footerRef} data-testid="sub-issue-dialog-footer" className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center" style={{ padding: '2px 12px 4px 12px' }}>
+      <div ref={footerRef} data-testid="sub-issue-dialog-footer" className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-[rgba(0,0,0,0.06)]" style={{ padding: '2px 12px 4px 12px' }}>
         <button type="button" className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, borderColor: '#cbd5e1', color: '#334155' }} onClick={onClose}>{t('common.cancel')}</button>
         <button type="button" className="rounded-[6px] text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, backgroundColor: '#1b69e3', color: '#fff' }} disabled={isSubmitting || !iframeReady} onClick={handleSave}>{isSubmitting ? t('common.saving') : t('common.save')}</button>
       </div>
@@ -512,7 +525,7 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
 
   return (
     <CompactDialogFrame dialogHeightPx={dialogHeightPx} onClose={onClose}>
-      <div ref={headerRef} data-testid="edit-issue-dialog-header" className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white" style={{ padding: '2px 12px' }}>
+      <div ref={headerRef} data-testid="edit-issue-dialog-header" className="border-b border-[rgba(0,0,0,0.06)] flex items-center justify-between flex-shrink-0 bg-white" style={{ padding: '2px 12px' }}>
         <div className="flex items-center gap-2 min-w-0 overflow-hidden">
           {iframeHeader ? (
             <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} ${iframeSubject}`}>{iframeHeader} {iframeSubject}</span>
@@ -524,10 +537,10 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
           )}
         </div>
         <div className="flex items-center gap-[6px] flex-shrink-0">
-          <a href={iframeUrl} target="_blank" rel="noreferrer" className="report-icon-button-muted" title={t('common.openInNewTab')} aria-label={t('common.openInNewTab')}>
+          <a href={iframeUrl} target="_blank" rel="noreferrer" className="report-icon-button-muted" style={reportCompactIconActionStyle} title={t('common.openInNewTab')} aria-label={t('common.openInNewTab')}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" /></svg>
           </a>
-          <button type="button" aria-label={t('timeline.closeEditIssueDialogAria')} className="report-icon-button-muted" onClick={onClose}>
+          <button type="button" aria-label={t('timeline.closeEditIssueDialogAria')} className="report-icon-button-muted" style={reportCompactIconActionStyle} onClick={onClose}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -545,18 +558,29 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
         }} />
         {!iframeReady ? <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none"><div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div></div> : null}
       </div>
-      <div ref={sectionRef} className="border-t border-slate-200 bg-white flex-shrink-0" style={{ padding: '8px 12px 0 12px' }}>
-        <button type="button" className="report-menu-toggle-button" onClick={() => setBulkOpen(!bulkOpen)}>
-          <span className="report-menu-toggle-icon" style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+      <div ref={sectionRef} className="border-t border-[rgba(0,0,0,0.06)] bg-white flex-shrink-0" style={{ padding: '8px 12px 0 12px' }}>
+        <button
+          type="button"
+          className={cn('report-menu-toggle-button', bulkOpen && 'text-[#1a73e8]')}
+          onClick={() => setBulkOpen(!bulkOpen)}
+        >
+          <span
+            className={cn(reportStyles.menuToggleIcon, bulkOpen && reportStyles.menuToggleIconActive)}
+            style={{
+              transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+              ...(bulkOpen ? reportCompactMenuToggleActiveStyle : {})
+            }}
+          >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="m9 18 6-6-6-6" />
             </svg>
+            {bulkOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </span>
           <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
         </button>
         {bulkOpen ? <div className="mt-3"><textarea className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y" placeholder={t('subIssueDialog.bulkPlaceholder')} value={bulkText} onChange={(e) => setBulkText(e.target.value)} /></div> : null}
       </div>
-      <div ref={footerRef} data-testid="edit-issue-dialog-footer" className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center" style={{ padding: '2px 12px 4px 12px' }}>
+      <div ref={footerRef} data-testid="edit-issue-dialog-footer" className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-[rgba(0,0,0,0.06)]" style={{ padding: '2px 12px 4px 12px' }}>
         <button type="button" className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, borderColor: '#cbd5e1', color: '#334155' }} onClick={onClose}>{t('common.cancel')}</button>
         <button type="button" className="rounded-[6px] text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, backgroundColor: '#1b69e3', color: '#fff' }} disabled={isSubmitting || !iframeReady} onClick={handleSave}>{isSubmitting ? t('common.saving') : t('common.save')}</button>
       </div>
@@ -674,15 +698,15 @@ export function IssueViewDialog({ projectIdentifier, issueId, issueUrl, inherite
 
   return (
     <CompactDialogFrame dialogHeightPx={dialogHeightPx} onClose={onClose}>
-      <div ref={headerRef} data-testid="view-issue-dialog-header" className="border-b border-slate-200 flex items-center justify-between flex-shrink-0 bg-white" style={{ padding: '2px 12px' }}>
+      <div ref={headerRef} data-testid="view-issue-dialog-header" className="border-b border-[rgba(0,0,0,0.06)] flex items-center justify-between flex-shrink-0 bg-white" style={{ padding: '2px 12px' }}>
         <div className="flex items-center gap-2 min-w-0 overflow-hidden">
           {iframeHeader ? <span className="text-[14px] font-bold text-slate-800 truncate" title={`${iframeHeader} ${iframeSubject}`}>{iframeHeader} {iframeSubject}</span> : <><span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0 text-[10px] font-semibold text-slate-600">#{issueId}</span><span className="text-[14px] font-bold text-slate-800 truncate">{t('timeline.viewIssueDialogTitle')}</span></>}
         </div>
         <div className="flex items-center gap-[6px] flex-shrink-0">
-          <a href={issueUrl} target="_blank" rel="noreferrer" className="report-icon-button-muted" title={t('common.openInNewTab')} aria-label={t('common.openInNewTab')}>
+          <a href={issueUrl} target="_blank" rel="noreferrer" className="report-icon-button-muted" style={reportCompactIconActionStyle} title={t('common.openInNewTab')} aria-label={t('common.openInNewTab')}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-6h6m0 0v6m0-6L10.5 13.5" /></svg>
           </a>
-          <button type="button" aria-label={t('timeline.closeDialogAria')} className="report-icon-button-muted" onClick={onClose}>
+          <button type="button" aria-label={t('timeline.closeDialogAria')} className="report-icon-button-muted" style={reportCompactIconActionStyle} onClick={onClose}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -729,18 +753,29 @@ export function IssueViewDialog({ projectIdentifier, issueId, issueUrl, inherite
         }} />
         {!iframeReady ? <div className="absolute inset-0 bg-white flex items-center justify-center pointer-events-none"><div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600"></div></div> : null}
       </div>
-      <div ref={sectionRef} className="border-t border-slate-200 bg-white flex-shrink-0" style={{ padding: '8px 12px 0 12px' }}>
-        <button type="button" className="report-menu-toggle-button" onClick={() => setBulkOpen(!bulkOpen)}>
-          <span className="report-menu-toggle-icon" style={{ transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+      <div ref={sectionRef} className="border-t border-[rgba(0,0,0,0.06)] bg-white flex-shrink-0" style={{ padding: '8px 12px 0 12px' }}>
+        <button
+          type="button"
+          className={cn('report-menu-toggle-button', bulkOpen && 'text-[#1a73e8]')}
+          onClick={() => setBulkOpen(!bulkOpen)}
+        >
+          <span
+            className={cn(reportStyles.menuToggleIcon, bulkOpen && reportStyles.menuToggleIconActive)}
+            style={{
+              transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+              ...(bulkOpen ? reportCompactMenuToggleActiveStyle : {})
+            }}
+          >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="m9 18 6-6-6-6" />
             </svg>
+            {bulkOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </span>
           <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
         </button>
         {bulkOpen ? <div className="mt-3"><textarea className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y" placeholder={t('subIssueDialog.bulkPlaceholder')} value={bulkText} onChange={(e) => setBulkText(e.target.value)} /></div> : null}
       </div>
-      <div ref={footerRef} data-testid="view-issue-dialog-footer" className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-slate-200" style={{ padding: '8px 12px 12px 12px' }}>
+      <div ref={footerRef} data-testid="view-issue-dialog-footer" className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-[rgba(0,0,0,0.06)]" style={{ padding: '8px 12px 12px 12px' }}>
         <button type="button" className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, borderColor: '#cbd5e1', color: '#334155' }} onClick={onClose}>{t('common.close')}</button>
         <button type="button" className="rounded-[6px] border text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, borderColor: '#2563eb', backgroundColor: '#1b69e3', color: '#fff' }} disabled={isSubmitting || !iframeReady} onClick={handleSave}>{isSubmitting ? t('common.saving') : t('common.save')}</button>
       </div>

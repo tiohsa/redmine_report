@@ -2,7 +2,7 @@ import React from 'react';
 import { t } from '../../../i18n';
 import { type TableDensity } from './shared';
 import { SelectionList, SelectionRow, CheckboxRow } from '../../ui/SelectionList';
-import { reportStyles } from '../../designSystem';
+import { reportCompactIconActionActiveStyle, reportCompactIconActionStyle, reportStyles } from '../../designSystem';
 import { useUiStore } from '../../../stores/uiStore';
 import { cn } from '../../ui/cn';
 
@@ -23,6 +23,7 @@ type TaskDetailsHeaderProps = {
 };
 
 const REDMINE_DIALOG_ICON_ACTION_CLASS = reportStyles.iconButtonMuted;
+const REDMINE_DIALOG_ICON_ACTION_ACTIVE_CLASS = reportStyles.iconButtonActive;
 
 export function TaskDetailsHeader({
   title,
@@ -50,7 +51,7 @@ export function TaskDetailsHeader({
   ];
 
   return (
-    <div className="px-5 py-2.5 flex items-center justify-between gap-2.5 bg-white relative z-40 border-b border-gray-200 flex-shrink-0 min-h-10 box-border">
+    <div className="px-3 py-0.5 flex items-center justify-between gap-2.5 bg-white relative z-40 border-b border-[rgba(0,0,0,0.06)] flex-shrink-0 min-h-10 box-border">
       <div className="flex flex-row items-center gap-2.5 min-w-0">
         <div className="min-w-0">
           {drilldownPath.length > 1 && (
@@ -89,11 +90,16 @@ export function TaskDetailsHeader({
           <button
             onClick={(e) => { e.stopPropagation(); setIsDensityMenuOpen(!isDensityMenuOpen); }}
             title={t('timeline.tableDensity', { defaultValue: 'Table Density' })}
-            className={cn(REDMINE_DIALOG_ICON_ACTION_CLASS, 'ml-1', isDensityMenuOpen && 'bg-blue-50 border-blue-200 text-blue-600')}
+            className={cn(
+              isDensityMenuOpen ? REDMINE_DIALOG_ICON_ACTION_ACTIVE_CLASS : REDMINE_DIALOG_ICON_ACTION_CLASS,
+              'ml-1'
+            )}
+            style={isDensityMenuOpen ? reportCompactIconActionActiveStyle : reportCompactIconActionStyle}
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
             </svg>
+            {isDensityMenuOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </button>
           {isDensityMenuOpen && (
             <div className={filterDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
@@ -120,11 +126,16 @@ export function TaskDetailsHeader({
           <button
             onClick={(e) => { e.stopPropagation(); setIsDetailLegendOpen(!isDetailLegendOpen); }}
             title="Status Legend"
-            className={cn(REDMINE_DIALOG_ICON_ACTION_CLASS, 'ml-1', isDetailLegendOpen && 'bg-blue-50 border-blue-200 text-blue-600')}
+            className={cn(
+              isDetailLegendOpen ? REDMINE_DIALOG_ICON_ACTION_ACTIVE_CLASS : REDMINE_DIALOG_ICON_ACTION_CLASS,
+              'ml-1'
+            )}
+            style={isDetailLegendOpen ? reportCompactIconActionActiveStyle : reportCompactIconActionStyle}
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
             </svg>
+            {isDetailLegendOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </button>
           {isDetailLegendOpen && (
             <div className={cn(filterDropdownPanelStyle, 'w-48')} onMouseDown={(e) => e.stopPropagation()}>
@@ -155,8 +166,9 @@ export function TaskDetailsHeader({
           onClick={onReload}
           title={t('timeline.reloadTasks')}
           className={`${REDMINE_DIALOG_ICON_ACTION_CLASS} ml-1`}
+          style={reportCompactIconActionStyle}
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
@@ -172,8 +184,9 @@ export function TaskDetailsHeader({
         aria-label={t('timeline.closeDialogAria')}
         className={REDMINE_DIALOG_ICON_ACTION_CLASS}
         onClick={onClose}
+        style={reportCompactIconActionStyle}
       >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>

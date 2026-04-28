@@ -113,7 +113,9 @@ export const ProjectStatusReportToolbar = ({
   dateRangeError,
   onToggleFullScreen,
 }: ProjectStatusReportToolbarProps) => {
-  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-3 w-72 max-h-[420px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
+  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-1.5 w-[280px] max-h-[320px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
+  const legendDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[220px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
+  const sizeDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[180px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
   const filterDropdownTitleStyle = reportStyles.dropdownTitle;
   const filterDropdownRowStyle = reportStyles.dropdownRow;
   const filterDropdownDividerStyle = reportStyles.dropdownDivider;
@@ -129,10 +131,10 @@ export const ProjectStatusReportToolbar = ({
               variant={selectedProjectIdentifiers.length > 0 ? 'icon-active' : 'icon'}
               title={t('filter.project')}
             >
-              <Icon name="folder" className="h-5 w-5" />
-              {selectedProjectIdentifiers.length > 0 && (
-                <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[var(--color-brand-6)] shadow-sm"></span>
-              )}
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
+              {selectedProjectIdentifiers.length > 0 ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
             </Button>
             {isProjectOpen && (
               <div className={filterDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
@@ -198,10 +200,11 @@ export const ProjectStatusReportToolbar = ({
               variant={selectedVersions.length > 0 ? 'icon-active' : 'icon'}
               title={t('filter.version')}
             >
-              <Icon name="tag" className="h-5 w-5" />
-              {selectedVersions.length > 0 && (
-                <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[var(--color-brand-6)] shadow-sm"></span>
-              )}
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                <line x1="4" y1="22" x2="4" y2="15" />
+              </svg>
+              {selectedVersions.length > 0 ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
             </Button>
             {isVersionOpen && onVersionChange && (
               <div className={filterDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
@@ -267,13 +270,15 @@ export const ProjectStatusReportToolbar = ({
             <Button
               onClick={() => onLegendOpenChange(!isLegendOpen)}
               onMouseEnter={() => onLegendOpenChange(true)}
-              variant="icon"
+              variant={isLegendOpen ? 'icon-active' : 'icon'}
+              className={reportStyles.toolbarIconButton}
               title="Status Legend"
             >
-              <Icon name="info" className="h-5 w-5" />
+              <Icon name="info" className="h-4 w-4" />
+              {isLegendOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
             </Button>
             {isLegendOpen && (
-              <div className={cn(filterDropdownPanelStyle, 'left-auto right-0 w-48')}>
+              <div className={legendDropdownPanelStyle}>
                 <div className={filterDropdownTitleStyle}>Status Legend</div>
                 <SelectionList className="py-1">
                   {statuses.map((status) => (
@@ -302,17 +307,17 @@ export const ProjectStatusReportToolbar = ({
           <div className="relative" {...dropdownRefProps(sizeDropdownRef)}>
             <Button
               onClick={() => onSizeOpenChange(!isSizeOpen)}
-              variant="icon"
+              variant={isSizeOpen || chartScale !== 1 ? 'icon-active' : 'icon'}
+              className={reportStyles.toolbarIconButton}
               title={t('filter.size')}
             >
-              <Icon name="sliders" className="h-5 w-5" />
-              <span className={`${reportStyles.stateBadge} ${reportStyles.stateBadgeInactive} text-[9px]`}>
-                {chartScale === 0.5 ? 'S' : chartScale === 0.75 ? 'M' : chartScale === 1 ? 'L' : 'XL'}
-              </span>
+              <Icon name="sliders" className="h-4 w-4" />
+              {isSizeOpen || chartScale !== 1 ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
             </Button>
             {isSizeOpen && (
-              <div className="report-dropdown-panel right-0 top-full mt-3 w-32 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300" onMouseDown={(e) => e.stopPropagation()}>
-                <SelectionList>
+              <div className={sizeDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
+                <div className={filterDropdownTitleStyle}>{t('filter.size')}</div>
+                <SelectionList className="py-1">
                   {sizeOptions.map((option) => (
                     <SelectionRow
                       key={option.label}
@@ -332,69 +337,56 @@ export const ProjectStatusReportToolbar = ({
 
           <Button
             onClick={() => onProcessModeChange(!isProcessMode)}
-            variant={isProcessMode ? 'icon-active' : 'icon'}
+            variant={isProcessMode || isLoadingChildren ? 'icon-active' : 'icon'}
+            className={reportStyles.toolbarIconButton}
             title={t('filter.processMode', { defaultValue: 'Process Mode' })}
             aria-pressed={isProcessMode}
+            aria-busy={isLoadingChildren || undefined}
           >
-            <Icon name="process" className="h-5 w-5" />
-            <span
-              className={`${reportStyles.stateBadge} ${
-                isProcessMode || showAllDates || showTodayLine
-                  ? reportStyles.stateBadgeActive
-                  : reportStyles.stateBadgeInactive
-              }`}
-            >
-              {isLoadingChildren ? '...' : isProcessMode ? 'ON' : 'OFF'}
-            </span>
+            <Icon name="process" className="h-4 w-4" />
+            {isProcessMode || isLoadingChildren ? (
+              <span
+                className={cn(
+                  reportStyles.stateDot,
+                  isLoadingChildren ? reportStyles.stateDotLoading : undefined
+                )}
+                aria-hidden="true"
+              />
+            ) : null}
           </Button>
 
           <Button
             onClick={onOpenDateRangeDialog}
-            variant={isCustomDateRangeActive ? 'icon-active' : 'icon'}
+            variant={isDateRangeDialogOpen || isCustomDateRangeActive ? 'icon-active' : 'icon'}
+            className={reportStyles.toolbarIconButton}
             title={t('filter.dateRange')}
             aria-haspopup="dialog"
             aria-expanded={isDateRangeDialogOpen}
           >
-            <Icon name="calendar" className="h-5 w-5" />
-            {isCustomDateRangeActive && (
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border border-white bg-[var(--color-brand-6)]"></span>
-            )}
+            <Icon name="calendar" className="h-4 w-4" />
+            {isDateRangeDialogOpen || isCustomDateRangeActive ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </Button>
 
           <Button
             onClick={() => onShowAllDatesChange(!showAllDates)}
             variant={showAllDates ? 'icon-active' : 'icon'}
+            className={reportStyles.toolbarIconButton}
             title={t('filter.dateDisplay')}
             aria-pressed={showAllDates}
           >
-            <Icon name="calendar" className="h-5 w-5" />
-            <span
-              className={`${reportStyles.stateBadge} text-[9px] ${
-                showAllDates
-                  ? reportStyles.stateBadgeActive
-                  : reportStyles.stateBadgeInactive
-              }`}
-            >
-              {showAllDates ? 'ON' : 'OFF'}
-            </span>
+            <Icon name="calendar" className="h-4 w-4" />
+            {showAllDates ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </Button>
 
           <Button
             onClick={() => onShowTodayLineChange(!showTodayLine)}
             variant={showTodayLine ? 'icon-active' : 'icon'}
+            className={reportStyles.toolbarIconButton}
             title={t('timeline.todayLineToggle', { defaultValue: 'Today line' })}
             aria-pressed={showTodayLine}
           >
-            <Icon name="today" className="h-5 w-5" />
-            <span
-              className={`${reportStyles.stateBadge} text-[9px] ${
-                showTodayLine
-                  ? reportStyles.stateBadgeActive
-                  : reportStyles.stateBadgeInactive
-              }`}
-            >
-              {showTodayLine ? 'ON' : 'OFF'}
-            </span>
+            <Icon name="today" className="h-4 w-4" />
+            {showTodayLine ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </Button>
 
           <div className={reportStyles.toolbarDivider}></div>
@@ -402,16 +394,18 @@ export const ProjectStatusReportToolbar = ({
           <Button
             onClick={onToggleFullScreen}
             variant="icon"
+            className={reportStyles.toolbarIconButton}
             title={t('report.fullscreen')}
           >
-            <Icon name="fullscreen" className="h-5 w-5" />
+            <Icon name="fullscreen" className="h-4 w-4" />
           </Button>
 
           <Button
             variant="icon"
+            className={reportStyles.toolbarIconButton}
             title={t('report.export')}
           >
-            <Icon name="download" className="h-5 w-5" />
+            <Icon name="download" className="h-4 w-4" />
           </Button>
         </div>
       </div>

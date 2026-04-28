@@ -79,7 +79,7 @@ type StepRenderData = {
   width: number;
 };
 
-const BASE_LANE_HEIGHT = 122;
+const BASE_LANE_HEIGHT = 79;
 const BASE_POINT_DEPTH = 22;
 const BASE_BAR_HEIGHT = 36;
 const PROCESS_PROGRESS_LABEL_OFFSET_Y = 18;

@@ -13,7 +13,7 @@ import {
   setupEmbeddedIssueDialogIframe,
   useEmbeddedIssueDialogLayout,
 } from './embeddedIssueDialog';
-import { reportStyles } from '../designSystem';
+import { reportCompactIconActionStyle, reportStyles } from '../designSystem';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 
@@ -75,7 +75,7 @@ export function CreateDestinationIssueDialog({
     try {
       const doc = iframeRef.current?.contentDocument;
       if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
-    const form = findEmbeddedIssueFormElement(doc);
+      const form = findEmbeddedIssueFormElement(doc);
       if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
 
       setIsSubmitting(true);
@@ -124,7 +124,7 @@ export function CreateDestinationIssueDialog({
         <div
           ref={headerRef}
           data-testid="destination-issue-dialog-header"
-          className="flex flex-shrink-0 items-center justify-between border-b border-gray-100 bg-white"
+          className="flex flex-shrink-0 items-center justify-between border-b border-[rgba(0,0,0,0.06)] bg-white"
           style={{ padding: '2px 12px' }}
         >
           <div className="flex items-center gap-3 overflow-hidden">
@@ -133,13 +133,13 @@ export function CreateDestinationIssueDialog({
             </h4>
           </div>
           <div className="flex items-center gap-[6px] flex-shrink-0">
-          <Button
-            variant="icon-muted"
-            aria-label={t('destinationIssueDialog.closeAria')}
-            onClick={onClose}
-          >
-            <Icon name="close" />
-          </Button>
+            <Button
+              variant="icon-muted"
+              aria-label={t('destinationIssueDialog.closeAria')}
+              onClick={onClose}
+            >
+              <Icon name="close" />
+            </Button>
           </div>
         </div>
 
@@ -220,6 +220,7 @@ export function CreateDestinationIssueDialog({
             rel="noreferrer"
             aria-label={t('common.openInNewTab')}
             className={reportStyles.iconButtonMuted}
+            style={reportCompactIconActionStyle}
           >
             <Icon name="open-in-new" />
           </a>

@@ -98,15 +98,15 @@ export function TaskDetailsBody({
   density
 }: TaskDetailsBodyProps) {
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#f3f3f3] relative" ref={detailsLayoutRef}>
+    <div className="flex-1 flex flex-col min-h-0 bg-[#f7f9fc] relative" ref={detailsLayoutRef}>
       {loading && (
-        <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-30">
+        <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/85 z-30">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
         </div>
       )}
 
       {!loading && issues.length === 0 && (
-        <div className="text-center py-12 m-6 bg-white border border-slate-300 flex-shrink-0 w-full">
+        <div className="text-center py-12 m-6 bg-white border border-[#e0e0e0] flex-shrink-0 w-full">
           <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
         </div>
       )}
@@ -114,7 +114,7 @@ export function TaskDetailsBody({
       {!loading && issues.length > 0 && (
         <>
           <div
-            className="border-b border-slate-200 bg-white relative z-10 shrink-0 overflow-hidden"
+            className="border-b border-[#e5e7eb] bg-white relative z-10 shrink-0 overflow-hidden"
             data-testid="task-details-top-pane"
             style={{ height: `${topPaneHeight}px` }}
           >
@@ -143,7 +143,7 @@ export function TaskDetailsBody({
             tabIndex={0}
             data-testid="task-details-horizontal-resizer"
             data-resizing={verticalResizeSession ? 'true' : 'false'}
-            className={`relative z-20 shrink-0 cursor-ns-resize bg-slate-300 transition-colors ${verticalResizeSession ? 'h-2 bg-slate-400' : 'h-1.5 hover:bg-slate-400'}`}
+            className={`relative z-20 shrink-0 cursor-ns-resize bg-[#d6deea] transition-colors ${verticalResizeSession ? 'h-2 bg-[#b8c4d4]' : 'h-1.5 hover:bg-[#b8c4d4]'}`}
             onPointerDown={startVerticalResize}
             onMouseDown={startVerticalResizeWithMouse}
             onPointerMove={(event) => updateVerticalResize(event.clientY, event.pointerId)}
@@ -153,7 +153,7 @@ export function TaskDetailsBody({
             onKeyDown={handleVerticalResizeKeyDown}
           >
             <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
-              <span className="h-1 w-14 rounded-full bg-slate-500/70" />
+              <span className="h-1 w-14 rounded-full bg-[#94a3b8]/70" />
             </div>
           </div>
 

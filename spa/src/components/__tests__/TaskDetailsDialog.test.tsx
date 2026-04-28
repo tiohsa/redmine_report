@@ -990,13 +990,24 @@ describe('TaskDetailsDialog', () => {
     expect(designX).toBeGreaterThan(0);
     expect(buildX).toBeGreaterThan(designX);
 
-    fireEvent.doubleClick(screen.getByTestId('due-date-display-11'));
+    const startDateDisplay = screen.getByTestId('start-date-display-11');
+    const dblClickEvent = new MouseEvent('dblclick', { bubbles: true, cancelable: true });
 
-    fireEvent.change(screen.getByTestId('due-date-input-11') as HTMLInputElement, {
-      target: { value: '2026-02-10' }
+    let dispatchResult = true;
+    await act(async () => {
+      dispatchResult = startDateDisplay.dispatchEvent(dblClickEvent);
     });
 
-    fireEvent.keyDown(screen.getByTestId('due-date-input-11'), { key: 'Enter', code: 'Enter' });
+    expect(dispatchResult).toBe(false);
+    expect(dblClickEvent.defaultPrevented).toBe(true);
+    const startDateInput = (await screen.findByTestId('start-date-input-11')) as HTMLInputElement;
+    expect(startDateInput).toBeTruthy();
+
+    fireEvent.change(startDateInput, {
+      target: { value: '2026-02-01' }
+    });
+
+    fireEvent.keyDown(startDateInput, { key: 'Enter', code: 'Enter' });
 
     await waitFor(() => {
       expect(Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('width'))).toBeGreaterThan(initialWidth);
@@ -1006,8 +1017,8 @@ describe('TaskDetailsDialog', () => {
 
     await waitFor(() => {
       expect(updateTaskDatesMock).toHaveBeenCalledWith('ecookbook', 11, {
-        start_date: '2026-02-03',
-        due_date: '2026-02-10'
+        start_date: '2026-02-01',
+        due_date: '2026-02-08'
       });
     });
   });
@@ -2866,10 +2877,12 @@ describe('TaskDetailsDialog', () => {
 
     expect(header).toBeTruthy();
     expect(footer.className).toContain('justify-start');
-    expect(openButton.getAttribute('style')).toContain('width: 24px');
-    expect(openButton.getAttribute('style')).toContain('height: 24px');
-    expect(closeButton.getAttribute('style')).toContain('width: 24px');
-    expect(closeButton.getAttribute('style')).toContain('height: 24px');
+    expect(openButton.getAttribute('style')).toContain('width: 32px');
+    expect(openButton.getAttribute('style')).toContain('height: 32px');
+    expect(openButton.getAttribute('style')).toContain('border-radius: 6px');
+    expect(closeButton.getAttribute('style')).toContain('width: 32px');
+    expect(closeButton.getAttribute('style')).toContain('height: 32px');
+    expect(closeButton.getAttribute('style')).toContain('border-radius: 6px');
     expect(cancelButton.getAttribute('style')).toContain('height: 28px');
     expect(cancelButton.getAttribute('style')).toContain('min-width: 88px');
     expect(saveButton.getAttribute('style')).toContain('height: 28px');
@@ -2910,10 +2923,12 @@ describe('TaskDetailsDialog', () => {
 
     expect(header).toBeTruthy();
     expect(footer.className).toContain('justify-start');
-    expect(openButton.getAttribute('style')).toContain('width: 24px');
-    expect(openButton.getAttribute('style')).toContain('height: 24px');
-    expect(closeButton.getAttribute('style')).toContain('width: 24px');
-    expect(closeButton.getAttribute('style')).toContain('height: 24px');
+    expect(openButton.getAttribute('style')).toContain('width: 32px');
+    expect(openButton.getAttribute('style')).toContain('height: 32px');
+    expect(openButton.getAttribute('style')).toContain('border-radius: 6px');
+    expect(closeButton.getAttribute('style')).toContain('width: 32px');
+    expect(closeButton.getAttribute('style')).toContain('height: 32px');
+    expect(closeButton.getAttribute('style')).toContain('border-radius: 6px');
     expect(cancelButton.getAttribute('style')).toContain('height: 28px');
     expect(cancelButton.getAttribute('style')).toContain('min-width: 88px');
     expect(saveButton.getAttribute('style')).toContain('height: 28px');
