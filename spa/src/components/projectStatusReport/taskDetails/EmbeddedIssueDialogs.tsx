@@ -353,6 +353,7 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const errorRef = useRef<HTMLDivElement | null>(null);
   const saveInFlightRef = useRef(false);
+  const handledSaveRef = useRef(false);
   const cleanupIframeEscRef = useRef<(() => void) | null>(null);
   const cleanupEmbeddedSubmitRef = useRef<(() => void) | null>(null);
   const { dialogHeightPx, measureDialogHeight, bindIframeSizeObservers, resetLayout } = useEmbeddedIssueDialogLayout({
@@ -369,6 +370,7 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
     setIframeError(null);
     setIframeHeader('');
     setIframeSubject('');
+    handledSaveRef.current = false;
     cleanupIframeEscRef.current?.();
     cleanupIframeEscRef.current = null;
     cleanupEmbeddedSubmitRef.current?.();
@@ -401,6 +403,17 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
 
   const parseEmbeddedIssueDocument = (html: string): Document => new DOMParser().parseFromString(html, 'text/html');
   const hasEmbeddedIssueForm = (doc: Document) => Boolean(findEmbeddedIssueFormElement(doc));
+  const extractCurrentIssueId = (doc: Document) => {
+    const pathname = doc.location?.pathname || '';
+    const match = pathname.match(/^\/issues\/(\d+)(?:[/?#]|$)/);
+    return match ? Number(match[1]) : null;
+  };
+  const completeSave = (updatedIssueId: number) => {
+    if (handledSaveRef.current) return;
+    handledSaveRef.current = true;
+    onSaved?.(updatedIssueId);
+    onClose();
+  };
 
   const bindEmbeddedIssueFormSubmit = (doc: Document) => {
     cleanupEmbeddedSubmitRef.current?.();
@@ -513,8 +526,7 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
         setBulkOpen(false);
       }
 
-      onSaved?.(saveResult.issueId);
-      onClose();
+      completeSave(saveResult.issueId);
     } catch (err: any) {
       alert(t('common.alertError', { message: err.message }));
     } finally {
@@ -551,6 +563,12 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
           try {
             const doc = (e.target as HTMLIFrameElement).contentDocument;
             if (!doc) return;
+            const iframeErrorMessage = getEmbeddedIssueDialogErrorMessage(doc);
+            const currentIssueId = extractCurrentIssueId(doc);
+            if (currentIssueId && !iframeErrorMessage && !hasEmbeddedIssueForm(doc)) {
+              completeSave(currentIssueId);
+              return;
+            }
             syncEmbeddedIssueFrame(doc);
           } catch {
             setIframeError(null);

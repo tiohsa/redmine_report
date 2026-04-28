@@ -52,6 +52,7 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
     issuesRef.current = [];
     savingIssueIdsRef.current = {};
     setFeedback(null);
+    hasAnyChangesRef.current = false;
   }, []);
 
   useEffect(() => {

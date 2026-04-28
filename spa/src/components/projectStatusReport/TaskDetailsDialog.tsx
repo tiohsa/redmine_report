@@ -185,22 +185,36 @@ export function TaskDetailsDialog({
     });
   }, []);
 
+  const refreshReportIfDirty = useCallback(() => {
+    if (!hasAnyChangesRef.current) return;
+    hasAnyChangesRef.current = false;
+    onTaskDatesUpdated?.();
+  }, [hasAnyChangesRef, onTaskDatesUpdated]);
+
   const handleClose = useCallback(() => {
-    if (hasAnyChangesRef.current) {
-      onTaskDatesUpdated?.();
-      hasAnyChangesRef.current = false;
-    }
+    refreshReportIfDirty();
     setEditingDateRange(null);
     resetDialogState();
     setActiveIssueId(null);
     resetLayoutState();
     resetProcessFlowInteraction();
     onClose();
-  }, [onClose, onTaskDatesUpdated, resetDialogState, resetLayoutState, resetProcessFlowInteraction]);
+  }, [refreshReportIfDirty, onClose, resetDialogState, resetLayoutState, resetProcessFlowInteraction]);
+
+  const closeCreateIssueDialog = useCallback(() => {
+    setCreateIssueContext(null);
+  }, [setCreateIssueContext]);
+
+  const closeEditIssueDialog = useCallback(() => {
+    setEditIssueContext(null);
+  }, [setEditIssueContext]);
+
+  const closeViewIssueDialog = useCallback(() => {
+    setViewIssueContext(null);
+  }, [setViewIssueContext]);
 
   useEffect(() => {
     if (!open) return;
-    hasAnyChangesRef.current = false;
 
     const onEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -425,9 +439,9 @@ export function TaskDetailsDialog({
         issues={issues}
         currentRootIssueId={currentRootIssueId}
         hasAnyChangesRef={hasAnyChangesRef}
-        onCloseCreateIssue={() => setCreateIssueContext(null)}
-        onCloseEditIssue={() => setEditIssueContext(null)}
-        onCloseViewIssue={() => setViewIssueContext(null)}
+        onCloseCreateIssue={closeCreateIssueDialog}
+        onCloseEditIssue={closeEditIssueDialog}
+        onCloseViewIssue={closeViewIssueDialog}
         reloadTaskDetails={reloadTaskDetails}
         syncSelectionAfterReload={syncSelectionAfterReload}
       />

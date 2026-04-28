@@ -249,4 +249,32 @@ describe('Schedule report interactions', () => {
     await waitFor(() => expect(fetchScheduleReportMock).toHaveBeenCalledTimes(2));
     expect(useTaskStore.getState().bars[0]?.bar_key).toBe('after');
   });
+
+  it('does not refresh schedule data on window focus', async () => {
+    fetchScheduleReportMock.mockResolvedValueOnce(buildSnapshotFixture({
+      bars: [{
+        bar_key: 'before-focus',
+        project_id: 1,
+        category_id: 1,
+        category_name: 'Before focus',
+        start_date: '2026-02-01',
+        end_date: '2026-02-03',
+        issue_count: 1,
+        delayed_issue_count: 0,
+        progress_rate: 20,
+        is_delayed: false,
+        dependencies: []
+      }]
+    }));
+
+    render(<ScheduleReportPage />);
+    await waitFor(() => expect(useTaskStore.getState().bars[0]?.bar_key).toBe('before-focus'));
+
+    act(() => {
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    expect(fetchScheduleReportMock).toHaveBeenCalledTimes(1);
+    expect(useTaskStore.getState().bars[0]?.bar_key).toBe('before-focus');
+  });
 });

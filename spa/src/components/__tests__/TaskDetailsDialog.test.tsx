@@ -206,6 +206,39 @@ describe('TaskDetailsDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('does not refresh the report when the dialog closes without changes', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      }
+    ]);
+
+    const onTaskDatesUpdated = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onTaskDatesUpdated={onTaskDatesUpdated}
+        onClose={onClose}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: /Close dialog|ダイアログを閉じる/ }));
+
+    expect(onTaskDatesUpdated).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('shows date range as text until double click enables inline date editing', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
       {
@@ -2550,6 +2583,7 @@ describe('TaskDetailsDialog', () => {
     ]);
 
     const submitClick = vi.fn();
+    const onTaskDatesUpdated = vi.fn();
 
     function Harness() {
       const [open, setOpen] = useState(true);
@@ -2558,6 +2592,7 @@ describe('TaskDetailsDialog', () => {
           open
           projectIdentifier="ecookbook"
           issueId={10}
+          onTaskDatesUpdated={onTaskDatesUpdated}
           onClose={() => setOpen(false)}
         />
       ) : null;
@@ -2612,6 +2647,7 @@ describe('TaskDetailsDialog', () => {
     await waitFor(() => {
       expect(screen.queryByTitle(/Issue Details|チケット詳細/)).toBeNull();
     });
+    expect(onTaskDatesUpdated).toHaveBeenCalledTimes(1);
   });
 
   it('keeps edit issue dialog open when validation error returns edit form on /issues/:id', async () => {
@@ -2784,6 +2820,8 @@ describe('TaskDetailsDialog', () => {
       }
     ]);
 
+    const onTaskDatesUpdated = vi.fn();
+    const onClose = vi.fn();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       redirected: true,
@@ -2795,12 +2833,17 @@ describe('TaskDetailsDialog', () => {
 
     function Harness() {
       const [open, setOpen] = useState(true);
+      const handleClose = () => {
+        onClose();
+        setOpen(false);
+      };
       return open ? (
         <TaskDetailsDialog
           open
           projectIdentifier="ecookbook"
           issueId={10}
-          onClose={() => setOpen(false)}
+          onTaskDatesUpdated={onTaskDatesUpdated}
+          onClose={handleClose}
         />
       ) : null;
     }
@@ -2841,6 +2884,78 @@ describe('TaskDetailsDialog', () => {
     await waitFor(() => {
       expect(screen.queryByTitle(/Edit Issue|チケット編集/)).toBeNull();
     });
+
+    expect(onTaskDatesUpdated).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /Close dialog|ダイアログを閉じる/ }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onTaskDatesUpdated).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes the report when the edit iframe dialog closes after navigating to the issue page', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      }
+    ]);
+
+    const onTaskDatesUpdated = vi.fn();
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return open ? (
+        <TaskDetailsDialog
+          open
+          projectIdentifier="ecookbook"
+          issueId={10}
+          onTaskDatesUpdated={onTaskDatesUpdated}
+          onClose={() => setOpen(false)}
+        />
+      ) : null;
+    }
+
+    render(<Harness />);
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByTitle(/Edit in Redmine|チケットを編集/));
+
+    const iframe = screen.getByTitle(/Edit Issue|チケット編集/) as HTMLIFrameElement;
+    const { doc } = buildEmbeddedIssueDocument({
+      formId: 'edit_issue',
+      action: '/issues/10'
+    });
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: doc
+    });
+
+    fireEvent.load(iframe);
+    expect(screen.queryByTitle(/Edit Issue|チケット編集/)).toBeTruthy();
+
+    const successDoc = {
+      head: { appendChild: vi.fn() },
+      createElement: vi.fn(() => ({ textContent: '' })),
+      querySelectorAll: vi.fn(() => []),
+      querySelector: vi.fn(() => null),
+      location: { pathname: '/issues/10' }
+    } as unknown as Document;
+    Object.defineProperty(iframe, 'contentDocument', {
+      configurable: true,
+      value: successDoc
+    });
+
+    fireEvent.load(iframe);
+
+    await waitFor(() => {
+      expect(screen.queryByTitle(/Edit Issue|チケット編集/)).toBeNull();
+    });
+    expect(onTaskDatesUpdated).toHaveBeenCalledTimes(1);
   });
 
   it('uses compact canvas-gantt dialog chrome for sub-issue dialog', async () => {
@@ -2936,6 +3051,8 @@ describe('TaskDetailsDialog', () => {
   });
 
   it('reloads task details after a sub-issue is created', async () => {
+    const onTaskDatesUpdated = vi.fn();
+
     fetchTaskDetailsMock
       .mockResolvedValueOnce([
         {
@@ -2981,6 +3098,7 @@ describe('TaskDetailsDialog', () => {
         open
         projectIdentifier="ecookbook"
         issueId={10}
+        onTaskDatesUpdated={onTaskDatesUpdated}
         onClose={vi.fn()}
       />
     );
@@ -3009,6 +3127,7 @@ describe('TaskDetailsDialog', () => {
     const subjects = screen.getAllByTestId('task-subject');
     expect(subjects.some(s => s.textContent === 'New child issue')).toBeTruthy();
     expect(screen.queryByTitle('子チケット新規登録')).toBeNull();
+    expect(onTaskDatesUpdated).toHaveBeenCalledTimes(1);
   });
 
   it('inherits current embedded form fields for bulk child creation from the create dialog', async () => {
