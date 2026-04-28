@@ -47,6 +47,10 @@ describe('ProjectStatusReport inline report', () => {
     fetchWeeklyAiResponsesMock.mockReset();
     updateWeeklyAiResponseMock.mockReset();
     vi.restoreAllMocks();
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn()
+    });
     window.localStorage.clear();
     useUiStore.setState({
       rootProjectIdentifier: 'ecookbook',
@@ -91,6 +95,10 @@ describe('ProjectStatusReport inline report', () => {
 
     await waitFor(() => expect(fetchWeeklyAiResponsesMock).toHaveBeenCalledTimes(1));
     const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+      block: 'nearest',
+      inline: 'nearest'
+    });
     expect(within(report).getByTestId('ai-section-view-highlights_this_week')).toBeTruthy();
     expect(within(report).queryByText('report.detailTitle')).toBeNull();
     expect(within(report).queryByText('report.aiSuffix')).toBeNull();

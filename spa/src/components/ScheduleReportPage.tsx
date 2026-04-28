@@ -47,34 +47,36 @@ export function ScheduleReportPage() {
 
   return (
     <div className="schedule-report-page report-page-shell">
-      {showInitialLoading ? (
-        <div className="flex h-full items-center justify-center p-6">
-          <div className={reportStyles.loadingState}>{t('common.loading')}</div>
-        </div>
-      ) : (
-        <ProjectStatusReport
-          bars={snapshot.bars}
-          projectIdentifier={currentProjectIdentifier}
-          availableProjects={snapshot.available_projects}
-          selectedVersions={selectedVersions}
-          onVersionChange={setSelectedVersions}
-          onTaskDatesUpdated={refresh}
-          fetchError={hasNoSnapshotData ? snapshot.errorMessage : null}
-        />
-      )}
-      {showUpdatingBanner && (
-        <div className={`mx-4 mb-4 ${reportStyles.alertInfo}`}>{t('schedule.updating')}</div>
-      )}
-      {showBlockingError && (
-        <div className={`mx-4 mb-4 ${reportStyles.alertError}`} role="alert">
-          {snapshot.errorMessage}
-        </div>
-      )}
-      {showNonBlockingError && (
-        <div className={`mx-4 mb-4 ${reportStyles.alertWarning}`} role="alert">
-          {t('schedule.refreshFailedShowingCached')}
-        </div>
-      )}
+      <div className={reportStyles.shellScroll} data-testid="schedule-report-scroll">
+        {showInitialLoading ? (
+          <div className="flex min-h-full items-center justify-center p-6">
+            <div className={reportStyles.loadingState}>{t('common.loading')}</div>
+          </div>
+        ) : (
+          <ProjectStatusReport
+            bars={snapshot.bars}
+            projectIdentifier={currentProjectIdentifier}
+            availableProjects={snapshot.available_projects}
+            selectedVersions={selectedVersions}
+            onVersionChange={setSelectedVersions}
+            onTaskDatesUpdated={refresh}
+            fetchError={hasNoSnapshotData ? snapshot.errorMessage : null}
+          />
+        )}
+        {showUpdatingBanner && (
+          <div className={`mx-4 mb-4 ${reportStyles.alertInfo}`}>{t('schedule.updating')}</div>
+        )}
+        {showBlockingError && (
+          <div className={`mx-4 mb-4 ${reportStyles.alertError}`} role="alert">
+            {snapshot.errorMessage}
+          </div>
+        )}
+        {showNonBlockingError && (
+          <div className={`mx-4 mb-4 ${reportStyles.alertWarning}`} role="alert">
+            {t('schedule.refreshFailedShowingCached')}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

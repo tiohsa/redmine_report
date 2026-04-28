@@ -1011,6 +1011,16 @@ function TimelineChartSurface({
   const activeReportLane = activeReportLaneKey
     ? layoutData.find((project) => project.laneKey === activeReportLaneKey)
     : undefined;
+  const inlineReportRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!activeReportLaneKey || !activeReportLane || !inlineReportRef.current) return;
+
+    inlineReportRef.current.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest'
+    });
+  }, [activeReportLane, activeReportLaneKey]);
 
   if (layoutData.length === 0) {
     return <div className="flex items-center justify-center h-32 text-gray-400">{t('common.noData')}</div>;
@@ -1204,7 +1214,11 @@ function TimelineChartSurface({
           }}
         >
           <div className="mx-4 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-            <div data-testid={`timeline-inline-report-${activeReportLaneKey}`} style={{ height: INLINE_REPORT_SLOT_HEIGHT - 12 }}>
+            <div
+              ref={inlineReportRef}
+              data-testid={`timeline-inline-report-${activeReportLaneKey}`}
+              style={{ height: INLINE_REPORT_SLOT_HEIGHT - 12 }}
+            >
               <InlineReportSlot
                 response={detailedReportResponse}
                 isLoading={detailedReportLoading}
