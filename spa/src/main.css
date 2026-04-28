@@ -274,7 +274,7 @@
   }
 
   .report-dropdown-row {
-    @apply flex items-center gap-3 rounded-[6px] px-2 py-1 text-[13px] text-[#45515e] transition-colors hover:bg-[#f8f9fa] cursor-pointer;
+    @apply flex items-center gap-3 rounded-[6px] px-2 py-0.5 text-[13px] text-[#45515e] transition-colors hover:bg-[#f8f9fa] cursor-pointer;
   }
 
   .report-dropdown-divider {
@@ -302,11 +302,11 @@
   }
 
   .report-selection-row {
-    @apply flex cursor-pointer items-center gap-2.5 rounded-[6px] px-2 py-1 text-[13px] font-sans text-[#45515e] transition-colors hover:bg-[#f8f9fa] focus:outline-none;
+    @apply flex cursor-pointer items-center gap-2.5 rounded-[6px] px-2 py-0.5 text-[13px] font-sans text-[#45515e] transition-colors hover:bg-[#f8f9fa] focus:outline-none;
   }
 
   .report-selection-row-active {
-    @apply bg-[#e8f0fe] text-[#1a73e8] font-medium;
+    @apply font-medium;
   }
 
   .report-selection-checkbox {
@@ -804,7 +804,7 @@
   }
 
   .report-selection-list {
-    @apply space-y-2;
+    @apply space-y-0.5;
   }
 
   .report-selection-list-item {
