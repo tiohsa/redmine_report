@@ -22,7 +22,7 @@ type TaskDetailsHeaderProps = {
   onClose: () => void;
 };
 
-const REDMINE_DIALOG_ICON_ACTION_CLASS = 'inline-flex items-center justify-center h-9 w-9 rounded-[8px] border border-gray-200 bg-white text-[#222222] hover:bg-gray-50 transition-all duration-300 cursor-pointer';
+const REDMINE_DIALOG_ICON_ACTION_CLASS = reportStyles.iconButtonMuted;
 
 export function TaskDetailsHeader({
   title,

@@ -346,7 +346,7 @@ const IssueTreeNode = ({
               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1 flex-shrink-0">
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer"
+                  className="report-icon-button-muted !h-6 !w-6 !rounded-[6px] opacity-70 hover:opacity-100"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -360,7 +360,7 @@ const IssueTreeNode = ({
                 </button>
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer"
+                  className="report-icon-button-muted !h-6 !w-6 !rounded-[6px] opacity-70 hover:opacity-100"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

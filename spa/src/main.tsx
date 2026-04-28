@@ -42,3 +42,10 @@ if (bulkMount) {
     </React.StrictMode>
   );
 }
+
+// Ensure portal element for date picker exists
+if (!document.getElementById('redmine-report-inline-date-picker-portal')) {
+  const portal = document.createElement('div');
+  portal.id = 'redmine-report-inline-date-picker-portal';
+  document.body.appendChild(portal);
+}

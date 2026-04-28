@@ -258,8 +258,8 @@ export const VersionAiDialog = ({
               <p className="text-[14px] font-sans font-medium text-[#45515e]">{versionName}</p>
             </div>
           </div>
-          <Button variant="icon-muted" className="h-10 w-10" onClick={onClose} aria-label={t('common.close')}>
-            <Icon name="close" className="h-5 w-5" />
+          <Button variant="icon-muted" onClick={onClose} aria-label={t('common.close')}>
+            <Icon name="close" />
           </Button>
         </div>
 
@@ -348,9 +348,9 @@ export const VersionAiDialog = ({
                   title={t('weeklyDialog.createDestinationIssue')}
                   onClick={() => setCreateTicketOpen(true)}
                   variant="icon-muted"
-                  className="h-10 w-10 flex-shrink-0 rounded-[16px]"
+                  className="flex-shrink-0"
                 >
-                  <Icon name="plus" className="h-5 w-5" />
+                  <Icon name="plus" />
                 </Button>
                 <Button
                   onClick={validateDestination}
@@ -399,7 +399,7 @@ export const VersionAiDialog = ({
                   onChange={(e) => setPromptText(e.target.value)}
                 />
                 <button
-                  className="absolute right-4 top-4 rounded-lg border border-slate-100 bg-white p-2 text-slate-400 opacity-0 shadow-sm transition-all hover:text-indigo-600 group-hover:opacity-100 cursor-pointer"
+                  className="report-icon-button-muted absolute right-4 top-4 opacity-0 shadow-sm group-hover:opacity-100"
                   title={t('common.copy')}
                   onClick={() => {
                     navigator.clipboard.writeText(promptText);

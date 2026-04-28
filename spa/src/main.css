@@ -198,7 +198,10 @@
   .report-icon-button,
   .report-icon-button-active,
   .report-icon-button-muted {
-    @apply inline-flex items-center justify-center rounded-[8px] transition-all duration-300 font-sans cursor-pointer;
+    @apply inline-flex items-center justify-center transition-all duration-300 font-sans cursor-pointer;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
   }
 
   .report-pill {
@@ -218,15 +221,28 @@
   }
 
   .report-icon-button {
-    @apply relative h-10 w-10 p-0 text-[#222222] border border-gray-200 bg-white hover:border-gray-300 hover:bg-[#fbfdff];
+    @apply relative shrink-0 p-0 text-[#181e25] border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-gray-300 hover:bg-[#fbfdff];
   }
 
   .report-icon-button-active {
-    @apply relative h-10 w-10 p-0 bg-[var(--color-brand-tint)] text-[var(--color-brand-6)] border border-[var(--color-brand-6)];
+    @apply relative shrink-0 p-0 bg-white text-[#181e25] border border-[#e5e7eb] shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-gray-300 hover:bg-[#fbfdff];
   }
 
   .report-icon-button-muted {
-    @apply relative h-10 w-10 p-0 bg-gray-50 text-[#8e8e93] border border-gray-200 hover:bg-gray-100 hover:text-[#45515e];
+    @apply relative shrink-0 p-0 bg-white text-[#181e25] border border-[#e5e7eb] shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:border-gray-300 hover:bg-[#fbfdff];
+  }
+
+  .report-icon-button svg,
+  .report-icon-button-active svg,
+  .report-icon-button-muted svg,
+  .report-menu-toggle-icon svg {
+    width: 20px;
+    height: 20px;
+    stroke: #181e25;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
   }
 
   .report-dropdown-panel {
@@ -529,6 +545,17 @@
     @apply relative flex h-8 cursor-pointer items-center gap-2 overflow-hidden rounded-[9999px] border border-[var(--color-border-light)] bg-white px-3 transition-all duration-300 hover:border-[var(--color-brand-6)] hover:bg-[var(--color-brand-tint)];
   }
 
+  .report-menu-toggle-button {
+    @apply inline-flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 font-semibold text-[#222222] transition-colors hover:text-[var(--color-primary-600)];
+  }
+
+  .report-menu-toggle-icon {
+    @apply inline-flex shrink-0 items-center justify-center border border-[#e5e7eb] bg-white text-[#181e25] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-300;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
   .report-timeline-canvas-scroller {
     @apply relative flex-1 overflow-x-auto bg-white;
   }
@@ -719,7 +746,10 @@
   }
 
   .report-dialog-close {
-    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-gray-200 bg-white text-[#222222] transition-colors hover:bg-gray-50 hover:text-[#222222];
+    @apply inline-flex shrink-0 items-center justify-center border border-gray-200 bg-white text-[#222222] transition-colors hover:bg-gray-50 hover:text-[#222222];
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
   }
 
   .report-field-label {

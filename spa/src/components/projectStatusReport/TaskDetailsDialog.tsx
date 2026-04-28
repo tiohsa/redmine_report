@@ -320,7 +320,14 @@ export function TaskDetailsDialog({
   const handleDialogMouseDownCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!editingDateRangeRef.current) return;
     const target = event.target as HTMLElement | null;
-    if (!target?.closest('[data-date-editor-root="true"]') && !target?.closest('[data-date-editor-popper="true"]')) {
+    if (!target) return;
+
+    // Check if the click is within the inline editor or the portal
+    const isInsideEditor = target.closest('[data-date-editor-root="true"]') ||
+                          target.closest('[data-date-editor-popper="true"]') ||
+                          target.closest('#redmine-report-inline-date-picker-portal');
+
+    if (!isInsideEditor) {
       setEditingDateRange(null);
     }
   }, []);

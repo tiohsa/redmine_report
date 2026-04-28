@@ -96,7 +96,11 @@ const InlineDateField = ({
     ? `start-date-input-${issueId}`
     : `due-date-input-${issueId}`;
   const PopperContainer = ({ children }: { children?: React.ReactNode }) => (
-    <div data-date-editor-popper="true">
+    <div
+      data-date-editor-popper="true"
+      style={{ pointerEvents: 'auto' }}
+      onClick={(e) => e.stopPropagation()}
+    >
       {children}
     </div>
   );
@@ -129,11 +133,8 @@ const InlineDateField = ({
           open={true}
           selected={selectedDate}
           onInputClick={() => onActivate(field)}
-          onSelect={commitDate}
           onChange={(date: Date | null) => {
-            if (date === null) {
-              commitDate(date);
-            }
+            commitDate(date);
           }}
           onKeyDown={(event) => {
             if (event.key === 'Escape') {

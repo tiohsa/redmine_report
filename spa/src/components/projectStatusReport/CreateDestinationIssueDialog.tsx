@@ -3,7 +3,6 @@ import { t } from '../../i18n';
 import {
   COMPACT_ACTION_BUTTON_HEIGHT,
   COMPACT_ACTION_BUTTON_MIN_WIDTH,
-  COMPACT_ICON_BUTTON_SIZE,
   DEFAULT_DIALOG_WIDTH_PX,
   EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
   extractIssueIdFromLocationCandidates,
@@ -137,11 +136,9 @@ export function CreateDestinationIssueDialog({
           <Button
             variant="icon-muted"
             aria-label={t('destinationIssueDialog.closeAria')}
-            className="h-8 w-8"
-            style={{ width: '24px', height: '24px' }}
             onClick={onClose}
           >
-            <Icon name="close" className="h-4 w-4" />
+            <Icon name="close" />
           </Button>
           </div>
         </div>
@@ -222,10 +219,9 @@ export function CreateDestinationIssueDialog({
             target="_blank"
             rel="noreferrer"
             aria-label={t('common.openInNewTab')}
-            className={`${reportStyles.iconButtonMuted} h-8 w-8`}
-            style={{ width: '24px', height: '24px' }}
+            className={reportStyles.iconButtonMuted}
           >
-            <Icon name="open-in-new" className="h-3.5 w-3.5" />
+            <Icon name="open-in-new" />
           </a>
           <Button variant="secondary" className="min-w-[88px]" style={{ height: '28px', minWidth: '88px' }} onClick={onClose}>
             {t('common.cancel')}

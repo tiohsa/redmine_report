@@ -64,14 +64,16 @@ export const BulkIssueRegistrationPanel: React.FC<BulkIssueRegistrationPanelProp
     <div className="mt-6 rounded-[24px] border border-gray-100 bg-white p-5 shadow-subtle" id="bulk-registration-accordion-container">
       <button
         type="button"
-        className="flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 font-semibold text-[#222222] transition-colors hover:text-[var(--color-primary-600)]"
+        className="report-menu-toggle-button"
         onClick={() => setIsOpen(!isOpen)}
       >
         <span
-            className="inline-block transition-transform duration-200"
+            className="report-menu-toggle-icon"
             style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
         >
-          ▶
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
         </span>
         <span className="text-[13px] uppercase tracking-[0.14em]">{t('bulkIssue.panelTitle')}</span>
       </button>
