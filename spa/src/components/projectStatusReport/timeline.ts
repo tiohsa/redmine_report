@@ -54,6 +54,7 @@ export type TimelineViewModel = {
 type TimelineCalculationInput = {
   bars: CategoryBar[];
   selectedVersions: string[];
+  versionOrder?: string[];
   projectMap: Map<number, ProjectInfo>;
   containerWidth: number;
   displayStartDateIso?: string;
@@ -65,6 +66,7 @@ type TimelineCalculationInput = {
 export function buildTimelineViewModel({
   bars,
   selectedVersions,
+  versionOrder,
   projectMap,
   containerWidth,
   displayStartDateIso,
@@ -105,6 +107,7 @@ export function buildTimelineViewModel({
   const timelineData = buildTimelineData({
     bars,
     selectedVersions,
+    versionOrder,
     projectMap,
     getX,
     getWidth,
@@ -129,6 +132,7 @@ export function buildTimelineViewModel({
 function buildTimelineData({
   bars,
   selectedVersions,
+  versionOrder,
   projectMap,
   getX,
   getWidth,
@@ -138,6 +142,7 @@ function buildTimelineData({
 }: {
   bars: CategoryBar[];
   selectedVersions: string[];
+  versionOrder?: string[];
   projectMap: Map<number, ProjectInfo>;
   getX: (dateStr?: string) => number;
   getWidth: (startStr?: string, endStr?: string) => number;
@@ -164,12 +169,22 @@ function buildTimelineData({
   });
 
   const timelineData: TimelineLane[] = [];
+  const versionOrderIndex = new Map((versionOrder || []).map((version, index) => [version, index]));
   Array.from(groupedByProject.entries()).forEach(([projectId, versionMap]) => {
     const project = projectMap.get(projectId);
     const projectName = project?.name || t('timeline.projectFallback', { id: projectId });
     const projectIdentifier = project?.identifier || '';
 
-    Array.from(versionMap.entries()).forEach(([versionKey, versionBars]) => {
+    const sortedVersionEntries = Array.from(versionMap.entries()).sort(([a], [b]) => {
+      const ai = versionOrderIndex.get(a);
+      const bi = versionOrderIndex.get(b);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return -1;
+      if (bi !== undefined) return 1;
+      return a.localeCompare(b);
+    });
+
+    sortedVersionEntries.forEach(([versionKey, versionBars]) => {
       let displayBars = [...versionBars];
 
       if (isProcessMode) {

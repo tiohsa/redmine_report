@@ -270,4 +270,41 @@ describe('buildTimelineViewModel', () => {
     expect(lane.steps).toHaveLength(1);
     expect(lane.steps[0].issueId).toBe(200); // Parent
   });
+
+  it('orders lanes by versionOrder within each project', () => {
+    const bars: CategoryBar[] = [
+      makeBar({ category_id: 1, version_name: 'v1' }),
+      makeBar({ category_id: 2, version_name: 'v2' })
+    ];
+    const projectMap = new Map<number, ProjectInfo>();
+    projectMap.set(1, makeProject());
+
+    const viewModel = buildTimelineViewModel({
+      bars,
+      selectedVersions: ['v1', 'v2'],
+      versionOrder: ['v2', 'v1'],
+      projectMap,
+      containerWidth: 1000
+    });
+
+    expect(viewModel.timelineData.map((lane) => lane.versionName)).toEqual(['v2', 'v1']);
+  });
+
+  it('places versions missing from versionOrder at the end', () => {
+    const bars: CategoryBar[] = [
+      makeBar({ category_id: 1, version_name: 'v1' }),
+      makeBar({ category_id: 2, version_name: 'v2' }),
+      makeBar({ category_id: 3, version_name: 'v3' })
+    ];
+
+    const viewModel = buildTimelineViewModel({
+      bars,
+      selectedVersions: ['v1', 'v2', 'v3'],
+      versionOrder: ['v2', 'v1'],
+      projectMap: new Map<number, ProjectInfo>([[1, makeProject()]]),
+      containerWidth: 1000
+    });
+
+    expect(viewModel.timelineData.map((lane) => lane.versionName)).toEqual(['v2', 'v1', 'v3']);
+  });
 });

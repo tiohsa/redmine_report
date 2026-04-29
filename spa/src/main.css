@@ -259,6 +259,56 @@
     stroke-width: 2;
   }
 
+  .report-version-drag-row {
+    @apply flex items-center gap-2 rounded-[8px] px-2 py-1 text-[13px] text-[#45515e] transition-all;
+  }
+
+  .report-version-drag-row:hover {
+    @apply bg-[#f8f9fa];
+  }
+
+  .report-version-drag-row-active {
+    @apply bg-[var(--color-brand-tint)] text-[#222222];
+  }
+
+  .report-version-drag-row-dragging {
+    @apply bg-white opacity-80 shadow-brand-glow;
+  }
+
+  .report-version-drag-handle {
+    @apply relative z-10 flex h-6 w-6 cursor-move appearance-none items-center justify-center rounded-none border-0 bg-transparent p-0 text-[#8e8e93] shadow-none outline-none transition-colors;
+    border: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .report-version-drag-handle:hover {
+    @apply cursor-move bg-transparent text-[var(--color-brand-6)];
+  }
+
+  .report-version-drag-handle:active {
+    @apply cursor-move;
+  }
+
+  .report-version-drag-handle:focus,
+  .report-version-drag-handle:focus-visible {
+    @apply border-0 shadow-none outline-none ring-0;
+    border: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .report-version-drag-handle::-moz-focus-inner {
+    border: 0;
+    padding: 0;
+  }
+
+  .report-version-drop-indicator {
+    @apply pointer-events-none absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-[var(--color-brand-6)];
+  }
+
   .report-toolbar-icon-button svg {
     width: 17px;
     height: 17px;
