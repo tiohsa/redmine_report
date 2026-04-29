@@ -7,6 +7,7 @@ import { Icon } from '../ui/Icon';
 import { SelectionList, SelectionRow, CheckboxRow } from '../ui/SelectionList';
 import { FieldLabel } from '../ui/FieldLabel';
 import type { StatusStyle } from './constants';
+import { cn } from '../ui/cn';
 
 type DropdownRef = RefObject<HTMLDivElement | null>;
 
@@ -112,7 +113,9 @@ export const ProjectStatusReportToolbar = ({
   dateRangeError,
   onToggleFullScreen,
 }: ProjectStatusReportToolbarProps) => {
-  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-3 w-72 max-h-[420px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
+  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-1.5 w-[280px] max-h-[320px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
+  const legendDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[220px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
+  const sizeDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[180px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
   const filterDropdownTitleStyle = reportStyles.dropdownTitle;
   const filterDropdownRowStyle = reportStyles.dropdownRow;
   const filterDropdownDividerStyle = reportStyles.dropdownDivider;
@@ -120,22 +123,21 @@ export const ProjectStatusReportToolbar = ({
 
   return (
     <>
-      <div className="report-surface flex items-center justify-between gap-4 px-5 py-4 shadow-none">
-        <div className="flex items-center gap-2">
+      <div className={reportStyles.toolbar}>
+        <div className={reportStyles.toolbarGroup}>
           <div className="relative" {...dropdownRefProps(projectDropdownRef)}>
             <Button
               onClick={() => onProjectOpenChange(!isProjectOpen)}
               variant={selectedProjectIdentifiers.length > 0 ? 'icon-active' : 'icon'}
-              className="h-9 w-9"
               title={t('filter.project')}
             >
-              <Icon name="folder" className="h-5 w-5" />
-              {selectedProjectIdentifiers.length > 0 && (
-                <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[var(--color-brand-6)] shadow-sm"></span>
-              )}
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
+              {selectedProjectIdentifiers.length > 0 ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
             </Button>
             {isProjectOpen && (
-              <div className={filterDropdownPanelStyle}>
+              <div className={filterDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
                 <div className={filterDropdownTitleStyle}>{t('filter.project')}</div>
                 <SelectionRow
                   className={filterDropdownRowStyle}
@@ -173,7 +175,8 @@ export const ProjectStatusReportToolbar = ({
                 <div className={filterDropdownDividerStyle}></div>
                 <div className="px-4 py-2.5">
                   <span
-                    onClick={() => onSetSelectedProjectIdentifiers([])}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); onSetSelectedProjectIdentifiers([]); }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
@@ -195,16 +198,16 @@ export const ProjectStatusReportToolbar = ({
             <Button
               onClick={() => onVersionOpenChange(!isVersionOpen)}
               variant={selectedVersions.length > 0 ? 'icon-active' : 'icon'}
-              className="h-9 w-9"
               title={t('filter.version')}
             >
-              <Icon name="tag" className="h-5 w-5" />
-              {selectedVersions.length > 0 && (
-                <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[var(--color-brand-6)] shadow-sm"></span>
-              )}
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                <line x1="4" y1="22" x2="4" y2="15" />
+              </svg>
+              {selectedVersions.length > 0 ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
             </Button>
             {isVersionOpen && onVersionChange && (
-              <div className={filterDropdownPanelStyle}>
+              <div className={filterDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
                 <div className={filterDropdownTitleStyle}>{t('filter.version')}</div>
                 <SelectionRow
                   className={filterDropdownRowStyle}
@@ -242,7 +245,8 @@ export const ProjectStatusReportToolbar = ({
                 <div className={filterDropdownDividerStyle}></div>
                 <div className="px-4 py-2.5">
                   <span
-                    onClick={() => onVersionChange([])}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); onVersionChange?.([]); }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
@@ -261,54 +265,59 @@ export const ProjectStatusReportToolbar = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className={reportStyles.toolbarGroup}>
           <div className="relative" {...dropdownRefProps(legendDropdownRef)}>
             <Button
               onClick={() => onLegendOpenChange(!isLegendOpen)}
               onMouseEnter={() => onLegendOpenChange(true)}
-              variant="icon"
-              className="h-9 w-9"
+              variant={isLegendOpen ? 'icon-active' : 'icon'}
+              className={reportStyles.toolbarIconButton}
               title="Status Legend"
             >
-              <Icon name="info" className="h-5 w-5" />
+              <Icon name="info" className="h-4 w-4" />
+              {isLegendOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
             </Button>
             {isLegendOpen && (
-              <div className="report-dropdown-panel right-0 top-full mt-2 w-48 p-4 animate-in fade-in zoom-in duration-200">
-                <div className="flex flex-col gap-2">
+              <div className={legendDropdownPanelStyle}>
+                <div className={filterDropdownTitleStyle}>Status Legend</div>
+                <SelectionList className="py-1">
                   {statuses.map((status) => (
-                    <div key={status.label} className="flex items-center gap-3 text-[#222222] font-sans">
-                      <div
-                        className="h-3.5 w-3.5 rounded-full border shadow-sm"
-                        style={{
-                          backgroundColor: status.fill,
-                          borderColor: status.stroke,
-                        }}
-                      ></div>
+                    <SelectionRow
+                      key={status.label}
+                      leading={
+                        <div
+                          className="h-2.5 w-2.5 rounded-full border shadow-sm"
+                          style={{
+                            backgroundColor: status.fill,
+                            borderColor: status.stroke,
+                          }}
+                        />
+                      }
+                    >
                       <span className="text-[13px] font-medium">{status.label}</span>
-                    </div>
+                    </SelectionRow>
                   ))}
-                </div>
+                </SelectionList>
               </div>
             )}
           </div>
 
-          <div className="mx-1 h-6 w-px bg-slate-200"></div>
+          <div className={reportStyles.toolbarDivider}></div>
 
           <div className="relative" {...dropdownRefProps(sizeDropdownRef)}>
             <Button
               onClick={() => onSizeOpenChange(!isSizeOpen)}
-              variant="icon"
-              className="h-9 w-9"
+              variant={isSizeOpen || chartScale !== 1 ? 'icon-active' : 'icon'}
+              className={reportStyles.toolbarIconButton}
               title={t('filter.size')}
             >
-              <Icon name="sliders" className="h-5 w-5" />
-              <span className="absolute -bottom-1 -right-1 rounded-full border border-gray-200 bg-[#f0f0f0] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[#222222] shadow-sm">
-                {chartScale === 0.5 ? 'S' : chartScale === 0.75 ? 'M' : chartScale === 1 ? 'L' : 'XL'}
-              </span>
+              <Icon name="sliders" className="h-4 w-4" />
+              {isSizeOpen || chartScale !== 1 ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
             </Button>
             {isSizeOpen && (
-              <div className="report-dropdown-panel right-0 top-full mt-3 w-32 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
-                <SelectionList>
+              <div className={sizeDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
+                <div className={filterDropdownTitleStyle}>{t('filter.size')}</div>
+                <SelectionList className="py-1">
                   {sizeOptions.map((option) => (
                     <SelectionRow
                       key={option.label}
@@ -328,92 +337,75 @@ export const ProjectStatusReportToolbar = ({
 
           <Button
             onClick={() => onProcessModeChange(!isProcessMode)}
-            variant={isProcessMode ? 'icon-active' : 'icon'}
-            className="h-9 w-9"
+            variant={isProcessMode || isLoadingChildren ? 'icon-active' : 'icon'}
+            className={reportStyles.toolbarIconButton}
             title={t('filter.processMode', { defaultValue: 'Process Mode' })}
             aria-pressed={isProcessMode}
+            aria-busy={isLoadingChildren || undefined}
           >
-            <Icon name="process" className="h-5 w-5" />
-            <span
-              className={`absolute -bottom-1 -right-1 rounded-full border px-1.5 py-0.5 text-[8px] font-bold leading-none shadow-sm transition-all ${
-                isProcessMode || showAllDates || showTodayLine
-                  ? 'border-[var(--color-brand-6)] bg-[var(--color-brand-6)] text-white'
-                  : 'border-gray-200 bg-white text-[#8e8e93]'
-              }`}
-            >
-              {isLoadingChildren ? '...' : isProcessMode ? 'ON' : 'OFF'}
-            </span>
+            <Icon name="process" className="h-4 w-4" />
+            {isProcessMode || isLoadingChildren ? (
+              <span
+                className={cn(
+                  reportStyles.stateDot,
+                  isLoadingChildren ? reportStyles.stateDotLoading : undefined
+                )}
+                aria-hidden="true"
+              />
+            ) : null}
           </Button>
 
           <Button
             onClick={onOpenDateRangeDialog}
-            variant={isCustomDateRangeActive ? 'icon-active' : 'icon'}
-            className="h-9 w-9"
+            variant={isDateRangeDialogOpen || isCustomDateRangeActive ? 'icon-active' : 'icon'}
+            className={reportStyles.toolbarIconButton}
             title={t('filter.dateRange')}
             aria-haspopup="dialog"
             aria-expanded={isDateRangeDialogOpen}
           >
-            <Icon name="calendar" className="h-5 w-5" />
-            {isCustomDateRangeActive && (
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border border-white bg-blue-500"></span>
-            )}
+            <Icon name="calendar" className="h-4 w-4" />
+            {isDateRangeDialogOpen || isCustomDateRangeActive ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </Button>
 
           <Button
             onClick={() => onShowAllDatesChange(!showAllDates)}
             variant={showAllDates ? 'icon-active' : 'icon'}
-            className="h-9 w-9"
+            className={reportStyles.toolbarIconButton}
             title={t('filter.dateDisplay')}
             aria-pressed={showAllDates}
           >
-            <Icon name="calendar" className="h-5 w-5" />
-            <span
-              className={`absolute -bottom-1 -right-1 rounded border px-1 text-[9px] font-bold ${
-                showAllDates
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-slate-200 bg-white text-slate-500'
-              }`}
-            >
-              {showAllDates ? 'ON' : 'OFF'}
-            </span>
+            <Icon name="calendar" className="h-4 w-4" />
+            {showAllDates ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </Button>
 
           <Button
             onClick={() => onShowTodayLineChange(!showTodayLine)}
             variant={showTodayLine ? 'icon-active' : 'icon'}
-            className="h-9 w-9"
+            className={reportStyles.toolbarIconButton}
             title={t('timeline.todayLineToggle', { defaultValue: 'Today line' })}
             aria-pressed={showTodayLine}
           >
-            <Icon name="today" className="h-5 w-5" />
-            <span
-              className={`absolute -bottom-1 -right-1 rounded border px-1 text-[9px] font-bold ${
-                showTodayLine
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-slate-200 bg-white text-slate-500'
-              }`}
-            >
-              {showTodayLine ? 'ON' : 'OFF'}
-            </span>
+            <Icon name="today" className="h-4 w-4" />
+            {showTodayLine ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </Button>
 
-          <div className="mx-1 h-6 w-px bg-slate-200"></div>
+          <div className={reportStyles.toolbarDivider}></div>
 
           <Button
             onClick={onToggleFullScreen}
             variant="icon"
-            className="h-9 w-9"
+            className={reportStyles.toolbarIconButton}
             title={t('report.fullscreen')}
           >
-            <Icon name="fullscreen" className="h-5 w-5" />
+            <Icon name="fullscreen" className="h-4 w-4" />
           </Button>
 
           <Button
             variant="icon"
-            className="h-9 w-9"
+            className={reportStyles.toolbarIconButton}
             title={t('report.export')}
           >
-            <Icon name="download" className="h-5 w-5" />
+            <Icon name="download" className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -445,7 +437,7 @@ export const ProjectStatusReportToolbar = ({
                 </FieldLabel>
               </div>
               {dateRangeError && (
-                <p className="mt-3 text-sm font-semibold text-red-600" role="alert">
+                <p className={`mt-3 ${reportStyles.alertError}`} role="alert">
                   {dateRangeError}
                 </p>
               )}

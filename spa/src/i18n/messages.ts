@@ -71,7 +71,12 @@ export const messages = {
       partial: 'Some sections are not saved yet',
       sectionHighlights: 'Key Achievements This Week',
       sectionNextActions: 'Next Week Plan / Actions',
-      sectionRisks: 'Issues / Risks / Decisions'
+      sectionRisks: 'Issues / Risks / Decisions',
+      unsavedChanges: 'Unsaved changes',
+      discardChanges: 'Discard',
+      saved: 'Saved',
+      saveFailed: 'Failed to save changes.',
+      confirmDiscard: 'You have unsaved changes. Discard them and close?'
     },
     timeline: {
       laneHeader: 'Version / Project',
@@ -121,8 +126,7 @@ export const messages = {
       hasComments: 'Has comments',
       hasCommentsCount: '{count} comments',
       noComments: 'No comments',
-      overview: 'Overview',
-      descriptionTab: 'Description',
+
       commentsTab: 'Comments',
       attachmentsTab: 'Attachments',
       titleLabel: 'Title',
@@ -130,8 +134,6 @@ export const messages = {
       tagsLabel: 'Tags',
       seeAll: 'See All',
       historyLabel: 'History',
-      noDescription: 'No description',
-      selectTicket: 'Select a ticket to view details',
       breadcrumbAria: 'Issue hierarchy',
       resizeDetailAreasAria: 'Resize detail areas'
     },
@@ -178,7 +180,8 @@ export const messages = {
       generateWeeklyReport: 'Failed to generate weekly report: {status}',
       prepareWeeklyPrompt: 'Failed to prepare weekly prompt: {status}',
       saveWeeklyReport: 'Failed to save weekly report: {status}',
-      fetchWeeklyAiResponses: 'Failed to fetch weekly AI responses: {status}'
+      fetchWeeklyAiResponses: 'Failed to fetch weekly AI responses: {status}',
+      updateWeeklyAiResponse: 'Failed to update weekly AI response: {status}'
     },
     embeddedIssueForm: {
       defaultSubject: 'AI Comment',
@@ -281,7 +284,12 @@ export const messages = {
       partial: '一部セクションが未保存です',
       sectionHighlights: '今週の主要実績',
       sectionNextActions: '来週の予定・アクション',
-      sectionRisks: '課題・リスク・決定事項'
+      sectionRisks: '課題・リスク・決定事項',
+      unsavedChanges: '未保存の変更があります',
+      discardChanges: '変更を破棄',
+      saved: '保存しました',
+      saveFailed: '保存に失敗しました。',
+      confirmDiscard: '未保存の変更があります。破棄して閉じますか？'
     },
     timeline: {
       laneHeader: 'バージョン / プロジェクト',
@@ -331,7 +339,6 @@ export const messages = {
       hasComments: 'あり',
       hasCommentsCount: '{count}件のコメント',
       noComments: 'なし',
-      overview: '概要',
       descriptionTab: '説明',
       commentsTab: 'コメント',
       attachmentsTab: '添付ファイル',
@@ -340,8 +347,6 @@ export const messages = {
       tagsLabel: 'タグ',
       seeAll: 'すべて表示',
       historyLabel: '更新履歴',
-      noDescription: '説明なし',
-      selectTicket: 'チケットを選択して詳細を表示',
       breadcrumbAria: 'チケット階層',
       resizeDetailAreasAria: '詳細エリアのサイズを変更'
     },
@@ -388,7 +393,8 @@ export const messages = {
       generateWeeklyReport: '週次レポートの生成に失敗しました: {status}',
       prepareWeeklyPrompt: '週次プロンプトの準備に失敗しました: {status}',
       saveWeeklyReport: '週次レポートの保存に失敗しました: {status}',
-      fetchWeeklyAiResponses: '週次AIレスポンスの取得に失敗しました: {status}'
+      fetchWeeklyAiResponses: '週次AIレスポンスの取得に失敗しました: {status}',
+      updateWeeklyAiResponse: '週次AIレスポンスの更新に失敗しました: {status}'
     },
     embeddedIssueForm: {
       defaultSubject: '生成AIコメント',

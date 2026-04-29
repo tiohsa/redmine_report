@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { AiResponsePanel } from '../AiResponsePanel';
 
 describe('AiResponsePanel', () => {
@@ -136,5 +136,36 @@ describe('AiResponsePanel', () => {
 
     expect(screen.queryByTestId('ai-section-editor-highlights_this_week')).toBeNull();
     expect(screen.getByText('項目B')).toBeTruthy();
+  });
+
+  it('keeps edits and shows only the save error when saving fails', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('週次AIレスポンスの更新に失敗しました: 403'));
+
+    render(
+      <AiResponsePanel
+        isLoading={false}
+        errorMessage={null}
+        onSave={onSave}
+        response={{
+          status: 'AVAILABLE',
+          destination_issue_id: 10,
+          highlights_this_week: 'Original highlights',
+          next_week_actions: 'Next actions',
+          risks_decisions: 'Risks'
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('ai-section-view-highlights_this_week'));
+    const editor = screen.getByTestId('ai-section-editor-highlights_this_week') as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: 'Edited highlights' } });
+    fireEvent.blur(editor);
+
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('週次AIレスポンスの更新に失敗しました: 403'));
+    expect(screen.queryByText('未保存の変更があります')).toBeNull();
+    expect(screen.getByText('Edited highlights')).toBeTruthy();
+    expect((screen.getByRole('button', { name: '保存' }) as HTMLButtonElement).disabled).toBe(false);
   });
 });

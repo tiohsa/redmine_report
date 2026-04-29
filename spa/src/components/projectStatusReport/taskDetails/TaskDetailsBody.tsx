@@ -1,11 +1,14 @@
 import { t } from '../../../i18n';
-import { type TaskDetailIssue, type TaskMasters } from '../../../services/scheduleReportApi';
+import { type TaskDetailIssue, type TaskIssueEditOptions, type TaskMasters } from '../../../services/scheduleReportApi';
 import { type InlineDateRangeValue } from '../InlineDateRangeEditor';
-import { type ProcessFlowRenderStep, type ProcessFlowScaleMetrics } from './processFlowGeometry';
+import {
+  type ProcessFlowDragMode,
+  type ProcessFlowRenderStep,
+  type ProcessFlowScaleMetrics
+} from './processFlowGeometry';
 import { IssueTreeTable } from './IssueTreeTable';
 import { ProcessFlowCanvas } from './ProcessFlowCanvas';
 import { type TableDensity, type TreeNodeType } from './shared';
-import { TaskDetailsSidePanel } from './TaskDetailsSidePanel';
 
 type TaskDetailsBodyProps = {
   loading: boolean;
@@ -25,12 +28,14 @@ type TaskDetailsBodyProps = {
   processFlowBaseTopPadding: number;
   processFlowScaleMetrics: ProcessFlowScaleMetrics;
   selectedIssueId: number | null;
-  savingIssueIds: Set<number>;
+  activeIssueId: number | null;
+  savingIssueIds: Record<number, boolean>;
   processFlowContainerRef: React.RefObject<HTMLDivElement>;
-  startProcessFlowDrag: (step: ProcessFlowRenderStep, event: React.PointerEvent<SVGElement>) => void;
+  startProcessFlowDrag: (event: React.PointerEvent<SVGRectElement>, step: ProcessFlowRenderStep, mode: ProcessFlowDragMode) => void;
   handleProcessStepClick: (step: ProcessFlowRenderStep) => void;
   handleProcessStepDoubleClick: (step: ProcessFlowRenderStep) => void;
   selectIssue: (issue: TaskDetailIssue | null) => void;
+  selectIssueFromTable: (issue: TaskDetailIssue) => void;
   treeRoots: TreeNodeType[];
   rootIssueId: number;
   editingDateRange: InlineDateRangeValue | null;
@@ -42,29 +47,11 @@ type TaskDetailsBodyProps = {
   onViewIssue: (issue: TaskDetailIssue) => void;
   registerIssueRowRef: (issueId: number, element: HTMLDivElement | null) => void;
   masters: TaskMasters | null;
+  editOptionsByIssueId: Record<number, TaskIssueEditOptions>;
   onFieldUpdate: (targetIssueId: number, field: string, value: string | number | null) => Promise<void>;
   columnWidths: Record<string, number>;
   onColumnResize: (columnKey: string, deltaX: number) => void;
   density: TableDensity;
-  selectedIssue: TaskDetailIssue | null;
-  editingDescription: boolean;
-  descriptionDraft: string;
-  newCommentDraft: string;
-  isSavingComment: boolean;
-  editingCommentId: number | null;
-  editingCommentDraft: string;
-  onCloseSidePanel: () => void;
-  onEditSelectedIssue: () => void;
-  onStartDescriptionEdit: () => void;
-  onCancelDescriptionEdit: () => void;
-  onDescriptionDraftChange: (value: string) => void;
-  onSaveDescription: () => void;
-  onNewCommentDraftChange: (value: string) => void;
-  onAddComment: () => void;
-  onStartCommentEdit: (journalId: number, notes: string) => void;
-  onCancelCommentEdit: () => void;
-  onEditingCommentDraftChange: (value: string) => void;
-  onSaveComment: (journalId: number, notes: string) => void;
 };
 
 export function TaskDetailsBody({
@@ -85,12 +72,14 @@ export function TaskDetailsBody({
   processFlowBaseTopPadding,
   processFlowScaleMetrics,
   selectedIssueId,
+  activeIssueId,
   savingIssueIds,
   processFlowContainerRef,
   startProcessFlowDrag,
   handleProcessStepClick,
   handleProcessStepDoubleClick,
   selectIssue,
+  selectIssueFromTable,
   treeRoots,
   rootIssueId,
   editingDateRange,
@@ -102,40 +91,22 @@ export function TaskDetailsBody({
   onViewIssue,
   registerIssueRowRef,
   masters,
+  editOptionsByIssueId,
   onFieldUpdate,
   columnWidths,
   onColumnResize,
-  density,
-  selectedIssue,
-  editingDescription,
-  descriptionDraft,
-  newCommentDraft,
-  isSavingComment,
-  editingCommentId,
-  editingCommentDraft,
-  onCloseSidePanel,
-  onEditSelectedIssue,
-  onStartDescriptionEdit,
-  onCancelDescriptionEdit,
-  onDescriptionDraftChange,
-  onSaveDescription,
-  onNewCommentDraftChange,
-  onAddComment,
-  onStartCommentEdit,
-  onCancelCommentEdit,
-  onEditingCommentDraftChange,
-  onSaveComment
+  density
 }: TaskDetailsBodyProps) {
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#f3f3f3] relative" ref={detailsLayoutRef}>
+    <div className="flex-1 flex flex-col min-h-0 bg-[#f7f9fc] relative" ref={detailsLayoutRef}>
       {loading && (
-        <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/80 z-30">
+        <div className="flex justify-center items-center py-12 absolute inset-0 bg-white/85 z-30">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
         </div>
       )}
 
       {!loading && issues.length === 0 && (
-        <div className="text-center py-12 m-6 bg-white border border-slate-300 flex-shrink-0 w-full">
+        <div className="text-center py-12 m-6 bg-white border border-[#e0e0e0] flex-shrink-0 w-full">
           <p className="text-sm text-slate-500">{t('timeline.detailsNoRows')}</p>
         </div>
       )}
@@ -143,7 +114,7 @@ export function TaskDetailsBody({
       {!loading && issues.length > 0 && (
         <>
           <div
-            className="border-b border-slate-200 bg-white relative z-10 shrink-0 overflow-hidden"
+            className="border-b border-[#e5e7eb] bg-white relative z-10 shrink-0 overflow-hidden"
             data-testid="task-details-top-pane"
             style={{ height: `${topPaneHeight}px` }}
           >
@@ -172,7 +143,7 @@ export function TaskDetailsBody({
             tabIndex={0}
             data-testid="task-details-horizontal-resizer"
             data-resizing={verticalResizeSession ? 'true' : 'false'}
-            className={`relative z-20 shrink-0 cursor-ns-resize bg-slate-300 transition-colors ${verticalResizeSession ? 'h-2 bg-slate-400' : 'h-1.5 hover:bg-slate-400'}`}
+            className={`relative z-20 shrink-0 cursor-ns-resize bg-[#d6deea] transition-colors ${verticalResizeSession ? 'h-2 bg-[#b8c4d4]' : 'h-1.5 hover:bg-[#b8c4d4]'}`}
             onPointerDown={startVerticalResize}
             onMouseDown={startVerticalResizeWithMouse}
             onPointerMove={(event) => updateVerticalResize(event.clientY, event.pointerId)}
@@ -182,12 +153,12 @@ export function TaskDetailsBody({
             onKeyDown={handleVerticalResizeKeyDown}
           >
             <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
-              <span className="h-1 w-14 rounded-full bg-slate-500/70" />
+              <span className="h-1 w-14 rounded-full bg-[#94a3b8]/70" />
             </div>
           </div>
 
           <div className="flex-1 flex min-h-0 relative bg-white" data-testid="task-details-bottom-pane">
-            <div className="flex flex-col min-h-0 bg-white w-full transition-all overflow-hidden">
+            <div className="flex flex-col min-h-0 bg-white flex-1 overflow-hidden">
               <div className="overflow-auto flex-1 bg-white">
                 <IssueTreeTable
                   treeRoots={treeRoots}
@@ -200,9 +171,11 @@ export function TaskDetailsBody({
                   onAddSubIssue={onAddSubIssue}
                   onEditIssue={onEditIssue}
                   onViewIssue={onViewIssue}
-                  selectedIssueId={selectedIssueId ?? undefined}
+                  selectedIssueId={activeIssueId ?? undefined}
+                  onSelectIssue={selectIssueFromTable}
                   registerRowRef={registerIssueRowRef}
                   masters={masters}
+                  editOptionsByIssueId={editOptionsByIssueId}
                   onFieldUpdate={onFieldUpdate}
                   columnWidths={columnWidths}
                   onColumnResize={onColumnResize}
@@ -210,29 +183,6 @@ export function TaskDetailsBody({
                 />
               </div>
             </div>
-            {selectedIssue ? (
-              <TaskDetailsSidePanel
-                issue={selectedIssue}
-                editingDescription={editingDescription}
-                descriptionDraft={descriptionDraft}
-                newCommentDraft={newCommentDraft}
-                isSavingComment={isSavingComment}
-                editingCommentId={editingCommentId}
-                editingCommentDraft={editingCommentDraft}
-                onClose={onCloseSidePanel}
-                onEditIssue={onEditSelectedIssue}
-                onStartDescriptionEdit={onStartDescriptionEdit}
-                onCancelDescriptionEdit={onCancelDescriptionEdit}
-                onDescriptionDraftChange={onDescriptionDraftChange}
-                onSaveDescription={onSaveDescription}
-                onNewCommentDraftChange={onNewCommentDraftChange}
-                onAddComment={onAddComment}
-                onStartCommentEdit={onStartCommentEdit}
-                onCancelCommentEdit={onCancelCommentEdit}
-                onEditingCommentDraftChange={onEditingCommentDraftChange}
-                onSaveComment={onSaveComment}
-              />
-            ) : null}
           </div>
         </>
       )}

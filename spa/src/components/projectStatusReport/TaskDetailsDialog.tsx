@@ -47,34 +47,20 @@ export function TaskDetailsDialog({
     selectedIssue,
     setSelectedIssue,
     selectIssue,
-    editingDescription,
-    setEditingDescription,
-    descriptionDraft,
-    setDescriptionDraft,
-    newCommentDraft,
-    setNewCommentDraft,
-    isSavingComment,
-    setIsSavingComment,
-    editingCommentId,
-    editingCommentDraft,
-    setEditingCommentDraft,
     density,
-    densityMenuOpen,
-    setDensityMenuOpen,
     handleDensityChange,
-    startDescriptionEdit,
-    cancelDescriptionEdit,
-    startCommentEdit,
-    cancelCommentEdit,
     resetDialogState
   } = useTaskDetailsDialogState();
   const [editingDateRange, setEditingDateRange] = useState<InlineDateRangeValue | null>(null);
   const [drilldownPath, setDrilldownPath] = useState<DrilldownCrumb[]>([]);
+  const [activeIssueId, setActiveIssueId] = useState<number | null>(null);
+  const shouldScrollActiveIssueRef = useRef(true);
   const editingDateRangeRef = useRef<InlineDateRangeValue | null>(null);
   const {
     issues,
     loading,
     masters,
+    editOptionsByIssueId,
     savingIssueIds,
     feedback,
     clearFeedback,
@@ -82,7 +68,6 @@ export function TaskDetailsDialog({
     reloadTaskDetails,
     handleDateChange,
     handleFieldUpdate,
-    handleUpdateComment: updateComment,
     saveProcessFlowDates,
     issuesRef,
     savingIssueIdsRef,
@@ -112,10 +97,33 @@ export function TaskDetailsDialog({
   const syncSelectionAfterReload = useCallback((rows: TaskDetailIssue[], selectedIssueId?: number | null) => {
     if (!selectedIssueId) {
       selectIssue(null);
+      setActiveIssueId(null);
       return;
     }
-    selectIssue(rows.find((row) => row.issue_id === selectedIssueId) || null);
+    const nextIssue = rows.find((row) => row.issue_id === selectedIssueId) || null;
+    selectIssue(nextIssue);
+    setActiveIssueId(nextIssue?.issue_id ?? null);
   }, [selectIssue]);
+
+  const selectIssueFromTable = useCallback((issue: TaskDetailIssue) => {
+    const rowsById = new Map(issuesRef.current.map((row) => [row.issue_id, row]));
+    let processFlowIssue: TaskDetailIssue | null = null;
+    let parentId = issue.parent_id;
+
+    while (parentId) {
+      const parentIssue = rowsById.get(parentId) || null;
+      if (!parentIssue) break;
+      if (parentIssue.parent_id === currentRootIssueId) {
+        processFlowIssue = parentIssue;
+        break;
+      }
+      parentId = parentIssue.parent_id;
+    }
+
+    shouldScrollActiveIssueRef.current = false;
+    setActiveIssueId(issue.issue_id);
+    selectIssue(processFlowIssue || issue);
+  }, [currentRootIssueId, issuesRef, selectIssue]);
 
   const {
     processFlowContainerRef,
@@ -140,12 +148,13 @@ export function TaskDetailsDialog({
     saveProcessFlowDates,
     selectIssue,
     setSelectedIssue,
+    setActiveIssueId,
     setDrilldownPath,
     reloadTaskDetails,
     syncSelectionAfterReload
   });
 
-  const { treeRoots, registerIssueRowRef } = useTaskDetailsTree(issues, selectedIssueId);
+  const { treeRoots, registerIssueRowRef } = useTaskDetailsTree(issues, activeIssueId, shouldScrollActiveIssueRef);
 
   const currentAutoFitKey = open && !loading && issues.length > 0 && processFlowRenderSteps.length > 0
     ? `${currentRootIssueId}:${processFlowChartHeight}`
@@ -176,21 +185,36 @@ export function TaskDetailsDialog({
     });
   }, []);
 
+  const refreshReportIfDirty = useCallback(() => {
+    if (!hasAnyChangesRef.current) return;
+    hasAnyChangesRef.current = false;
+    onTaskDatesUpdated?.();
+  }, [hasAnyChangesRef, onTaskDatesUpdated]);
+
   const handleClose = useCallback(() => {
-    if (hasAnyChangesRef.current) {
-      onTaskDatesUpdated?.();
-      hasAnyChangesRef.current = false;
-    }
+    refreshReportIfDirty();
     setEditingDateRange(null);
     resetDialogState();
+    setActiveIssueId(null);
     resetLayoutState();
     resetProcessFlowInteraction();
     onClose();
-  }, [onClose, onTaskDatesUpdated, resetDialogState, resetLayoutState, resetProcessFlowInteraction]);
+  }, [refreshReportIfDirty, onClose, resetDialogState, resetLayoutState, resetProcessFlowInteraction]);
+
+  const closeCreateIssueDialog = useCallback(() => {
+    setCreateIssueContext(null);
+  }, [setCreateIssueContext]);
+
+  const closeEditIssueDialog = useCallback(() => {
+    setEditIssueContext(null);
+  }, [setEditIssueContext]);
+
+  const closeViewIssueDialog = useCallback(() => {
+    setViewIssueContext(null);
+  }, [setViewIssueContext]);
 
   useEffect(() => {
     if (!open) return;
-    hasAnyChangesRef.current = false;
 
     const onEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -212,6 +236,7 @@ export function TaskDetailsDialog({
     setDrilldownPath([{ issueId, title: issueTitle }]);
     resetData();
     resetDialogState();
+    setActiveIssueId(null);
     resetLayoutState();
     resetProcessFlowInteraction();
     clearFeedback();
@@ -277,38 +302,6 @@ export function TaskDetailsDialog({
     ));
   }, [currentRootIssueId, handleFieldUpdate, selectedIssue?.issue_id, setSelectedIssue]);
 
-  const handleSaveDescription = useCallback(async () => {
-    if (!selectedIssue) return;
-    try {
-      await handleIssueFieldUpdate(selectedIssue.issue_id, 'description', descriptionDraft);
-      setEditingDescription(false);
-    } catch (error) {
-      // Error is handled in handleFieldUpdate.
-    }
-  }, [descriptionDraft, handleIssueFieldUpdate, selectedIssue, setEditingDescription]);
-
-  const handleAddComment = useCallback(async () => {
-    if (!selectedIssue || !newCommentDraft.trim()) return;
-    setIsSavingComment(true);
-    try {
-      await handleIssueFieldUpdate(selectedIssue.issue_id, 'notes', newCommentDraft.trim());
-      setNewCommentDraft('');
-    } catch (error) {
-      // Error is handled in handleFieldUpdate.
-    } finally {
-      setIsSavingComment(false);
-    }
-  }, [handleIssueFieldUpdate, newCommentDraft, selectedIssue, setIsSavingComment, setNewCommentDraft]);
-
-  const handleUpdateComment = useCallback(async (journalId: number, notes: string) => {
-    if (!selectedIssue) return;
-    const latestRows = await updateComment(journalId, notes, currentRootIssueId, selectedIssue.issue_id);
-    cancelCommentEdit();
-    if (latestRows) {
-      syncSelectionAfterReload(latestRows, selectedIssue.issue_id);
-    }
-  }, [cancelCommentEdit, currentRootIssueId, selectedIssue, syncSelectionAfterReload, updateComment]);
-
   const handleBreadcrumbClick = useCallback((index: number) => {
     setDrilldownPath((prev) => {
       const next = prev.slice(0, index + 1);
@@ -341,7 +334,14 @@ export function TaskDetailsDialog({
   const handleDialogMouseDownCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!editingDateRangeRef.current) return;
     const target = event.target as HTMLElement | null;
-    if (!target?.closest('[data-date-editor-root="true"]') && !target?.closest('[data-date-editor-popper="true"]')) {
+    if (!target) return;
+
+    // Check if the click is within the inline editor or the portal
+    const isInsideEditor = target.closest('[data-date-editor-root="true"]') ||
+                          target.closest('[data-date-editor-popper="true"]') ||
+                          target.closest('#redmine-report-inline-date-picker-portal');
+
+    if (!isInsideEditor) {
       setEditingDateRange(null);
     }
   }, []);
@@ -361,10 +361,7 @@ export function TaskDetailsDialog({
           title={dialogHeaderTitle}
           drilldownPath={drilldownPath}
           density={density}
-          densityMenuOpen={densityMenuOpen}
           issueCount={issues.length}
-          onDensityMenuToggle={() => setDensityMenuOpen(!densityMenuOpen)}
-          onDensityMenuClose={() => setDensityMenuOpen(false)}
           onDensityChange={handleDensityChange}
           onBreadcrumbClick={handleBreadcrumbClick}
           onReload={handleReload}
@@ -393,12 +390,14 @@ export function TaskDetailsDialog({
           processFlowBaseTopPadding={processFlowBaseTopPadding}
           processFlowScaleMetrics={processFlowScaleMetrics}
           selectedIssueId={selectedIssueId}
+          activeIssueId={activeIssueId}
           savingIssueIds={savingIssueIds}
           processFlowContainerRef={processFlowContainerRef}
           startProcessFlowDrag={startProcessFlowDrag}
           handleProcessStepClick={handleProcessStepClick}
           handleProcessStepDoubleClick={handleProcessStepDoubleClick}
           selectIssue={selectIssue}
+          selectIssueFromTable={selectIssueFromTable}
           treeRoots={treeRoots}
           rootIssueId={issueId}
           editingDateRange={editingDateRange}
@@ -425,41 +424,11 @@ export function TaskDetailsDialog({
           })}
           registerIssueRowRef={registerIssueRowRef}
           masters={masters}
+          editOptionsByIssueId={editOptionsByIssueId}
           onFieldUpdate={handleIssueFieldUpdate}
           columnWidths={columnWidths}
           onColumnResize={handleColumnResize}
           density={density}
-          selectedIssue={selectedIssue}
-          editingDescription={editingDescription}
-          descriptionDraft={descriptionDraft}
-          newCommentDraft={newCommentDraft}
-          isSavingComment={isSavingComment}
-          editingCommentId={editingCommentId}
-          editingCommentDraft={editingCommentDraft}
-          onCloseSidePanel={() => selectIssue(null)}
-          onEditSelectedIssue={() => {
-            if (!selectedIssue) return;
-            setEditIssueContext({
-              issueId: selectedIssue.issue_id,
-              issueUrl: selectedIssue.issue_url
-            });
-          }}
-          onStartDescriptionEdit={startDescriptionEdit}
-          onCancelDescriptionEdit={cancelDescriptionEdit}
-          onDescriptionDraftChange={setDescriptionDraft}
-          onSaveDescription={() => {
-            void handleSaveDescription();
-          }}
-          onNewCommentDraftChange={setNewCommentDraft}
-          onAddComment={() => {
-            void handleAddComment();
-          }}
-          onStartCommentEdit={startCommentEdit}
-          onCancelCommentEdit={cancelCommentEdit}
-          onEditingCommentDraftChange={setEditingCommentDraft}
-          onSaveComment={(journalId, notes) => {
-            void handleUpdateComment(journalId, notes);
-          }}
         />
       </div>
       <TaskDetailsEmbeddedDialogs
@@ -470,9 +439,9 @@ export function TaskDetailsDialog({
         issues={issues}
         currentRootIssueId={currentRootIssueId}
         hasAnyChangesRef={hasAnyChangesRef}
-        onCloseCreateIssue={() => setCreateIssueContext(null)}
-        onCloseEditIssue={() => setEditIssueContext(null)}
-        onCloseViewIssue={() => setViewIssueContext(null)}
+        onCloseCreateIssue={closeCreateIssueDialog}
+        onCloseEditIssue={closeEditIssueDialog}
+        onCloseViewIssue={closeViewIssueDialog}
         reloadTaskDetails={reloadTaskDetails}
         syncSelectionAfterReload={syncSelectionAfterReload}
       />

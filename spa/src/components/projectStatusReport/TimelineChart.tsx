@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { t } from '../../i18n';
 import { updateTaskDates } from '../../services/scheduleReportApi';
-import { AiResponsePanel } from '../AiResponsePanel';
+import { AiResponsePanel, type EditableSections } from '../AiResponsePanel';
 import { getProgressFillColor, getProgressTrackColor } from './constants';
 import { HeaderMonth, HeaderYear, TimelineLane, TimelineStep } from './timeline';
 import { calculateStaggeredLanes } from './timelineAxis';
@@ -39,6 +39,8 @@ type TimelineChartProps = {
   detailedReportResponse?: AiResponseView | null;
   detailedReportLoading?: boolean;
   detailedReportError?: string | null;
+  onDetailedReportSave?: (sections: EditableSections) => Promise<AiResponseView>;
+  onDetailedReportDirtyChange?: (dirty: boolean) => void;
   onClearSelection?: () => void;
 };
 
@@ -64,6 +66,8 @@ type InlineReportSlotProps = {
   response: AiResponseView | null;
   isLoading: boolean;
   errorMessage: string | null;
+  onSave?: (sections: EditableSections) => Promise<AiResponseView>;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 type StepRenderData = {
@@ -75,7 +79,7 @@ type StepRenderData = {
   width: number;
 };
 
-const BASE_LANE_HEIGHT = 122;
+const BASE_LANE_HEIGHT = 79;
 const BASE_POINT_DEPTH = 22;
 const BASE_BAR_HEIGHT = 36;
 const PROCESS_PROGRESS_LABEL_OFFSET_Y = 18;
@@ -89,24 +93,35 @@ const DRAG_THRESHOLD_PX = 4;
 const RESIZE_HANDLE_PX = 10;
 const MIN_CENTER_CLICK_PX = 14;
 const MIN_HANDLE_ACTIVE_PX = 4;
-const ACTIVE_LANE_BACKGROUND_FILL = '#f9fafb';
-const ALT_LANE_BACKGROUND_FILL = '#ffffff';
 const INLINE_REPORT_SLOT_HEIGHT = 392;
 const DATE_LABEL_INSET_PX = 8;
 const SELECTED_BAR_STROKE = '#1456f0';
 const SELECTED_BAR_DASH = [6, 4];
 const CHEVRON_RIGHT_HEAD_RATIO = 0.62;
+const TIMELINE_HEADER_FILL = '#fbfdff';
+const TIMELINE_TEXT_SECONDARY = '#45515e';
+const TIMELINE_BORDER = '#e5e7eb';
+const TIMELINE_BORDER_LIGHT = '#f2f3f5';
+const TIMELINE_BRAND = '#1456f0';
+const TIMELINE_BRAND_TINT = '#f8fbff';
+const TIMELINE_ACTIVE_FILL = 'rgba(20, 86, 240, 0.07)';
 
 
 const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
-  labelClassName: isActive ? 'bg-sky-200/80' : 'bg-white',
-  baseFill: isActive ? ACTIVE_LANE_BACKGROUND_FILL : (laneIndex % 2 === 0 ? '#ffffff' : '#fafafa')
+  labelClassName: isActive ? reportStyles.timelineLaneLabelActive : 'bg-white',
+  baseFill: isActive ? TIMELINE_BRAND_TINT : (laneIndex % 2 === 0 ? '#ffffff' : '#fbfdff')
 });
 
-const InlineReportSlot = ({ response, isLoading, errorMessage }: InlineReportSlotProps) => (
-  <section className={`${reportStyles.surfaceElevated} flex h-full flex-col gap-4 overflow-hidden p-6 animate-in fade-in slide-in-from-top-4 duration-500 font-sans`}>
+const InlineReportSlot = ({ response, isLoading, errorMessage, onSave, onDirtyChange }: InlineReportSlotProps) => (
+  <section className={`${reportStyles.surfaceElevated} flex h-full flex-col gap-4 overflow-hidden p-4 animate-in fade-in slide-in-from-top-4 duration-500 font-sans`}>
     <div className="min-h-0 flex-1 overflow-auto">
-      <AiResponsePanel response={response} isLoading={isLoading} errorMessage={errorMessage} />
+      <AiResponsePanel
+        response={response}
+        isLoading={isLoading}
+        errorMessage={errorMessage}
+        onSave={onSave}
+        onDirtyChange={onDirtyChange}
+      />
     </div>
   </section>
 );
@@ -235,6 +250,8 @@ export function TimelineChart({
   detailedReportResponse = null,
   detailedReportLoading = false,
   detailedReportError = null,
+  onDetailedReportSave,
+  onDetailedReportDirtyChange,
   onClearSelection
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
@@ -283,6 +300,9 @@ export function TimelineChart({
 
   const handleBackgroundClick = (event: React.MouseEvent) => {
     setSelectedStepId(null);
+    if (activeReportLaneKey) {
+      onClearSelection?.();
+    }
   };
 
   const handleStepOpen = (stepId?: string, issueId?: number, title?: string, projectName?: string, versionName?: string) => {
@@ -298,12 +318,9 @@ export function TimelineChart({
 
   return (
     <>
-      <div
-        className="flex border border-gray-200 rounded-lg overflow-hidden"
-        onClick={handleBackgroundClick}
-      >
-        <div className="flex-none min-w-max bg-white border-r border-gray-200 flex flex-col">
-          <div className="flex items-center px-6 font-bold text-gray-600 text-xs bg-gray-50 border-b border-gray-200" style={{ height: headerHeight }}>
+      <div className={reportStyles.timelineShell} onClick={handleBackgroundClick}>
+        <div className="flex min-w-max flex-none flex-col border-r border-[var(--color-border-light)] bg-white">
+          <div className="flex items-center border-b border-[var(--color-border-light)] bg-[#fbfdff] px-6 text-[12px] font-sans font-semibold uppercase tracking-[0.12em] text-[#45515e]" style={{ height: headerHeight }}>
             {t('timeline.laneHeader')}
           </div>
           {layoutData.map((project, projectIndex) => {
@@ -314,11 +331,11 @@ export function TimelineChart({
               <div
                 key={project.laneKey}
                 data-testid={`timeline-lane-label-${projectIndex}`}
-                className={`flex flex-col border-b border-slate-300 box-border whitespace-nowrap transition-colors duration-300 ${laneBackground.labelClassName}`}
+                className={`${reportStyles.timelineLaneLabel} ${laneBackground.labelClassName}`}
                 style={{ height: project.height, minHeight: 60 }}
               >
                 <div
-                  className={`flex flex-col justify-center px-6 whitespace-nowrap transition-colors duration-300 ${project.versionId && !isActiveReportLane ? 'cursor-pointer hover:bg-sky-50/50' : ''}`}
+                  className={`${reportStyles.timelineLaneAction} ${project.versionId && !isActiveReportLane ? 'cursor-pointer hover:bg-[var(--color-brand-tint)]' : ''}`}
                   style={{ height: project.contentHeight }}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -347,7 +364,7 @@ export function TimelineChart({
                       <button
                         type="button"
                         aria-label={t('timeline.startAiAria', { versionName: project.versionName })}
-                        className="group h-8 px-3 flex items-center gap-2 rounded-[9999px] border border-gray-100 bg-white hover:border-[var(--color-brand-6)] hover:bg-[var(--color-primary-200)] transition-all duration-300 shadow-subtle cursor-pointer overflow-hidden relative"
+                        className={`group ${reportStyles.timelineActionPill}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           onVersionAiClick?.({
@@ -375,12 +392,11 @@ export function TimelineChart({
                             fill={`url(#ai-grad-${project.versionId})`}
                           />
                         </svg>
-                        <span className="text-[11px] font-semibold text-[#45515e] group-hover:text-[var(--color-brand-6)]">AI</span>
                       </button>
                       <button
                         type="button"
                         aria-label={t('timeline.showDetailAria', { versionName: project.versionName })}
-                        className="group h-8 px-3 flex items-center gap-2 rounded-[9999px] border border-gray-100 bg-white hover:border-[var(--color-brand-6)] hover:bg-[var(--color-primary-200)] transition-all duration-300 shadow-subtle cursor-pointer overflow-hidden relative"
+                        className={`group ${reportStyles.timelineActionPill}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           onVersionReportClick?.({
@@ -407,7 +423,6 @@ export function TimelineChart({
                             strokeLinejoin="round"
                           />
                         </svg>
-                        <span className="text-[11px] font-semibold text-[#45515e] group-hover:text-[var(--color-brand-6)]">{t('common.detail', { defaultValue: 'Detail' })}</span>
                       </button>
                     </div>
                   ) : (
@@ -415,7 +430,7 @@ export function TimelineChart({
                       {project.versionName}
                     </div>
                   )}
-                   {project.projectIdentifier ? (
+                  {project.projectIdentifier ? (
                     <a
                       href={`/projects/${project.projectIdentifier}`}
                       className="text-[12px] text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] hover:underline mt-1 font-sans"
@@ -437,7 +452,7 @@ export function TimelineChart({
           {timelineData.length === 0 && <div className="h-32"></div>}
         </div>
 
-        <div className="flex-1 overflow-x-auto bg-white relative" ref={containerRef}>
+        <div className={reportStyles.timelineCanvasScroller} ref={containerRef}>
           <TimelineChartSurface
             layoutData={layoutData}
             totalTimelineHeight={totalTimelineHeight}
@@ -463,12 +478,15 @@ export function TimelineChart({
             detailedReportResponse={detailedReportResponse}
             detailedReportLoading={detailedReportLoading}
             detailedReportError={detailedReportError}
+            onDetailedReportSave={onDetailedReportSave}
+            onDetailedReportDirtyChange={onDetailedReportDirtyChange}
           />
         </div>
+
       </div>
 
       {timelineEditError && (
-        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="alert">
+        <div className={`mt-3 ${reportStyles.alertWarning}`} role="alert">
           {timelineEditError}
         </div>
       )}
@@ -514,7 +532,9 @@ function TimelineChartSurface({
   showTodayLine = true,
   detailedReportResponse = null,
   detailedReportLoading = false,
-  detailedReportError = null
+  detailedReportError = null,
+  onDetailedReportSave,
+  onDetailedReportDirtyChange
 }: {
   layoutData: (TimelineLane & {
     contentHeight: number;
@@ -547,6 +567,8 @@ function TimelineChartSurface({
   detailedReportResponse?: AiResponseView | null;
   detailedReportLoading?: boolean;
   detailedReportError?: string | null;
+  onDetailedReportSave?: (sections: EditableSections) => Promise<AiResponseView>;
+  onDetailedReportDirtyChange?: (dirty: boolean) => void;
 }) {
   const chartHeight = Math.ceil(headerHeight + totalTimelineHeight);
   const scaledBarHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
@@ -784,44 +806,46 @@ function TimelineChartSurface({
     const context = prepareHiDPICanvas(canvasRef.current, timelineWidth, chartHeight);
     if (!context) return;
 
-    context.fillStyle = '#f9fafb';
+    context.clearRect(0, 0, timelineWidth, chartHeight);
+
+    context.fillStyle = TIMELINE_HEADER_FILL;
     context.fillRect(0, 0, timelineWidth, yearRowHeight);
     context.fillRect(0, yearRowHeight, timelineWidth, monthRowHeight);
-    context.strokeStyle = '#e5e7eb';
+    context.strokeStyle = TIMELINE_BORDER;
     context.lineWidth = 1;
     context.strokeRect(0, 0, timelineWidth, yearRowHeight);
     context.strokeRect(0, yearRowHeight, timelineWidth, monthRowHeight);
 
     headerYears.forEach((year) => {
-      context.strokeStyle = '#e5e7eb';
+      context.strokeStyle = TIMELINE_BORDER;
       context.strokeRect(year.x, 0, year.width, yearRowHeight);
       drawStrokeText(context, {
         text: year.year,
         x: year.x + year.width / 2,
         y: yearRowHeight / 2,
-        fill: '#374151',
-        stroke: '#f9fafb',
+        fill: TIMELINE_TEXT_SECONDARY,
+        stroke: TIMELINE_HEADER_FILL,
         strokeWidth: 0,
-        font: '700 12px sans-serif'
+        font: '600 12px "DM Sans", sans-serif'
       });
     });
 
     headerMonths.forEach((month) => {
-      context.strokeStyle = '#e5e7eb';
+      context.strokeStyle = TIMELINE_BORDER;
       context.strokeRect(month.x, yearRowHeight, month.width, monthRowHeight);
       drawStrokeText(context, {
         text: month.label,
         x: month.x + month.width / 2,
         y: yearRowHeight + monthRowHeight / 2,
-        fill: '#374151',
-        stroke: '#f9fafb',
+        fill: TIMELINE_TEXT_SECONDARY,
+        stroke: TIMELINE_HEADER_FILL,
         strokeWidth: 0,
-        font: '700 12px sans-serif'
+        font: '600 12px "DM Sans", sans-serif'
       });
     });
 
     if (showTodayLine && todayX >= 0 && todayX <= timelineWidth) {
-      context.fillStyle = '#ef4444';
+      context.fillStyle = TIMELINE_BRAND;
       context.fillRect(
         todayX - TODAY_LABEL_WIDTH / 2,
         headerHeight + TODAY_LABEL_OFFSET_Y,
@@ -833,9 +857,9 @@ function TimelineChartSurface({
         x: todayX,
         y: headerHeight + TODAY_LABEL_OFFSET_Y + 12,
         fill: '#ffffff',
-        stroke: '#ef4444',
+        stroke: TIMELINE_BRAND,
         strokeWidth: 0,
-        font: '700 10px sans-serif'
+        font: '700 10px "Roboto", sans-serif'
       });
     }
 
@@ -846,12 +870,12 @@ function TimelineChartSurface({
       if (project.laneKey === activeReportLaneKey) {
         context.save();
         context.globalAlpha = 0.7;
-        context.fillStyle = ACTIVE_LANE_BACKGROUND_FILL;
+        context.fillStyle = TIMELINE_ACTIVE_FILL;
         context.fillRect(0, yOffset, timelineWidth, project.height);
         context.restore();
       }
 
-      context.strokeStyle = '#cbd5e1';
+      context.strokeStyle = TIMELINE_BORDER;
       context.lineWidth = 1;
       context.beginPath();
       context.moveTo(0, yOffset + project.height);
@@ -860,7 +884,7 @@ function TimelineChartSurface({
 
       headerMonths.forEach((month) => {
         context.save();
-        context.strokeStyle = '#f3f4f6';
+        context.strokeStyle = TIMELINE_BORDER_LIGHT;
         context.setLineDash([4, 2]);
         context.beginPath();
         context.moveTo(month.x, yOffset);
@@ -887,7 +911,7 @@ function TimelineChartSurface({
             progress: item.step.progress
           });
 
-          const labelFont = `700 ${Math.max(10, Math.round(11 * chartScale))}px sans-serif`;
+          const labelFont = `700 ${Math.max(10, Math.round(11 * chartScale))}px "DM Sans", sans-serif`;
           const maxLabelWidth = item.barWidth - 12; // 6px padding on each side
           const displayTitle = truncateCanvasText(context, item.step.name, maxLabelWidth, labelFont);
 
@@ -911,7 +935,7 @@ function TimelineChartSurface({
               fill: item.step.status.dateText || '#475569',
               stroke: '#ffffff',
               strokeWidth: 2,
-              font: '700 10px sans-serif',
+              font: '700 10px "Roboto", sans-serif',
               textAlign: 'start'
             });
           }
@@ -924,7 +948,7 @@ function TimelineChartSurface({
               fill: item.step.status.dateText || '#475569',
               stroke: '#ffffff',
               strokeWidth: 2,
-              font: '700 10px sans-serif',
+              font: '700 10px "Roboto", sans-serif',
               textAlign: item.renderData.startLabel === item.renderData.endLabel ? 'center' : 'end'
             });
           }
@@ -942,7 +966,7 @@ function TimelineChartSurface({
             } else {
               context.save();
               context.strokeStyle = item.isSavingThis
-                ? '#2563eb'
+                ? TIMELINE_BRAND
                 : item.hasPendingPreview
                   ? '#0891b2'
                   : '#0ea5e9';
@@ -960,7 +984,7 @@ function TimelineChartSurface({
 
     if (showTodayLine && todayX >= 0 && todayX <= timelineWidth) {
       context.save();
-      context.strokeStyle = '#ef4444';
+      context.strokeStyle = TIMELINE_BRAND;
       context.setLineDash([4, 2]);
       context.beginPath();
       context.moveTo(todayX, headerHeight);
@@ -987,6 +1011,16 @@ function TimelineChartSurface({
   const activeReportLane = activeReportLaneKey
     ? layoutData.find((project) => project.laneKey === activeReportLaneKey)
     : undefined;
+  const inlineReportRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!activeReportLaneKey || !activeReportLane || !inlineReportRef.current) return;
+
+    inlineReportRef.current.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest'
+    });
+  }, [activeReportLane, activeReportLaneKey]);
 
   if (layoutData.length === 0) {
     return <div className="flex items-center justify-center h-32 text-gray-400">{t('common.noData')}</div>;
@@ -1180,11 +1214,17 @@ function TimelineChartSurface({
           }}
         >
           <div className="mx-4 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-            <div data-testid={`timeline-inline-report-${activeReportLaneKey}`} style={{ height: INLINE_REPORT_SLOT_HEIGHT - 12 }}>
+            <div
+              ref={inlineReportRef}
+              data-testid={`timeline-inline-report-${activeReportLaneKey}`}
+              style={{ height: INLINE_REPORT_SLOT_HEIGHT - 12 }}
+            >
               <InlineReportSlot
                 response={detailedReportResponse}
                 isLoading={detailedReportLoading}
                 errorMessage={detailedReportError}
+                onSave={onDetailedReportSave}
+                onDirtyChange={onDetailedReportDirtyChange}
               />
             </div>
           </div>

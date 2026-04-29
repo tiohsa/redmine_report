@@ -3,7 +3,6 @@ import { t } from '../../i18n';
 import {
   COMPACT_ACTION_BUTTON_HEIGHT,
   COMPACT_ACTION_BUTTON_MIN_WIDTH,
-  COMPACT_ICON_BUTTON_SIZE,
   DEFAULT_DIALOG_WIDTH_PX,
   EMBEDDED_ISSUE_SUBJECT_COMPACT_CSS,
   extractIssueIdFromLocationCandidates,
@@ -14,7 +13,7 @@ import {
   setupEmbeddedIssueDialogIframe,
   useEmbeddedIssueDialogLayout,
 } from './embeddedIssueDialog';
-import { reportStyles } from '../designSystem';
+import { reportCompactIconActionStyle, reportStyles } from '../designSystem';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 
@@ -76,7 +75,7 @@ export function CreateDestinationIssueDialog({
     try {
       const doc = iframeRef.current?.contentDocument;
       if (!doc) throw new Error(t('embeddedIssueForm.formNotLoaded'));
-    const form = findEmbeddedIssueFormElement(doc);
+      const form = findEmbeddedIssueFormElement(doc);
       if (!form) throw new Error(t('embeddedIssueForm.formNotFound'));
 
       setIsSubmitting(true);
@@ -125,7 +124,7 @@ export function CreateDestinationIssueDialog({
         <div
           ref={headerRef}
           data-testid="destination-issue-dialog-header"
-          className="flex flex-shrink-0 items-center justify-between border-b border-gray-100 bg-white"
+          className="flex flex-shrink-0 items-center justify-between border-b border-[rgba(0,0,0,0.06)] bg-white"
           style={{ padding: '2px 12px' }}
         >
           <div className="flex items-center gap-3 overflow-hidden">
@@ -134,15 +133,13 @@ export function CreateDestinationIssueDialog({
             </h4>
           </div>
           <div className="flex items-center gap-[6px] flex-shrink-0">
-          <Button
-            variant="icon-muted"
-            aria-label={t('destinationIssueDialog.closeAria')}
-            className="h-8 w-8"
-            style={{ width: '24px', height: '24px' }}
-            onClick={onClose}
-          >
-            <Icon name="close" className="h-4 w-4" />
-          </Button>
+            <Button
+              variant="icon-muted"
+              aria-label={t('destinationIssueDialog.closeAria')}
+              onClick={onClose}
+            >
+              <Icon name="close" />
+            </Button>
           </div>
         </div>
 
@@ -222,10 +219,10 @@ export function CreateDestinationIssueDialog({
             target="_blank"
             rel="noreferrer"
             aria-label={t('common.openInNewTab')}
-            className={`${reportStyles.iconButtonMuted} h-8 w-8`}
-            style={{ width: '24px', height: '24px' }}
+            className={reportStyles.iconButtonMuted}
+            style={reportCompactIconActionStyle}
           >
-            <Icon name="open-in-new" className="h-3.5 w-3.5" />
+            <Icon name="open-in-new" />
           </a>
           <Button variant="secondary" className="min-w-[88px]" style={{ height: '28px', minWidth: '88px' }} onClick={onClose}>
             {t('common.cancel')}

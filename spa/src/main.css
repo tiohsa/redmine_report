@@ -12,7 +12,7 @@
   --color-brand-02: #ea5ec1;
   --color-brand-2: #5f5f5f;
   --color-brand-3: #17437d;
-  
+
   --color-primary-200: #bfdbfe;
   --color-primary-light: #60a5fa;
   --color-primary-500: #3b82f6;
@@ -22,6 +22,21 @@
   --color-text-00: #222222;
   --color-text-04: #45515e;
   --color-text-muted: #8e8e93;
+  --color-surface-base: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-border-default: #e5e7eb;
+  --color-border-light: #f2f3f5;
+  --color-brand-tint: rgba(20, 86, 240, 0.07);
+  --color-brand-tint-strong: rgba(20, 86, 240, 0.12);
+  --color-warning-bg: #fff7ed;
+  --color-warning-border: #fed7aa;
+  --color-warning-text: #9a3412;
+  --color-danger-bg: #fff1f2;
+  --color-danger-border: #fecdd3;
+  --color-danger-text: #be123c;
+  --color-success-bg: #ecfdf5;
+  --color-success-border: #bbf7d0;
+  --color-success-text: #047857;
 
   /* Custom Shadow utilities based on DESIGN.md */
   --shadow-subtle: 0px 4px 6px rgba(0, 0, 0, 0.08);
@@ -37,6 +52,7 @@
 }
 
 @layer base {
+
   #schedule-report-root,
   .schedule-report-page,
   .report-page-shell {
@@ -96,6 +112,7 @@
 }
 
 @layer components {
+
   .schedule-report-page,
   .report-page-shell {
     @apply flex flex-col h-screen overflow-hidden text-[#222222] font-sans bg-white;
@@ -107,6 +124,18 @@
 
   .report-surface {
     @apply rounded-[24px] border border-gray-100 bg-white shadow-subtle;
+  }
+
+  .report-surface-flat {
+    @apply rounded-[20px] border border-[var(--color-border-light)] bg-white;
+  }
+
+  .report-surface-subtle {
+    @apply rounded-[20px] border border-[var(--color-border-light)] bg-white shadow-subtle;
+  }
+
+  .report-surface-featured {
+    @apply rounded-[24px] border border-[rgba(20,86,240,0.08)] bg-white shadow-brand-glow;
   }
 
   .report-dialog-overlay {
@@ -130,7 +159,10 @@
   }
 
   .report-surface-elevated {
-    @apply rounded-[24px] border border-gray-100 bg-white shadow-brand-glow;
+    @apply rounded-[13px] border border-[rgba(0,0,0,0.06)] bg-white shadow-brand-glow;
+    box-shadow:
+      0px 0px 22.576px rgba(0, 0, 0, 0.08),
+      6.5px 2px 17.5px rgba(44, 30, 116, 0.11);
   }
 
   .report-panel {
@@ -171,7 +203,12 @@
   .report-icon-button,
   .report-icon-button-active,
   .report-icon-button-muted {
-    @apply inline-flex items-center justify-center rounded-[8px] transition-all duration-300 font-sans cursor-pointer;
+    @apply inline-flex items-center justify-center border transition-all duration-300 font-sans cursor-pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    box-sizing: border-box;
+    border-color: #e0e0e0;
   }
 
   .report-pill {
@@ -191,35 +228,61 @@
   }
 
   .report-icon-button {
-    @apply relative p-2 text-[#222222] border border-gray-200 bg-white hover:bg-gray-50;
+    @apply relative shrink-0 p-0 text-[#333333] bg-white hover:bg-[#f8f9fa];
   }
 
   .report-icon-button-active {
-    @apply relative p-2 bg-[#f0f5ff] text-[var(--color-brand-6)] border border-[var(--color-brand-6)] shadow-sm;
+    @apply relative shrink-0 p-0 bg-[#e8f0fe] text-[#1a73e8] hover:bg-[#e8f0fe];
+    border-color: #e0e0e0;
   }
 
   .report-icon-button-muted {
-    @apply relative p-2 bg-gray-50 text-[#8e8e93] border border-gray-200 hover:bg-gray-100 hover:text-[#45515e];
+    @apply relative shrink-0 p-0 bg-white text-[#8e8e93] hover:bg-[#f8f9fa];
+  }
+
+  .report-icon-button svg,
+  .report-icon-button-active svg,
+  .report-icon-button-muted svg,
+  .report-menu-toggle-icon svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+  }
+
+  .report-toolbar .report-icon-button svg path,
+  .report-toolbar .report-icon-button-active svg path,
+  .report-toolbar .report-icon-button-muted svg path {
+    stroke-width: 2;
+  }
+
+  .report-toolbar-icon-button svg {
+    width: 17px;
+    height: 17px;
   }
 
   .report-dropdown-panel {
-    @apply absolute z-50 overflow-hidden rounded-[20px] border border-gray-100 bg-white shadow-elevated font-sans;
+    @apply absolute z-50 overflow-hidden rounded-[8px] border border-[#e0e0e0] bg-white font-sans;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 
   .report-dropdown-title {
-    @apply px-5 pt-5 pb-3 text-[14px] font-display font-semibold text-[#222222];
+    @apply mb-2 px-0 pt-0 pb-0 text-[13px] font-sans font-semibold tracking-normal normal-case text-[#333333];
   }
 
   .report-dropdown-row {
-    @apply flex items-center gap-3 px-5 py-1.5 text-[13px] text-[#45515e] transition-colors hover:bg-gray-50 cursor-pointer;
+    @apply flex items-center gap-3 rounded-[6px] px-2 py-0.5 text-[13px] text-[#45515e] transition-colors hover:bg-[#f8f9fa] cursor-pointer;
   }
 
   .report-dropdown-divider {
-    @apply mx-5 border-t border-gray-100;
+    @apply border-t border-gray-100;
   }
 
   .report-dropdown-clear {
-    @apply bg-transparent border-0 p-0 m-0 appearance-none outline-none text-[var(--color-primary-600)] hover:text-[var(--color-primary-700)] hover:underline text-sm font-sans font-medium cursor-pointer;
+    @apply bg-transparent border-0 p-0 m-0 appearance-none outline-none text-[var(--color-primary-600)] hover:text-[var(--color-primary-700)] hover:underline text-[13px] font-sans font-medium cursor-pointer;
   }
 
   .report-field-label {
@@ -239,15 +302,15 @@
   }
 
   .report-selection-row {
-    @apply flex cursor-pointer items-center gap-3 px-4 py-1.5 text-[13px] font-sans text-[#45515e] transition-colors hover:bg-[#fbfdff] focus:outline-none;
+    @apply flex cursor-pointer items-center gap-2.5 rounded-[6px] px-2 py-0.5 text-[13px] font-sans text-[#45515e] transition-colors hover:bg-[#f8f9fa] focus:outline-none;
   }
 
   .report-selection-row-active {
-    @apply bg-[rgba(20,86,240,0.07)] text-[#18181b];
+    @apply font-medium;
   }
 
   .report-selection-checkbox {
-    @apply inline-flex h-4 w-4 items-center justify-center rounded-[4px] border border-gray-300 bg-white text-[10px] font-bold leading-none;
+    @apply inline-flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border border-gray-300 bg-white text-white text-[8px] font-bold leading-none transition-all;
   }
 
   .report-section-marker {
@@ -443,15 +506,96 @@
   }
 
   .report-alert-error {
-    @apply rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-sans text-red-700;
+    @apply rounded-[16px] border border-[var(--color-danger-border)] bg-[var(--color-danger-bg)] px-4 py-3 text-sm font-sans text-[var(--color-danger-text)];
   }
 
   .report-alert-warning {
-    @apply rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-sans text-amber-800;
+    @apply rounded-[16px] border border-[var(--color-warning-border)] bg-[var(--color-warning-bg)] px-4 py-3 text-sm font-sans text-[var(--color-warning-text)];
   }
 
   .report-alert-info {
-    @apply rounded-[16px] border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-sans text-blue-800;
+    @apply rounded-[16px] border border-[var(--color-primary-200)] bg-[var(--color-brand-tint)] px-4 py-3 text-sm font-sans text-[var(--color-primary-700)];
+  }
+
+  .report-alert-success {
+    @apply rounded-[16px] border border-[var(--color-success-border)] bg-[var(--color-success-bg)] px-4 py-3 text-sm font-sans text-[var(--color-success-text)];
+  }
+
+  .report-toolbar {
+    @apply flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-[var(--color-border-light)] bg-white px-5 py-4 shadow-subtle;
+  }
+
+  .report-toolbar-group {
+    @apply flex flex-wrap items-center gap-2 rounded-[9999px] border border-[var(--color-border-light)] bg-[#fbfdff] px-2 py-1.5;
+  }
+
+  .report-toolbar-divider {
+    @apply mx-1 h-6 w-px bg-[var(--color-border-default)];
+  }
+
+  .report-state-badge {
+    @apply absolute -bottom-1 -right-1 rounded-[9999px] border px-1.5 py-0.5 text-[8px] font-bold leading-none shadow-sm transition-all;
+  }
+
+  .report-state-badge-active {
+    @apply border-[var(--color-brand-6)] bg-[var(--color-brand-6)] text-white;
+  }
+
+  .report-state-badge-inactive {
+    @apply border-gray-200 bg-white text-[#8e8e93];
+  }
+
+  .report-state-dot {
+    @apply absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-[#1a73e8] transition-all;
+  }
+
+  .report-state-dot-loading {
+    @apply animate-pulse;
+  }
+
+  .report-state-dot-hidden {
+    @apply opacity-0;
+  }
+
+  .report-timeline-shell {
+    @apply flex overflow-hidden rounded-[20px] border border-[var(--color-border-light)] bg-white shadow-subtle;
+  }
+
+  .report-timeline-lane-label {
+    @apply flex flex-col box-border whitespace-nowrap border-b border-[var(--color-border-light)] bg-white transition-colors duration-300;
+  }
+
+  .report-timeline-lane-label-active {
+    @apply border-l-4 border-l-[var(--color-brand-6)] bg-[var(--color-brand-tint)];
+  }
+
+  .report-timeline-lane-action {
+    @apply flex flex-col justify-center whitespace-nowrap px-6 transition-colors duration-300;
+  }
+
+  .report-timeline-action-pill {
+    @apply relative flex h-8 cursor-pointer items-center gap-2 overflow-hidden rounded-[9999px] border border-[var(--color-border-light)] bg-white px-3 transition-all duration-300 hover:border-[var(--color-brand-6)] hover:bg-[var(--color-brand-tint)];
+  }
+
+  .report-menu-toggle-button {
+    @apply inline-flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 font-semibold text-[#222222] transition-colors hover:text-[var(--color-primary-600)];
+  }
+
+  .report-menu-toggle-icon {
+    @apply relative inline-flex shrink-0 items-center justify-center border bg-white text-[#333333] transition-all duration-300;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border-color: #e0e0e0;
+  }
+
+  .report-menu-toggle-icon-active {
+    @apply bg-[#e8f0fe] text-[#1a73e8];
+    border-color: #e0e0e0;
+  }
+
+  .report-timeline-canvas-scroller {
+    @apply relative flex-1 overflow-x-auto bg-white;
   }
 
   .report-inline-code {
@@ -498,8 +642,8 @@
     @apply text-[16px] leading-[1.50] text-[#222222];
   }
 
-  .markdown-body li > ul,
-  .markdown-body li > ol {
+  .markdown-body li>ul,
+  .markdown-body li>ol {
     @apply mb-0 mt-1;
   }
 
@@ -547,7 +691,7 @@
     @apply my-3 border-t border-gray-200;
   }
 
-  .markdown-body > *:first-child {
+  .markdown-body>*:first-child {
     @apply mt-0;
   }
 
@@ -640,7 +784,11 @@
   }
 
   .report-dialog-close {
-    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-gray-200 bg-white text-[#222222] transition-colors hover:bg-gray-50 hover:text-[#222222];
+    @apply inline-flex shrink-0 items-center justify-center border bg-white text-[#333333] transition-colors hover:bg-[#f8f9fa] hover:text-[#222222];
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border-color: #e0e0e0;
   }
 
   .report-field-label {
@@ -656,7 +804,7 @@
   }
 
   .report-selection-list {
-    @apply space-y-2;
+    @apply space-y-0.5;
   }
 
   .report-selection-list-item {
@@ -688,11 +836,11 @@
   }
 
   .report-checkbox-row-selected {
-    @apply border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.35)] shadow-subtle;
+    @apply border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.35)];
   }
 
   .report-checkbox-control {
-    @apply mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-[var(--color-primary-600)] focus:ring-[var(--color-primary-200)];
+    @apply mt-0 h-3.5 w-3.5 shrink-0 rounded-[3px] border-gray-300 text-[var(--color-brand-6)] focus:ring-[var(--color-brand-6)]/20 cursor-pointer;
   }
 
   .report-checkbox-label {

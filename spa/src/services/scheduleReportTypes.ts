@@ -77,7 +77,6 @@ export type TaskDetailIssue = {
   assignee_id?: number | null;
   priority_name?: string;
   priority_id?: number;
-  description?: string;
   comments?: Array<{
     id?: number;
     author_name?: string;
@@ -94,6 +93,23 @@ export type TaskMasters = {
   statuses: TaskStatusItem[];
   priorities: TaskMasterItem[];
   members: TaskMasterItem[];
+};
+
+export type TaskEditableField = 'tracker_id' | 'priority_id' | 'status_id' | 'assigned_to_id';
+
+export type TaskIssueEditOptions = {
+  editable: boolean;
+  fields: Record<TaskEditableField, boolean>;
+  trackers: TaskMasterItem[];
+  statuses: TaskStatusItem[];
+  priorities: TaskMasterItem[];
+  members: TaskMasterItem[];
+  reasons?: Partial<Record<TaskEditableField, string>>;
+};
+
+export type TaskDetailsResponse = {
+  issues: TaskDetailIssue[];
+  issue_edit_options?: Record<number, TaskIssueEditOptions>;
 };
 
 export type TaskUpdatePayload = {

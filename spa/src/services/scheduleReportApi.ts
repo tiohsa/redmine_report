@@ -10,6 +10,9 @@ export type {
   ReportFilterSet,
   ReportSnapshot,
   TaskDetailIssue,
+  TaskDetailsResponse,
+  TaskEditableField,
+  TaskIssueEditOptions,
   TaskMasterItem,
   TaskMasters,
   TaskStatusItem,
@@ -19,8 +22,7 @@ export {
   fetchTaskDetails,
   fetchTaskMasters,
   updateTaskDates,
-  updateTaskFields,
-  updateTaskJournal
+  updateTaskFields
 } from './taskApi';
 export {
   fetchWeeklyAiResponses,
@@ -28,5 +30,6 @@ export {
   generateWeeklyReport,
   prepareWeeklyPrompt,
   saveWeeklyReport,
+  updateWeeklyAiResponse,
   validateWeeklyDestination
 } from './weeklyReportApi';

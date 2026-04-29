@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { forwardRef } from 'react';
-import { reportStyles } from '../designSystem';
+import { reportCompactIconActionActiveStyle, reportCompactIconActionStyle, reportStyles } from '../designSystem';
 import { cn } from './cn';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'pill' | 'pill-primary' | 'pill-secondary' | 'icon' | 'icon-active' | 'icon-muted';
@@ -44,6 +44,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       leadingIcon,
       loading = false,
       trailingIcon,
+      style,
       type = 'button',
       variant = 'primary',
       size = 'md',
@@ -68,6 +69,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           loading && reportStyles.buttonLoading,
           className
         )}
+        style={
+          variant === 'icon' || variant === 'icon-active' || variant === 'icon-muted'
+            ? {
+                ...(variant === 'icon-active' ? reportCompactIconActionActiveStyle : reportCompactIconActionStyle),
+                ...style
+              }
+            : style
+        }
         {...props}
       >
         {loading ? (

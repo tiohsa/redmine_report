@@ -9,6 +9,7 @@ import {
   getProcessFlowTimelineWidth,
   type ProcessFlowRenderStep
 } from './processFlowGeometry';
+import { type TreeNodeType } from './shared';
 import { type DrilldownCrumb } from './TaskDetailsHeader';
 import { useProcessFlowInteraction } from './useProcessFlowInteraction';
 
@@ -19,10 +20,11 @@ type UseTaskDetailsProcessFlowOptions = {
   currentRootIssueId: number;
   chartScale?: number;
   issuesRef: React.MutableRefObject<TaskDetailIssue[]>;
-  savingIssueIdsRef: React.MutableRefObject<Set<number>>;
-  saveProcessFlowDates: (issueId: number, startDate: string | null, dueDate: string | null) => Promise<TaskDetailIssue | null>;
+  savingIssueIdsRef: React.MutableRefObject<Record<number, boolean>>;
+  saveProcessFlowDates: (row: TaskDetailIssue, startDate: string, dueDate: string) => Promise<TaskDetailIssue | null>;
   selectIssue: (issue: TaskDetailIssue | null) => void;
-  setSelectedIssue: Dispatch<SetStateAction<TaskDetailIssue | null>>;
+  setSelectedIssue: Dispatch<SetStateAction<TreeNodeType | null>>;
+  setActiveIssueId: Dispatch<SetStateAction<number | null>>;
   setDrilldownPath: Dispatch<SetStateAction<DrilldownCrumb[]>>;
   reloadTaskDetails: (issueId: number) => Promise<TaskDetailIssue[]>;
   syncSelectionAfterReload: (rows: TaskDetailIssue[], selectedIssueId?: number | null) => void;
@@ -39,6 +41,7 @@ export const useTaskDetailsProcessFlow = ({
   saveProcessFlowDates,
   selectIssue,
   setSelectedIssue,
+  setActiveIssueId,
   setDrilldownPath,
   reloadTaskDetails,
   syncSelectionAfterReload
@@ -141,7 +144,8 @@ export const useTaskDetailsProcessFlow = ({
     if (!issue) return;
 
     selectIssue(issue);
-  }, [consumeSuppressedProcessClick, issuesRef, selectIssue]);
+    setActiveIssueId(issue.issue_id);
+  }, [consumeSuppressedProcessClick, issuesRef, selectIssue, setActiveIssueId]);
 
   const handleProcessStepDoubleClick = useCallback((step: ProcessFlowRenderStep) => {
     if (!step.hasChildren) return;

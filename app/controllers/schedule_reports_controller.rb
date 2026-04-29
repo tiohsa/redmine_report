@@ -65,7 +65,7 @@ class ScheduleReportsController < ApplicationController
         user: User.current
       ),
       service_call: ->(service) { service.call(issue_id: params[:issue_id]) },
-      success_payload: ->(result) { { issues: result[:issues] } },
+      success_payload: ->(result) { { issues: result[:issues], issue_edit_options: result[:issue_edit_options] || {} } },
       action_name: __method__,
       retryable: true
     )
@@ -223,6 +223,29 @@ class ScheduleReportsController < ApplicationController
     )
   end
 
+  def weekly_ai_response
+    selected_project = resolve_selected_project
+    result = RedmineReport::WeeklyReport::AiResponseUpdateService.new(
+      project: selected_project,
+      user: User.current
+    ).call(weekly_payload)
+
+    render json: result
+  rescue RedmineReport::WeeklyReport::RequestValidator::ValidationError => e
+    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.invalid_input(e.message))
+  rescue RedmineReport::WeeklyReport::AiResponseUpdateService::DestinationInvalidError => e
+    render_weekly_payload(
+      RedmineReport::WeeklyReport::ErrorPayloadBuilder.destination_invalid(
+        code: e.code,
+        message: e.message,
+        status: e.status
+      )
+    )
+  rescue StandardError => e
+    log_weekly_error(action_name: __method__, exception: e)
+    render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.upstream_failure(e.message))
+  end
+
   def bundle_js
     serve_bundle(
       filename: 'main.js',
@@ -275,7 +298,7 @@ class ScheduleReportsController < ApplicationController
   end
 
   def resolve_selected_project
-    selected_identifier = params[:selected_project_identifier].to_s.strip
+    selected_identifier = (params[:selected_project_identifier].presence || request_payload['selected_project_identifier']).to_s.strip
     return @project if selected_identifier.empty?
 
     selected = Project.find_by(identifier: selected_identifier) || Project.find_by(id: selected_identifier)

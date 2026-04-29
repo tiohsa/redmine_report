@@ -6,9 +6,9 @@ import {
   fetchWeeklyAiResponses,
   generateWeeklyReport,
   saveWeeklyReport,
+  updateWeeklyAiResponse,
   updateTaskFields,
   updateTaskDates,
-  updateTaskJournal,
   validateWeeklyDestination,
   WeeklyApiError
 } from '../scheduleReportApi';
@@ -88,11 +88,6 @@ describe('scheduleReportApi weekly methods', () => {
           issue: { issue_id: 10, subject: 'Parent', start_date: '2026-02-02', due_date: '2026-02-11', issue_url: '/issues/10' }
         })
       }
-    },
-    {
-      name: 'updateTaskJournal',
-      run: () => updateTaskJournal('ecookbook', 5, 'Updated note'),
-      response: { ok: true, json: async () => ({}) }
     }
   ])('sends the CSRF header for $name', async ({ run, response }) => {
     const fetchMock = vi.fn().mockResolvedValue(response);
@@ -205,6 +200,54 @@ describe('scheduleReportApi weekly methods', () => {
     expect(res.response.status).toBe('AVAILABLE');
   });
 
+  it('sends patch payload for weekly ai response updates', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        saved: true,
+        saved_at: '2026-04-26T10:30:00+09:00',
+        response: {
+          status: 'AVAILABLE',
+          destination_issue_id: 123,
+          highlights_this_week: 'h',
+          next_week_actions: 'n',
+          risks_decisions: 'r'
+        }
+      })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(document, 'querySelector').mockReturnValue({ content: 'csrf-token' } as HTMLMetaElement);
+
+    const res = await updateWeeklyAiResponse('ecookbook', {
+      selected_project_identifier: 'roadmap',
+      version_id: 2,
+      destination_issue_id: 123,
+      highlights_this_week: 'h',
+      next_week_actions: 'n',
+      risks_decisions: 'r'
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/projects/ecookbook/schedule_report/weekly/ai_response',
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': 'csrf-token'
+        }),
+        body: JSON.stringify({
+          selected_project_identifier: 'roadmap',
+          version_id: 2,
+          destination_issue_id: 123,
+          highlights_this_week: 'h',
+          next_week_actions: 'n',
+          risks_decisions: 'r'
+        })
+      })
+    );
+    expect(res.response.highlights_this_week).toBe('h');
+  });
+
   it('maps task details payload', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
@@ -215,9 +258,10 @@ describe('scheduleReportApi weekly methods', () => {
       })
     }));
 
-    const rows = await fetchTaskDetails('ecookbook', 10);
-    expect(rows).toHaveLength(1);
-    expect(rows[0].issue_id).toBe(10);
+    const response = await fetchTaskDetails('ecookbook', 10);
+    expect(response.issues).toHaveLength(1);
+    expect(response.issues[0].issue_id).toBe(10);
+    expect(response.issue_edit_options).toEqual({});
   });
 
   it('maps task date update payload', async () => {

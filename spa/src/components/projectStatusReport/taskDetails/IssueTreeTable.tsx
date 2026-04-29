@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { t } from '../../../i18n';
 import {
   type TaskDetailIssue,
+  type TaskEditableField,
+  type TaskIssueEditOptions,
   type TaskMasters
 } from '../../../services/scheduleReportApi';
 import { InlineDateRangeEditor, type InlineDateRangeValue } from '../InlineDateRangeEditor';
@@ -29,8 +31,10 @@ type IssueTreeNodeProps = {
   onEditIssue: (issue: TaskDetailIssue) => void;
   onViewIssue: (issue: TaskDetailIssue) => void;
   selectedIssueId?: number | null;
+  onSelectIssue: (issue: TaskDetailIssue) => void;
   registerRowRef?: (issueId: number, element: HTMLDivElement | null) => void;
   masters: TaskMasters | null;
+  editOptionsByIssueId: Record<number, TaskIssueEditOptions>;
   onFieldUpdate: (issueId: number, field: string, value: string | number | null) => Promise<void>;
   columnWidths: Record<string, number>;
   density: TableDensity;
@@ -48,8 +52,10 @@ type IssueTreeTableProps = {
   onEditIssue: (issue: TaskDetailIssue) => void;
   onViewIssue: (issue: TaskDetailIssue) => void;
   selectedIssueId?: number | null;
+  onSelectIssue: (issue: TaskDetailIssue) => void;
   registerRowRef?: (issueId: number, element: HTMLDivElement | null) => void;
   masters: TaskMasters | null;
+  editOptionsByIssueId: Record<number, TaskIssueEditOptions>;
   onFieldUpdate: (issueId: number, field: string, value: string | number | null) => Promise<void>;
   columnWidths: Record<string, number>;
   onColumnResize: (columnKey: string, deltaX: number) => void;
@@ -108,8 +114,10 @@ const IssueTreeNode = ({
   onEditIssue,
   onViewIssue,
   selectedIssueId,
+  onSelectIssue,
   registerRowRef,
   masters,
+  editOptionsByIssueId,
   onFieldUpdate,
   columnWidths,
   density
@@ -120,6 +128,7 @@ const IssueTreeNode = ({
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [isSavingField, setIsSavingField] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const isSaving = savingIssueIds[node.issue_id] || isSavingField;
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
@@ -149,8 +158,30 @@ const IssueTreeNode = ({
     return 'bg-slate-100 text-slate-700 ring-1 ring-slate-200';
   })();
 
+  const fallbackEditOptions: TaskIssueEditOptions | null = masters ? {
+    editable: true,
+    fields: {
+      tracker_id: true,
+      priority_id: true,
+      status_id: true,
+      assigned_to_id: true
+    },
+    trackers: masters.trackers,
+    priorities: masters.priorities,
+    statuses: masters.statuses,
+    members: masters.members
+  } : null;
+  const issueEditOptions = editOptionsByIssueId[node.issue_id] ?? fallbackEditOptions;
+  const canEditField = (field: TaskEditableField) => Boolean(issueEditOptions?.editable && issueEditOptions.fields[field] && !isSaving);
+  const fieldCellClass = (field: TaskEditableField) => canEditField(field)
+    ? 'group/cell cursor-pointer'
+    : 'group/cell cursor-default';
+
   const startEdit = (field: string, currentValue: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    onSelectIssue(node);
+    if (isSaving) return;
+    if (['tracker_id', 'priority_id', 'status_id', 'assigned_to_id'].includes(field) && !canEditField(field as TaskEditableField)) return;
     setEditingCell({ field, value: currentValue });
     onCancelDateRangeEdit();
   };
@@ -188,6 +219,17 @@ const IssueTreeNode = ({
     } else if (field === 'assigned_to_id') {
       value = rawValue === '' || rawValue === '0' ? null : Number(rawValue);
     }
+    const currentValueByField: Record<string, string | number | null | undefined> = {
+      tracker_id: node.tracker_id,
+      status_id: node.status_id,
+      priority_id: node.priority_id,
+      assigned_to_id: node.assignee_id ?? null,
+      done_ratio: progressRatio,
+      subject: node.subject
+    };
+    if (currentValueByField[field] === value) {
+      return;
+    }
     setIsSavingField(true);
     try {
       await onFieldUpdate(node.issue_id, field, value);
@@ -208,7 +250,6 @@ const IssueTreeNode = ({
 
   const isEditing = (field: string) => editingCell?.field === field;
   const isEditingDateRange = editingDateRange?.issueId === node.issue_id;
-  const isSaving = savingIssueIds[node.issue_id] || isSavingField;
   const dateRangeDraft = isEditingDateRange ? editingDateRange : null;
   const displayStartDate = dateRangeDraft?.startDate || node.start_date || '';
   const displayDueDate = dateRangeDraft?.dueDate || node.due_date || '';
@@ -221,6 +262,7 @@ const IssueTreeNode = ({
         data-testid={`task-row-${node.issue_id}`}
         data-selected={isSelected ? 'true' : 'false'}
         className={`flex items-center ${DENSITY_CONFIG[density].rowHeight} transition-all duration-200 relative group px-6 border-b border-gray-100 font-sans text-[var(--color-text-04)] ${isSelected ? 'bg-[rgba(20,86,240,0.04)] shadow-[inset_0_0_0_1px_rgba(20,86,240,0.1)]' : 'bg-white hover:bg-slate-50'}`}
+        onClick={() => onSelectIssue(node)}
       >
         <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
           {activeLines.map((isActive, level) => (
@@ -292,6 +334,7 @@ const IssueTreeNode = ({
                 className={`${DENSITY_CONFIG[density].subjectSize} leading-5 ${depth === 0 ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'} truncate hover:text-blue-700 block cursor-pointer`}
                 onClick={(e) => {
                   e.stopPropagation();
+                  onSelectIssue(node);
                   onViewIssue(node);
                 }}
                 title={depth === 0 ? t('timeline.viewIssue') : `${node.subject} (${t('timeline.viewIssue')})`}
@@ -303,7 +346,7 @@ const IssueTreeNode = ({
               <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1 flex-shrink-0">
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer"
+                  className="report-icon-button-muted !h-6 !w-6 !rounded-[6px] opacity-70 hover:opacity-100"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -317,7 +360,7 @@ const IssueTreeNode = ({
                 </button>
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center w-6 h-6 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer"
+                  className="report-icon-button-muted !h-6 !w-6 !rounded-[6px] opacity-70 hover:opacity-100"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -351,9 +394,17 @@ const IssueTreeNode = ({
           ) : null}
         </div>
 
-        <div className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }} onDoubleClick={(e) => startEdit('tracker_id', String(node.tracker_id || ''), e)}>
-          {isEditing('tracker_id') && masters ? (
+        <div
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${fieldCellClass('tracker_id')}`}
+          style={{ width: `${columnWidths.tracker}px`, minWidth: `${columnWidths.tracker}px` }}
+          data-testid={`tracker-cell-${node.issue_id}`}
+          onClick={(e) => { e.stopPropagation(); onSelectIssue(node); }}
+          onDoubleClick={(e) => startEdit('tracker_id', String(node.tracker_id || ''), e)}
+        >
+          {isEditing('tracker_id') && issueEditOptions ? (
             <select
+              data-testid={`tracker-select-${node.issue_id}`}
+              aria-label={t('timeline.trackerCol', { defaultValue: 'Tracker' })}
               className={`w-full ${DENSITY_CONFIG[density].badgeSize} h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm`}
               value={editingCell!.value}
               onChange={(e) => {
@@ -361,22 +412,31 @@ const IssueTreeNode = ({
               }}
               onBlur={() => cancelEdit()}
               onClick={(e) => e.stopPropagation()}
+              disabled={isSaving}
               autoFocus
             >
-              {masters.trackers.map((tr) => (
+              {issueEditOptions.trackers.map((tr) => (
                 <option key={tr.id} value={String(tr.id)}>{tr.name}</option>
               ))}
             </select>
           ) : (
-            <span className={`inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 ${DENSITY_CONFIG[density].badgeSize} font-semibold font-sans truncate transition-all duration-300 ${trackerBadgeClass} group/cell:hover:ring-1 group/cell:hover:ring-blue-300`} title={node.tracker_name || ''}>
+            <span data-testid={`tracker-display-${node.issue_id}`} className={`inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 ${DENSITY_CONFIG[density].badgeSize} font-semibold font-sans truncate transition-all duration-300 ${trackerBadgeClass} group/cell:hover:ring-1 group/cell:hover:ring-blue-300`} title={node.tracker_name || ''}>
               {node.tracker_name || '-'}
             </span>
           )}
         </div>
 
-        <div className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }} onDoubleClick={(e) => startEdit('priority_id', String(node.priority_id || ''), e)}>
-          {isEditing('priority_id') && masters ? (
+        <div
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${fieldCellClass('priority_id')}`}
+          style={{ width: `${columnWidths.priority}px`, minWidth: `${columnWidths.priority}px` }}
+          data-testid={`priority-cell-${node.issue_id}`}
+          onClick={(e) => { e.stopPropagation(); onSelectIssue(node); }}
+          onDoubleClick={(e) => startEdit('priority_id', String(node.priority_id || ''), e)}
+        >
+          {isEditing('priority_id') && issueEditOptions ? (
             <select
+              data-testid={`priority-select-${node.issue_id}`}
+              aria-label={t('timeline.priorityCol', { defaultValue: 'Priority' })}
               className={`w-full ${DENSITY_CONFIG[density].badgeSize} h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm`}
               value={editingCell!.value}
               onChange={(e) => {
@@ -384,22 +444,31 @@ const IssueTreeNode = ({
               }}
               onBlur={() => cancelEdit()}
               onClick={(e) => e.stopPropagation()}
+              disabled={isSaving}
               autoFocus
             >
-              {masters.priorities.filter((p) => p.id !== null).map((p) => (
+              {issueEditOptions.priorities.filter((p) => p.id !== null).map((p) => (
                 <option key={p.id} value={String(p.id)}>{p.name}</option>
               ))}
             </select>
           ) : (
-            <span className={`inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 ${DENSITY_CONFIG[density].badgeSize} font-semibold font-sans truncate transition-all duration-300 ${priorityBadgeClass}`} title={node.priority_name || ''}>
+            <span data-testid={`priority-display-${node.issue_id}`} className={`inline-flex max-w-full items-center justify-center rounded-[9999px] px-3 py-1 ${DENSITY_CONFIG[density].badgeSize} font-semibold font-sans truncate transition-all duration-300 ${priorityBadgeClass}`} title={node.priority_name || ''}>
               {node.priority_name || '-'}
             </span>
           )}
         </div>
 
-        <div className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }} onDoubleClick={(e) => startEdit('status_id', String(node.status_id || ''), e)}>
-          {isEditing('status_id') && masters ? (
+        <div
+          className={`shrink-0 flex items-center justify-start px-2 border-r border-slate-200/80 self-stretch overflow-hidden ${fieldCellClass('status_id')}`}
+          style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px` }}
+          data-testid={`status-cell-${node.issue_id}`}
+          onClick={(e) => { e.stopPropagation(); onSelectIssue(node); }}
+          onDoubleClick={(e) => startEdit('status_id', String(node.status_id || ''), e)}
+        >
+          {isEditing('status_id') && issueEditOptions ? (
             <select
+              data-testid={`status-select-${node.issue_id}`}
+              aria-label={t('timeline.statusCol', { defaultValue: 'Status' })}
               className={`w-full ${DENSITY_CONFIG[density].badgeSize} h-8 px-1.5 border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-700 shadow-sm`}
               value={editingCell!.value}
               onChange={(e) => {
@@ -407,14 +476,15 @@ const IssueTreeNode = ({
               }}
               onBlur={() => cancelEdit()}
               onClick={(e) => e.stopPropagation()}
+              disabled={isSaving}
               autoFocus
             >
-              {masters.statuses.map((s) => (
+              {issueEditOptions.statuses.map((s) => (
                 <option key={s.id} value={String(s.id)}>{s.name}</option>
               ))}
             </select>
           ) : (
-            <span className={`inline-flex items-center justify-center min-w-[56px] ${DENSITY_CONFIG[density].badgeSize} font-bold px-2.5 py-1 rounded-full ${statusBg} ${statusText} shadow-sm`}>
+            <span data-testid={`status-display-${node.issue_id}`} className={`inline-flex items-center justify-center min-w-[56px] ${DENSITY_CONFIG[density].badgeSize} font-bold px-2.5 py-1 rounded-full ${statusBg} ${statusText} shadow-sm`}>
               {statusLabel}
             </span>
           )}
@@ -467,9 +537,17 @@ const IssueTreeNode = ({
           onCancel={onCancelDateRangeEdit}
         />
 
-        <div className={`shrink-0 flex items-center justify-start gap-1.5 px-2 overflow-hidden ${cellClass}`} style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }} onDoubleClick={(e) => startEdit('assigned_to_id', String(node.assignee_id || ''), e)}>
-          {isEditing('assigned_to_id') && masters ? (
+        <div
+          className={`shrink-0 flex items-center justify-start gap-1.5 px-2 overflow-hidden ${fieldCellClass('assigned_to_id')}`}
+          style={{ width: `${columnWidths.assignee}px`, minWidth: `${columnWidths.assignee}px` }}
+          data-testid={`assignee-cell-${node.issue_id}`}
+          onClick={(e) => { e.stopPropagation(); onSelectIssue(node); }}
+          onDoubleClick={(e) => startEdit('assigned_to_id', String(node.assignee_id || ''), e)}
+        >
+          {isEditing('assigned_to_id') && issueEditOptions ? (
             <select
+              data-testid={`assignee-select-${node.issue_id}`}
+              aria-label={t('timeline.assigneeCol', { defaultValue: 'Assignee' })}
               className={`w-full ${DENSITY_CONFIG[density].dateSize} h-7 px-1 border border-blue-400 rounded-md focus:outline-none bg-white text-slate-700`}
               value={editingCell!.value}
               onChange={(e) => {
@@ -477,9 +555,10 @@ const IssueTreeNode = ({
               }}
               onBlur={() => cancelEdit()}
               onClick={(e) => e.stopPropagation()}
+              disabled={isSaving}
               autoFocus
             >
-              {masters.members.map((m) => (
+              {issueEditOptions.members.map((m) => (
                 <option key={m.id ?? 'none'} value={m.id === null ? '' : String(m.id)}>{m.name}</option>
               ))}
             </select>
@@ -490,10 +569,10 @@ const IssueTreeNode = ({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
                 </svg>
               </div>
-              <span className={`${DENSITY_CONFIG[density].subjectSize} font-medium text-slate-700 truncate`}>{node.assignee_name}</span>
+              <span data-testid={`assignee-display-${node.issue_id}`} className={`${DENSITY_CONFIG[density].subjectSize} font-medium text-slate-700 truncate`}>{node.assignee_name}</span>
             </>
           ) : (
-            <span className={`${DENSITY_CONFIG[density].badgeSize} text-slate-400`}>-</span>
+            <span data-testid={`assignee-display-${node.issue_id}`} className={`${DENSITY_CONFIG[density].badgeSize} text-slate-400`}>-</span>
           )}
         </div>
       </div>
@@ -515,8 +594,10 @@ const IssueTreeNode = ({
           onEditIssue={onEditIssue}
           onViewIssue={onViewIssue}
           selectedIssueId={selectedIssueId}
+          onSelectIssue={onSelectIssue}
           registerRowRef={registerRowRef}
           masters={masters}
+          editOptionsByIssueId={editOptionsByIssueId}
           onFieldUpdate={onFieldUpdate}
           columnWidths={columnWidths}
           density={density}
@@ -538,8 +619,10 @@ export function IssueTreeTable({
   onEditIssue,
   onViewIssue,
   selectedIssueId,
+  onSelectIssue,
   registerRowRef,
   masters,
+  editOptionsByIssueId,
   onFieldUpdate,
   columnWidths,
   onColumnResize,
@@ -579,8 +662,10 @@ export function IssueTreeTable({
           onEditIssue={onEditIssue}
           onViewIssue={onViewIssue}
           selectedIssueId={selectedIssueId}
+          onSelectIssue={onSelectIssue}
           registerRowRef={registerRowRef}
           masters={masters}
+          editOptionsByIssueId={editOptionsByIssueId}
           onFieldUpdate={onFieldUpdate}
           columnWidths={columnWidths}
           density={density}

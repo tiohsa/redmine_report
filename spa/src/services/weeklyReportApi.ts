@@ -1,6 +1,8 @@
 import type {
   AiResponseTabsPayload,
   DestinationValidationResult,
+  WeeklyAiResponseUpdatePayload,
+  WeeklyAiResponseUpdateResponse,
   WeeklyGenerateResponse,
   WeeklyPrepareResponse,
   WeeklySaveResponse,
@@ -107,3 +109,19 @@ export const fetchWeeklyAiResponses = async (
     weeklyError((status) => t('api.fetchWeeklyAiResponses', { status }))
   );
 };
+
+export const updateWeeklyAiResponse = async (
+  projectIdentifier: string,
+  payload: WeeklyAiResponseUpdatePayload
+): Promise<WeeklyAiResponseUpdateResponse> =>
+  requestJsonWithBody<WeeklyAiResponseUpdateResponse>(
+    `/projects/${projectIdentifier}/schedule_report/weekly/ai_response`,
+    'PATCH',
+    payload,
+    weeklyError((status) =>
+      t('api.updateWeeklyAiResponse', {
+        status,
+        defaultValue: `Failed to update weekly AI response (${status})`
+      })
+    )
+  );

@@ -120,3 +120,18 @@ export type AiResponseTabsPayload = {
   };
   response: AiResponseView;
 };
+
+export type WeeklyAiResponseUpdatePayload = {
+  selected_project_identifier?: string;
+  version_id: number;
+  destination_issue_id: number;
+  highlights_this_week: string;
+  next_week_actions: string;
+  risks_decisions: string;
+};
+
+export type WeeklyAiResponseUpdateResponse = {
+  saved: boolean;
+  saved_at?: string | null;
+  response: AiResponseView;
+};

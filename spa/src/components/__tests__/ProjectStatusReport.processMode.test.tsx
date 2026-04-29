@@ -100,11 +100,15 @@ describe('ProjectStatusReport Process Mode', () => {
     const processButton = screen.getByTitle(/Process Mode/i);
     fireEvent.click(processButton);
 
-    expect(processButton.textContent || '').toContain('...');
+    await waitFor(() => {
+      expect(processButton.getAttribute('aria-busy')).toBe('true');
+    });
+
+    expect(processButton.textContent || '').not.toContain('ON');
+    expect(processButton.textContent || '').not.toContain('OFF');
 
     await waitFor(() => {
-      expect(processButton.textContent || '').toContain('ON');
-      expect(processButton.textContent || '').not.toContain('...');
+      expect(processButton.getAttribute('aria-busy')).toBeNull();
     });
 
     expect(screen.getByTestId('timeline-step-ids').textContent).toContain('100');

@@ -3,18 +3,38 @@ import { renderMarkdown } from '../utils/markdownRenderer';
 import type { AiResponseView } from '../types/weeklyReport';
 import { t } from '../i18n';
 import { reportStyles } from './designSystem';
+import { Button } from './ui/Button';
 
 type AiResponsePanelProps = {
   response: AiResponseView | null;
   isLoading: boolean;
   errorMessage: string | null;
+  onSave?: (sections: EditableSections) => Promise<AiResponseView>;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 type EditableSectionKey = 'highlights_this_week' | 'next_week_actions' | 'risks_decisions';
 
-type EditableSections = Record<EditableSectionKey, string>;
+export type EditableSections = Record<EditableSectionKey, string>;
 
-const PANEL_SECTION_BODY = 'p-6';
+const PANEL_SECTION_BODY = 'p-4';
+
+const emptySections = (): EditableSections => ({
+  highlights_this_week: '',
+  next_week_actions: '',
+  risks_decisions: ''
+});
+
+const sectionsFromResponse = (response: AiResponseView): EditableSections => ({
+  highlights_this_week: response.highlights_this_week ?? '',
+  next_week_actions: response.next_week_actions ?? '',
+  risks_decisions: response.risks_decisions ?? ''
+});
+
+const sectionsEqual = (left: EditableSections, right: EditableSections) =>
+  left.highlights_this_week === right.highlights_this_week &&
+  left.next_week_actions === right.next_week_actions &&
+  left.risks_decisions === right.risks_decisions;
 
 const Section = ({
   title,
@@ -24,7 +44,8 @@ const Section = ({
   isEditing,
   onStartEdit,
   onChange,
-  onFinishEdit
+  onFinishEdit,
+  isDirty
 }: {
   title: string;
   body: string;
@@ -34,14 +55,15 @@ const Section = ({
   onStartEdit: (key: EditableSectionKey) => void;
   onChange: (key: EditableSectionKey, value: string) => void;
   onFinishEdit: () => void;
+  isDirty: boolean;
 }) => {
   const html = renderMarkdown(body);
 
   return (
-    <div className={`${reportStyles.surfaceElevated} flex h-full flex-col overflow-hidden transition-all duration-500 hover:shadow-brand-glow-offset`}>
+    <div className={`${reportStyles.surfaceFeatured} flex h-full flex-col overflow-hidden transition-all duration-500 hover:shadow-brand-glow-offset ${isDirty ? 'ring-1 ring-[var(--color-warning-border)]' : ''}`}>
       <div className={`${headerColor} h-1.5`} />
-      <div className="flex min-h-[68px] items-center justify-between border-b border-gray-100 px-6 py-4">
-        <span className="text-[18px] font-display font-medium tracking-tight text-[#222222]">{title}</span>
+      <div className="flex min-h-[56px] items-center justify-between border-b border-gray-100 px-4 py-3">
+        <span className="text-[16px] font-display font-medium tracking-tight text-[#222222]">{title}</span>
       </div>
       <div className={PANEL_SECTION_BODY}>
         {isEditing ? (
@@ -59,14 +81,14 @@ const Section = ({
             }}
             autoFocus
             rows={8}
-            className={`${reportStyles.textarea} min-h-[220px] bg-[#f8fafc]`}
+            className={`${reportStyles.textarea} min-h-[220px] bg-[#f8fafc] text-[14px]`}
             data-testid={`ai-section-editor-${sectionKey}`}
           />
         ) : (
           <div
             role="button"
             tabIndex={0}
-            className="cursor-text rounded-[16px] p-2 -m-2 transition-all duration-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+            className="cursor-text rounded-[16px] p-2 -m-2 transition-all duration-300 hover:bg-[#fbfdff] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary-200)]"
             onClick={() => onStartEdit(sectionKey)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') {
@@ -78,11 +100,11 @@ const Section = ({
           >
             {html ? (
               <div
-                className="markdown-body font-sans text-[15px] leading-relaxed text-[#45515e]"
+                className="markdown-body font-sans text-[14px] leading-relaxed text-[#45515e]"
                 dangerouslySetInnerHTML={{ __html: html }}
               />
             ) : (
-              <p className="py-6 text-center text-[14px] italic text-slate-400 font-sans">{t('common.noInfo')}</p>
+              <p className="py-6 text-center text-[12px] italic text-[#8e8e93] font-sans">{t('common.noInfo')}</p>
             )}
           </div>
         )}
@@ -91,32 +113,63 @@ const Section = ({
   );
 };
 
-export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiResponsePanelProps) => {
+export const AiResponsePanel = ({ response, isLoading, errorMessage, onSave, onDirtyChange }: AiResponsePanelProps) => {
   const [editingSection, setEditingSection] = useState<EditableSectionKey | null>(null);
-  const [editableSections, setEditableSections] = useState<EditableSections>({
-    highlights_this_week: '',
-    next_week_actions: '',
-    risks_decisions: ''
-  });
+  const [baselineSections, setBaselineSections] = useState<EditableSections>(emptySections);
+  const [editableSections, setEditableSections] = useState<EditableSections>(emptySections);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const dirty = !sectionsEqual(baselineSections, editableSections);
 
   useEffect(() => {
     if (!response || (response.status !== 'AVAILABLE' && response.status !== 'PARTIAL')) {
       setEditingSection(null);
-      setEditableSections({
-        highlights_this_week: '',
-        next_week_actions: '',
-        risks_decisions: ''
-      });
+      setBaselineSections(emptySections());
+      setEditableSections(emptySections());
+      setSaveError(null);
+      setSavedMessage(null);
       return;
     }
 
+    const nextSections = sectionsFromResponse(response);
     setEditingSection(null);
-    setEditableSections({
-      highlights_this_week: response.highlights_this_week ?? '',
-      next_week_actions: response.next_week_actions ?? '',
-      risks_decisions: response.risks_decisions ?? ''
-    });
+    setBaselineSections(nextSections);
+    setEditableSections(nextSections);
+    setSaveError(null);
+    setSavedMessage(null);
   }, [response]);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
+  const handleDiscard = () => {
+    setEditableSections(baselineSections);
+    setEditingSection(null);
+    setSaveError(null);
+    setSavedMessage(null);
+  };
+
+  const handleSave = async () => {
+    if (!onSave || !dirty || saving) return;
+
+    setSaving(true);
+    setSaveError(null);
+    setSavedMessage(null);
+    try {
+      const updatedResponse = await onSave(editableSections);
+      const nextSections = sectionsFromResponse(updatedResponse);
+      setBaselineSections(nextSections);
+      setEditableSections(nextSections);
+      setEditingSection(null);
+      setSavedMessage(t('aiPanel.saved'));
+    } catch (error) {
+      setSaveError(error instanceof Error && error.message ? error.message : t('aiPanel.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -141,8 +194,8 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
   if (!response || response.status === 'NOT_SAVED') {
     return (
       <div className={reportStyles.emptyState}>
-        <p className="mb-2 text-sm font-medium text-slate-600">{t('aiPanel.notSaved')}</p>
-        <p className="text-xs leading-6 text-slate-400">{t('aiPanel.notSavedHint')}</p>
+        <p className="mb-2 text-sm font-medium text-[#45515e]">{t('aiPanel.notSaved')}</p>
+        <p className="text-xs leading-6 text-[#8e8e93]">{t('aiPanel.notSavedHint')}</p>
       </div>
     );
   }
@@ -157,9 +210,45 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
 
   return (
     <div className="space-y-4">
+      <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
+        <div className="text-[12px] font-medium">
+          {saveError ? (
+            <span className="text-[var(--color-danger-text)]" role="alert">{saveError}</span>
+          ) : dirty ? (
+            <span className="text-[var(--color-warning-text)]">{t('aiPanel.unsavedChanges')}</span>
+          ) : savedMessage ? (
+            <span className="text-[var(--color-success-text)]">{savedMessage}</span>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2">
+          {dirty && (
+            <Button
+              type="button"
+              variant="pill-secondary"
+              size="sm"
+              className="h-8 px-3 text-[12px]"
+              onClick={handleDiscard}
+              disabled={saving}
+            >
+              {t('aiPanel.discardChanges')}
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="pill-primary"
+            size="sm"
+            className="h-8 px-4 text-[12px]"
+            onClick={handleSave}
+            disabled={!dirty || saving || !onSave}
+          >
+            {saving ? t('common.saving') : t('common.save')}
+          </Button>
+        </div>
+      </div>
+
       {response.status === 'PARTIAL' && (
         <div className={`${reportStyles.alertWarning} mb-2 flex items-center gap-3`}>
-          <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-[var(--color-warning-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <span className="font-medium">{t('aiPanel.partial')}</span>
@@ -181,6 +270,7 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
             }))
           }
           onFinishEdit={() => setEditingSection(null)}
+          isDirty={baselineSections.highlights_this_week !== editableSections.highlights_this_week}
         />
         <Section
           title={t('aiPanel.sectionNextActions')}
@@ -196,6 +286,7 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
             }))
           }
           onFinishEdit={() => setEditingSection(null)}
+          isDirty={baselineSections.next_week_actions !== editableSections.next_week_actions}
         />
         <Section
           title={t('aiPanel.sectionRisks')}
@@ -211,6 +302,7 @@ export const AiResponsePanel = ({ response, isLoading, errorMessage }: AiRespons
             }))
           }
           onFinishEdit={() => setEditingSection(null)}
+          isDirty={baselineSections.risks_decisions !== editableSections.risks_decisions}
         />
       </div>
     </div>

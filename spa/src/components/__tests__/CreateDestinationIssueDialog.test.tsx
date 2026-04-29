@@ -53,10 +53,12 @@ describe('CreateDestinationIssueDialog', () => {
 
     expect(header).toBeTruthy();
     expect(footer.className).toContain('justify-start');
-    expect(openButton.getAttribute('style')).toContain('width: 24px');
-    expect(openButton.getAttribute('style')).toContain('height: 24px');
-    expect(closeButton.getAttribute('style')).toContain('width: 24px');
-    expect(closeButton.getAttribute('style')).toContain('height: 24px');
+    expect(openButton.getAttribute('style')).toContain('width: 32px');
+    expect(openButton.getAttribute('style')).toContain('height: 32px');
+    expect(openButton.getAttribute('style')).toContain('border-radius: 6px');
+    expect(closeButton.getAttribute('style')).toContain('width: 32px');
+    expect(closeButton.getAttribute('style')).toContain('height: 32px');
+    expect(closeButton.getAttribute('style')).toContain('border-radius: 6px');
     expect(cancelButton.getAttribute('style')).toContain('height: 28px');
     expect(cancelButton.getAttribute('style')).toContain('min-width: 88px');
     expect(saveButton.getAttribute('style')).toContain('height: 28px');

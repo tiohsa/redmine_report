@@ -11,7 +11,11 @@ module RedmineReport
         return error('NOT_FOUND', 'Issue not found', :not_found) unless issue
 
         issues = [issue] + child_scope(issue).to_a
-        success(issues: issues.map { |item| serialize_issue(item) })
+        options_builder = IssueEditOptionsBuilder.new(user: user)
+        success(
+          issues: issues.map { |item| serialize_issue(item) },
+          issue_edit_options: issues.index_with { |item| options_builder.call(item) }.transform_keys(&:id)
+        )
       end
 
       private
