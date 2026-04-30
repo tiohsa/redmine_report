@@ -23,6 +23,7 @@ type ProjectStatusReportToolbarProps = {
   allVersionsSelected: boolean;
   onVersionChange?: (versions: string[]) => void;
   onVersionOrderChange?: (versions: string[]) => void;
+  allowVersionOrderPersist?: boolean;
   chartScale: number;
   onChartScaleChange: (value: number) => void;
   showAllDates: boolean;
@@ -80,6 +81,7 @@ export const ProjectStatusReportToolbar = ({
   allVersionsSelected,
   onVersionChange,
   onVersionOrderChange,
+  allowVersionOrderPersist = true,
   chartScale,
   onChartScaleChange,
   showAllDates,
@@ -124,8 +126,9 @@ export const ProjectStatusReportToolbar = ({
   const filterDropdownRowStyle = reportStyles.dropdownRow;
   const filterDropdownDividerStyle = reportStyles.dropdownDivider;
   const filterDropdownClearLinkStyle = reportStyles.dropdownClear;
-  const moveVersion = (fromIndex: number, toIndex: number) => {
+  const moveVersion = (fromIndex: number, toIndex: number, hasExplicitDropTarget = true) => {
     if (!onVersionOrderChange) return;
+    if (!allowVersionOrderPersist && !hasExplicitDropTarget) return;
     if (fromIndex === toIndex) return;
     if (fromIndex < 0 || toIndex < 0 || fromIndex >= allVersions.length || toIndex >= allVersions.length) return;
 
@@ -242,15 +245,17 @@ export const ProjectStatusReportToolbar = ({
                   className="max-h-[280px] overflow-y-auto"
                   onDragOver={(event) => {
                     if (draggingIndex === null) return;
+                    if (!allowVersionOrderPersist) return;
                     event.preventDefault();
                     event.dataTransfer.dropEffect = 'move';
                   }}
                   onDrop={(event) => {
                     if (draggingIndex === null) return;
+                    if (!allowVersionOrderPersist) return;
                     event.preventDefault();
                     const fromIndex = parseDragIndex(event);
                     if (fromIndex !== null) {
-                      moveVersion(fromIndex, allVersions.length - 1);
+                      moveVersion(fromIndex, allVersions.length - 1, false);
                     }
                     setDraggingIndex(null);
                     setDropTargetIndex(null);
@@ -291,7 +296,7 @@ export const ProjectStatusReportToolbar = ({
                           event.stopPropagation();
                           const fromIndex = parseDragIndex(event);
                           if (fromIndex !== null) {
-                            moveVersion(fromIndex, index);
+                            moveVersion(fromIndex, index, true);
                           }
                           setDraggingIndex(null);
                           setDropTargetIndex(null);
@@ -326,7 +331,9 @@ export const ProjectStatusReportToolbar = ({
                   })}
                 </SelectionList>
                 <div className="px-4 py-1.5 text-[11px] text-[#6b7280]">
-                  {t('filter.versionDragHelp', { defaultValue: 'Drag handles to reorder process rows.' })}
+                  {allowVersionOrderPersist
+                    ? t('filter.versionDragHelp', { defaultValue: 'Drag handles to reorder process rows.' })
+                    : t('filter.versionDragHelpMultiProject', { defaultValue: 'When multiple projects are selected, drop on a specific row to apply reordering.' })}
                 </div>
                 <div className={filterDropdownDividerStyle}></div>
                 <div className="px-4 py-2.5">

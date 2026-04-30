@@ -220,6 +220,7 @@ export const ProjectStatusReport = ({
     const allSelectableProjectsSelected = selectableProjectIdentifiers.length > 0
         && selectableProjectIdentifiers.every((id) => selectedProjectIdentifiers.includes(id));
     const allVersionsSelected = displayVersions.length > 0 && selectedVersions.length === displayVersions.length;
+    const allowVersionOrderPersist = selectedProjectIdentifiers.length <= 1;
 
     const isCustomDateRangeActive = Boolean(displayStartDateIso && displayEndDateIso);
 
@@ -358,6 +359,7 @@ export const ProjectStatusReport = ({
                     allVersionsSelected={allVersionsSelected}
                     onVersionChange={onVersionChange}
                     onVersionOrderChange={onVersionOrderChange}
+                    allowVersionOrderPersist={allowVersionOrderPersist}
                     chartScale={chartScale}
                     onChartScaleChange={setChartScale}
                     showAllDates={showAllDates}
