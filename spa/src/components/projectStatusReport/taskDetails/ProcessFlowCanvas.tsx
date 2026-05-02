@@ -42,6 +42,7 @@ type ProcessFlowCanvasProps = {
     step: ProcessFlowRenderStep,
     mode: ProcessFlowDragMode
   ) => void;
+  showTitles: boolean;
 };
 
 const processStatusStyles: Record<ProcessFlowStatus, {
@@ -125,7 +126,8 @@ export function ProcessFlowCanvas({
   containerRef,
   onStepClick,
   onStepDoubleClick,
-  onStepPointerDown
+  onStepPointerDown,
+  showTitles
 }: ProcessFlowCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -228,7 +230,7 @@ export function ProcessFlowCanvas({
           height: scaleMetrics.barHeight,
           fill,
           progress: step.progress,
-          label: step.title,
+          label: showTitles ? step.title : undefined,
           chartScale: 1
         });
       }
@@ -287,7 +289,7 @@ export function ProcessFlowCanvas({
 
       // Labels and progress are now handled by drawExecutiveBar
     });
-  }, [axis, baseTopPadding, chartHeight, laneHeight, renderSteps, scaleMetrics, selectedIssueId]);
+  }, [axis, baseTopPadding, chartHeight, laneHeight, renderSteps, scaleMetrics, selectedIssueId, showTitles]);
 
   return (
     <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={containerRef}>

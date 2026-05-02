@@ -32,6 +32,7 @@ type TimelineChartProps = {
   chartScale?: number;
   showAllDates?: boolean;
   showTodayLine?: boolean;
+  showTitles?: boolean;
   onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
   onVersionReportClick?: (payload: { laneKey: string; versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
   onTaskDatesUpdated?: () => void;
@@ -209,6 +210,7 @@ export function TimelineChart({
   chartScale = 1,
   showAllDates = false,
   showTodayLine = true,
+  showTitles = true,
   onVersionAiClick,
   onVersionReportClick,
   onTaskDatesUpdated,
@@ -439,6 +441,7 @@ export function TimelineChart({
             chartScale={chartScale}
             showAllDates={showAllDates}
             showTodayLine={showTodayLine}
+            showTitles={showTitles}
             onTaskDatesUpdated={onTaskDatesUpdated}
             onEditError={setTimelineEditError}
             detailedReportResponse={detailedReportResponse}
@@ -496,6 +499,7 @@ function TimelineChartSurface({
   chartScale = 1,
   showAllDates,
   showTodayLine = true,
+  showTitles = true,
   detailedReportResponse = null,
   detailedReportLoading = false,
   detailedReportError = null,
@@ -530,6 +534,7 @@ function TimelineChartSurface({
   chartScale?: number;
   showAllDates?: boolean;
   showTodayLine?: boolean;
+  showTitles?: boolean;
   detailedReportResponse?: AiResponseView | null;
   detailedReportLoading?: boolean;
   detailedReportError?: string | null;
@@ -871,7 +876,7 @@ function TimelineChartSurface({
             height: scaledBarHeight,
             fill: item.fill,
             progress: item.step.progress,
-            label: item.step.name,
+            label: showTitles ? item.step.name : undefined,
             chartScale
           });
 

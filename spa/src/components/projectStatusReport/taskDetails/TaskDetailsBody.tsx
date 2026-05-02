@@ -52,6 +52,7 @@ type TaskDetailsBodyProps = {
   columnWidths: Record<string, number>;
   onColumnResize: (columnKey: string, deltaX: number) => void;
   density: TableDensity;
+  showTitles: boolean;
 };
 
 export function TaskDetailsBody({
@@ -95,7 +96,8 @@ export function TaskDetailsBody({
   onFieldUpdate,
   columnWidths,
   onColumnResize,
-  density
+  density,
+  showTitles
 }: TaskDetailsBodyProps) {
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[#f7f9fc] relative" ref={detailsLayoutRef}>
@@ -132,6 +134,7 @@ export function TaskDetailsBody({
                 onStepPointerDown={startProcessFlowDrag}
                 onStepClick={handleProcessStepClick}
                 onStepDoubleClick={handleProcessStepDoubleClick}
+                showTitles={showTitles}
               />
             </div>
           </div>

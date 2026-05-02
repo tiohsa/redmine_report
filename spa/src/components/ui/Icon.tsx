@@ -19,6 +19,7 @@ export type IconName =
   | 'sliders'
   | 'sparkles'
   | 'tag'
+  | 'text'
   | 'today'
   | 'warning';
 
@@ -53,6 +54,13 @@ const pathByName: Record<IconName, JSX.Element> = {
   sliders: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 5h16v14H4zM10 5v14M16 5v14" />,
   sparkles: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 3l2 5 6 2-6 2-2 5-2-5-6-2 6-2 2-5Z" />,
   tag: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 4h6l4 4v6l-4 4H9l-4-4V8l4-4Z M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />,
+  text: (
+    <path
+      fill="currentColor"
+      stroke="none"
+      d="M21.5,5.5c0-0.8-0.6-1.5-1.5-1.5H4C3.1,4,2.5,4.7,2.5,5.5v2.2c0,0.6,0.3,1,0.8,1c0.4,0,0.7-0.3,1-0.8 c0.5-1,1.5-1.5,2.8-1.5h3v11.2c0,1.8-0.8,2.4-2.8,2.4H6.5c-0.5,0-0.9,0.4-0.9,0.9c0,0.5,0.4,0.9,0.9,0.9h11c0.5,0,0.9-0.4,0.9-0.9 c0-0.5-0.4-0.9-0.9-0.9h-0.8c-2,0-2.8-0.6-2.8-2.4V6.9h3c1.3,0,2.3,0.5,2.8,1.5c0.3,0.5,0.6,0.8,1,0.8c0.5,0,0.8-0.4,0.8-1V5.5z"
+    />
+  ),
   today: (
     <>
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 8h16M4 16h16" />

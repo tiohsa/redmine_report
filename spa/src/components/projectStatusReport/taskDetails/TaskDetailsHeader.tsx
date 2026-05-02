@@ -5,6 +5,7 @@ import { SelectionList, SelectionRow, CheckboxRow } from '../../ui/SelectionList
 import { reportCompactIconActionActiveStyle, reportCompactIconActionStyle, reportStyles } from '../../designSystem';
 import { useUiStore } from '../../../stores/uiStore';
 import { cn } from '../../ui/cn';
+import { Icon } from '../../ui/Icon';
 
 export type DrilldownCrumb = {
   issueId: number;
@@ -19,6 +20,8 @@ type TaskDetailsHeaderProps = {
   onDensityChange: (density: TableDensity) => void;
   onBreadcrumbClick: (index: number) => void;
   onReload: () => void;
+  onShowTitlesChange: (show: boolean) => void;
+  showTitles: boolean;
   onClose: () => void;
 };
 
@@ -33,6 +36,8 @@ export function TaskDetailsHeader({
   onDensityChange,
   onBreadcrumbClick,
   onReload,
+  onShowTitlesChange,
+  showTitles,
   onClose
 }: TaskDetailsHeaderProps) {
   const {
@@ -171,6 +176,19 @@ export function TaskDetailsHeader({
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
+        </button>
+        <button
+          onClick={() => onShowTitlesChange(!showTitles)}
+          title={t('timeline.titleToggle', { defaultValue: 'Ticket titles' })}
+          className={cn(
+            showTitles ? REDMINE_DIALOG_ICON_ACTION_ACTIVE_CLASS : REDMINE_DIALOG_ICON_ACTION_CLASS,
+            'ml-1'
+          )}
+          style={showTitles ? reportCompactIconActionActiveStyle : reportCompactIconActionStyle}
+          aria-pressed={showTitles}
+        >
+          <Icon name="text" className="w-4 h-4" />
+          {showTitles ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
         </button>
       </div>
 

@@ -32,6 +32,7 @@ interface ProjectStatusReportProps {
 }
 
 export const ProjectStatusReport = ({
+
     bars = [],
     projectIdentifier,
     availableProjects = [],
@@ -88,6 +89,9 @@ export const ProjectStatusReport = ({
         showTodayLine,
         setShowTodayLine,
         isProcessMode,
+        showTitles,
+        setShowTitles,
+
         setIsProcessMode,
         isProjectOpen,
         setIsProjectOpen,
@@ -366,6 +370,9 @@ export const ProjectStatusReport = ({
                     onShowAllDatesChange={setShowAllDates}
                     showTodayLine={showTodayLine}
                     onShowTodayLineChange={setShowTodayLine}
+                    showTitles={showTitles}
+                    onShowTitlesChange={setShowTitles}
+
                     isProcessMode={isProcessMode}
                     isLoadingChildren={isLoadingChildren}
                     onProcessModeChange={setIsProcessMode}
@@ -427,6 +434,8 @@ export const ProjectStatusReport = ({
                         chartScale={chartScale}
                         showAllDates={showAllDates}
                         showTodayLine={showTodayLine}
+                        showTitles={showTitles}
+
                         onTaskDatesUpdated={onTaskDatesUpdated}
                         onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
                             setWeeklyDialog({

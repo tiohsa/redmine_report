@@ -4,6 +4,7 @@ import { useUiStore } from '../../stores/uiStore';
 const CHART_SCALE_STORAGE_KEY = 'redmine_report.schedule.chartScale';
 const SHOW_ALL_DATES_STORAGE_KEY = 'redmine_report.schedule.showAllDates';
 const SHOW_TODAY_LINE_STORAGE_KEY = 'redmine_report.schedule.showTodayLine';
+const SHOW_TITLES_STORAGE_KEY = 'redmine_report.schedule.showTitles';
 const PROCESS_MODE_STORAGE_KEY = 'redmine_report.schedule.processMode';
 
 const VALID_CHART_SCALES = [0.5, 0.75, 1, 1.5] as const;
@@ -45,6 +46,7 @@ export const useProjectStatusReportControls = () => {
   const [chartScale, setChartScale] = useState<number>(() => readStoredChartScale());
   const [showAllDates, setShowAllDates] = useState<boolean>(() => readStoredBoolean(SHOW_ALL_DATES_STORAGE_KEY, false));
   const [showTodayLine, setShowTodayLine] = useState<boolean>(() => readStoredBoolean(SHOW_TODAY_LINE_STORAGE_KEY, true));
+  const [showTitles, setShowTitles] = useState<boolean>(() => readStoredBoolean(SHOW_TITLES_STORAGE_KEY, true));
   const [isProcessMode, setIsProcessMode] = useState<boolean>(() => readStoredBoolean(PROCESS_MODE_STORAGE_KEY, false));
   
   const {
@@ -98,6 +100,10 @@ export const useProjectStatusReportControls = () => {
   useEffect(() => {
     writeStoredScheduleReportSetting(SHOW_TODAY_LINE_STORAGE_KEY, String(showTodayLine));
   }, [showTodayLine]);
+  
+  useEffect(() => {
+    writeStoredScheduleReportSetting(SHOW_TITLES_STORAGE_KEY, String(showTitles));
+  }, [showTitles]);
 
   useEffect(() => {
     writeStoredScheduleReportSetting(PROCESS_MODE_STORAGE_KEY, String(isProcessMode));
@@ -110,6 +116,8 @@ export const useProjectStatusReportControls = () => {
     setShowAllDates,
     showTodayLine,
     setShowTodayLine,
+    showTitles,
+    setShowTitles,
     isProcessMode,
     setIsProcessMode,
     isProjectOpen,

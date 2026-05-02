@@ -30,6 +30,8 @@ type ProjectStatusReportToolbarProps = {
   onShowAllDatesChange: (value: boolean) => void;
   showTodayLine: boolean;
   onShowTodayLineChange: (value: boolean) => void;
+  showTitles: boolean;
+  onShowTitlesChange: (value: boolean) => void;
   isProcessMode: boolean;
   isLoadingChildren: boolean;
   onProcessModeChange: (value: boolean) => void;
@@ -88,6 +90,8 @@ export const ProjectStatusReportToolbar = ({
   onShowAllDatesChange,
   showTodayLine,
   onShowTodayLineChange,
+  showTitles,
+  onShowTitlesChange,
   isProcessMode,
   isLoadingChildren,
   onProcessModeChange,
@@ -480,6 +484,17 @@ export const ProjectStatusReportToolbar = ({
           >
             <Icon name="today" className="h-4 w-4" />
             {showTodayLine ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
+          </Button>
+
+          <Button
+            onClick={() => onShowTitlesChange(!showTitles)}
+            variant={showTitles ? 'icon-active' : 'icon'}
+            className={reportStyles.toolbarIconButton}
+            title={t('timeline.titleToggle', { defaultValue: 'Ticket titles' })}
+            aria-pressed={showTitles}
+          >
+            <Icon name="text" className="h-4 w-4" />
+            {showTitles ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </Button>
 
           <div className={reportStyles.toolbarDivider}></div>
