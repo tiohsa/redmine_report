@@ -62,19 +62,20 @@ export const drawExecutiveBar = (ctx: CanvasRenderingContext2D, options: Executi
     ctx.restore();
   }
 
-  // Draw Label (Above the bar)
+  // Draw Label (Below the bar)
   if (label) {
     const labelFont = `700 ${Math.max(10, Math.round(11 * chartScale))}px "DM Sans", sans-serif`;
     const displayTitle = truncateCanvasText(ctx, label, Math.max(width, 200), labelFont);
     drawStrokeText(ctx, {
       text: displayTitle,
       x: x,
-      y: y - 8 * chartScale,
+      y: y + height + 8 * chartScale,
       fill: '#1e293b',
       stroke: '#ffffff',
       strokeWidth: 3,
       font: labelFont,
-      textAlign: 'left'
+      textAlign: 'left',
+      textBaseline: 'top'
     });
   }
 
