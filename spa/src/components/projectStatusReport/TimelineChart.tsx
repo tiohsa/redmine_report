@@ -97,7 +97,7 @@ const MIN_HANDLE_ACTIVE_PX = 4;
 const INLINE_REPORT_SLOT_HEIGHT = 392;
 const DATE_LABEL_INSET_PX = 8;
 const SELECTED_BAR_STROKE = '#1456f0';
-const SELECTED_BAR_DASH = [6, 4];
+const SELECTED_BAR_DASH = [4, 2];
 const CHEVRON_RIGHT_HEAD_RATIO = 0.62;
 const TIMELINE_HEADER_FILL = '#fbfdff';
 const TIMELINE_TEXT_SECONDARY = '#45515e';
@@ -908,17 +908,17 @@ function TimelineChartSurface({
 
           if (item.isSelected || item.isActiveDragThis || item.isSavingThis || item.hasPendingPreview) {
             if (item.isSelected) {
-              const radius = Math.min(scaledBarHeight / 2, 6 * chartScale);
+              const radius = scaledBarHeight / 2;
               context.save();
               context.strokeStyle = SELECTED_BAR_STROKE;
-              context.lineWidth = 2;
+              context.lineWidth = 1.5;
               context.setLineDash(SELECTED_BAR_DASH);
               context.shadowColor = 'rgba(20, 86, 240, 0.24)';
               context.shadowBlur = 6;
               context.shadowOffsetX = 0;
               context.shadowOffsetY = 1;
               context.beginPath();
-              context.roundRect(item.barX - 3, top - 3, Math.max(item.barWidth, 1) + 6, scaledBarHeight + 6, radius + 3);
+              context.roundRect(item.barX - 1.5, top - 1.5, Math.max(item.barWidth, 1) + 3, scaledBarHeight + 3, radius + 1.5);
               context.stroke();
               context.restore();
             } else {

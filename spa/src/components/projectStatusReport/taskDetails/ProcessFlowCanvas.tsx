@@ -71,8 +71,8 @@ const drawSelectedProcessOutline = (
 ) => {
   context.save();
   context.strokeStyle = '#2563eb';
-  context.lineWidth = 2;
-  context.setLineDash([6, 4]);
+  context.lineWidth = 1.5;
+  context.setLineDash([4, 2]);
   context.shadowColor = 'rgba(37, 99, 235, 0.18)';
   context.shadowBlur = 6;
   context.shadowOffsetX = 0;
@@ -82,10 +82,10 @@ const drawSelectedProcessOutline = (
     const halfWidth = step.visualWidth / 2;
     const halfHeight = step.barHeight / 2;
     context.beginPath();
-    context.moveTo(step.textX, step.stepY - 3);
-    context.lineTo(step.textX + halfWidth + 3, step.stepY + halfHeight);
-    context.lineTo(step.textX, step.stepY + step.barHeight + 3);
-    context.lineTo(step.textX - halfWidth - 3, step.stepY + halfHeight);
+    context.moveTo(step.textX, step.stepY - 1.5);
+    context.lineTo(step.textX + halfWidth + 1.5, step.stepY + halfHeight);
+    context.lineTo(step.textX, step.stepY + step.barHeight + 1.5);
+    context.lineTo(step.textX - halfWidth - 1.5, step.stepY + halfHeight);
     context.closePath();
     context.stroke();
     context.restore();
@@ -94,22 +94,21 @@ const drawSelectedProcessOutline = (
 
   if (step.shapeKind === 'start-only') {
     context.beginPath();
-    context.moveTo(step.shapeX - 3, step.stepY - 3);
-    context.lineTo(step.shapeX + step.visualWidth + 4, step.stepY + step.barHeight / 2);
-    context.lineTo(step.shapeX - 3, step.stepY + step.barHeight + 3);
+    context.moveTo(step.shapeX - 1.5, step.stepY - 1.5);
+    context.lineTo(step.shapeX + step.visualWidth + 2, step.stepY + step.barHeight / 2);
+    context.lineTo(step.shapeX - 1.5, step.stepY + step.barHeight + 1.5);
     context.closePath();
     context.stroke();
     context.restore();
     return;
   }
 
-  const leftEdgeX = step.x - 3;
-  const topY = step.stepY - 3;
-  const bottomY = step.stepY + step.barHeight + 3;
+  const leftEdgeX = step.x - 1.5;
+  const topY = step.stepY - 1.5;
   const radius = step.barHeight / 2;
 
   context.beginPath();
-  context.roundRect(leftEdgeX, topY, Math.max(step.visualWidth, 1) + 6, step.barHeight + 6, radius + 3);
+  context.roundRect(leftEdgeX, topY, Math.max(step.visualWidth, 1) + 3, step.barHeight + 3, radius + 1.5);
   context.stroke();
   context.restore();
 };
