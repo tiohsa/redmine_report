@@ -8,6 +8,7 @@ import {
   prepareHiDPICanvas,
   truncateCanvasText
 } from '../canvasTimelineRenderer';
+import { drawExecutiveBar } from '../executiveTimelineRenderer';
 import { getProgressFillColor, getProgressTrackColor } from '../constants';
 import { type TimelineAxis } from '../timelineAxis';
 import {
@@ -104,28 +105,10 @@ const drawSelectedProcessOutline = (
   const leftEdgeX = step.x - 3;
   const topY = step.stepY - 3;
   const bottomY = step.stepY + step.barHeight + 3;
-  const { leftShoulderX, leftNotchTipX, rightBaseX, rightTipX } = buildProcessChevronPathData(
-    step.x,
-    step.stepY,
-    step.width,
-    step.barHeight,
-    step.pointDepth,
-    step.hasLeftNotch
-  );
+  const radius = step.barHeight / 2;
 
   context.beginPath();
-  if (step.hasLeftNotch) {
-    context.moveTo(leftShoulderX - 3, topY);
-    context.lineTo(leftNotchTipX + 3, step.stepY + step.barHeight / 2);
-    context.lineTo(leftShoulderX - 3, bottomY);
-  } else {
-    context.moveTo(leftEdgeX, topY);
-    context.lineTo(leftEdgeX, bottomY);
-  }
-  context.lineTo(rightBaseX + 3, bottomY);
-  context.lineTo(rightTipX + 3, step.stepY + step.barHeight / 2);
-  context.lineTo(rightBaseX + 3, topY);
-  context.closePath();
+  context.roundRect(leftEdgeX, topY, Math.max(step.visualWidth, 1) + 6, step.barHeight + 6, radius + 3);
   context.stroke();
   context.restore();
 };
@@ -238,17 +221,15 @@ export function ProcessFlowCanvas({
           progress: step.progress
         });
       } else {
-        drawChevron(context, {
+        drawExecutiveBar(context, {
           x: step.x,
           y: stepY,
-          width: step.width,
+          width: Math.max(step.width, 1),
           height: scaleMetrics.barHeight,
-          pointDepth: scaleMetrics.pointDepth,
-          hasLeftNotch: step.hasLeftNotch,
           fill,
-          trackFill: getProgressTrackColor(),
-          stroke: style.stroke,
-          progress: step.progress
+          progress: step.progress,
+          label: step.title,
+          chartScale: 1
         });
       }
 
@@ -304,21 +285,7 @@ export function ProcessFlowCanvas({
         }
       }
 
-      const labelFont = '700 11px sans-serif';
-      const maxLabelWidth = step.visualWidth - 12;
-      const displayTitle = truncateCanvasText(context, step.title, maxLabelWidth, labelFont);
-
-      if (displayTitle) {
-        drawStrokeText(context, {
-          text: displayTitle,
-          x: step.textX,
-          y: stepY + scaleMetrics.barHeight / 2,
-          fill: '#ffffff',
-          stroke: step.status === 'IN_PROGRESS' ? '#1e293b' : '#334155',
-          strokeWidth: 2,
-          font: labelFont
-        });
-      }
+      // Labels and progress are now handled by drawExecutiveBar
     });
   }, [axis, baseTopPadding, chartHeight, laneHeight, renderSteps, scaleMetrics, selectedIssueId]);
 
