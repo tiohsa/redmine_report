@@ -8,6 +8,7 @@ import {
   prepareHiDPICanvas,
   truncateCanvasText
 } from '../canvasTimelineRenderer';
+import { drawExecutiveBar } from '../executiveTimelineRenderer';
 import { getProgressFillColor, getProgressTrackColor } from '../constants';
 import { type TimelineAxis } from '../timelineAxis';
 import {
@@ -41,6 +42,7 @@ type ProcessFlowCanvasProps = {
     step: ProcessFlowRenderStep,
     mode: ProcessFlowDragMode
   ) => void;
+  showTitles: boolean;
 };
 
 const processStatusStyles: Record<ProcessFlowStatus, {
@@ -69,8 +71,8 @@ const drawSelectedProcessOutline = (
 ) => {
   context.save();
   context.strokeStyle = '#2563eb';
-  context.lineWidth = 2;
-  context.setLineDash([6, 4]);
+  context.lineWidth = 1.5;
+  context.setLineDash([4, 2]);
   context.shadowColor = 'rgba(37, 99, 235, 0.18)';
   context.shadowBlur = 6;
   context.shadowOffsetX = 0;
@@ -80,10 +82,10 @@ const drawSelectedProcessOutline = (
     const halfWidth = step.visualWidth / 2;
     const halfHeight = step.barHeight / 2;
     context.beginPath();
-    context.moveTo(step.textX, step.stepY - 3);
-    context.lineTo(step.textX + halfWidth + 3, step.stepY + halfHeight);
-    context.lineTo(step.textX, step.stepY + step.barHeight + 3);
-    context.lineTo(step.textX - halfWidth - 3, step.stepY + halfHeight);
+    context.moveTo(step.textX, step.stepY - 1.5);
+    context.lineTo(step.textX + halfWidth + 1.5, step.stepY + halfHeight);
+    context.lineTo(step.textX, step.stepY + step.barHeight + 1.5);
+    context.lineTo(step.textX - halfWidth - 1.5, step.stepY + halfHeight);
     context.closePath();
     context.stroke();
     context.restore();
@@ -92,40 +94,21 @@ const drawSelectedProcessOutline = (
 
   if (step.shapeKind === 'start-only') {
     context.beginPath();
-    context.moveTo(step.shapeX - 3, step.stepY - 3);
-    context.lineTo(step.shapeX + step.visualWidth + 4, step.stepY + step.barHeight / 2);
-    context.lineTo(step.shapeX - 3, step.stepY + step.barHeight + 3);
+    context.moveTo(step.shapeX - 1.5, step.stepY - 1.5);
+    context.lineTo(step.shapeX + step.visualWidth + 2, step.stepY + step.barHeight / 2);
+    context.lineTo(step.shapeX - 1.5, step.stepY + step.barHeight + 1.5);
     context.closePath();
     context.stroke();
     context.restore();
     return;
   }
 
-  const leftEdgeX = step.x - 3;
-  const topY = step.stepY - 3;
-  const bottomY = step.stepY + step.barHeight + 3;
-  const { leftShoulderX, leftNotchTipX, rightBaseX, rightTipX } = buildProcessChevronPathData(
-    step.x,
-    step.stepY,
-    step.width,
-    step.barHeight,
-    step.pointDepth,
-    step.hasLeftNotch
-  );
+  const leftEdgeX = step.x - 1.5;
+  const topY = step.stepY - 1.5;
+  const radius = step.barHeight / 2;
 
   context.beginPath();
-  if (step.hasLeftNotch) {
-    context.moveTo(leftShoulderX - 3, topY);
-    context.lineTo(leftNotchTipX + 3, step.stepY + step.barHeight / 2);
-    context.lineTo(leftShoulderX - 3, bottomY);
-  } else {
-    context.moveTo(leftEdgeX, topY);
-    context.lineTo(leftEdgeX, bottomY);
-  }
-  context.lineTo(rightBaseX + 3, bottomY);
-  context.lineTo(rightTipX + 3, step.stepY + step.barHeight / 2);
-  context.lineTo(rightBaseX + 3, topY);
-  context.closePath();
+  context.roundRect(leftEdgeX, topY, Math.max(step.visualWidth, 1) + 3, step.barHeight + 3, radius + 1.5);
   context.stroke();
   context.restore();
 };
@@ -142,7 +125,8 @@ export function ProcessFlowCanvas({
   containerRef,
   onStepClick,
   onStepDoubleClick,
-  onStepPointerDown
+  onStepPointerDown,
+  showTitles
 }: ProcessFlowCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -238,17 +222,15 @@ export function ProcessFlowCanvas({
           progress: step.progress
         });
       } else {
-        drawChevron(context, {
+        drawExecutiveBar(context, {
           x: step.x,
           y: stepY,
-          width: step.width,
+          width: Math.max(step.width, 1),
           height: scaleMetrics.barHeight,
-          pointDepth: scaleMetrics.pointDepth,
-          hasLeftNotch: step.hasLeftNotch,
           fill,
-          trackFill: getProgressTrackColor(),
-          stroke: style.stroke,
-          progress: step.progress
+          progress: step.progress,
+          label: showTitles ? step.title : undefined,
+          chartScale: 1
         });
       }
 
@@ -304,23 +286,9 @@ export function ProcessFlowCanvas({
         }
       }
 
-      const labelFont = '700 11px sans-serif';
-      const maxLabelWidth = step.visualWidth - 12;
-      const displayTitle = truncateCanvasText(context, step.title, maxLabelWidth, labelFont);
-
-      if (displayTitle) {
-        drawStrokeText(context, {
-          text: displayTitle,
-          x: step.textX,
-          y: stepY + scaleMetrics.barHeight / 2,
-          fill: '#ffffff',
-          stroke: step.status === 'IN_PROGRESS' ? '#1e293b' : '#334155',
-          strokeWidth: 2,
-          font: labelFont
-        });
-      }
+      // Labels and progress are now handled by drawExecutiveBar
     });
-  }, [axis, baseTopPadding, chartHeight, laneHeight, renderSteps, scaleMetrics, selectedIssueId]);
+  }, [axis, baseTopPadding, chartHeight, laneHeight, renderSteps, scaleMetrics, selectedIssueId, showTitles]);
 
   return (
     <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={containerRef}>

@@ -8,6 +8,7 @@ export type IconName =
   | 'chevron-down'
   | 'close'
   | 'download'
+  | 'file-text'
   | 'folder'
   | 'fullscreen'
   | 'info'
@@ -19,6 +20,7 @@ export type IconName =
   | 'sliders'
   | 'sparkles'
   | 'tag'
+  | 'text'
   | 'today'
   | 'warning';
 
@@ -33,6 +35,15 @@ const pathByName: Record<IconName, JSX.Element> = {
   'chevron-down': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 9l-7 7-7-7" />,
   close: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M6 18L18 6M6 6l12 12" />,
   download: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 15v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M8 10l4 4m0 0l4-4m-4 4V3" />,
+  'file-text': (
+    <>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14.5 2H6a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V7.5L14.5 2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 2.2v4.8a1 1 0 0 0 1 1h4.8" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h3" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 16h8" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 20h8" />
+    </>
+  ),
   folder: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M5 6h4l1.5 2H19a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" />,
   fullscreen: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 9V4m0 0h5M4 4l4 4m12-4v5m0-5h-5m5 0l-4 4M4 15v5m0 0h5m-5 0l4-4m12 4v-5m0 5h-5m5 0l-4-4" />,
   info: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 16v-4m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
@@ -53,6 +64,13 @@ const pathByName: Record<IconName, JSX.Element> = {
   sliders: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 5h16v14H4zM10 5v14M16 5v14" />,
   sparkles: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 3l2 5 6 2-6 2-2 5-2-5-6-2 6-2 2-5Z" />,
   tag: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 4h6l4 4v6l-4 4H9l-4-4V8l4-4Z M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />,
+  text: (
+    <path
+      fill="currentColor"
+      stroke="none"
+      d="M21.5,5.5c0-0.8-0.6-1.5-1.5-1.5H4C3.1,4,2.5,4.7,2.5,5.5v2.2c0,0.6,0.3,1,0.8,1c0.4,0,0.7-0.3,1-0.8 c0.5-1,1.5-1.5,2.8-1.5h3v11.2c0,1.8-0.8,2.4-2.8,2.4H6.5c-0.5,0-0.9,0.4-0.9,0.9c0,0.5,0.4,0.9,0.9,0.9h11c0.5,0,0.9-0.4,0.9-0.9 c0-0.5-0.4-0.9-0.9-0.9h-0.8c-2,0-2.8-0.6-2.8-2.4V6.9h3c1.3,0,2.3,0.5,2.8,1.5c0.3,0.5,0.6,0.8,1,0.8c0.5,0,0.8-0.4,0.8-1V5.5z"
+    />
+  ),
   today: (
     <>
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 8h16M4 16h16" />

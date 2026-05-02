@@ -160,6 +160,17 @@ export function TaskDetailsDialog({
     ? `${currentRootIssueId}:${processFlowChartHeight}`
     : null;
 
+  const SHOW_TITLES_STORAGE_KEY = 'redmine_report_show_titles_detailed';
+  const [showTitles, setShowTitles] = useState(() => {
+    const saved = localStorage.getItem(SHOW_TITLES_STORAGE_KEY);
+    return saved === null ? true : saved === 'true';
+  });
+
+  const handleShowTitlesChange = useCallback((next: boolean) => {
+    setShowTitles(next);
+    localStorage.setItem(SHOW_TITLES_STORAGE_KEY, String(next));
+  }, []);
+
   const {
     detailsLayoutRef,
     topPaneHeight,
@@ -365,6 +376,8 @@ export function TaskDetailsDialog({
           onDensityChange={handleDensityChange}
           onBreadcrumbClick={handleBreadcrumbClick}
           onReload={handleReload}
+          onShowTitlesChange={handleShowTitlesChange}
+          showTitles={showTitles}
           onClose={handleClose}
         />
         {feedback ? (
@@ -429,6 +442,7 @@ export function TaskDetailsDialog({
           columnWidths={columnWidths}
           onColumnResize={handleColumnResize}
           density={density}
+          showTitles={showTitles}
         />
       </div>
       <TaskDetailsEmbeddedDialogs

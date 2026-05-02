@@ -135,7 +135,9 @@ export const messages = {
       seeAll: 'See All',
       historyLabel: 'History',
       breadcrumbAria: 'Issue hierarchy',
-      resizeDetailAreasAria: 'Resize detail areas'
+      resizeDetailAreasAria: 'Resize detail areas',
+      todayLineToggle: 'Today line',
+      titleToggle: 'Ticket titles'
     },
     status: {
       completed: 'Completed',
@@ -348,7 +350,9 @@ export const messages = {
       seeAll: 'すべて表示',
       historyLabel: '更新履歴',
       breadcrumbAria: 'チケット階層',
-      resizeDetailAreasAria: '詳細エリアのサイズを変更'
+      resizeDetailAreasAria: '詳細エリアのサイズを変更',
+      todayLineToggle: '今日現在の線',
+      titleToggle: 'チケット件名の表示'
     },
     status: {
       completed: '完了',

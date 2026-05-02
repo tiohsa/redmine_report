@@ -256,12 +256,6 @@ export const drawDiamond = (ctx: CanvasRenderingContext2D, options: DiamondDrawO
   ctx.clip();
   fillProgressShape(ctx, centerX - halfWidth, y, width, height, fill, trackFill, progress);
   ctx.restore();
-  ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = 1.5;
-  ctx.lineJoin = 'round';
-  createDiamondPath(ctx, centerX, y, width, height);
-  ctx.stroke();
   ctx.restore();
 };
 
@@ -275,12 +269,6 @@ export const drawTriangle = (ctx: CanvasRenderingContext2D, options: TriangleDra
   ctx.clip();
   fillProgressShape(ctx, x, y, width, height, fill, trackFill, progress);
   ctx.restore();
-  ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = stroke;
-  ctx.lineWidth = 1.5;
-  ctx.lineJoin = 'round';
-  createTrianglePath(ctx, x, y, width, height);
-  ctx.stroke();
   ctx.restore();
 };
 
