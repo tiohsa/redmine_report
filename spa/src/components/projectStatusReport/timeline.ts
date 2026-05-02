@@ -54,6 +54,7 @@ export type TimelineViewModel = {
 type TimelineCalculationInput = {
   bars: CategoryBar[];
   selectedVersions: string[];
+  versionOrder?: string[];
   projectMap: Map<number, ProjectInfo>;
   containerWidth: number;
   displayStartDateIso?: string;
@@ -65,6 +66,7 @@ type TimelineCalculationInput = {
 export function buildTimelineViewModel({
   bars,
   selectedVersions,
+  versionOrder,
   projectMap,
   containerWidth,
   displayStartDateIso,
@@ -105,6 +107,7 @@ export function buildTimelineViewModel({
   const timelineData = buildTimelineData({
     bars,
     selectedVersions,
+    versionOrder,
     projectMap,
     getX,
     getWidth,
@@ -129,6 +132,7 @@ export function buildTimelineViewModel({
 function buildTimelineData({
   bars,
   selectedVersions,
+  versionOrder,
   projectMap,
   getX,
   getWidth,
@@ -138,6 +142,7 @@ function buildTimelineData({
 }: {
   bars: CategoryBar[];
   selectedVersions: string[];
+  versionOrder?: string[];
   projectMap: Map<number, ProjectInfo>;
   getX: (dateStr?: string) => number;
   getWidth: (startStr?: string, endStr?: string) => number;
@@ -164,78 +169,107 @@ function buildTimelineData({
   });
 
   const timelineData: TimelineLane[] = [];
+  const versionOrderIndex = new Map((versionOrder || []).map((version, index) => [version, index]));
+  type LaneCandidate = {
+    projectId: number;
+    versionKey: string;
+    versionBars: CategoryBar[];
+  };
+  const laneCandidates: LaneCandidate[] = [];
+
   Array.from(groupedByProject.entries()).forEach(([projectId, versionMap]) => {
+    Array.from(versionMap.entries()).forEach(([versionKey, versionBars]) => {
+      laneCandidates.push({ projectId, versionKey, versionBars });
+    });
+  });
+
+  laneCandidates.sort((left, right) => {
+    const leftVersionIndex = versionOrderIndex.get(left.versionKey);
+    const rightVersionIndex = versionOrderIndex.get(right.versionKey);
+    if (leftVersionIndex !== undefined && rightVersionIndex !== undefined) {
+      if (leftVersionIndex !== rightVersionIndex) return leftVersionIndex - rightVersionIndex;
+    } else if (leftVersionIndex !== undefined) {
+      return -1;
+    } else if (rightVersionIndex !== undefined) {
+      return 1;
+    } else {
+      const versionCompare = left.versionKey.localeCompare(right.versionKey);
+      if (versionCompare !== 0) return versionCompare;
+    }
+
+    return left.projectId - right.projectId;
+  });
+
+  laneCandidates.forEach(({ projectId, versionKey, versionBars }) => {
     const project = projectMap.get(projectId);
     const projectName = project?.name || t('timeline.projectFallback', { id: projectId });
     const projectIdentifier = project?.identifier || '';
 
-    Array.from(versionMap.entries()).forEach(([versionKey, versionBars]) => {
-      let displayBars = [...versionBars];
+    let displayBars = [...versionBars];
 
-      if (isProcessMode) {
-        const processedBars: CategoryBar[] = [];
-        displayBars.forEach((parent) => {
-          const children = childTicketsMap.get(parent.category_id);
-          if (children && children.length > 0) {
-            processedBars.push(...children);
-          } else {
-            processedBars.push(parent);
-          }
-        });
-        displayBars = processedBars;
+    if (isProcessMode) {
+      const processedBars: CategoryBar[] = [];
+      displayBars.forEach((parent) => {
+        const children = childTicketsMap.get(parent.category_id);
+        if (children && children.length > 0) {
+          processedBars.push(...children);
+        } else {
+          processedBars.push(parent);
+        }
+      });
+      displayBars = processedBars;
+    }
+
+    const sortedBars = displayBars
+      .filter((bar) => bar.start_date && bar.end_date)
+      .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+    const versionId = sortedBars.find((bar) => typeof bar.version_id === 'number')?.version_id;
+
+    const steps: TimelineStep[] = sortedBars.map((bar, idx) => {
+      const { status, progress } = resolveStatus(bar.progress_rate, statusStyles);
+      const width = getWidth(bar.start_date, bar.end_date);
+      const prevBar = idx > 0 ? sortedBars[idx - 1] : undefined;
+      const joinsPrevious = Boolean(
+        prevBar?.end_date &&
+        bar.start_date &&
+        differenceInDays(parseISO(bar.start_date), parseISO(prevBar.end_date)) === 1
+      );
+
+      let startDateStr = '';
+      if (bar.start_date) {
+          startDateStr = format(parseISO(bar.start_date), 'M/d');
       }
 
-      const sortedBars = displayBars
-        .filter((bar) => bar.start_date && bar.end_date)
-        .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
-      const versionId = sortedBars.find((bar) => typeof bar.version_id === 'number')?.version_id;
+      let endDateStr = '';
+      if (bar.end_date) {
+          endDateStr = format(parseISO(bar.end_date), 'M/d');
+      }
 
-      const steps: TimelineStep[] = sortedBars.map((bar, idx) => {
-        const { status, progress } = resolveStatus(bar.progress_rate, statusStyles);
-        const width = getWidth(bar.start_date, bar.end_date);
-        const prevBar = idx > 0 ? sortedBars[idx - 1] : undefined;
-        const joinsPrevious = Boolean(
-          prevBar?.end_date &&
-          bar.start_date &&
-          differenceInDays(parseISO(bar.start_date), parseISO(prevBar.end_date)) === 1
-        );
+      return {
+        issueId: bar.category_id,
+        name: bar.ticket_subject || bar.category_name,
+        x: getX(bar.start_date),
+        width,
+        status,
+        progress,
+        id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`,
+        startDateIso: bar.start_date || undefined,
+        endDateIso: bar.end_date || undefined,
+        startDateStr,
+        endDateStr,
+        editable: Boolean(bar.category_id && bar.start_date && bar.end_date),
+        joinsPrevious
+      };
+    });
 
-        let startDateStr = '';
-        if (bar.start_date) {
-            startDateStr = format(parseISO(bar.start_date), 'M/d');
-        }
-
-        let endDateStr = '';
-        if (bar.end_date) {
-            endDateStr = format(parseISO(bar.end_date), 'M/d');
-        }
-
-        return {
-          issueId: bar.category_id,
-          name: bar.ticket_subject || bar.category_name,
-          x: getX(bar.start_date),
-          width,
-          status,
-          progress,
-          id: `ticket-${bar.project_id}-${bar.category_id}-${idx}`,
-          startDateIso: bar.start_date || undefined,
-          endDateIso: bar.end_date || undefined,
-          startDateStr,
-          endDateStr,
-          editable: Boolean(bar.category_id && bar.start_date && bar.end_date),
-          joinsPrevious
-        };
-      });
-
-      timelineData.push({
-        laneKey: `${projectId}:${versionKey}`,
-        projectId,
-        projectIdentifier,
-        projectName,
-        versionId,
-        versionName: versionKey,
-        steps
-      });
+    timelineData.push({
+      laneKey: `${projectId}:${versionKey}`,
+      projectId,
+      projectIdentifier,
+      projectName,
+      versionId,
+      versionName: versionKey,
+      steps
     });
   });
 

@@ -25,6 +25,8 @@ interface ProjectStatusReportProps {
     availableProjects?: ProjectInfo[];
     selectedVersions?: string[];
     onVersionChange?: (versions: string[]) => void;
+    orderedVersions?: string[];
+    onVersionOrderChange?: (versions: string[]) => void;
     onTaskDatesUpdated?: () => void;
     fetchError?: string | null;
 }
@@ -35,6 +37,8 @@ export const ProjectStatusReport = ({
     availableProjects = [],
     selectedVersions = [],
     onVersionChange,
+    orderedVersions = [],
+    onVersionOrderChange,
     onTaskDatesUpdated,
     fetchError = null
 }: ProjectStatusReportProps) => {
@@ -183,6 +187,7 @@ export const ProjectStatusReport = ({
             buildTimelineViewModel({
                 bars,
                 selectedVersions,
+                versionOrder: orderedVersions,
                 projectMap,
                 containerWidth,
                 displayStartDateIso,
@@ -190,7 +195,7 @@ export const ProjectStatusReport = ({
                 isProcessMode,
                 childTicketsMap
             }),
-        [bars, selectedVersions, projectMap, containerWidth, displayStartDateIso, displayEndDateIso, isProcessMode, childTicketsMap]
+        [bars, selectedVersions, orderedVersions, projectMap, containerWidth, displayStartDateIso, displayEndDateIso, isProcessMode, childTicketsMap]
     );
 
     const allVersions = useMemo(() => {
@@ -200,13 +205,22 @@ export const ProjectStatusReport = ({
         });
         return Array.from(versions).sort();
     }, [bars]);
+    const displayVersions = useMemo(() => {
+        if (orderedVersions.length === 0) return allVersions;
+        const allVersionSet = new Set(allVersions);
+        const existing = orderedVersions.filter((version) => allVersionSet.has(version));
+        const existingSet = new Set(existing);
+        const appended = allVersions.filter((version) => !existingSet.has(version));
+        return [...existing, ...appended];
+    }, [allVersions, orderedVersions]);
     const selectableProjectIdentifiers = useMemo(
         () => availableProjects.filter((p) => p.selectable !== false).map((p) => p.identifier),
         [availableProjects]
     );
     const allSelectableProjectsSelected = selectableProjectIdentifiers.length > 0
         && selectableProjectIdentifiers.every((id) => selectedProjectIdentifiers.includes(id));
-    const allVersionsSelected = allVersions.length > 0 && selectedVersions.length === allVersions.length;
+    const allVersionsSelected = displayVersions.length > 0 && selectedVersions.length === displayVersions.length;
+    const allowVersionOrderPersist = selectedProjectIdentifiers.length <= 1;
 
     const isCustomDateRangeActive = Boolean(displayStartDateIso && displayEndDateIso);
 
@@ -340,10 +354,12 @@ export const ProjectStatusReport = ({
                     allSelectableProjectsSelected={allSelectableProjectsSelected}
                     onSetSelectedProjectIdentifiers={setSelectedProjectIdentifiers}
                     onToggleProject={toggleProject}
-                    allVersions={allVersions}
+                    allVersions={displayVersions}
                     selectedVersions={selectedVersions}
                     allVersionsSelected={allVersionsSelected}
                     onVersionChange={onVersionChange}
+                    onVersionOrderChange={onVersionOrderChange}
+                    allowVersionOrderPersist={allowVersionOrderPersist}
                     chartScale={chartScale}
                     onChartScaleChange={setChartScale}
                     showAllDates={showAllDates}

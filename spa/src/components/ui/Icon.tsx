@@ -11,6 +11,7 @@ export type IconName =
   | 'folder'
   | 'fullscreen'
   | 'info'
+  | 'kebab-vertical'
   | 'open-in-new'
   | 'plus'
   | 'process'
@@ -35,6 +36,16 @@ const pathByName: Record<IconName, JSX.Element> = {
   folder: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M5 6h4l1.5 2H19a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" />,
   fullscreen: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 9V4m0 0h5M4 4l4 4m12-4v5m0-5h-5m5 0l-4 4M4 15v5m0 0h5m-5 0l4-4m12 4v-5m0 5h-5m5 0l-4-4" />,
   info: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 16v-4m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
+  'kebab-vertical': (
+    <>
+      <circle cx="9" cy="6.5" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="6.5" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="17.5" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="17.5" r="1.4" fill="currentColor" stroke="none" />
+    </>
+  ),
   'open-in-new': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 3h6v6m0-6L10 14M7 14H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />,
   plus: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 5v14m7-7H5" />,
   process: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11 7l5 5-5 5M5 7l5 5-5 5" />,
@@ -63,4 +74,3 @@ export const Icon = ({ name, className, ...props }: IconProps) => (
     {pathByName[name]}
   </svg>
 );
-

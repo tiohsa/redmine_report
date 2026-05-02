@@ -1,15 +1,14 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from 'react';
 import { reportStyles } from '../designSystem';
 import { cn } from './cn';
 import { CheckboxRow as BaseCheckboxRow } from './CheckboxRow';
 
-type SelectionListProps = {
-  className?: string;
+type SelectionListProps = ComponentPropsWithoutRef<'div'> & {
   children?: ReactNode;
 };
 
-export const SelectionList = ({ className, children }: SelectionListProps) => (
-  <div className={cn(reportStyles.selectionList, className)} role="list">
+export const SelectionList = ({ className, children, ...rest }: SelectionListProps) => (
+  <div className={cn(reportStyles.selectionList, className)} role="list" {...rest}>
     {children}
   </div>
 );

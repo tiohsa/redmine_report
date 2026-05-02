@@ -43,7 +43,7 @@ export function ScheduleReportPage() {
   });
 
   const allVersions = useMemo(() => collectVersionNames(snapshot.bars), [snapshot.bars]);
-  const { selectedVersions, setSelectedVersions } = useVersionSelectionPersistence(rootProjectIdentifier, allVersions);
+  const { selectedVersions, setSelectedVersions, orderedVersions, setOrderedVersions } = useVersionSelectionPersistence(rootProjectIdentifier, allVersions);
 
   return (
     <div className="schedule-report-page report-page-shell">
@@ -59,6 +59,8 @@ export function ScheduleReportPage() {
             availableProjects={snapshot.available_projects}
             selectedVersions={selectedVersions}
             onVersionChange={setSelectedVersions}
+            orderedVersions={orderedVersions}
+            onVersionOrderChange={setOrderedVersions}
             onTaskDatesUpdated={refresh}
             fetchError={hasNoSnapshotData ? snapshot.errorMessage : null}
           />

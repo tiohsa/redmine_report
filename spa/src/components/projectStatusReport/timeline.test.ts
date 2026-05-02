@@ -270,4 +270,68 @@ describe('buildTimelineViewModel', () => {
     expect(lane.steps).toHaveLength(1);
     expect(lane.steps[0].issueId).toBe(200); // Parent
   });
+
+  it('orders lanes by versionOrder', () => {
+    const bars: CategoryBar[] = [
+      makeBar({ category_id: 1, version_name: 'v1' }),
+      makeBar({ category_id: 2, version_name: 'v2' })
+    ];
+    const projectMap = new Map<number, ProjectInfo>();
+    projectMap.set(1, makeProject());
+
+    const viewModel = buildTimelineViewModel({
+      bars,
+      selectedVersions: ['v1', 'v2'],
+      versionOrder: ['v2', 'v1'],
+      projectMap,
+      containerWidth: 1000
+    });
+
+    expect(viewModel.timelineData.map((lane) => lane.versionName)).toEqual(['v2', 'v1']);
+  });
+
+  it('orders lanes globally by version then project', () => {
+    const bars: CategoryBar[] = [
+      makeBar({ category_id: 1, project_id: 2, version_name: 'v1' }),
+      makeBar({ category_id: 2, project_id: 1, version_name: 'v2' }),
+      makeBar({ category_id: 3, project_id: 1, version_name: 'v1' }),
+      makeBar({ category_id: 4, project_id: 2, version_name: 'v2' })
+    ];
+    const projectMap = new Map<number, ProjectInfo>();
+    projectMap.set(1, makeProject({ project_id: 1, identifier: 'p1', name: 'Project 1' }));
+    projectMap.set(2, makeProject({ project_id: 2, identifier: 'p2', name: 'Project 2' }));
+
+    const viewModel = buildTimelineViewModel({
+      bars,
+      selectedVersions: ['v1', 'v2'],
+      versionOrder: ['v2', 'v1'],
+      projectMap,
+      containerWidth: 1000
+    });
+
+    expect(viewModel.timelineData.map((lane) => `${lane.versionName}:${lane.projectId}`)).toEqual([
+      'v2:1',
+      'v2:2',
+      'v1:1',
+      'v1:2'
+    ]);
+  });
+
+  it('places versions missing from versionOrder at the end', () => {
+    const bars: CategoryBar[] = [
+      makeBar({ category_id: 1, version_name: 'v1' }),
+      makeBar({ category_id: 2, version_name: 'v2' }),
+      makeBar({ category_id: 3, version_name: 'v3' })
+    ];
+
+    const viewModel = buildTimelineViewModel({
+      bars,
+      selectedVersions: ['v1', 'v2', 'v3'],
+      versionOrder: ['v2', 'v1'],
+      projectMap: new Map<number, ProjectInfo>([[1, makeProject()]]),
+      containerWidth: 1000
+    });
+
+    expect(viewModel.timelineData.map((lane) => lane.versionName)).toEqual(['v2', 'v1', 'v3']);
+  });
 });

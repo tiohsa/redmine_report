@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import { useState, type DragEvent, type RefObject } from 'react';
 import type { ProjectInfo } from '../../services/scheduleReportApi';
 import { t } from '../../i18n';
 import { reportStyles } from '../designSystem';
@@ -22,6 +22,8 @@ type ProjectStatusReportToolbarProps = {
   selectedVersions: string[];
   allVersionsSelected: boolean;
   onVersionChange?: (versions: string[]) => void;
+  onVersionOrderChange?: (versions: string[]) => void;
+  allowVersionOrderPersist?: boolean;
   chartScale: number;
   onChartScaleChange: (value: number) => void;
   showAllDates: boolean;
@@ -78,6 +80,8 @@ export const ProjectStatusReportToolbar = ({
   selectedVersions,
   allVersionsSelected,
   onVersionChange,
+  onVersionOrderChange,
+  allowVersionOrderPersist = true,
   chartScale,
   onChartScaleChange,
   showAllDates,
@@ -113,6 +117,8 @@ export const ProjectStatusReportToolbar = ({
   dateRangeError,
   onToggleFullScreen,
 }: ProjectStatusReportToolbarProps) => {
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-1.5 w-[280px] max-h-[320px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
   const legendDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[220px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
   const sizeDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[180px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
@@ -120,6 +126,23 @@ export const ProjectStatusReportToolbar = ({
   const filterDropdownRowStyle = reportStyles.dropdownRow;
   const filterDropdownDividerStyle = reportStyles.dropdownDivider;
   const filterDropdownClearLinkStyle = reportStyles.dropdownClear;
+  const moveVersion = (fromIndex: number, toIndex: number, hasExplicitDropTarget = true) => {
+    if (!onVersionOrderChange) return;
+    if (!allowVersionOrderPersist && !hasExplicitDropTarget) return;
+    if (fromIndex === toIndex) return;
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= allVersions.length || toIndex >= allVersions.length) return;
+
+    const next = [...allVersions];
+    const [moved] = next.splice(fromIndex, 1);
+    if (!moved) return;
+    next.splice(toIndex, 0, moved);
+    onVersionOrderChange(next);
+  };
+  const parseDragIndex = (event: DragEvent) => {
+    const raw = event.dataTransfer.getData('text/plain');
+    const fromIndex = Number.parseInt(raw, 10);
+    return Number.isNaN(fromIndex) ? null : fromIndex;
+  };
 
   return (
     <>
@@ -218,30 +241,100 @@ export const ProjectStatusReportToolbar = ({
                   {t('filter.selectAll')}
                 </SelectionRow>
                 <div className={filterDropdownDividerStyle}></div>
-                <SelectionList className="max-h-[280px] overflow-y-auto">
-                  {allVersions.map((version) => {
+                <SelectionList
+                  className="max-h-[280px] overflow-y-auto"
+                  onDragOver={(event) => {
+                    if (draggingIndex === null) return;
+                    if (!allowVersionOrderPersist) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(event) => {
+                    if (draggingIndex === null) return;
+                    if (!allowVersionOrderPersist) return;
+                    event.preventDefault();
+                    const fromIndex = parseDragIndex(event);
+                    if (fromIndex !== null) {
+                      moveVersion(fromIndex, allVersions.length - 1, false);
+                    }
+                    setDraggingIndex(null);
+                    setDropTargetIndex(null);
+                  }}
+                >
+                  {allVersions.map((version, index) => {
                     const isSelected = selectedVersions.includes(version);
+                    const isDragging = draggingIndex === index;
+                    const isDropTarget = dropTargetIndex === index && draggingIndex !== null && draggingIndex !== index;
 
                     return (
-                      <SelectionRow
+                      <div
                         key={version}
-                        className={filterDropdownRowStyle}
-                        active={isSelected}
-                        leading={<CheckboxRow checked={isSelected} />}
-                        onClick={() => {
+                        className={cn(
+                          filterDropdownRowStyle,
+                          'report-version-drag-row',
+                          'relative',
+                          isSelected && 'report-version-drag-row-active',
+                          isDragging && 'report-version-drag-row-dragging'
+                        )}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (isSelected) {
                             onVersionChange(selectedVersions.filter((value) => value !== version));
                             return;
                           }
-
                           onVersionChange([...selectedVersions, version]);
                         }}
+                        onDragOver={(event) => {
+                          if (draggingIndex === null) return;
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = 'move';
+                          setDropTargetIndex(index);
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          const fromIndex = parseDragIndex(event);
+                          if (fromIndex !== null) {
+                            moveVersion(fromIndex, index, true);
+                          }
+                          setDraggingIndex(null);
+                          setDropTargetIndex(null);
+                        }}
                       >
-                        {version}
-                      </SelectionRow>
+                        <button
+                          type="button"
+                          className="report-version-drag-handle"
+                          draggable
+                          title={t('filter.dragToReorder', { defaultValue: 'Drag to reorder' })}
+                          aria-label={t('filter.dragVersionHandle', { defaultValue: `Reorder ${version}` })}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onDragStart={(event) => {
+                            event.stopPropagation();
+                            event.dataTransfer.effectAllowed = 'move';
+                            event.dataTransfer.setData('text/plain', String(index));
+                            setDraggingIndex(index);
+                            setDropTargetIndex(index);
+                          }}
+                          onDragEnd={() => {
+                            setDraggingIndex(null);
+                            setDropTargetIndex(null);
+                          }}
+                        >
+                          <Icon name="kebab-vertical" className="h-3.5 w-3.5" />
+                        </button>
+                        <CheckboxRow checked={isSelected} />
+                        <span className="min-w-0 flex-1 truncate">{version}</span>
+                        {isDropTarget ? <span className="report-version-drop-indicator" aria-hidden="true" /> : null}
+                      </div>
                     );
                   })}
                 </SelectionList>
+                <div className="px-4 py-1.5 text-[11px] text-[#6b7280]">
+                  {allowVersionOrderPersist
+                    ? t('filter.versionDragHelp', { defaultValue: 'Drag handles to reorder process rows.' })
+                    : t('filter.versionDragHelpMultiProject', { defaultValue: 'When multiple projects are selected, drop on a specific row to apply reordering.' })}
+                </div>
                 <div className={filterDropdownDividerStyle}></div>
                 <div className="px-4 py-2.5">
                   <span
