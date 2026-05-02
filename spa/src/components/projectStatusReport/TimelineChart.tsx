@@ -10,11 +10,11 @@ import { calculateStaggeredLanes } from './timelineAxis';
 import { TaskDetailsDialog } from './TaskDetailsDialog';
 import type { AiResponseView } from '../../types/weeklyReport';
 import {
-  drawChevron,
   drawStrokeText,
   prepareHiDPICanvas,
   truncateCanvasText
 } from './canvasTimelineRenderer';
+import { drawExecutiveBar } from './executiveTimelineRenderer';
 import { reportStyles } from '../designSystem';
 
 type TimelineChartProps = {
@@ -193,40 +193,6 @@ const buildStepRenderData = (
 
 const getChevronRightHeadDepth = (width: number, pointDepth: number) =>
   Math.min(pointDepth * CHEVRON_RIGHT_HEAD_RATIO, Math.max(width * 0.16, 10));
-
-const drawTimelineChevronSelectionOutline = (
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  pointDepth: number
-) => {
-  const rightHeadDepth = getChevronRightHeadDepth(width, pointDepth);
-  const leftEdgeX = x - 3;
-  const topY = y - 3;
-  const bottomY = y + height + 3;
-  const rightBaseX = x + Math.max(width - rightHeadDepth, 4);
-  const rightTipX = x + width;
-
-  context.save();
-  context.strokeStyle = SELECTED_BAR_STROKE;
-  context.lineWidth = 2;
-  context.setLineDash(SELECTED_BAR_DASH);
-  context.shadowColor = 'rgba(20, 86, 240, 0.24)';
-  context.shadowBlur = 6;
-  context.shadowOffsetX = 0;
-  context.shadowOffsetY = 1;
-  context.beginPath();
-  context.moveTo(leftEdgeX, topY);
-  context.lineTo(leftEdgeX, bottomY);
-  context.lineTo(rightBaseX + 3, bottomY);
-  context.lineTo(rightTipX + 3, y + height / 2);
-  context.lineTo(rightBaseX + 3, topY);
-  context.closePath();
-  context.stroke();
-  context.restore();
-};
 
 export function TimelineChart({
   timelineData,
@@ -898,34 +864,16 @@ function TimelineChartSurface({
         .sort((a, b) => a.zIndex - b.zIndex)
         .forEach((item) => {
           const top = yOffset + item.verticalOffset;
-          drawChevron(context, {
+          drawExecutiveBar(context, {
             x: item.barX,
             y: top,
-            width: item.barWidth,
+            width: Math.max(item.barWidth, 1),
             height: scaledBarHeight,
-            pointDepth: item.pointDepth,
-            hasLeftNotch: false,
             fill: item.fill,
-            trackFill: getProgressTrackColor(),
-            stroke: item.step.status.stroke,
-            progress: item.step.progress
+            progress: item.step.progress,
+            label: item.step.name,
+            chartScale
           });
-
-          const labelFont = `700 ${Math.max(10, Math.round(11 * chartScale))}px "DM Sans", sans-serif`;
-          const maxLabelWidth = item.barWidth - 12; // 6px padding on each side
-          const displayTitle = truncateCanvasText(context, item.step.name, maxLabelWidth, labelFont);
-
-          if (displayTitle) {
-            drawStrokeText(context, {
-              text: displayTitle,
-              x: item.taskCenterX,
-              y: top + scaledBarHeight / 2,
-              fill: '#ffffff',
-              stroke: item.step.status.code === 'IN_PROGRESS' ? '#1e293b' : '#334155',
-              strokeWidth: 2,
-              font: labelFont
-            });
-          }
 
           if (item.renderData.startLabel && (showAllDates || hoveredStepId === item.step.id || item.isActiveDragThis) && item.renderData.startLabel !== item.renderData.endLabel) {
             drawStrokeText(context, {
@@ -955,14 +903,19 @@ function TimelineChartSurface({
 
           if (item.isSelected || item.isActiveDragThis || item.isSavingThis || item.hasPendingPreview) {
             if (item.isSelected) {
-              drawTimelineChevronSelectionOutline(
-                context,
-                item.barX,
-                top,
-                Math.max(item.barWidth, 1),
-                scaledBarHeight,
-                item.pointDepth
-              );
+              const radius = Math.min(scaledBarHeight / 2, 6 * chartScale);
+              context.save();
+              context.strokeStyle = SELECTED_BAR_STROKE;
+              context.lineWidth = 2;
+              context.setLineDash(SELECTED_BAR_DASH);
+              context.shadowColor = 'rgba(20, 86, 240, 0.24)';
+              context.shadowBlur = 6;
+              context.shadowOffsetX = 0;
+              context.shadowOffsetY = 1;
+              context.beginPath();
+              context.roundRect(item.barX - 3, top - 3, Math.max(item.barWidth, 1) + 6, scaledBarHeight + 6, radius + 3);
+              context.stroke();
+              context.restore();
             } else {
               context.save();
               context.strokeStyle = item.isSavingThis

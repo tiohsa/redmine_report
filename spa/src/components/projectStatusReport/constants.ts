@@ -49,16 +49,7 @@ export const getProgressFillColor = (progress: number) => {
   const value = clampProgress(progress);
 
   if (value <= 0) return '#94a3b8';
-  if (value >= 100) return '#2563eb';
-
-  if (value <= 30) {
-    return mixHex('#f97316', '#fbbf24', value / 30);
-  }
-  if (value <= 65) {
-    return mixHex('#fbbf24', '#3b82f6', (value - 30) / 35);
-  }
-
-  return mixHex('#3b82f6', '#2563eb', (value - 65) / 35);
+  return '#3b82f6';
 };
 
 export const getProgressTrackColor = () => '#d9e2ec';
