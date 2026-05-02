@@ -32,7 +32,6 @@ interface ProjectStatusReportProps {
 }
 
 export const ProjectStatusReport = ({
-
     bars = [],
     projectIdentifier,
     availableProjects = [],
@@ -81,6 +80,7 @@ export const ProjectStatusReport = ({
     const [pendingStartDate, setPendingStartDate] = useState('');
     const [pendingEndDate, setPendingEndDate] = useState('');
     const [dateRangeError, setDateRangeError] = useState<string | null>(null);
+
     const {
         chartScale,
         setChartScale,
@@ -120,8 +120,6 @@ export const ProjectStatusReport = ({
 
         const controller = new AbortController();
         setIsLoadingChildren(true);
-        // Do not clear childTicketsMap immediately. Keep current view (parent bars) 
-        // to avoid blank flash/layout shift while loading child issues.
         setProcessModeError(null);
 
         (async () => {
@@ -159,11 +157,8 @@ export const ProjectStatusReport = ({
         const observer = new ResizeObserver((entries) => {
             const entry = entries[0];
             if (entry) {
-                // Use contentRect for stable measurement
                 const newWidth = Math.floor(entry.contentRect.width);
                 setContainerWidth((current) => {
-                    // Only update if the width changed by more than 1.5 pixels.
-                    // This prevents "shivering" caused by scrollbar-induced layout loops.
                     if (Math.abs(current - newWidth) > 1.5) {
                         return newWidth;
                     }
@@ -173,8 +168,6 @@ export const ProjectStatusReport = ({
         });
 
         observer.observe(containerRef.current);
-        
-        // Initial width measurement
         setContainerWidth(Math.floor(containerRef.current.clientWidth));
 
         return () => observer.disconnect();
@@ -209,6 +202,7 @@ export const ProjectStatusReport = ({
         });
         return Array.from(versions).sort();
     }, [bars]);
+
     const displayVersions = useMemo(() => {
         if (orderedVersions.length === 0) return allVersions;
         const allVersionSet = new Set(allVersions);
@@ -217,13 +211,17 @@ export const ProjectStatusReport = ({
         const appended = allVersions.filter((version) => !existingSet.has(version));
         return [...existing, ...appended];
     }, [allVersions, orderedVersions]);
+
     const selectableProjectIdentifiers = useMemo(
         () => availableProjects.filter((p) => p.selectable !== false).map((p) => p.identifier),
         [availableProjects]
     );
+
     const allSelectableProjectsSelected = selectableProjectIdentifiers.length > 0
         && selectableProjectIdentifiers.every((id) => selectedProjectIdentifiers.includes(id));
+
     const allVersionsSelected = displayVersions.length > 0 && selectedVersions.length === displayVersions.length;
+
     const allowVersionOrderPersist = selectedProjectIdentifiers.length <= 1;
 
     const isCustomDateRangeActive = Boolean(displayStartDateIso && displayEndDateIso);
@@ -350,60 +348,8 @@ export const ProjectStatusReport = ({
 
     return (
         <div ref={fullScreenRef} className="flex-1 bg-transparent font-sans text-[#222222]">
-            <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 pb-6 pt-4 sm:px-6 lg:px-8">
-                <ProjectStatusReportToolbar
-                    availableProjects={availableProjects}
-                    selectedProjectIdentifiers={selectedProjectIdentifiers}
-                    selectableProjectIdentifiers={selectableProjectIdentifiers}
-                    allSelectableProjectsSelected={allSelectableProjectsSelected}
-                    onSetSelectedProjectIdentifiers={setSelectedProjectIdentifiers}
-                    onToggleProject={toggleProject}
-                    allVersions={displayVersions}
-                    selectedVersions={selectedVersions}
-                    allVersionsSelected={allVersionsSelected}
-                    onVersionChange={onVersionChange}
-                    onVersionOrderChange={onVersionOrderChange}
-                    allowVersionOrderPersist={allowVersionOrderPersist}
-                    chartScale={chartScale}
-                    onChartScaleChange={setChartScale}
-                    showAllDates={showAllDates}
-                    onShowAllDatesChange={setShowAllDates}
-                    showTodayLine={showTodayLine}
-                    onShowTodayLineChange={setShowTodayLine}
-                    showTitles={showTitles}
-                    onShowTitlesChange={setShowTitles}
-
-                    isProcessMode={isProcessMode}
-                    isLoadingChildren={isLoadingChildren}
-                    onProcessModeChange={setIsProcessMode}
-                    statuses={statuses}
-                    isProjectOpen={isProjectOpen}
-                    onProjectOpenChange={setIsProjectOpen}
-                    isVersionOpen={isVersionOpen}
-                    onVersionOpenChange={setIsVersionOpen}
-                    isSizeOpen={isSizeOpen}
-                    onSizeOpenChange={setIsSizeOpen}
-                    isLegendOpen={isLegendOpen}
-                    onLegendOpenChange={setIsLegendOpen}
-                    projectDropdownRef={projectDropdownRef}
-                    versionDropdownRef={versionDropdownRef}
-                    sizeDropdownRef={sizeDropdownRef}
-                    legendDropdownRef={legendDropdownRef}
-                    isDateRangeDialogOpen={isDateRangeDialogOpen}
-                    isCustomDateRangeActive={isCustomDateRangeActive}
-                    onOpenDateRangeDialog={openDateRangeDialog}
-                    onCloseDateRangeDialog={() => setIsDateRangeDialogOpen(false)}
-                    onClearDateRange={clearDateRange}
-                    onApplyDateRange={applyDateRange}
-                    pendingStartDate={pendingStartDate}
-                    pendingEndDate={pendingEndDate}
-                    onPendingStartDateChange={setPendingStartDate}
-                    onPendingEndDateChange={setPendingEndDate}
-                    dateRangeError={dateRangeError}
-                    onToggleFullScreen={toggleFullScreen}
-                />
-
-
+            <div className="mx-auto flex w-full max-w-full flex-col gap-1 p-0">
+                
                 {fetchError && (
                     <div className="report-alert-error relative" role="alert">
                         <span className="block text-sm font-bold sm:inline">{fetchError}</span>
@@ -418,52 +364,108 @@ export const ProjectStatusReport = ({
                     </div>
                 )}
 
-                <div className="report-surface overflow-hidden">
-                    <TimelineChart
-                        timelineData={timelineData}
-                        timelineWidth={timelineWidth}
-                        headerMonths={headerMonths}
-                        headerYears={headerYears}
-                        todayX={todayX}
-                        axisStartDateIso={axisStartDateIso}
-                        axisEndDateIso={axisEndDateIso}
-                        pixelsPerDay={pixelsPerDay}
-                        containerRef={containerRef}
-                        projectIdentifier={rootProjectIdentifier || projectIdentifier}
-                        isProcessMode={isProcessMode}
+                <div className="report-surface flex flex-col overflow-hidden">
+                    <ProjectStatusReportToolbar
+                        availableProjects={availableProjects}
+                        selectedProjectIdentifiers={selectedProjectIdentifiers}
+                        selectableProjectIdentifiers={selectableProjectIdentifiers}
+                        allSelectableProjectsSelected={allSelectableProjectsSelected}
+                        onSetSelectedProjectIdentifiers={setSelectedProjectIdentifiers}
+                        onToggleProject={toggleProject}
+                        allVersions={displayVersions}
+                        selectedVersions={selectedVersions}
+                        allVersionsSelected={allVersionsSelected}
+                        onVersionChange={onVersionChange}
+                        onVersionOrderChange={onVersionOrderChange}
+                        allowVersionOrderPersist={allowVersionOrderPersist}
                         chartScale={chartScale}
+                        onChartScaleChange={setChartScale}
                         showAllDates={showAllDates}
+                        onShowAllDatesChange={setShowAllDates}
                         showTodayLine={showTodayLine}
+                        onShowTodayLineChange={setShowTodayLine}
                         showTitles={showTitles}
+                        onShowTitlesChange={setShowTitles}
 
-                        onTaskDatesUpdated={onTaskDatesUpdated}
-                        onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
-                            setWeeklyDialog({
-                                open: true,
-                                versionId,
-                                versionName,
-                                projectId,
-                                projectName
-                            })
-                        }
-                        onVersionReportClick={handleVersionReportClick}
-                        onClearSelection={() => {
-                            if (inlineReportDirty && !window.confirm(t('aiPanel.confirmDiscard'))) {
-                                return;
-                            }
-                            setActiveReportLaneKey(null);
-                            setActiveReportContext(null);
-                            setInlineReportDirty(false);
-                            setAiLoading(false);
-                            setAiError(null);
-                        }}
-                        activeReportLaneKey={activeReportLaneKey}
-                        detailedReportResponse={aiResponse}
-                        detailedReportLoading={aiLoading}
-                        detailedReportError={aiError}
-                        onDetailedReportSave={handleInlineReportSave}
-                        onDetailedReportDirtyChange={setInlineReportDirty}
+                        isProcessMode={isProcessMode}
+                        isLoadingChildren={isLoadingChildren}
+                        onProcessModeChange={setIsProcessMode}
+                        statuses={statuses}
+                        isProjectOpen={isProjectOpen}
+                        onProjectOpenChange={setIsProjectOpen}
+                        isVersionOpen={isVersionOpen}
+                        onVersionOpenChange={setIsVersionOpen}
+                        isSizeOpen={isSizeOpen}
+                        onSizeOpenChange={setIsSizeOpen}
+                        isLegendOpen={isLegendOpen}
+                        onLegendOpenChange={setIsLegendOpen}
+                        projectDropdownRef={projectDropdownRef}
+                        versionDropdownRef={versionDropdownRef}
+                        sizeDropdownRef={sizeDropdownRef}
+                        legendDropdownRef={legendDropdownRef}
+                        isDateRangeDialogOpen={isDateRangeDialogOpen}
+                        isCustomDateRangeActive={isCustomDateRangeActive}
+                        onOpenDateRangeDialog={openDateRangeDialog}
+                        onCloseDateRangeDialog={() => setIsDateRangeDialogOpen(false)}
+                        onClearDateRange={clearDateRange}
+                        onApplyDateRange={applyDateRange}
+                        pendingStartDate={pendingStartDate}
+                        pendingEndDate={pendingEndDate}
+                        onPendingStartDateChange={setPendingStartDate}
+                        onPendingEndDateChange={setPendingEndDate}
+                        dateRangeError={dateRangeError}
+                        onToggleFullScreen={toggleFullScreen}
                     />
+
+                    <div className="h-px w-full bg-[var(--color-border-light)]" />
+
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                        <TimelineChart
+                            timelineData={timelineData}
+                            timelineWidth={timelineWidth}
+                            headerMonths={headerMonths}
+                            headerYears={headerYears}
+                            todayX={todayX}
+                            axisStartDateIso={axisStartDateIso}
+                            axisEndDateIso={axisEndDateIso}
+                            pixelsPerDay={pixelsPerDay}
+                            containerRef={containerRef}
+                            projectIdentifier={rootProjectIdentifier || projectIdentifier}
+                            isProcessMode={isProcessMode}
+                            chartScale={chartScale}
+                            showAllDates={showAllDates}
+                            showTodayLine={showTodayLine}
+                            showTitles={showTitles}
+
+                            onTaskDatesUpdated={onTaskDatesUpdated}
+                            onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
+                                setWeeklyDialog({
+                                    open: true,
+                                    versionId,
+                                    versionName,
+                                    projectId,
+                                    projectName
+                                })
+                            }
+                            onVersionReportClick={handleVersionReportClick}
+                            onClearSelection={() => {
+                                if (inlineReportDirty && !window.confirm(t('aiPanel.confirmDiscard'))) {
+                                    return;
+                                }
+                                setActiveReportLaneKey(null);
+                                setActiveReportContext(null);
+                                setInlineReportDirty(false);
+                                setAiLoading(false);
+                                setAiError(null);
+                            }}
+                            activeReportLaneKey={activeReportLaneKey}
+                            detailedReportResponse={aiResponse}
+                            detailedReportLoading={aiLoading}
+                            detailedReportError={aiError}
+                            onDetailedReportSave={handleInlineReportSave}
+                            onDetailedReportDirtyChange={setInlineReportDirty}
+                        />
+                    </div>
                 </div>
                 <VersionAiDialog
                     open={weeklyDialog.open}

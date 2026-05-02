@@ -123,7 +123,7 @@
   }
 
   .report-surface {
-    @apply rounded-[24px] border border-gray-100 bg-white shadow-subtle;
+    @apply rounded-[8px] border border-gray-100 bg-white;
   }
 
   .report-surface-flat {
@@ -572,11 +572,11 @@
   }
 
   .report-toolbar {
-    @apply flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-[var(--color-border-light)] bg-white px-5 py-4 shadow-subtle;
+    @apply flex flex-wrap items-center justify-between gap-4 bg-white px-6 py-1;
   }
 
   .report-toolbar-group {
-    @apply flex flex-wrap items-center gap-2 rounded-[9999px] border border-[var(--color-border-light)] bg-[#fbfdff] px-2 py-1.5;
+    @apply flex flex-wrap items-center gap-2 rounded-[9999px] border border-[var(--color-border-light)] bg-[#fbfdff] px-2 py-0.5;
   }
 
   .report-toolbar-divider {
@@ -608,7 +608,7 @@
   }
 
   .report-timeline-shell {
-    @apply flex overflow-hidden rounded-[20px] border border-[var(--color-border-light)] bg-white shadow-subtle;
+    @apply flex overflow-hidden bg-white;
   }
 
   .report-timeline-lane-label {
