@@ -13,6 +13,7 @@ import {
   type TableDensity,
   type TreeNodeType
 } from './shared';
+import { Icon } from '../../ui/Icon';
 
 type EditingCell = { field: string; value: string };
 
@@ -387,9 +388,7 @@ const IssueTreeNode = ({
               title={t('timeline.hasCommentsCount', { count: commentCount, defaultValue: `${commentCount} comments` })}
               aria-label={t('timeline.hasCommentsCount', { count: commentCount, defaultValue: `${commentCount} comments` })}
             >
-              <svg className="h-[17px] w-[17px]" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-9 6l2.8-2.1a2 2 0 011.2-.4H19a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2h.5a2 2 0 011.2.4L8 20z" />
-              </svg>
+              <Icon name="file-text" className="h-[17px] w-[17px]" />
             </span>
           ) : null}
         </div>

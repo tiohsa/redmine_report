@@ -8,6 +8,7 @@ export type IconName =
   | 'chevron-down'
   | 'close'
   | 'download'
+  | 'file-text'
   | 'folder'
   | 'fullscreen'
   | 'info'
@@ -34,6 +35,15 @@ const pathByName: Record<IconName, JSX.Element> = {
   'chevron-down': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 9l-7 7-7-7" />,
   close: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M6 18L18 6M6 6l12 12" />,
   download: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 15v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M8 10l4 4m0 0l4-4m-4 4V3" />,
+  'file-text': (
+    <>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14.5 2H6a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V7.5L14.5 2z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 2.2v4.8a1 1 0 0 0 1 1h4.8" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h3" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 16h8" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 20h8" />
+    </>
+  ),
   folder: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M5 6h4l1.5 2H19a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" />,
   fullscreen: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 9V4m0 0h5M4 4l4 4m12-4v5m0-5h-5m5 0l-4 4M4 15v5m0 0h5m-5 0l4-4m12 4v-5m0 5h-5m5 0l-4-4" />,
   info: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 16v-4m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
