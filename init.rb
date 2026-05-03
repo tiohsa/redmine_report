@@ -36,6 +36,8 @@ Redmine::Plugin.register :redmine_report do
                  weekly_save
                  weekly_ai_responses
                  weekly_ai_response
+                 report_detail
+                 update_report_detail
                  bundle_js
                  bundle_css
                ]
