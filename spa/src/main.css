@@ -1176,6 +1176,10 @@
     @apply flex-1 min-w-0 resize-none border-0 bg-transparent px-0 py-0 text-[13px] font-sans leading-6 text-[#222222] outline-none;
   }
 
+  .report-detail-row-text {
+    @apply flex-1 min-w-0 break-words px-0 py-0 text-[13px] font-sans leading-6 text-[#222222];
+  }
+
   .report-detail-row-input::placeholder {
     @apply text-[#c0c4cc];
   }

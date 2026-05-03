@@ -139,7 +139,9 @@ export const messages = {
       fetchingDetail: 'Fetching report detail...',
       fetchDetailFailed: 'Failed to fetch report detail',
       saveDetailFailed: 'Failed to save report detail',
-      savedDetail: 'Saved'
+      savedDetail: 'Saved',
+      editMode: 'Edit Mode',
+      viewMode: 'View Mode'
     },
     detailedTabs: {
       projectsAria: 'Projects',
@@ -437,7 +439,9 @@ export const messages = {
       fetchingDetail: '詳細レポートを取得中...',
       fetchDetailFailed: '詳細レポートの取得に失敗しました',
       saveDetailFailed: '詳細レポートの保存に失敗しました',
-      savedDetail: '保存しました'
+      savedDetail: '保存しました',
+      editMode: '編集モード',
+      viewMode: 'ビューモード'
     },
     detailedTabs: {
       projectsAria: 'プロジェクト',

@@ -94,11 +94,19 @@ describe('ReportDetailPanel', () => {
       expect(mockFetchReportDetail).toHaveBeenCalledOnce();
     });
 
-    // Check that rows are rendered
+    // Check that text is rendered in view mode
+    await waitFor(() => {
+      expect(screen.getByTestId('detail-text-fact-0')).toHaveTextContent('Achievement 1');
+      expect(screen.getByTestId('detail-text-fact-1')).toHaveTextContent('Achievement 2');
+      expect(screen.getByTestId('detail-text-next-0')).toHaveTextContent('Plan A');
+    });
+
+    // Enter edit mode
+    fireEvent.click(screen.getByTestId('toggle-edit-mode-btn'));
+
+    // Check that inputs are rendered in edit mode
     await waitFor(() => {
       expect(screen.getByTestId('detail-input-fact-0')).toHaveValue('Achievement 1');
-      expect(screen.getByTestId('detail-input-fact-1')).toHaveValue('Achievement 2');
-      expect(screen.getByTestId('detail-input-next-0')).toHaveValue('Plan A');
     });
   });
 
@@ -111,6 +119,12 @@ describe('ReportDetailPanel', () => {
         onPresetChange={vi.fn()}
       />
     );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toggle-edit-mode-btn')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('toggle-edit-mode-btn'));
 
     await waitFor(() => {
       expect(screen.getByTestId('detail-input-fact-0')).toBeInTheDocument();
@@ -131,6 +145,12 @@ describe('ReportDetailPanel', () => {
         onDirtyStateChange={onDirty}
       />
     );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toggle-edit-mode-btn')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('toggle-edit-mode-btn'));
 
     await waitFor(() => {
       expect(screen.getByTestId('detail-input-fact-0')).toBeInTheDocument();
@@ -161,7 +181,14 @@ describe('ReportDetailPanel', () => {
       expect(screen.getByTestId('detail-card-fact')).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getByTestId('toggle-edit-mode-btn'));
+
     const factCard = screen.getByTestId('detail-card-fact');
+    
+    await waitFor(() => {
+      expect(within(factCard).getByTestId('detail-add-fact')).toBeInTheDocument();
+    });
+
     const addBtn = within(factCard).getByTestId('detail-add-fact');
     fireEvent.click(addBtn);
 
@@ -179,6 +206,12 @@ describe('ReportDetailPanel', () => {
         onPresetChange={vi.fn()}
       />
     );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toggle-edit-mode-btn')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('toggle-edit-mode-btn'));
 
     await waitFor(() => {
       expect(screen.getByTestId('detail-input-fact-1')).toBeInTheDocument();
@@ -208,6 +241,12 @@ describe('ReportDetailPanel', () => {
         onPresetChange={vi.fn()}
       />
     );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toggle-edit-mode-btn')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('toggle-edit-mode-btn'));
 
     await waitFor(() => {
       expect(screen.getByTestId('detail-input-fact-0')).toBeInTheDocument();
@@ -267,7 +306,7 @@ describe('ReportDetailPanel', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('detail-input-fact-0')).toHaveValue('該当なし');
+      expect(screen.getByTestId('detail-text-fact-0')).toHaveTextContent('該当なし');
     });
   });
 

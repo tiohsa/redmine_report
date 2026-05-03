@@ -78,7 +78,8 @@ function EditableCard({
   onRowChange,
   onRowAdd,
   onRowDelete,
-  isDirty
+  isDirty,
+  isEditMode
 }: {
   section: CardSection;
   rows: string[];
@@ -86,6 +87,7 @@ function EditableCard({
   onRowAdd: () => void;
   onRowDelete: (index: number) => void;
   isDirty: boolean;
+  isEditMode: boolean;
 }) {
   return (
     <div
@@ -104,34 +106,42 @@ function EditableCard({
         {rows.map((row, index) => (
           <div key={index} className="report-detail-row" data-testid={`detail-row-${section.key}-${index}`}>
             <span className={`report-detail-row-number ${section.numberColor}`}>{index + 1}</span>
-            <input
-              type="text"
-              className="report-detail-row-input"
-              value={row}
-              onChange={(e) => onRowChange(index, e.target.value)}
-              placeholder={t('reportDetail.defaultRow')}
-              aria-label={`${t(section.title)} row ${index + 1}`}
-              data-testid={`detail-input-${section.key}-${index}`}
-            />
-            <button
-              type="button"
-              className="report-detail-row-delete"
-              onClick={() => onRowDelete(index)}
-              aria-label={`Delete row ${index + 1}`}
-              data-testid={`detail-delete-${section.key}-${index}`}
-            >
-              ×
-            </button>
+            {isEditMode ? (
+              <>
+                <input
+                  type="text"
+                  className="report-detail-row-input"
+                  value={row}
+                  onChange={(e) => onRowChange(index, e.target.value)}
+                  placeholder={t('reportDetail.defaultRow')}
+                  aria-label={`${t(section.title)} row ${index + 1}`}
+                  data-testid={`detail-input-${section.key}-${index}`}
+                />
+                <button
+                  type="button"
+                  className="report-detail-row-delete"
+                  onClick={() => onRowDelete(index)}
+                  aria-label={`Delete row ${index + 1}`}
+                  data-testid={`detail-delete-${section.key}-${index}`}
+                >
+                  ×
+                </button>
+              </>
+            ) : (
+              <span className="report-detail-row-text" data-testid={`detail-text-${section.key}-${index}`}>{row}</span>
+            )}
           </div>
         ))}
-        <button
-          type="button"
-          className="report-detail-add-row"
-          onClick={onRowAdd}
-          data-testid={`detail-add-${section.key}`}
-        >
-          {t('reportDetail.addRow')}
-        </button>
+        {isEditMode && (
+          <button
+            type="button"
+            className="report-detail-add-row"
+            onClick={onRowAdd}
+            data-testid={`detail-add-${section.key}`}
+          >
+            {t('reportDetail.addRow')}
+          </button>
+        )}
       </div>
       <div className="report-detail-card-footer">
         <span className="text-[11px] font-sans text-[#8e8e93]">
@@ -156,6 +166,7 @@ export function ReportDetailPanel({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [bindDialogOpen, setBindDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const fetchSeqRef = useRef(0);
 
   const isBound = Boolean(
@@ -163,6 +174,18 @@ export function ReportDetailPanel({
   );
 
   const dirty = useMemo(() => !rowsEqual(rows, baselineRows), [rows, baselineRows]);
+
+  const handleToggleMode = useCallback(() => {
+    if (isEditMode) {
+      if (dirty && !window.confirm(t('reportDetail.unsavedChangesConfirm'))) {
+        return;
+      }
+      setRows(baselineRows);
+      setIsEditMode(false);
+    } else {
+      setIsEditMode(true);
+    }
+  }, [isEditMode, dirty, baselineRows]);
 
   useEffect(() => {
     onDirtyStateChange?.(dirty);
@@ -233,6 +256,7 @@ export function ReportDetailPanel({
         decisions: rows.decisions
       });
       setBaselineRows({ ...rows });
+      setIsEditMode(false);
       setSavedMessage(t('reportDetail.savedDetail'));
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('reportDetail.saveDetailFailed');
@@ -354,14 +378,25 @@ export function ReportDetailPanel({
           <Button variant="pill-secondary" size="sm" className="h-8 px-3 text-[12px]" onClick={() => setBindDialogOpen(true)}>
             {t('reportDetail.bindIssue')}
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!isBound || !dirty || saving}
-            loading={saving}
-            data-testid="save-detail-btn"
-          >
-            {saving ? t('common.saving') : t('common.save')}
-          </Button>
+          {isEditMode ? (
+            <Button variant="secondary" onClick={handleToggleMode} data-testid="toggle-view-mode-btn">
+              {t('reportDetail.viewMode')}
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={handleToggleMode} data-testid="toggle-edit-mode-btn">
+              {t('reportDetail.editMode')}
+            </Button>
+          )}
+          {isEditMode && (
+            <Button
+              onClick={handleSave}
+              disabled={!isBound || !dirty || saving}
+              loading={saving}
+              data-testid="save-detail-btn"
+            >
+              {saving ? t('common.saving') : t('common.save')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -387,6 +422,7 @@ export function ReportDetailPanel({
             onRowAdd={() => addRow('highlights_this_week')}
             onRowDelete={(i) => deleteRow('highlights_this_week', i)}
             isDirty={JSON.stringify(rows.highlights_this_week) !== JSON.stringify(baselineRows.highlights_this_week)}
+            isEditMode={isEditMode}
           />
           {/* Card 2: Next actions */}
           <EditableCard
@@ -396,15 +432,20 @@ export function ReportDetailPanel({
             onRowAdd={() => addRow('next_week_actions')}
             onRowDelete={(i) => deleteRow('next_week_actions', i)}
             isDirty={JSON.stringify(rows.next_week_actions) !== JSON.stringify(baselineRows.next_week_actions)}
+            isEditMode={isEditMode}
           />
           {/* Card 3: Risks + Decisions combined */}
           <EditableCard
             section={CARD_SECTIONS[2]}
-            rows={combinedDecisionRows}
+            rows={[...rows.risks, ...rows.decisions]}
             onRowChange={handleDecisionRowChange}
             onRowAdd={handleDecisionRowAdd}
             onRowDelete={handleDecisionRowDelete}
-            isDirty={JSON.stringify(combinedDecisionRows) !== JSON.stringify(baselineCombinedDecisionRows)}
+            isDirty={
+              JSON.stringify(rows.risks) !== JSON.stringify(baselineRows.risks) ||
+              JSON.stringify(rows.decisions) !== JSON.stringify(baselineRows.decisions)
+            }
+            isEditMode={isEditMode}
           />
         </div>
       )}
