@@ -466,6 +466,7 @@ export function TaskDetailsDialog({
         onCloseCreateIssue={closeCreateIssueDialog}
         onCloseEditIssue={closeEditIssueDialog}
         onCloseViewIssue={closeViewIssueDialog}
+        onTaskDatesUpdated={onTaskDatesUpdated}
         reloadTaskDetails={reloadTaskDetails}
         syncSelectionAfterReload={syncSelectionAfterReload}
       />

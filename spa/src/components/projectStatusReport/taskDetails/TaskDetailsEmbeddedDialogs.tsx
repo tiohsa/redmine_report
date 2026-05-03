@@ -25,6 +25,7 @@ type TaskDetailsEmbeddedDialogsProps = {
   issues: TaskDetailIssue[];
   currentRootIssueId: number;
   hasAnyChangesRef: MutableRefObject<boolean>;
+  onTaskDatesUpdated?: () => void;
   onCloseCreateIssue: () => void;
   onCloseEditIssue: () => void;
   onCloseViewIssue: () => void;
@@ -40,6 +41,7 @@ export function TaskDetailsEmbeddedDialogs({
   issues,
   currentRootIssueId,
   hasAnyChangesRef,
+  onTaskDatesUpdated,
   onCloseCreateIssue,
   onCloseEditIssue,
   onCloseViewIssue,
@@ -59,6 +61,8 @@ export function TaskDetailsEmbeddedDialogs({
               expectedIssueId: createdIssueId
             }).then((rows) => {
               syncSelectionAfterReload(rows, createdIssueId ?? currentRootIssueId);
+              onTaskDatesUpdated?.();
+              hasAnyChangesRef.current = false;
             });
           }}
           onClose={onCloseCreateIssue}
@@ -75,6 +79,8 @@ export function TaskDetailsEmbeddedDialogs({
               expectedIssueId: updatedIssueId ?? editIssueContext.issueId
             }).then((rows) => {
               syncSelectionAfterReload(rows, updatedIssueId ?? editIssueContext.issueId);
+              onTaskDatesUpdated?.();
+              hasAnyChangesRef.current = false;
             });
           }}
           onClose={onCloseEditIssue}
@@ -101,6 +107,8 @@ export function TaskDetailsEmbeddedDialogs({
               expectedIssueId: updatedIssueId ?? viewIssueContext.issueId
             }).then((rows) => {
               syncSelectionAfterReload(rows, updatedIssueId ?? viewIssueContext.issueId);
+              onTaskDatesUpdated?.();
+              hasAnyChangesRef.current = false;
             });
           }}
           onClose={onCloseViewIssue}
