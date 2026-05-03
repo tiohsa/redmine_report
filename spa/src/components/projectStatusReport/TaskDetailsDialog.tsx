@@ -243,6 +243,32 @@ export function TaskDetailsDialog({
   }, [open, handleClose, hasAnyChangesRef]);
 
   useEffect(() => {
+    if (!open || !editingDateRange) return;
+
+    const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target || !document.body.contains(target)) return;
+
+      const isInsideDateEditor = Boolean(
+        target.closest('[data-date-editor-root="true"]') ||
+        target.closest('#redmine-report-inline-date-picker-portal') ||
+        target.closest('.react-datepicker-popper')
+      );
+
+      if (!isInsideDateEditor) {
+        setEditingDateRange(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDownOutside, true);
+    document.addEventListener('touchstart', handlePointerDownOutside, true);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDownOutside, true);
+      document.removeEventListener('touchstart', handlePointerDownOutside, true);
+    };
+  }, [open, editingDateRange]);
+
+  useEffect(() => {
     if (!open) return;
     setDrilldownPath([{ issueId, title: issueTitle }]);
     resetData();
@@ -342,21 +368,6 @@ export function TaskDetailsDialog({
     handleClose();
   }, [handleClose]);
 
-  const handleDialogMouseDownCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (!editingDateRangeRef.current) return;
-    const target = event.target as HTMLElement | null;
-    if (!target) return;
-
-    // Check if the click is within the inline editor or the portal
-    const isInsideEditor = target.closest('[data-date-editor-root="true"]') ||
-                          target.closest('[data-date-editor-popper="true"]') ||
-                          target.closest('#redmine-report-inline-date-picker-portal');
-
-    if (!isInsideEditor) {
-      setEditingDateRange(null);
-    }
-  }, []);
-
   const dialogHeaderTitle = currentRootIssueTitle ? `${currentRootIssueTitle} #${currentRootIssueId}` : `#${currentRootIssueId}`;
 
   if (!open) return null;
@@ -366,7 +377,6 @@ export function TaskDetailsDialog({
       <div
         className="report-surface-elevated flex h-[92vh] w-full max-w-[96vw] flex-col overflow-hidden font-sans transition-all transform animate-in slide-in-from-bottom-8 duration-700 ease-out"
         onClick={(event) => event.stopPropagation()}
-        onMouseDownCapture={handleDialogMouseDownCapture}
       >
         <TaskDetailsHeader
           title={dialogHeaderTitle}

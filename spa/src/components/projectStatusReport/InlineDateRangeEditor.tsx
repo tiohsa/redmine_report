@@ -72,7 +72,7 @@ const DatePickerInput = forwardRef<HTMLInputElement, CustomInputProps>(function 
   { className = '', ...props },
   ref
 ) {
-  return <input ref={ref} {...props} className={className} readOnly />;
+  return <input ref={ref} {...props} className={className} />;
 });
 
 const InlineDateField = ({
@@ -95,17 +95,14 @@ const InlineDateField = ({
   const testId = field === 'start_date'
     ? `start-date-input-${issueId}`
     : `due-date-input-${issueId}`;
-  const PopperContainer = ({ children }: { children?: React.ReactNode }) => (
-    <div
-      data-date-editor-popper="true"
-      style={{ pointerEvents: 'auto' }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {children}
-    </div>
-  );
+  const handleRawInputChange = (event?: React.MouseEvent<HTMLElement> | React.KeyboardEvent<HTMLElement>) => {
+    if (event?.target instanceof HTMLInputElement) {
+      event.preventDefault();
+    }
+  };
   const commitDate = (date: Date | null) => {
     const nextValue = toIsoDate(date);
+    if (nextValue === toIsoDate(selectedDate)) return;
     if (lastCommittedValueRef.current === nextValue) return;
     lastCommittedValueRef.current = nextValue;
     onCommit(field, nextValue);
@@ -133,6 +130,7 @@ const InlineDateField = ({
           open={true}
           selected={selectedDate}
           onInputClick={() => onActivate(field)}
+          onChangeRaw={handleRawInputChange}
           onChange={(date: Date | null) => {
             commitDate(date);
           }}
@@ -158,7 +156,11 @@ const InlineDateField = ({
           showYearDropdown
           dropdownMode="select"
           popperClassName="report-inline-date-popper"
-          popperContainer={PopperContainer}
+          renderDayContents={(day, date) => (
+            <span data-inline-date-picker-day data-date={toIsoDate(date)}>
+              {day}
+            </span>
+          )}
           calendarClassName="report-inline-date-calendar"
           className="report-inline-date-input report-inline-date-input-active"
           autoFocus={true}

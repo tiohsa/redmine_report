@@ -1037,9 +1037,9 @@
 
   #redmine-report-inline-date-picker-portal {
     position: fixed;
-    inset: 0;
     z-index: 10000;
-    pointer-events: none;
+    top: 0;
+    left: 0;
   }
 
   #redmine-report-inline-date-picker-portal .react-datepicker-popper {
