@@ -1092,4 +1092,113 @@
   .report-inline-date-calendar-button-clear {
     @apply text-[#d94242] hover:border-[#ef4444] hover:bg-[#fee2e2] hover:text-[#b91c1c];
   }
+
+  /* Report Detail Panel — Three-Card Editor */
+  .report-detail-header {
+    @apply flex flex-wrap items-start justify-between gap-4 px-6 py-5;
+  }
+
+  .report-detail-header-title {
+    @apply flex items-center gap-3;
+  }
+
+  .report-detail-header-icon {
+    @apply flex h-10 w-10 items-center justify-center rounded-full;
+    background: linear-gradient(135deg, var(--color-brand-6) 0%, var(--color-brand-02) 100%);
+  }
+
+  .report-detail-badges {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .report-detail-badge {
+    @apply inline-flex items-center rounded-[8px] border border-[var(--color-border-default)] bg-white px-3 py-1 text-[12px] font-sans font-medium text-[#45515e];
+  }
+
+  .report-detail-cards {
+    @apply grid grid-cols-1 gap-5 px-6 pb-6 md:grid-cols-3;
+  }
+
+  .report-detail-card {
+    @apply flex flex-col overflow-hidden rounded-[16px] border border-[var(--color-border-light)] bg-white;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+
+  .report-detail-card:hover {
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .report-detail-card-dirty {
+    border-color: var(--color-warning-border);
+  }
+
+  .report-detail-card-accent {
+    @apply h-1;
+  }
+
+  .report-detail-card-header {
+    @apply flex items-start justify-between gap-2 px-4 py-3;
+  }
+
+  .report-detail-card-title {
+    @apply text-[15px] font-display font-medium tracking-tight text-[#222222];
+  }
+
+  .report-detail-card-subtitle {
+    @apply mt-0.5 text-[11px] font-sans text-[#8e8e93];
+  }
+
+  .report-detail-card-badge {
+    @apply inline-flex items-center rounded-[6px] border border-[var(--color-border-default)] px-2 py-0.5 text-[10px] font-sans font-semibold uppercase tracking-[0.1em] text-[#8e8e93];
+  }
+
+  .report-detail-card-body {
+    @apply flex flex-1 flex-col px-4 pb-3;
+  }
+
+  .report-detail-card-footer {
+    @apply flex items-center justify-between border-t border-[var(--color-border-light)] px-4 py-2;
+  }
+
+  .report-detail-row {
+    @apply flex items-start gap-2 rounded-[10px] px-2 py-1.5 transition-colors;
+  }
+
+  .report-detail-row:hover {
+    @apply bg-[#f8fafc];
+  }
+
+  .report-detail-row-number {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white;
+  }
+
+  .report-detail-row-input {
+    @apply flex-1 min-w-0 resize-none border-0 bg-transparent px-0 py-0 text-[13px] font-sans leading-6 text-[#222222] outline-none;
+  }
+
+  .report-detail-row-text {
+    @apply flex-1 min-w-0 break-words px-0 py-0 text-[13px] font-sans leading-6 text-[#222222];
+  }
+
+  .report-detail-row-input::placeholder {
+    @apply text-[#c0c4cc];
+  }
+
+  .report-detail-row-delete {
+    @apply flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[14px] text-[#c0c4cc] transition-colors;
+    appearance: none;
+  }
+
+  .report-detail-row-delete:hover {
+    @apply bg-[#fee2e2] text-[#ef4444];
+  }
+
+  .report-detail-add-row {
+    @apply mt-1 inline-flex cursor-pointer items-center gap-1 rounded-[8px] border border-dashed border-[var(--color-border-default)] bg-transparent px-3 py-1 text-[12px] font-sans font-medium text-[#8e8e93] transition-colors;
+    appearance: none;
+  }
+
+  .report-detail-add-row:hover {
+    @apply border-[var(--color-brand-6)] bg-[var(--color-brand-tint)] text-[var(--color-brand-6)];
+  }
 }

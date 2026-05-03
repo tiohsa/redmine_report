@@ -43,6 +43,12 @@ get '/projects/:project_id/schedule_report/weekly/ai_responses',
 patch '/projects/:project_id/schedule_report/weekly/ai_response',
       to: 'schedule_reports#weekly_ai_response',
       as: 'project_schedule_report_weekly_ai_response'
+get '/projects/:project_id/schedule_report/report_detail',
+    to: 'schedule_reports#report_detail',
+    as: 'project_schedule_report_report_detail'
+patch '/projects/:project_id/schedule_report/report_detail',
+      to: 'schedule_reports#update_report_detail',
+      as: 'project_schedule_report_update_report_detail'
 get '/projects/:project_id/schedule_report/bundle/main.js',
     to: 'schedule_reports#bundle_js',
     as: 'project_schedule_report_bundle_js',

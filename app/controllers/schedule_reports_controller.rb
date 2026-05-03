@@ -246,6 +246,47 @@ class ScheduleReportsController < ApplicationController
     render_weekly_payload(RedmineReport::WeeklyReport::ErrorPayloadBuilder.upstream_failure(e.message))
   end
 
+  def report_detail
+    targets = parse_targets_param
+    service = RedmineReport::ScheduleReport::ReportDetailFetchService.new(user: User.current)
+    result = service.call(
+      destination_issue_id: params[:destination_issue_id],
+      targets: targets
+    )
+
+    if result[:status] == 'ERROR'
+      render json: result, status: :unprocessable_entity
+      return
+    end
+
+    render json: result
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] report_detail failed: #{e.class}: #{e.message}")
+    render json: { error: e.message }, status: :internal_server_error
+  end
+
+  def update_report_detail
+    payload = report_detail_payload
+    service = RedmineReport::ScheduleReport::ReportDetailUpdateService.new(user: User.current)
+    result = service.call(
+      destination_issue_id: payload[:destination_issue_id],
+      targets: payload[:targets],
+      highlights_this_week: payload[:highlights_this_week],
+      next_week_actions: payload[:next_week_actions],
+      risks: payload[:risks],
+      decisions: payload[:decisions]
+    )
+
+    if result[:saved]
+      render json: result
+    else
+      render json: result, status: :unprocessable_entity
+    end
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] update_report_detail failed: #{e.class}: #{e.message}")
+    render json: { error: e.message }, status: :internal_server_error
+  end
+
   def bundle_js
     serve_bundle(
       filename: 'main.js',
@@ -445,5 +486,30 @@ class ScheduleReportsController < ApplicationController
     end
   rescue StandardError
     {}
+  end
+
+  def parse_targets_param
+    merged = params.to_unsafe_h.merge(request_payload).symbolize_keys
+    raw = merged[:targets]
+    return [] unless raw
+
+    targets = raw.is_a?(String) ? (JSON.parse(raw) rescue []) : Array(raw)
+    targets.map do |t|
+      t = t.to_unsafe_h if t.respond_to?(:to_unsafe_h)
+      t = t.respond_to?(:symbolize_keys) ? t.symbolize_keys : t
+      { project_id: (t[:project_id] || t['project_id']).to_i, version_id: (t[:version_id] || t['version_id']).to_i }
+    end
+  end
+
+  def report_detail_payload
+    merged = params.to_unsafe_h.merge(request_payload).symbolize_keys
+    {
+      destination_issue_id: merged[:destination_issue_id],
+      targets: parse_targets_param,
+      highlights_this_week: Array(merged[:highlights_this_week]),
+      next_week_actions: Array(merged[:next_week_actions]),
+      risks: Array(merged[:risks]),
+      decisions: Array(merged[:decisions])
+    }
   end
 end
