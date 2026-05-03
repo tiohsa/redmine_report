@@ -242,7 +242,8 @@
 
   .report-icon-button-plain,
   .report-icon-button-plain-active {
-    @apply relative shrink-0 p-0 border-0 bg-transparent text-[#8e8e93] hover:bg-[#f8f9fa];
+    @apply relative shrink-0 p-0 bg-transparent text-[#8e8e93] hover:bg-[#f8f9fa] cursor-pointer;
+    border: 0 !important;
   }
 
   .report-icon-button-plain-active {
