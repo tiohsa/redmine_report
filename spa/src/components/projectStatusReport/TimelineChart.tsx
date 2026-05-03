@@ -1,17 +1,12 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject } from 'react';
+import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { t } from '../../i18n';
 import { updateTaskDates } from '../../services/scheduleReportApi';
-import { AiResponsePanel, type EditableSections } from '../AiResponsePanel';
 import { getProgressFillColor, getProgressTrackColor } from './constants';
 import { HeaderMonth, HeaderYear, TimelineLane, TimelineStep } from './timeline';
 import { calculateStaggeredLanes } from './timelineAxis';
 import { TaskDetailsDialog } from './TaskDetailsDialog';
-import type { AiResponseView } from '../../types/weeklyReport';
-import { Button } from '../ui/Button';
-import { Icon } from '../ui/Icon';
-import { cn } from '../ui/cn';
 import {
   drawStrokeText,
   prepareHiDPICanvas,
@@ -36,16 +31,7 @@ type TimelineChartProps = {
   showAllDates?: boolean;
   showTodayLine?: boolean;
   showTitles?: boolean;
-  onVersionAiClick?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
-  onVersionReportClick?: (payload: { laneKey: string; versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
   onTaskDatesUpdated?: () => void;
-  activeReportLaneKey?: string | null;
-  detailedReportResponse?: AiResponseView | null;
-  detailedReportLoading?: boolean;
-  detailedReportError?: string | null;
-  onDetailedReportSave?: (sections: EditableSections) => Promise<AiResponseView>;
-  onDetailedReportDirtyChange?: (dirty: boolean) => void;
-  onClearSelection?: () => void;
 };
 
 type DragMode = 'move' | 'resize-left' | 'resize-right';
@@ -65,14 +51,6 @@ type DragSession = {
 
 type DragPreview = Pick<DragSession, 'currentStartIso' | 'currentEndIso'>;
 type PendingPreview = DragPreview & { stepId: string; issueId: number };
-
-type InlineReportSlotProps = {
-  response: AiResponseView | null;
-  isLoading: boolean;
-  errorMessage: string | null;
-  onSave?: (sections: EditableSections) => Promise<AiResponseView>;
-  onDirtyChange?: (dirty: boolean) => void;
-};
 
 type StepRenderData = {
   startIso?: string;
@@ -97,7 +75,6 @@ const DRAG_THRESHOLD_PX = 4;
 const RESIZE_HANDLE_PX = 10;
 const MIN_CENTER_CLICK_PX = 14;
 const MIN_HANDLE_ACTIVE_PX = 4;
-const INLINE_REPORT_SLOT_HEIGHT = 392;
 const DATE_LABEL_INSET_PX = 8;
 const SELECTED_BAR_STROKE = '#1456f0';
 const SELECTED_BAR_DASH = [4, 2];
@@ -108,193 +85,10 @@ const TIMELINE_BORDER = '#e5e7eb';
 const TIMELINE_BORDER_LIGHT = '#f2f3f5';
 const TIMELINE_BRAND = '#1456f0';
 const TODAY_COLOR = '#ef4444';
-
-const TIMELINE_BRAND_TINT = '#f8fbff';
-const TIMELINE_ACTIVE_FILL = 'rgba(20, 86, 240, 0.07)';
-
-
-const getLaneBackgroundStyle = (laneIndex: number, isActive: boolean) => ({
-  labelClassName: isActive ? reportStyles.timelineLaneLabelActive : 'bg-white',
-  baseFill: isActive ? TIMELINE_BRAND_TINT : (laneIndex % 2 === 0 ? '#ffffff' : '#fbfdff')
+const getLaneBackgroundStyle = () => ({
+  baseFill: '#ffffff',
+  labelClassName: 'bg-white'
 });
-
-const InlineReportSlot = ({ response, isLoading, errorMessage, onSave, onDirtyChange }: InlineReportSlotProps) => (
-  <section className={`${reportStyles.surfaceElevated} flex h-full flex-col gap-4 overflow-hidden p-4 animate-in fade-in slide-in-from-top-4 duration-500 font-sans`}>
-    <div className="min-h-0 flex-1 overflow-auto">
-      <AiResponsePanel
-        response={response}
-        isLoading={isLoading}
-        errorMessage={errorMessage}
-        onSave={onSave}
-        onDirtyChange={onDirtyChange}
-      />
-    </div>
-  </section>
-);
-
-type LaneActionMenuProps = {
-  lane: TimelineLane;
-  isOpen: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-  menuRef?: RefObject<HTMLDivElement>;
-  onOpenAi?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
-  onOpenReport?: (payload: { laneKey: string; versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
-};
-
-const LaneActionMenu = ({
-  lane,
-  isOpen,
-  onToggle,
-  onClose,
-  menuRef,
-  onOpenAi,
-  onOpenReport
-}: LaneActionMenuProps) => {
-  if (!lane.versionId || (!onOpenAi && !onOpenReport)) {
-    return null;
-  }
-
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const [menuStyle, setMenuStyle] = useState<CSSProperties>({
-    visibility: 'hidden'
-  });
-
-  useLayoutEffect(() => {
-    if (!isOpen) {
-      setMenuStyle({
-        visibility: 'hidden'
-      });
-      return;
-    }
-
-    const updatePlacement = () => {
-      if (!buttonRef.current || !panelRef.current) return;
-
-      const buttonRect = buttonRef.current.getBoundingClientRect();
-      const panelRect = panelRef.current.getBoundingClientRect();
-      const viewportPadding = 8;
-      const viewportGap = 8;
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      const clampedWidth = Math.min(panelRect.width, Math.max(viewportWidth - viewportPadding * 2, 0));
-      const clampedHeight = panelRect.height;
-
-      let left = buttonRect.right - clampedWidth;
-      if (left < viewportPadding) {
-        left = viewportPadding;
-      }
-      if (left + clampedWidth > viewportWidth - viewportPadding) {
-        left = Math.max(viewportPadding, viewportWidth - clampedWidth - viewportPadding);
-      }
-
-      let top = buttonRect.bottom + viewportGap;
-      if (top + clampedHeight > viewportHeight - viewportPadding) {
-        top = Math.max(viewportPadding, buttonRect.top - clampedHeight - viewportGap);
-      }
-      if (top + clampedHeight > viewportHeight - viewportPadding) {
-        top = Math.max(viewportPadding, viewportHeight - clampedHeight - viewportPadding);
-      }
-
-      setMenuStyle({
-        position: 'fixed',
-        left,
-        top,
-        width: clampedWidth,
-        visibility: 'visible'
-      });
-    };
-
-    updatePlacement();
-    window.addEventListener('resize', updatePlacement);
-    window.addEventListener('scroll', updatePlacement, true);
-
-    return () => {
-      window.removeEventListener('resize', updatePlacement);
-      window.removeEventListener('scroll', updatePlacement, true);
-    };
-  }, [isOpen, lane.laneKey, lane.versionName, onOpenAi, onOpenReport]);
-
-  return (
-    <div
-      ref={menuRef}
-      className="relative shrink-0"
-      onClick={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-    >
-      <Button
-        type="button"
-        ref={buttonRef}
-        variant={isOpen ? 'icon-plain-active' : 'icon-plain'}
-        aria-label={t('timeline.laneMenuAria', { versionName: lane.versionName })}
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        className="shrink-0"
-        onClick={(event) => {
-          event.stopPropagation();
-          onToggle();
-        }}
-      >
-        <Icon name="kebab-horizontal" className="h-3.5 w-3.5" />
-      </Button>
-      {isOpen && (
-        <div
-          ref={panelRef}
-          role="menu"
-          style={menuStyle}
-          className={cn(
-            reportStyles.dropdownPanel,
-            'z-50 overflow-hidden p-2 animate-in fade-in slide-in-from-top-2 duration-200 max-w-[calc(100vw-16px)]'
-          )}
-        >
-          {onOpenAi ? (
-            <button
-              type="button"
-              role="menuitem"
-              className={cn(reportStyles.dropdownRow, 'w-full border-0 bg-transparent px-3 py-2 text-left')}
-              onClick={() => {
-                onClose();
-                onOpenAi({
-                  versionId: lane.versionId as number,
-                  versionName: lane.versionName,
-                  projectId: lane.projectId,
-                  projectName: lane.projectName
-                });
-              }}
-            >
-              <Icon name="sparkles" className="h-3.5 w-3.5 text-[var(--color-primary-600)]" />
-              <span className="min-w-0 flex-1 truncate">{t('timeline.startAiAria', { versionName: lane.versionName })}</span>
-            </button>
-          ) : null}
-          {onOpenAi && onOpenReport ? <div className={reportStyles.dropdownDivider} /> : null}
-          {onOpenReport ? (
-            <button
-              type="button"
-              role="menuitem"
-              className={cn(reportStyles.dropdownRow, 'w-full border-0 bg-transparent px-3 py-2 text-left')}
-              onClick={() => {
-                onClose();
-                onOpenReport({
-                  laneKey: lane.laneKey,
-                  versionId: lane.versionId as number,
-                  versionName: lane.versionName,
-                  projectId: lane.projectId,
-                  projectName: lane.projectName,
-                  projectIdentifier: lane.projectIdentifier
-                });
-              }}
-            >
-              <Icon name="file-text" className="h-3.5 w-3.5 text-[var(--color-primary-600)]" />
-              <span className="min-w-0 flex-1 truncate">{t('timeline.showDetailAria', { versionName: lane.versionName })}</span>
-            </button>
-          ) : null}
-        </div>
-      )}
-    </div>
-  );
-};
 
 const formatShortDate = (isoDate: string) => format(parseISO(isoDate), 'M/d');
 
@@ -380,16 +174,7 @@ export function TimelineChart({
   showAllDates = false,
   showTodayLine = true,
   showTitles = true,
-  onVersionAiClick,
-  onVersionReportClick,
   onTaskDatesUpdated,
-  activeReportLaneKey,
-  detailedReportResponse = null,
-  detailedReportLoading = false,
-  detailedReportError = null,
-  onDetailedReportSave,
-  onDetailedReportDirtyChange,
-  onClearSelection
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
   const barHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
@@ -397,7 +182,6 @@ export function TimelineChart({
 
   const layoutData = useMemo<Array<TimelineLane & {
     contentHeight: number;
-    reportHeight: number;
     steps: (TimelineStep & { laneIndex: number })[];
     height: number;
     yOffset: number;
@@ -412,13 +196,12 @@ export function TimelineChart({
       );
       const maxLane = staggeredSteps.length > 0 ? Math.max(...staggeredSteps.map((s) => s.laneIndex)) : 0;
       const contentHeight = laneHeight + maxLane * (barHeight + barSpacingY);
-      const reportHeight = project.laneKey === activeReportLaneKey ? INLINE_REPORT_SLOT_HEIGHT : 0;
-      const height = contentHeight + reportHeight;
+      const height = contentHeight;
       const yOffset = currentY;
       currentY += height;
-      return { ...project, contentHeight, reportHeight, steps: staggeredSteps, height, yOffset, maxLane };
+      return { ...project, contentHeight, steps: staggeredSteps, height, yOffset, maxLane };
     });
-  }, [timelineData, laneHeight, barHeight, barSpacingY, activeReportLaneKey]);
+  }, [timelineData, laneHeight, barHeight, barSpacingY]);
 
   const totalTimelineHeight = layoutData.length > 0 ? layoutData[layoutData.length - 1].yOffset + layoutData[layoutData.length - 1].height : 0;
 
@@ -429,9 +212,7 @@ export function TimelineChart({
     versionName: string;
   } | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
-  const [openLaneMenuKey, setOpenLaneMenuKey] = useState<string | null>(null);
   const [timelineEditError, setTimelineEditError] = useState<string | null>(null);
-  const openLaneMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleStepSelect = (stepId?: string) => {
     setSelectedStepId(stepId || null);
@@ -439,10 +220,6 @@ export function TimelineChart({
 
   const handleBackgroundClick = () => {
     setSelectedStepId(null);
-    setOpenLaneMenuKey(null);
-    if (activeReportLaneKey) {
-      onClearSelection?.();
-    }
   };
 
   const handleStepOpen = (stepId?: string, issueId?: number, title?: string, projectName?: string, versionName?: string) => {
@@ -456,31 +233,6 @@ export function TimelineChart({
     });
   };
 
-  useEffect(() => {
-    if (!openLaneMenuKey) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (openLaneMenuRef.current && target instanceof Node && openLaneMenuRef.current.contains(target)) {
-        return;
-      }
-      setOpenLaneMenuKey(null);
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpenLaneMenuKey(null);
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [openLaneMenuKey]);
-
   return (
     <>
       <div className={reportStyles.timelineShell} onClick={handleBackgroundClick}>
@@ -489,7 +241,7 @@ export function TimelineChart({
             {t('timeline.laneHeader')}
           </div>
           {layoutData.map((project, projectIndex) => {
-            const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
+            const laneBackground = getLaneBackgroundStyle();
 
             return (
               <div
@@ -530,20 +282,8 @@ export function TimelineChart({
                         </div>
                       )}
                     </div>
-                    <LaneActionMenu
-                      lane={project}
-                      isOpen={openLaneMenuKey === project.laneKey}
-                      menuRef={openLaneMenuKey === project.laneKey ? openLaneMenuRef : undefined}
-                      onToggle={() => {
-                        setOpenLaneMenuKey((current) => (current === project.laneKey ? null : project.laneKey));
-                      }}
-                      onClose={() => setOpenLaneMenuKey(null)}
-                      onOpenAi={onVersionAiClick}
-                      onOpenReport={onVersionReportClick}
-                    />
                   </div>
                 </div>
-                {project.reportHeight > 0 && <div aria-hidden="true" style={{ height: project.reportHeight }} />}
               </div>
             );
           })}
@@ -565,7 +305,6 @@ export function TimelineChart({
             isProcessMode={isProcessMode}
             onStepSelect={handleStepSelect}
             onStepOpen={handleStepOpen}
-            activeReportLaneKey={activeReportLaneKey}
             selectedStepId={selectedStepId}
             laneHeight={laneHeight}
             chartScale={chartScale}
@@ -574,11 +313,6 @@ export function TimelineChart({
             showTitles={showTitles}
             onTaskDatesUpdated={onTaskDatesUpdated}
             onEditError={setTimelineEditError}
-            detailedReportResponse={detailedReportResponse}
-            detailedReportLoading={detailedReportLoading}
-            detailedReportError={detailedReportError}
-            onDetailedReportSave={onDetailedReportSave}
-            onDetailedReportDirtyChange={onDetailedReportDirtyChange}
           />
         </div>
 
@@ -623,22 +357,15 @@ function TimelineChartSurface({
   onStepOpen,
   onTaskDatesUpdated,
   onEditError,
-  activeReportLaneKey,
   selectedStepId,
   laneHeight,
   chartScale = 1,
   showAllDates,
   showTodayLine = true,
-  showTitles = true,
-  detailedReportResponse = null,
-  detailedReportLoading = false,
-  detailedReportError = null,
-  onDetailedReportSave,
-  onDetailedReportDirtyChange
+  showTitles = true
 }: {
   layoutData: (TimelineLane & {
     contentHeight: number;
-    reportHeight: number;
     steps: (TimelineStep & { laneIndex: number })[];
     height: number;
     yOffset: number;
@@ -658,18 +385,12 @@ function TimelineChartSurface({
   onStepOpen: (stepId?: string, issueId?: number, title?: string, projectName?: string, versionName?: string) => void;
   onTaskDatesUpdated?: () => void;
   onEditError?: (message: string | null) => void;
-  activeReportLaneKey?: string | null;
   selectedStepId?: string | null;
   laneHeight: number;
   chartScale?: number;
   showAllDates?: boolean;
   showTodayLine?: boolean;
   showTitles?: boolean;
-  detailedReportResponse?: AiResponseView | null;
-  detailedReportLoading?: boolean;
-  detailedReportError?: string | null;
-  onDetailedReportSave?: (sections: EditableSections) => Promise<AiResponseView>;
-  onDetailedReportDirtyChange?: (dirty: boolean) => void;
 }) {
   const chartHeight = Math.ceil(headerHeight + totalTimelineHeight);
   const scaledBarHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
@@ -778,9 +499,9 @@ function TimelineChartSurface({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const renderedProjects = useMemo(() => {
-    return layoutData.map((project, projectIndex) => {
+    return layoutData.map((project) => {
       const yOffset = headerHeight + project.yOffset;
-      const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
+      const laneBackground = getLaneBackgroundStyle();
       const stepItems = (project.steps as Array<TimelineStep & { laneIndex: number }>).map((step, stepIndex) => {
         const isFirst = stepIndex === 0;
         const pointDepth = Math.round(BASE_POINT_DEPTH * chartScale);
@@ -880,15 +601,11 @@ function TimelineChartSurface({
       return {
         laneBackground,
         project,
-        projectIndex,
         stepItems,
-        yOffset,
-        reportTop: yOffset + project.contentHeight,
-        reportHeight: project.reportHeight
+        yOffset
       };
     });
   }, [
-    activeReportLaneKey,
     axisStartDate,
     chartScale,
     dragSession,
@@ -964,17 +681,9 @@ function TimelineChartSurface({
       });
     }
 
-    renderedProjects.forEach(({ laneBackground, project, projectIndex, stepItems, yOffset }) => {
+    renderedProjects.forEach(({ laneBackground, project, stepItems, yOffset }) => {
       context.fillStyle = laneBackground.baseFill;
       context.fillRect(0, yOffset, timelineWidth, project.height);
-
-      if (project.laneKey === activeReportLaneKey) {
-        context.save();
-        context.globalAlpha = 0.7;
-        context.fillStyle = TIMELINE_ACTIVE_FILL;
-        context.fillRect(0, yOffset, timelineWidth, project.height);
-        context.restore();
-      }
 
       context.strokeStyle = TIMELINE_BORDER;
       context.lineWidth = 1;
@@ -1081,7 +790,6 @@ function TimelineChartSurface({
       context.restore();
     }
   }, [
-    activeReportLaneKey,
     chartScale,
     headerMonths,
     headerYears,
@@ -1095,20 +803,6 @@ function TimelineChartSurface({
     timelineWidth,
     todayX
   ]);
-
-  const activeReportLane = activeReportLaneKey
-    ? layoutData.find((project) => project.laneKey === activeReportLaneKey)
-    : undefined;
-  const inlineReportRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!activeReportLaneKey || !activeReportLane || !inlineReportRef.current) return;
-
-    inlineReportRef.current.scrollIntoView({
-      block: 'nearest',
-      inline: 'nearest'
-    });
-  }, [activeReportLane, activeReportLaneKey]);
 
   if (layoutData.length === 0) {
     return <div className="flex items-center justify-center h-32 text-gray-400">{t('common.noData')}</div>;
@@ -1293,31 +987,6 @@ function TimelineChartSurface({
       })}
 
       </svg>
-      {activeReportLane && activeReportLaneKey && (
-        <div
-          className="absolute left-0 right-0 z-20 pointer-events-none"
-          style={{
-            top: headerHeight + activeReportLane.yOffset + activeReportLane.contentHeight + 12,
-            minWidth: `${timelineWidth}px`
-          }}
-        >
-          <div className="mx-4 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-            <div
-              ref={inlineReportRef}
-              data-testid={`timeline-inline-report-${activeReportLaneKey}`}
-              style={{ height: INLINE_REPORT_SLOT_HEIGHT - 12 }}
-            >
-              <InlineReportSlot
-                response={detailedReportResponse}
-                isLoading={detailedReportLoading}
-                errorMessage={detailedReportError}
-                onSave={onDetailedReportSave}
-                onDirtyChange={onDetailedReportDirtyChange}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

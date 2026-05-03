@@ -8,6 +8,8 @@ import { SelectionList, SelectionRow, CheckboxRow } from '../ui/SelectionList';
 import { FieldLabel } from '../ui/FieldLabel';
 import type { StatusStyle } from './constants';
 import { cn } from '../ui/cn';
+import type { ReportPreset } from '../../services/reportPresetStorage';
+import { ReportPresetSelector } from './ReportPresetSelector';
 
 type DropdownRef = RefObject<HTMLDivElement | null>;
 
@@ -59,6 +61,16 @@ type ProjectStatusReportToolbarProps = {
   onPendingStartDateChange: (value: string) => void;
   onPendingEndDateChange: (value: string) => void;
   dateRangeError: string | null;
+  reportPresets: ReportPreset[];
+  activeReportPresetId: string | null;
+  onActiveReportPresetChange: (presetId: string | null) => void;
+  onSaveCurrentView: () => void;
+  onUpdatePresetTargets: () => void;
+  canSaveCurrentView: boolean;
+  canUpdatePresetTargets: boolean;
+  detailReportVisible: boolean;
+  activeReportPreset: ReportPreset | null;
+  onDetailReportVisibleChange: (visible: boolean) => void;
   onToggleFullScreen: () => void;
 };
 
@@ -119,6 +131,16 @@ export const ProjectStatusReportToolbar = ({
   onPendingStartDateChange,
   onPendingEndDateChange,
   dateRangeError,
+  reportPresets = [],
+  activeReportPresetId = null,
+  onActiveReportPresetChange = () => {},
+  onSaveCurrentView = () => {},
+  onUpdatePresetTargets = () => {},
+  canSaveCurrentView = false,
+  canUpdatePresetTargets = false,
+  detailReportVisible,
+  activeReportPreset = null,
+  onDetailReportVisibleChange,
   onToggleFullScreen,
 }: ProjectStatusReportToolbarProps) => {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
@@ -363,6 +385,28 @@ export const ProjectStatusReportToolbar = ({
         </div>
 
         <div className={reportStyles.toolbarGroup}>
+          <ReportPresetSelector
+            presets={reportPresets}
+            activePresetId={activeReportPresetId}
+            onActivePresetChange={onActiveReportPresetChange}
+            onSaveCurrentView={onSaveCurrentView}
+            onUpdateTargets={onUpdatePresetTargets}
+            canSaveCurrentView={canSaveCurrentView}
+            canUpdateTargets={canUpdatePresetTargets}
+          />
+          <Button
+            type="button"
+            onClick={() => onDetailReportVisibleChange(!detailReportVisible)}
+            variant={detailReportVisible ? 'pill-primary' : 'pill-secondary'}
+            size="sm"
+            className="h-8 px-3 text-[12px]"
+            disabled={!activeReportPreset}
+          >
+            {t('reportDetail.toggle')}
+          </Button>
+
+          <div className={reportStyles.toolbarDivider}></div>
+
           <div className="relative" {...dropdownRefProps(legendDropdownRef)}>
             <Button
               onClick={() => onLegendOpenChange(!isLegendOpen)}
