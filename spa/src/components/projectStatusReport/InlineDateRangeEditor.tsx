@@ -117,8 +117,17 @@ const InlineDateField = ({
       <span
         data-testid={field === 'start_date' ? `start-date-display-${issueId}` : `due-date-display-${issueId}`}
         className="report-inline-date-display"
-        onDoubleClick={(event) => onActivate(field, event)}
+        role="button"
+        tabIndex={0}
         onClick={(event) => event.stopPropagation()}
+        onDoubleClick={(event) => onActivate(field, event)}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          event.stopPropagation();
+          onActivate(field);
+        }}
+        aria-label={`${label}: ${displayValue}`}
         title={displayValue}
       >
         {displayValue}

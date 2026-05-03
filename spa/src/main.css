@@ -375,42 +375,6 @@
     @apply w-full rounded-[16px] border border-gray-200 bg-white px-4 py-3 text-[16px] font-sans text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
   }
 
-  .report-inline-date-shell {
-    @apply relative flex h-8 min-w-0 items-stretch rounded-md bg-white;
-  }
-
-  .report-inline-date-shell-active .report-inline-date-display {
-    @apply border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.18)] text-[var(--color-primary-700)];
-  }
-
-  .report-inline-date-display {
-    @apply inline-flex h-full w-full items-center rounded-md border border-transparent px-1.5 text-[11px] font-sans text-[#222222] tabular-nums select-none truncate transition-colors;
-  }
-
-  .report-inline-date-shell:hover .report-inline-date-display {
-    @apply border-blue-200 bg-blue-50/70;
-  }
-
-  .report-inline-date-shell:focus-within .report-inline-date-display {
-    @apply border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.22)] text-[var(--color-primary-700)];
-  }
-
-  .report-inline-date-picker-wrapper {
-    @apply absolute inset-0 h-full w-full;
-  }
-
-  .report-inline-date-input {
-    @apply absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 text-transparent caret-transparent opacity-0 outline-none;
-  }
-
-  .report-inline-date-input-inactive {
-    @apply pointer-events-none;
-  }
-
-  .report-inline-date-input-active {
-    @apply pointer-events-auto;
-  }
-
   .report-inline-date-popper {
     @apply z-[80];
   }
@@ -997,7 +961,7 @@
   }
 
   .report-inline-date-shell {
-    @apply relative flex h-8 min-w-0 items-stretch rounded-md bg-white;
+    @apply relative flex h-8 min-w-0 items-stretch bg-transparent;
   }
 
   .report-inline-date-shell-active {
@@ -1005,7 +969,7 @@
   }
 
   .report-inline-date-display {
-    @apply inline-flex h-full w-full items-center truncate rounded-md border border-transparent px-1.5 text-[11px] font-data tabular-nums text-[#222222] select-none transition-all duration-200 hover:border-[var(--color-primary-200)] hover:bg-[#f8fbff];
+    @apply box-border inline-flex h-full w-full min-w-0 cursor-pointer items-center truncate border-0 bg-transparent px-0 py-0 text-left text-[11px] font-data tabular-nums leading-[1] text-[#222222] outline-none select-none transition-colors duration-200 hover:text-[var(--color-primary-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-200)] focus-visible:ring-offset-1;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;

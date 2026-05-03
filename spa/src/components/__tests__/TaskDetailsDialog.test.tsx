@@ -1079,6 +1079,9 @@ describe('TaskDetailsDialog', () => {
     expect(buildX).toBeGreaterThan(designX);
 
     const startDateDisplay = screen.getByTestId('start-date-display-11');
+    expect(startDateDisplay.tagName).toBe('SPAN');
+    expect(startDateDisplay.getAttribute('role')).toBe('button');
+
     const dblClickEvent = new MouseEvent('dblclick', { bubbles: true, cancelable: true });
 
     let dispatchResult = true;
