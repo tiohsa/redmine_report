@@ -107,6 +107,8 @@ const TIMELINE_TEXT_SECONDARY = '#45515e';
 const TIMELINE_BORDER = '#e5e7eb';
 const TIMELINE_BORDER_LIGHT = '#f2f3f5';
 const TIMELINE_BRAND = '#1456f0';
+const TODAY_COLOR = '#ef4444';
+
 const TIMELINE_BRAND_TINT = '#f8fbff';
 const TIMELINE_ACTIVE_FILL = 'rgba(20, 86, 240, 0.07)';
 
@@ -944,7 +946,7 @@ function TimelineChartSurface({
     });
 
     if (showTodayLine && todayX >= 0 && todayX <= timelineWidth) {
-      context.fillStyle = TIMELINE_BRAND;
+      context.fillStyle = TODAY_COLOR;
       context.fillRect(
         todayX - TODAY_LABEL_WIDTH / 2,
         headerHeight + TODAY_LABEL_OFFSET_Y,
@@ -956,7 +958,7 @@ function TimelineChartSurface({
         x: todayX,
         y: headerHeight + TODAY_LABEL_OFFSET_Y + 12,
         fill: '#ffffff',
-        stroke: TIMELINE_BRAND,
+        stroke: TODAY_COLOR,
         strokeWidth: 0,
         font: '700 10px "Roboto", sans-serif'
       });
@@ -1070,7 +1072,7 @@ function TimelineChartSurface({
 
     if (showTodayLine && todayX >= 0 && todayX <= timelineWidth) {
       context.save();
-      context.strokeStyle = TIMELINE_BRAND;
+      context.strokeStyle = TODAY_COLOR;
       context.setLineDash([4, 2]);
       context.beginPath();
       context.moveTo(todayX, headerHeight);
