@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { createRef, type ComponentProps } from 'react';
+import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineChart } from '../projectStatusReport/TimelineChart';
 import type { TimelineLane } from '../projectStatusReport/timeline';
@@ -27,21 +27,8 @@ const makeLane = (overrides: Partial<TimelineLane> = {}): TimelineLane => ({
   ...overrides
 });
 
-const renderTimelineChart = (
-  options:
-    | string
-    | {
-        activeReportLaneKey?: string | null;
-        onVersionAiClick?: ComponentProps<typeof TimelineChart>['onVersionAiClick'];
-        onVersionReportClick?: ComponentProps<typeof TimelineChart>['onVersionReportClick'];
-      } = {}
-) => {
-  const resolvedOptions =
-    typeof options === 'string'
-      ? { activeReportLaneKey: options }
-      : options;
-
-  return render(
+const renderTimelineChart = () =>
+  render(
     <TimelineChart
       timelineData={[
         makeLane({ laneKey: '1:v1', versionName: 'v1', projectName: 'Alpha', versionId: 101 }),
@@ -58,12 +45,9 @@ const renderTimelineChart = (
       containerRef={createRef<HTMLDivElement>()}
       projectIdentifier="alpha"
       showTodayLine={false}
-      activeReportLaneKey={resolvedOptions.activeReportLaneKey}
-      onVersionAiClick={resolvedOptions.onVersionAiClick}
-      onVersionReportClick={resolvedOptions.onVersionReportClick}
     />
   );
-};
+  
 
 describe('TimelineChart', () => {
   beforeEach(() => {
@@ -84,48 +68,12 @@ describe('TimelineChart', () => {
     expect(screen.queryByTestId('timeline-lane-active-bg-1')).toBeNull();
   });
 
-  it('keeps active lane highlight above alternating backgrounds', () => {
-    renderTimelineChart('1:v2');
-
-    expect(screen.getByTestId('timeline-lane-label-1').className).toContain('report-timeline-lane-label-active');
-    expect(screen.queryByTestId('timeline-lane-bg-1')).toBeNull();
-    expect(screen.queryByTestId('timeline-lane-active-bg-1')).toBeNull();
-  });
-
-  it('calls the detail report callback once from the lane actions menu', () => {
-    const onVersionReportClick = vi.fn();
-    renderTimelineChart({ onVersionReportClick });
+  it('does not render lane action menus after the refactor', () => {
+    renderTimelineChart();
 
     const lane = screen.getByTestId('timeline-lane-label-1');
     expect(within(lane).queryByRole('menu')).toBeNull();
-    expect(within(lane).queryByRole('button', { name: 'timeline.showDetailAria' })).toBeNull();
-
-    fireEvent.click(within(lane).getByRole('button', { name: 'timeline.laneMenuAria' }));
-    fireEvent.click(within(lane).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
-
-    expect(onVersionReportClick).toHaveBeenCalledTimes(1);
-    expect(onVersionReportClick).toHaveBeenCalledWith(expect.objectContaining({
-      laneKey: '1:v2',
-      versionId: 102,
-      versionName: 'v2',
-      projectId: 1,
-      projectName: 'Beta',
-      projectIdentifier: 'alpha'
-    }));
-  });
-
-  it('calls the ai callback once from the lane actions menu without triggering the detail report callback', () => {
-    const onVersionAiClick = vi.fn();
-    const onVersionReportClick = vi.fn();
-    renderTimelineChart({ onVersionAiClick, onVersionReportClick });
-
-    const lane = screen.getByTestId('timeline-lane-label-1');
-    expect(within(lane).queryByRole('button', { name: 'timeline.startAiAria' })).toBeNull();
-    fireEvent.click(within(lane).getByRole('button', { name: 'timeline.laneMenuAria' }));
-    fireEvent.click(within(lane).getByRole('menuitem', { name: 'timeline.startAiAria' }));
-
-    expect(onVersionAiClick).toHaveBeenCalledTimes(1);
-    expect(onVersionReportClick).not.toHaveBeenCalled();
+    expect(within(lane).queryByRole('button', { name: /timeline\.laneMenuAria/ })).toBeNull();
   });
 
   it('uses move cursor for draggable process arrows', () => {

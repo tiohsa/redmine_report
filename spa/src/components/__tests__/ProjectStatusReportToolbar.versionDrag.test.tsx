@@ -53,6 +53,16 @@ const makePropsBase = () => ({
   onPendingStartDateChange: vi.fn(),
   onPendingEndDateChange: vi.fn(),
   dateRangeError: null,
+  reportPresets: [],
+  activeReportPresetId: null,
+  activeReportPreset: null,
+  onActiveReportPresetChange: vi.fn(),
+  onSaveCurrentView: vi.fn(),
+  onUpdatePresetTargets: vi.fn(),
+  canSaveCurrentView: false,
+  canUpdatePresetTargets: false,
+  detailReportVisible: false,
+  onDetailReportVisibleChange: vi.fn(),
   onToggleFullScreen: vi.fn()
 });
 
@@ -236,5 +246,41 @@ describe('ProjectStatusReportToolbar version drag', () => {
     });
 
     expect(props.onVersionOrderChange).not.toHaveBeenCalled();
+  });
+
+  it('forwards report preset toolbar actions', () => {
+    const props = makeProps({
+      detailReportVisible: false,
+      reportPresets: [
+        {
+          id: 'preset-1',
+          name: 'May report',
+          targets: [{ projectId: 1, projectIdentifier: 'ecookbook', projectName: 'eCookbook', versionId: 101, versionName: 'v1' }],
+          createdAt: '2026-03-01T00:00:00.000Z',
+          updatedAt: '2026-03-01T00:00:00.000Z'
+        }
+      ],
+      activeReportPresetId: 'preset-1',
+      activeReportPreset: {
+        id: 'preset-1',
+        name: 'May report',
+        targets: [{ projectId: 1, projectIdentifier: 'ecookbook', projectName: 'eCookbook', versionId: 101, versionName: 'v1' }],
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z'
+      },
+      canSaveCurrentView: true,
+      canUpdatePresetTargets: true
+    });
+    render(<ProjectStatusReportToolbar {...props} />);
+
+    fireEvent.change(screen.getByRole('combobox', { name: /レポートプリセット|reportPreset\.selector/ }), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Report preset add current view' }));
+    fireEvent.click(screen.getByRole('button', { name: /対象を更新|reportPreset\.updateTargets/ }));
+    fireEvent.click(screen.getByRole('button', { name: /詳細レポート|reportDetail\.toggle/ }));
+
+    expect(props.onActiveReportPresetChange).toHaveBeenCalledWith(null);
+    expect(props.onSaveCurrentView).toHaveBeenCalledTimes(1);
+    expect(props.onUpdatePresetTargets).toHaveBeenCalledTimes(1);
+    expect(props.onDetailReportVisibleChange).toHaveBeenCalledWith(true);
   });
 });

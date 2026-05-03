@@ -1,23 +1,17 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import {
-    fetchWeeklyAiResponses,
-    fetchChildIssues,
-    CategoryBar,
-    ProjectInfo,
-    WeeklyApiError,
-    updateWeeklyAiResponse
-} from '../services/scheduleReportApi';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { fetchChildIssues, CategoryBar, ProjectInfo } from '../services/scheduleReportApi';
 import { buildStatusStyles } from './projectStatusReport/constants';
 import { buildTimelineViewModel } from './projectStatusReport/timeline';
 import { TimelineChart } from './projectStatusReport/TimelineChart';
 import { ProjectStatusReportToolbar } from './projectStatusReport/ProjectStatusReportToolbar';
+import { ReportDetailPanel } from './projectStatusReport/ReportDetailPanel';
 import { useProjectStatusReportControls } from './projectStatusReport/useProjectStatusReportControls';
 import { useUiStore } from '../stores/uiStore';
 import { VersionAiDialog } from './projectStatusReport/VersionAiDialog';
-import type { AiResponseView } from '../types/weeklyReport';
 import { t } from '../i18n';
-import { reportStyles } from './designSystem';
-import type { EditableSections } from './AiResponsePanel';
+import { reportPresetStorage, sanitizeReportPresetTargets, type ReportPreset } from '../services/reportPresetStorage';
+import { buildReportPresetTargets, filterBarsByReportPreset } from './projectStatusReport/reportPresetTargets';
+import { SaveReportPresetDialog } from './projectStatusReport/SaveReportPresetDialog';
 
 interface ProjectStatusReportProps {
     bars?: CategoryBar[];
@@ -31,6 +25,15 @@ interface ProjectStatusReportProps {
     fetchError?: string | null;
 }
 
+const uniqueStrings = (values: string[]): string[] => {
+    const seen = new Set<string>();
+    return values.filter((value) => {
+        if (seen.has(value)) return false;
+        seen.add(value);
+        return true;
+    });
+};
+
 export const ProjectStatusReport = ({
     bars = [],
     projectIdentifier,
@@ -42,16 +45,11 @@ export const ProjectStatusReport = ({
     onTaskDatesUpdated,
     fetchError = null
 }: ProjectStatusReportProps) => {
-    const [aiResponse, setAiResponse] = useState<AiResponseView | null>(null);
-    const [aiLoading, setAiLoading] = useState(false);
-    const [aiError, setAiError] = useState<string | null>(null);
-    const [activeReportLaneKey, setActiveReportLaneKey] = useState<string | null>(null);
-    const [activeReportContext, setActiveReportContext] = useState<{
-        projectIdentifier: string;
-        versionId: number;
-    } | null>(null);
-    const [inlineReportDirty, setInlineReportDirty] = useState(false);
-    const reportRequestSeqRef = useRef(0);
+    const [detailReportVisible, setDetailReportVisible] = useState(false);
+    const [detailReportDirty, setDetailReportDirty] = useState(false);
+    const [reportPresets, setReportPresets] = useState<ReportPreset[]>([]);
+    const [activeReportPresetId, setActiveReportPresetId] = useState<string | null>(null);
+    const [isSavePresetDialogOpen, setIsSavePresetDialogOpen] = useState(false);
     const [weeklyDialog, setWeeklyDialog] = useState<{
         open: boolean;
         projectId: number;
@@ -106,6 +104,15 @@ export const ProjectStatusReport = ({
         sizeDropdownRef,
         legendDropdownRef
     } = useProjectStatusReportControls();
+    const reportPresetRootKey = rootProjectIdentifier || projectIdentifier;
+
+    useEffect(() => {
+        const settings = reportPresetStorage.load(reportPresetRootKey);
+        setReportPresets(settings.presets);
+        setActiveReportPresetId(settings.activePresetId || null);
+        setDetailReportVisible(false);
+        setDetailReportDirty(false);
+    }, [reportPresetRootKey]);
 
     useEffect(() => {
         const requestId = processModeRequestSeqRef.current + 1;
@@ -179,10 +186,20 @@ export const ProjectStatusReport = ({
         return map;
     }, [availableProjects]);
 
+    const activeReportPreset = useMemo(
+        () => reportPresets.find((preset) => preset.id === activeReportPresetId) || null,
+        [reportPresets, activeReportPresetId]
+    );
+
+    const barsForTimeline = useMemo(
+        () => filterBarsByReportPreset(bars, activeReportPreset),
+        [bars, activeReportPreset]
+    );
+
     const { timelineData, timelineWidth, headerMonths, headerYears, todayX, axisStartDateIso, axisEndDateIso, pixelsPerDay } = useMemo(
         () =>
             buildTimelineViewModel({
-                bars,
+                bars: barsForTimeline,
                 selectedVersions,
                 versionOrder: orderedVersions,
                 projectMap,
@@ -192,16 +209,16 @@ export const ProjectStatusReport = ({
                 isProcessMode,
                 childTicketsMap
             }),
-        [bars, selectedVersions, orderedVersions, projectMap, containerWidth, displayStartDateIso, displayEndDateIso, isProcessMode, childTicketsMap]
+        [barsForTimeline, selectedVersions, orderedVersions, projectMap, containerWidth, displayStartDateIso, displayEndDateIso, isProcessMode, childTicketsMap]
     );
 
     const allVersions = useMemo(() => {
         const versions = new Set<string>();
-        bars.forEach(bar => {
+        barsForTimeline.forEach(bar => {
             versions.add(bar.version_name || t('common.noVersion'));
         });
         return Array.from(versions).sort();
-    }, [bars]);
+    }, [barsForTimeline]);
 
     const displayVersions = useMemo(() => {
         if (orderedVersions.length === 0) return allVersions;
@@ -225,6 +242,44 @@ export const ProjectStatusReport = ({
     const allowVersionOrderPersist = selectedProjectIdentifiers.length <= 1;
 
     const isCustomDateRangeActive = Boolean(displayStartDateIso && displayEndDateIso);
+
+    const selectedProjectBarsForPresetSave = useMemo(() => {
+        const selectableProjectIds = new Set(
+            availableProjects
+                .filter((project) => project.selectable !== false)
+                .map((project) => project.project_id)
+        );
+        const selectedProjectIdentifierSet = new Set(selectedProjectIdentifiers);
+        const selectedVersionSet = new Set(selectedVersions);
+
+        return bars.filter((bar) => {
+            if (!bar.version_id) return false;
+
+            if (selectedProjectIdentifiers.length === 0) {
+                if (!selectableProjectIds.has(bar.project_id)) return false;
+            } else {
+                const project = projectMap.get(bar.project_id);
+                if (!project || !selectedProjectIdentifierSet.has(project.identifier)) return false;
+            }
+
+            if (selectedVersions.length > 0) {
+                const versionName = bar.version_name || t('common.noVersion');
+                if (!selectedVersionSet.has(versionName)) return false;
+            }
+
+            return true;
+        });
+    }, [availableProjects, bars, projectMap, selectedProjectIdentifiers, selectedVersions]);
+
+    const currentPresetTargets = useMemo(
+        () => buildReportPresetTargets(selectedProjectBarsForPresetSave, availableProjects),
+        [availableProjects, selectedProjectBarsForPresetSave]
+    );
+
+    const rootProjectId = useMemo(() => {
+        const rootProject = availableProjects.find((project) => project.identifier === reportPresetRootKey);
+        return rootProject?.project_id || availableProjects[0]?.project_id || 0;
+    }, [availableProjects, reportPresetRootKey]);
 
     const openDateRangeDialog = () => {
         setPendingStartDate(displayStartDateIso || axisStartDateIso);
@@ -255,78 +310,62 @@ export const ProjectStatusReport = ({
         setIsDateRangeDialogOpen(false);
     };
 
-    const handleVersionReportClick = async (payload: { laneKey: string; versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => {
-        if (inlineReportDirty && !window.confirm(t('aiPanel.confirmDiscard'))) {
+    const persistPresetChange = useCallback((preset: ReportPreset) => {
+        const updated = reportPresetStorage.update(reportPresetRootKey, preset);
+        setReportPresets(reportPresetStorage.list(reportPresetRootKey));
+        setActiveReportPresetId(updated.id);
+        reportPresetStorage.setActivePresetId(reportPresetRootKey, updated.id);
+    }, [reportPresetRootKey]);
+
+    const handleActiveReportPresetChange = useCallback((presetId: string | null) => {
+        if (detailReportDirty && !window.confirm(t('reportDetail.unsavedChangesConfirm'))) {
+            return;
+        }
+        const preset = presetId ? reportPresets.find((candidate) => candidate.id === presetId) || null : null;
+
+        if (preset) {
+            setSelectedProjectIdentifiers(uniqueStrings(preset.targets.map((target) => target.projectIdentifier)));
+            onVersionChange?.(uniqueStrings(preset.targets.map((target) => target.versionName)));
+        }
+
+        setActiveReportPresetId(presetId);
+        reportPresetStorage.setActivePresetId(reportPresetRootKey, presetId);
+        setDetailReportVisible(false);
+        setDetailReportDirty(false);
+    }, [detailReportDirty, onVersionChange, reportPresetRootKey, reportPresets, setSelectedProjectIdentifiers]);
+
+    const handleSaveReportPreset = useCallback((name: string) => {
+        const preset = reportPresetStorage.create(reportPresetRootKey, {
+            name,
+            targets: currentPresetTargets
+        });
+        setReportPresets(reportPresetStorage.list(reportPresetRootKey));
+        setActiveReportPresetId(preset.id);
+        reportPresetStorage.setActivePresetId(reportPresetRootKey, preset.id);
+        setIsSavePresetDialogOpen(false);
+    }, [currentPresetTargets, reportPresetRootKey]);
+
+    const updateActivePresetTargets = useCallback(() => {
+        if (!activeReportPreset) return;
+        const nextTargets = sanitizeReportPresetTargets(currentPresetTargets);
+        if (nextTargets.length === 0) return;
+        persistPresetChange({
+            ...activeReportPreset,
+            targets: nextTargets
+        });
+    }, [activeReportPreset, currentPresetTargets, persistPresetChange]);
+
+    const setDetailReportVisibleSafely = useCallback((visible: boolean) => {
+        if (!visible && detailReportDirty && !window.confirm(t('detailReport.unsavedChangesConfirm'))) {
             return;
         }
 
-        if (activeReportLaneKey === payload.laneKey) {
-            reportRequestSeqRef.current += 1;
-            setActiveReportLaneKey(null);
-            setActiveReportContext(null);
-            setInlineReportDirty(false);
-            setAiLoading(false);
-            setAiError(null);
-            return;
+        setDetailReportVisible(visible);
+
+        if (!visible) {
+            setDetailReportDirty(false);
         }
-
-        const requestId = reportRequestSeqRef.current + 1;
-        reportRequestSeqRef.current = requestId;
-
-        setActiveReportLaneKey(payload.laneKey);
-        setActiveReportContext({
-            projectIdentifier: payload.projectIdentifier,
-            versionId: payload.versionId
-        });
-        setInlineReportDirty(false);
-        setAiLoading(true);
-        setAiError(null);
-        try {
-            const result = await fetchWeeklyAiResponses(rootProjectIdentifier || projectIdentifier, {
-                selected_project_identifier: payload.projectIdentifier,
-                selected_version_id: payload.versionId
-            });
-            if (requestId !== reportRequestSeqRef.current) return;
-            setAiResponse(result.response || null);
-        } catch (caughtError: unknown) {
-            if (requestId !== reportRequestSeqRef.current) return;
-            if (caughtError instanceof WeeklyApiError && caughtError.code === 'NOT_FOUND') {
-                setAiResponse({
-                    status: 'NOT_SAVED',
-                    destination_issue_id: 0,
-                    failure_reason_code: 'NOT_FOUND',
-                    message: t('aiPanel.notSaved')
-                });
-                return;
-            }
-            setAiResponse({
-                status: 'FETCH_FAILED',
-                destination_issue_id: 0,
-                message: caughtError instanceof Error ? caughtError.message : t('aiPanel.fetchFailed')
-            });
-            setAiError(caughtError instanceof Error ? caughtError.message : t('aiPanel.fetchFailed'));
-        } finally {
-            if (requestId !== reportRequestSeqRef.current) return;
-            setAiLoading(false);
-        }
-    };
-
-    const handleInlineReportSave = async (sections: EditableSections): Promise<AiResponseView> => {
-        if (!activeReportContext || !aiResponse || !aiResponse.destination_issue_id) {
-            throw new Error(t('aiPanel.saveFailed'));
-        }
-
-        const result = await updateWeeklyAiResponse(rootProjectIdentifier || projectIdentifier, {
-            selected_project_identifier: activeReportContext.projectIdentifier,
-            version_id: activeReportContext.versionId,
-            destination_issue_id: aiResponse.destination_issue_id,
-            ...sections
-        });
-
-        setAiResponse(result.response);
-        setInlineReportDirty(false);
-        return result.response;
-    };
+    }, [detailReportDirty]);
 
     const toggleProject = (identifier: string) => {
         if (selectedProjectIdentifiers.includes(identifier)) {
@@ -414,6 +453,16 @@ export const ProjectStatusReport = ({
                         onPendingStartDateChange={setPendingStartDate}
                         onPendingEndDateChange={setPendingEndDate}
                         dateRangeError={dateRangeError}
+                        reportPresets={reportPresets}
+                        activeReportPresetId={activeReportPresetId}
+                        activeReportPreset={activeReportPreset}
+                        onActiveReportPresetChange={handleActiveReportPresetChange}
+                        onSaveCurrentView={() => setIsSavePresetDialogOpen(true)}
+                        onUpdatePresetTargets={updateActivePresetTargets}
+                        canSaveCurrentView={currentPresetTargets.length > 0}
+                        canUpdatePresetTargets={Boolean(activeReportPreset && currentPresetTargets.length > 0)}
+                        detailReportVisible={detailReportVisible}
+                        onDetailReportVisibleChange={setDetailReportVisibleSafely}
                         onToggleFullScreen={toggleFullScreen}
                     />
 
@@ -436,36 +485,19 @@ export const ProjectStatusReport = ({
                             showAllDates={showAllDates}
                             showTodayLine={showTodayLine}
                             showTitles={showTitles}
-
                             onTaskDatesUpdated={onTaskDatesUpdated}
-                            onVersionAiClick={({ versionId, versionName, projectId, projectName }) =>
-                                setWeeklyDialog({
-                                    open: true,
-                                    versionId,
-                                    versionName,
-                                    projectId,
-                                    projectName
-                                })
-                            }
-                            onVersionReportClick={handleVersionReportClick}
-                            onClearSelection={() => {
-                                if (inlineReportDirty && !window.confirm(t('aiPanel.confirmDiscard'))) {
-                                    return;
-                                }
-                                setActiveReportLaneKey(null);
-                                setActiveReportContext(null);
-                                setInlineReportDirty(false);
-                                setAiLoading(false);
-                                setAiError(null);
-                            }}
-                            activeReportLaneKey={activeReportLaneKey}
-                            detailedReportResponse={aiResponse}
-                            detailedReportLoading={aiLoading}
-                            detailedReportError={aiError}
-                            onDetailedReportSave={handleInlineReportSave}
-                            onDetailedReportDirtyChange={setInlineReportDirty}
                         />
                     </div>
+
+                    {detailReportVisible && activeReportPreset ? (
+                        <ReportDetailPanel
+                            rootProjectIdentifier={reportPresetRootKey}
+                            rootProjectId={rootProjectId}
+                            activePreset={activeReportPreset}
+                            onPresetChange={persistPresetChange}
+                            onDirtyStateChange={setDetailReportDirty}
+                        />
+                    ) : null}
                 </div>
                 <VersionAiDialog
                     open={weeklyDialog.open}
@@ -475,6 +507,14 @@ export const ProjectStatusReport = ({
                     versionName={weeklyDialog.versionName}
                     onClose={() => setWeeklyDialog((prev) => ({ ...prev, open: false }))}
                 />
+                {isSavePresetDialogOpen ? (
+                    <SaveReportPresetDialog
+                        targets={currentPresetTargets}
+                        existingNames={reportPresets.map((preset) => preset.name)}
+                        onSave={handleSaveReportPreset}
+                        onClose={() => setIsSavePresetDialogOpen(false)}
+                    />
+                ) : null}
             </div>
         </div>
     );

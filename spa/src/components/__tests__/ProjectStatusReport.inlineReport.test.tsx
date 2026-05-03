@@ -1,28 +1,26 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectStatusReport } from '../ProjectStatusReport';
 import type { CategoryBar } from '../../services/scheduleReportApi';
 import { useUiStore } from '../../stores/uiStore';
 
-const fetchWeeklyAiResponsesMock = vi.fn();
-const updateWeeklyAiResponseMock = vi.fn();
-
 vi.mock('../../i18n', async () => {
   const actual = await vi.importActual<typeof import('../../i18n')>('../../i18n');
-  return {
-    ...actual,
-    t: (key: string) => key
-  };
+  return { ...actual, t: (key: string, params?: Record<string, unknown>) => params?.name ? `${key}: ${params.name}` : key };
 });
 
-vi.mock('../../services/scheduleReportApi', async () => {
-  const actual = await vi.importActual<typeof import('../../services/scheduleReportApi')>('../../services/scheduleReportApi');
-  return {
-    ...actual,
-    fetchWeeklyAiResponses: (...args: unknown[]) => fetchWeeklyAiResponsesMock(...args),
-    updateWeeklyAiResponse: (...args: unknown[]) => updateWeeklyAiResponseMock(...args)
-  };
-});
+vi.mock('../projectStatusReport/TimelineChart', () => ({
+  TimelineChart: ({ timelineData }: { timelineData: Array<{ projectIdentifier: string; versionId?: number; versionName: string }> }) => (
+    <div data-testid="mock-timeline">
+      {timelineData.map((lane) => `${lane.projectIdentifier}:${lane.versionId}:${lane.versionName}`).join(',')}
+    </div>
+  )
+}));
+
+vi.mock('../projectStatusReport/VersionAiDialog', () => ({
+  VersionAiDialog: () => null
+}));
 
 const makeBar = (overrides: Partial<CategoryBar> = {}): CategoryBar => ({
   bar_key: `1:issue:${overrides.category_id ?? 100}`,
@@ -42,21 +40,59 @@ const makeBar = (overrides: Partial<CategoryBar> = {}): CategoryBar => ({
   ...overrides
 });
 
-const openLaneActionsMenu = (laneTestId: string) => {
-  const lane = screen.getByTestId(laneTestId);
-  fireEvent.click(within(lane).getByRole('button', { name: 'timeline.laneMenuAria' }));
-  return lane;
+const projects = [
+  { project_id: 1, identifier: 'ecookbook', name: 'eCookbook', level: 0, selectable: true },
+  { project_id: 2, identifier: 'mobile', name: 'Mobile', level: 1, selectable: true },
+  { project_id: 3, identifier: 'archived', name: 'Archived', level: 1, selectable: false }
+];
+
+const renderReport = (
+  bars: CategoryBar[] = [makeBar()],
+  options: {
+    selectedVersions?: string[];
+    availableProjects?: typeof projects;
+  } = {}
+) => {
+  const selectedVersions = options.selectedVersions ?? bars.map((bar) => bar.version_name || 'No Version');
+  return render(
+    <ProjectStatusReport
+      bars={bars}
+      projectIdentifier="ecookbook"
+      availableProjects={options.availableProjects ?? [projects[0]]}
+      selectedVersions={selectedVersions}
+    />
+  );
 };
 
-describe('ProjectStatusReport inline report', () => {
+const renderControlledReport = (
+  bars: CategoryBar[],
+  options: {
+    selectedVersions?: string[];
+    availableProjects?: typeof projects;
+  } = {}
+) => {
+  const Harness = () => {
+    const [versions, setVersions] = useState(options.selectedVersions ?? bars.map((bar) => bar.version_name || 'No Version'));
+    return (
+      <>
+        <div data-testid="selected-versions">{versions.join(',')}</div>
+        <ProjectStatusReport
+          bars={bars}
+          projectIdentifier="ecookbook"
+          availableProjects={options.availableProjects ?? projects}
+          selectedVersions={versions}
+          onVersionChange={setVersions}
+        />
+      </>
+    );
+  };
+
+  return render(<Harness />);
+};
+
+describe('ProjectStatusReport report presets', () => {
   beforeEach(() => {
-    fetchWeeklyAiResponsesMock.mockReset();
-    updateWeeklyAiResponseMock.mockReset();
     vi.restoreAllMocks();
-    Object.defineProperty(Element.prototype, 'scrollIntoView', {
-      configurable: true,
-      value: vi.fn()
-    });
     window.localStorage.clear();
     useUiStore.setState({
       rootProjectIdentifier: 'ecookbook',
@@ -73,203 +109,180 @@ describe('ProjectStatusReport inline report', () => {
     }
   });
 
-  it('toggles the inline detailed report when the lane actions menu detail item is clicked twice', async () => {
-    fetchWeeklyAiResponsesMock.mockResolvedValue({
-      response: {
-        status: 'AVAILABLE',
-        destination_issue_id: 123,
-        saved_at: '2026-03-10T10:00:00+09:00',
-        highlights_this_week: 'Highlights',
-        next_week_actions: 'Next actions',
-        risks_decisions: 'Risks'
-      }
-    });
+  it('keeps the detail report panel hidden until a preset is active and toggled', async () => {
+    renderReport([makeBar()]);
 
-    render(
-      <ProjectStatusReport
-        bars={[makeBar()]}
-        projectIdentifier="ecookbook"
-        availableProjects={[{ project_id: 1, identifier: 'ecookbook', name: 'eCookbook', level: 0, selectable: true }]}
-        selectedVersions={['v1']}
-      />
-    );
+    expect(screen.queryByTestId('report-detail-panel')).toBeNull();
 
-    const lane = openLaneActionsMenu('timeline-lane-label-0');
-    const detailButton = within(lane).getByRole('menuitem', { name: 'timeline.showDetailAria' });
+    fireEvent.click(screen.getByRole('button', { name: 'Report preset add current view' }));
+    fireEvent.change(screen.getByLabelText('reportPreset.name'), { target: { value: 'May report' } });
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }));
 
-    fireEvent.click(detailButton);
+    await waitFor(() => expect(screen.getByDisplayValue('May report')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'reportDetail.toggle' }));
 
-    await waitFor(() => expect(fetchWeeklyAiResponsesMock).toHaveBeenCalledTimes(1));
-    const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
-      block: 'nearest',
-      inline: 'nearest'
-    });
-    expect(within(report).getByTestId('ai-section-view-highlights_this_week')).toBeTruthy();
-    expect(within(report).queryByText('report.detailTitle')).toBeNull();
-    expect(within(report).queryByText('report.aiSuffix')).toBeNull();
-    expect(within(report).queryByText('eCookbook / v1')).toBeNull();
-
-    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
-
-    await waitFor(() => expect(screen.queryByTestId('timeline-inline-report-1:v1')).toBeNull());
-    expect(fetchWeeklyAiResponsesMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('report-detail-panel')).toBeTruthy();
+    expect(screen.getByText('reportDetail.title: May report')).toBeTruthy();
+    expect(screen.getByText('eCookbook / v1')).toBeTruthy();
   });
 
-  it('keeps inline edits local until save is clicked and then updates the weekly AI response', async () => {
-    fetchWeeklyAiResponsesMock.mockResolvedValue({
-      response: {
-        status: 'AVAILABLE',
-        destination_issue_id: 123,
-        saved_at: '2026-03-10T10:00:00+09:00',
-        highlights_this_week: 'Highlights',
-        next_week_actions: 'Next actions',
-        risks_decisions: 'Risks'
-      }
-    });
-    updateWeeklyAiResponseMock.mockResolvedValue({
-      saved: true,
-      saved_at: '2026-03-10T11:00:00+09:00',
-      response: {
-        status: 'AVAILABLE',
-        destination_issue_id: 123,
-        saved_at: '2026-03-10T11:00:00+09:00',
-        highlights_this_week: 'Edited highlights',
-        next_week_actions: 'Next actions',
-        risks_decisions: 'Risks'
-      }
-    });
+  it('selecting a preset filters the timeline bars to preset targets', async () => {
+    renderReport([
+      makeBar({ version_id: 101, version_name: 'v1' }),
+      makeBar({ version_id: 102, version_name: 'v2', category_id: 200 })
+    ]);
 
-    render(
-      <ProjectStatusReport
-        bars={[makeBar()]}
-        projectIdentifier="ecookbook"
-        availableProjects={[{ project_id: 1, identifier: 'ecookbook', name: 'eCookbook', level: 0, selectable: true }]}
-        selectedVersions={['v1']}
-      />
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Report preset add current view' }));
+    fireEvent.change(screen.getByLabelText('reportPreset.name'), { target: { value: 'Both versions' } });
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }));
 
-    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
+    await waitFor(() => expect(screen.getByDisplayValue('Both versions')).toBeTruthy());
+    expect(screen.getByTestId('mock-timeline').textContent).toContain('v1');
+    expect(screen.getByTestId('mock-timeline').textContent).toContain('v2');
 
-    const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
-    const saveButton = within(report).getByRole('button', { name: 'common.save' }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(true);
-
-    fireEvent.click(within(report).getByTestId('ai-section-view-highlights_this_week'));
-    const editor = within(report).getByTestId('ai-section-editor-highlights_this_week') as HTMLTextAreaElement;
-    fireEvent.change(editor, { target: { value: 'Edited highlights' } });
-    fireEvent.blur(editor);
-
-    expect(updateWeeklyAiResponseMock).not.toHaveBeenCalled();
-    expect(within(report).getByText('aiPanel.unsavedChanges')).toBeTruthy();
-    expect(saveButton.disabled).toBe(false);
-
-    fireEvent.click(saveButton);
-
-    await waitFor(() => expect(updateWeeklyAiResponseMock).toHaveBeenCalledTimes(1));
-    expect(updateWeeklyAiResponseMock).toHaveBeenCalledWith('ecookbook', expect.objectContaining({
-      selected_project_identifier: 'ecookbook',
-      version_id: 101,
-      destination_issue_id: 123,
-      highlights_this_week: 'Edited highlights',
-      next_week_actions: 'Next actions',
-      risks_decisions: 'Risks'
-    }));
-    await waitFor(() => expect(within(report).queryByText('aiPanel.unsavedChanges')).toBeNull());
-    expect(within(report).getByText('aiPanel.saved')).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'reportPreset.selector' }), { target: { value: '' } });
+    expect(screen.getByTestId('mock-timeline').textContent).toContain('v1');
   });
 
-  it('discards unsaved inline edits back to the fetched response', async () => {
-    fetchWeeklyAiResponsesMock.mockResolvedValue({
-      response: {
-        status: 'AVAILABLE',
-        destination_issue_id: 123,
-        highlights_this_week: 'Original highlights',
-        next_week_actions: 'Next actions',
-        risks_decisions: 'Risks'
-      }
+  it('saves only the currently selected project and version targets', () => {
+    useUiStore.setState({ selectedProjectIdentifiers: ['mobile'] });
+    renderReport([
+      makeBar({ project_id: 1, version_id: 101, version_name: 'v1' }),
+      makeBar({ project_id: 2, version_id: 201, version_name: 'v2', category_id: 200 }),
+      makeBar({ project_id: 2, version_id: 202, version_name: 'v3', category_id: 300 })
+    ], {
+      availableProjects: projects,
+      selectedVersions: ['v2']
     });
 
-    render(
-      <ProjectStatusReport
-        bars={[makeBar()]}
-        projectIdentifier="ecookbook"
-        availableProjects={[{ project_id: 1, identifier: 'ecookbook', name: 'eCookbook', level: 0, selectable: true }]}
-        selectedVersions={['v1']}
-      />
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Report preset add current view' }));
 
-    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
-    const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
-
-    fireEvent.click(within(report).getByTestId('ai-section-view-highlights_this_week'));
-    fireEvent.change(within(report).getByTestId('ai-section-editor-highlights_this_week'), { target: { value: 'Draft only' } });
-    fireEvent.blur(within(report).getByTestId('ai-section-editor-highlights_this_week'));
-
-    fireEvent.click(within(report).getByRole('button', { name: 'aiPanel.discardChanges' }));
-
-    expect(updateWeeklyAiResponseMock).not.toHaveBeenCalled();
-    expect(within(report).getByText('Original highlights')).toBeTruthy();
-    expect(within(report).queryByText('Draft only')).toBeNull();
+    expect(screen.queryByText('eCookbook / v1')).toBeNull();
+    expect(screen.getByText('Mobile / v2')).toBeTruthy();
+    expect(screen.queryByText('Mobile / v3')).toBeNull();
   });
 
-  it('keeps edited text and asks for confirmation when closing a dirty detail report', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    fetchWeeklyAiResponsesMock.mockResolvedValue({
-      response: {
-        status: 'AVAILABLE',
-        destination_issue_id: 123,
-        highlights_this_week: 'Highlights',
-        next_week_actions: 'Next actions',
-        risks_decisions: 'Risks'
-      }
+  it('treats empty project and version selections as all selectable projects and all versions for saving', () => {
+    useUiStore.setState({ selectedProjectIdentifiers: [] });
+    renderReport([
+      makeBar({ project_id: 1, version_id: 101, version_name: 'v1' }),
+      makeBar({ project_id: 2, version_id: 201, version_name: 'v2', category_id: 200 }),
+      makeBar({ project_id: 3, version_id: 301, version_name: 'v3', category_id: 300 })
+    ], {
+      availableProjects: projects,
+      selectedVersions: []
     });
 
-    render(
-      <ProjectStatusReport
-        bars={[makeBar()]}
-        projectIdentifier="ecookbook"
-        availableProjects={[{ project_id: 1, identifier: 'ecookbook', name: 'eCookbook', level: 0, selectable: true }]}
-        selectedVersions={['v1']}
-      />
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Report preset add current view' }));
 
-    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
-    const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
-    fireEvent.click(within(report).getByTestId('ai-section-view-highlights_this_week'));
-    fireEvent.change(within(report).getByTestId('ai-section-editor-highlights_this_week'), { target: { value: 'Unsaved draft' } });
-    fireEvent.blur(within(report).getByTestId('ai-section-editor-highlights_this_week'));
-
-    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
-
-    expect(confirmSpy).toHaveBeenCalledWith('aiPanel.confirmDiscard');
-    expect(screen.getByTestId('timeline-inline-report-1:v1')).toBeTruthy();
-    expect(within(report).getByText('Unsaved draft')).toBeTruthy();
+    expect(screen.getByText('eCookbook / v1')).toBeTruthy();
+    expect(screen.getByText('Mobile / v2')).toBeTruthy();
+    expect(screen.queryByText('Archived / v3')).toBeNull();
   });
 
-  it('does not show edit controls for not-saved responses', async () => {
-    fetchWeeklyAiResponsesMock.mockResolvedValue({
-      response: {
-        status: 'NOT_SAVED',
-        destination_issue_id: 0,
-        message: 'not found'
-      }
+  it('syncs project and version selections when selecting a preset', async () => {
+    const preset = {
+      id: 'preset-1',
+      name: 'Mobile release',
+      targets: [{ projectId: 2, projectIdentifier: 'mobile', projectName: 'Mobile', versionId: 201, versionName: 'v2' }],
+      detailReportIssueStatus: 'UNBOUND',
+      createdAt: '2026-03-01T00:00:00.000Z',
+      updatedAt: '2026-03-01T00:00:00.000Z'
+    };
+    window.localStorage.setItem('redmine_report.reportPresets.ecookbook', JSON.stringify([preset]));
+    useUiStore.setState({ selectedProjectIdentifiers: ['ecookbook'] });
+
+    renderControlledReport([
+      makeBar({ project_id: 1, version_id: 101, version_name: 'v1' }),
+      makeBar({ project_id: 2, version_id: 201, version_name: 'v2', category_id: 200 })
+    ], {
+      selectedVersions: ['v1'],
+      availableProjects: projects
     });
 
-    render(
-      <ProjectStatusReport
-        bars={[makeBar()]}
-        projectIdentifier="ecookbook"
-        availableProjects={[{ project_id: 1, identifier: 'ecookbook', name: 'eCookbook', level: 0, selectable: true }]}
-        selectedVersions={['v1']}
-      />
-    );
+    fireEvent.change(screen.getByRole('combobox', { name: 'reportPreset.selector' }), { target: { value: 'preset-1' } });
 
-    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
-    const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
+    await waitFor(() => expect(screen.getByTestId('selected-versions').textContent).toBe('v2'));
+    expect(useUiStore.getState().selectedProjectIdentifiers).toEqual(['mobile']);
+    expect(window.localStorage.getItem('redmine_report.activeReportPresetId.ecookbook')).toBe('preset-1');
+  });
 
-    expect(within(report).getByText('aiPanel.notSaved')).toBeTruthy();
-    expect(within(report).queryByRole('button', { name: 'common.save' })).toBeNull();
-    expect(within(report).queryByTestId('ai-section-view-highlights_this_week')).toBeNull();
+  it('keeps preset timeline filtering scoped by project id and version id when version names match', async () => {
+    const preset = {
+      id: 'preset-1',
+      name: 'Mobile v1',
+      targets: [{ projectId: 2, projectIdentifier: 'mobile', projectName: 'Mobile', versionId: 201, versionName: 'v1' }],
+      detailReportIssueStatus: 'UNBOUND',
+      createdAt: '2026-03-01T00:00:00.000Z',
+      updatedAt: '2026-03-01T00:00:00.000Z'
+    };
+    window.localStorage.setItem('redmine_report.reportPresets.ecookbook', JSON.stringify([preset]));
+    useUiStore.setState({ selectedProjectIdentifiers: ['ecookbook'] });
+
+    renderControlledReport([
+      makeBar({ project_id: 1, version_id: 101, version_name: 'v1' }),
+      makeBar({ project_id: 2, version_id: 201, version_name: 'v1', category_id: 200 })
+    ], {
+      selectedVersions: ['v1'],
+      availableProjects: projects
+    });
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'reportPreset.selector' }), { target: { value: 'preset-1' } });
+
+    await waitFor(() => expect(screen.getByTestId('mock-timeline').textContent).toBe('mobile:201:v1'));
+  });
+
+  it('updating preset targets preserves the linked detail issue id', async () => {
+    const preset = {
+      id: 'preset-1',
+      name: 'Saved',
+      targets: [{ projectId: 1, projectIdentifier: 'ecookbook', projectName: 'eCookbook', versionId: 101, versionName: 'v1' }],
+      detailReportIssueId: 200,
+      detailReportIssueStatus: 'VALID',
+      detailReportIssueValidatedAt: '2026-03-01T00:00:00.000Z',
+      createdAt: '2026-03-01T00:00:00.000Z',
+      updatedAt: '2026-03-01T00:00:00.000Z'
+    };
+    window.localStorage.setItem('redmine_report.reportPresets.ecookbook', JSON.stringify([preset]));
+    window.localStorage.setItem('redmine_report.activeReportPresetId.ecookbook', 'preset-1');
+
+    renderReport([makeBar({ version_id: 101, version_name: 'v1' })]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'reportPreset.updateTargets' }));
+
+    const saved = JSON.parse(window.localStorage.getItem('redmine_report.reportPresets.ecookbook') || '[]');
+    expect(saved[0].detailReportIssueId).toBe(200);
+  });
+
+  it('updates preset targets from the current UI selections while preserving the linked detail issue id', async () => {
+    const preset = {
+      id: 'preset-1',
+      name: 'Saved',
+      targets: [{ projectId: 1, projectIdentifier: 'ecookbook', projectName: 'eCookbook', versionId: 101, versionName: 'v1' }],
+      detailReportIssueId: 200,
+      detailReportIssueStatus: 'VALID',
+      detailReportIssueValidatedAt: '2026-03-01T00:00:00.000Z',
+      createdAt: '2026-03-01T00:00:00.000Z',
+      updatedAt: '2026-03-01T00:00:00.000Z'
+    };
+    window.localStorage.setItem('redmine_report.reportPresets.ecookbook', JSON.stringify([preset]));
+    window.localStorage.setItem('redmine_report.activeReportPresetId.ecookbook', 'preset-1');
+    useUiStore.setState({ selectedProjectIdentifiers: ['mobile'] });
+
+    renderReport([
+      makeBar({ project_id: 1, version_id: 101, version_name: 'v1' }),
+      makeBar({ project_id: 2, version_id: 201, version_name: 'v2', category_id: 200 })
+    ], {
+      availableProjects: projects,
+      selectedVersions: ['v2']
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'reportPreset.updateTargets' }));
+
+    const saved = JSON.parse(window.localStorage.getItem('redmine_report.reportPresets.ecookbook') || '[]');
+    expect(saved[0].detailReportIssueId).toBe(200);
+    expect(saved[0].targets).toMatchObject([
+      { projectId: 2, projectIdentifier: 'mobile', versionId: 201, versionName: 'v2' }
+    ]);
   });
 });
