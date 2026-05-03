@@ -83,6 +83,8 @@ export const reportStyles = {
   buttonMd: 'report-button-md',
   buttonLg: 'report-button-lg',
   buttonLoading: 'report-button-loading',
+  iconButtonPlain: 'report-icon-button-plain',
+  iconButtonPlainActive: 'report-icon-button-plain-active',
   dialogShell: 'report-dialog-shell',
   dialogBackdrop: 'report-dialog-backdrop',
   dialogPanel: 'report-dialog-panel',
@@ -123,12 +125,10 @@ export const reportCompactIconActionActiveStyle = {
   height: '32px',
   borderRadius: '6px',
   backgroundColor: '#e8f0fe',
-  color: '#1a73e8',
-  borderColor: '#e0e0e0'
+  color: '#1a73e8'
 } as const;
 
 export const reportCompactMenuToggleActiveStyle = {
   backgroundColor: '#e8f0fe',
-  color: '#1a73e8',
-  borderColor: '#e0e0e0'
+  color: '#1a73e8'
 } as const;

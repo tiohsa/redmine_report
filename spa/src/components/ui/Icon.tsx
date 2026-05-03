@@ -12,6 +12,7 @@ export type IconName =
   | 'folder'
   | 'fullscreen'
   | 'info'
+  | 'kebab-horizontal'
   | 'kebab-vertical'
   | 'open-in-new'
   | 'plus'
@@ -47,6 +48,13 @@ const pathByName: Record<IconName, JSX.Element> = {
   folder: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M5 6h4l1.5 2H19a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" />,
   fullscreen: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 9V4m0 0h5M4 4l4 4m12-4v5m0-5h-5m5 0l-4 4M4 15v5m0 0h5m-5 0l4-4m12 4v-5m0 5h-5m5 0l-4-4" />,
   info: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 16v-4m0-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
+  'kebab-horizontal': (
+    <>
+      <circle cx="6.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="17.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    </>
+  ),
   'kebab-vertical': (
     <>
       <circle cx="9" cy="6.5" r="1.4" fill="currentColor" stroke="none" />

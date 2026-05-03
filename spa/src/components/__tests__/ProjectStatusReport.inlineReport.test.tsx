@@ -42,6 +42,12 @@ const makeBar = (overrides: Partial<CategoryBar> = {}): CategoryBar => ({
   ...overrides
 });
 
+const openLaneActionsMenu = (laneTestId: string) => {
+  const lane = screen.getByTestId(laneTestId);
+  fireEvent.click(within(lane).getByRole('button', { name: 'timeline.laneMenuAria' }));
+  return lane;
+};
+
 describe('ProjectStatusReport inline report', () => {
   beforeEach(() => {
     fetchWeeklyAiResponsesMock.mockReset();
@@ -67,7 +73,7 @@ describe('ProjectStatusReport inline report', () => {
     }
   });
 
-  it('toggles the inline detailed report when the detail button is clicked twice', async () => {
+  it('toggles the inline detailed report when the lane actions menu detail item is clicked twice', async () => {
     fetchWeeklyAiResponsesMock.mockResolvedValue({
       response: {
         status: 'AVAILABLE',
@@ -88,8 +94,8 @@ describe('ProjectStatusReport inline report', () => {
       />
     );
 
-    const lane = screen.getByTestId('timeline-lane-label-0');
-    const detailButton = within(lane).getByRole('button', { name: 'timeline.showDetailAria' });
+    const lane = openLaneActionsMenu('timeline-lane-label-0');
+    const detailButton = within(lane).getByRole('menuitem', { name: 'timeline.showDetailAria' });
 
     fireEvent.click(detailButton);
 
@@ -104,7 +110,7 @@ describe('ProjectStatusReport inline report', () => {
     expect(within(report).queryByText('report.aiSuffix')).toBeNull();
     expect(within(report).queryByText('eCookbook / v1')).toBeNull();
 
-    fireEvent.click(detailButton);
+    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
 
     await waitFor(() => expect(screen.queryByTestId('timeline-inline-report-1:v1')).toBeNull());
     expect(fetchWeeklyAiResponsesMock).toHaveBeenCalledTimes(1);
@@ -143,7 +149,7 @@ describe('ProjectStatusReport inline report', () => {
       />
     );
 
-    fireEvent.click(within(screen.getByTestId('timeline-lane-label-0')).getByRole('button', { name: 'timeline.showDetailAria' }));
+    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
 
     const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
     const saveButton = within(report).getByRole('button', { name: 'common.save' }) as HTMLButtonElement;
@@ -193,7 +199,7 @@ describe('ProjectStatusReport inline report', () => {
       />
     );
 
-    fireEvent.click(within(screen.getByTestId('timeline-lane-label-0')).getByRole('button', { name: 'timeline.showDetailAria' }));
+    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
     const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
 
     fireEvent.click(within(report).getByTestId('ai-section-view-highlights_this_week'));
@@ -228,14 +234,13 @@ describe('ProjectStatusReport inline report', () => {
       />
     );
 
-    const detailButton = within(screen.getByTestId('timeline-lane-label-0')).getByRole('button', { name: 'timeline.showDetailAria' });
-    fireEvent.click(detailButton);
+    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
     const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
     fireEvent.click(within(report).getByTestId('ai-section-view-highlights_this_week'));
     fireEvent.change(within(report).getByTestId('ai-section-editor-highlights_this_week'), { target: { value: 'Unsaved draft' } });
     fireEvent.blur(within(report).getByTestId('ai-section-editor-highlights_this_week'));
 
-    fireEvent.click(detailButton);
+    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
 
     expect(confirmSpy).toHaveBeenCalledWith('aiPanel.confirmDiscard');
     expect(screen.getByTestId('timeline-inline-report-1:v1')).toBeTruthy();
@@ -260,7 +265,7 @@ describe('ProjectStatusReport inline report', () => {
       />
     );
 
-    fireEvent.click(within(screen.getByTestId('timeline-lane-label-0')).getByRole('button', { name: 'timeline.showDetailAria' }));
+    fireEvent.click(within(openLaneActionsMenu('timeline-lane-label-0')).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
     const report = await waitFor(() => screen.getByTestId('timeline-inline-report-1:v1'));
 
     expect(within(report).getByText('aiPanel.notSaved')).toBeTruthy();

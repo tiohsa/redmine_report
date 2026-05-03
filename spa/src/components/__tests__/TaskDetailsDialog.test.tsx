@@ -185,11 +185,13 @@ describe('TaskDetailsDialog', () => {
     expect(screen.queryByTestId('task-details-process-step-hit-10')).toBeNull();
     expect(screen.getByTestId('task-details-process-step-hit-11')).toBeTruthy();
 
-    const startDateInput = (await openDateEditor('start-date-display-10')) as HTMLInputElement;
+    await openDateEditor('start-date-display-10');
     expect(screen.getByTestId('start-date-display-10').textContent).toBe('2026/02/01');
 
-    fireEvent.change(startDateInput as HTMLInputElement, { target: { value: '2026-02-03' } });
-    fireEvent.keyDown(startDateInput, { key: 'Enter', code: 'Enter' });
+    const picker = screen.getByRole('dialog', { name: 'Choose Date' });
+    const day = picker.querySelector('[data-inline-date-picker-day][data-date="2026-02-03"]');
+    expect(day).toBeTruthy();
+    fireEvent.click(day as Element);
 
     await flushDateSaveDebounce();
 
@@ -428,6 +430,59 @@ describe('TaskDetailsDialog', () => {
     fireEvent.mouseDown(within(screen.getByRole('dialog', { name: 'Choose Date' })).getByText('19'));
 
     expect(screen.getByRole('dialog', { name: 'Choose Date' })).toBeTruthy();
+  });
+
+  it('commits a date change when clicking a calendar day in the inline date picker', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-04-19',
+        due_date: '2026-04-30',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Leaf issue',
+        start_date: '2026-04-19',
+        due_date: '2026-04-30',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+    updateTaskDatesMock.mockResolvedValue({
+      issue_id: 11,
+      parent_id: 10,
+      subject: 'Leaf issue',
+      start_date: '2026-04-22',
+      due_date: '2026-04-30',
+      issue_url: '/issues/11'
+    });
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    await openDateEditor('start-date-display-11');
+    fireEvent.click(screen.getByRole('gridcell', { name: /2026年4月22日/ }));
+    await flushDateSaveDebounce();
+
+    await waitFor(() => expect(updateTaskDatesMock).toHaveBeenCalledTimes(1));
+    expect(updateTaskDatesMock).toHaveBeenCalledWith('ecookbook', 11, {
+      start_date: '2026-04-22',
+      due_date: '2026-04-30'
+    });
+    expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/04/22');
   });
 
   it('cancels a pending date edit on Escape and outside click', async () => {
@@ -1024,6 +1079,9 @@ describe('TaskDetailsDialog', () => {
     expect(buildX).toBeGreaterThan(designX);
 
     const startDateDisplay = screen.getByTestId('start-date-display-11');
+    expect(startDateDisplay.tagName).toBe('SPAN');
+    expect(startDateDisplay.getAttribute('role')).toBe('button');
+
     const dblClickEvent = new MouseEvent('dblclick', { bubbles: true, cancelable: true });
 
     let dispatchResult = true;
@@ -1036,11 +1094,10 @@ describe('TaskDetailsDialog', () => {
     const startDateInput = (await screen.findByTestId('start-date-input-11')) as HTMLInputElement;
     expect(startDateInput).toBeTruthy();
 
-    fireEvent.change(startDateInput, {
-      target: { value: '2026-02-01' }
-    });
-
-    fireEvent.keyDown(startDateInput, { key: 'Enter', code: 'Enter' });
+    const picker = screen.getByRole('dialog', { name: 'Choose Date' });
+    const day = picker.querySelector('[data-inline-date-picker-day][data-date="2026-02-01"]');
+    expect(day).toBeTruthy();
+    fireEvent.click(day as Element);
 
     await waitFor(() => {
       expect(Number(screen.getByTestId('task-details-process-step-hit-11').getAttribute('width'))).toBeGreaterThan(initialWidth);

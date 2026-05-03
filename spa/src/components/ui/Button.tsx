@@ -3,7 +3,7 @@ import { forwardRef } from 'react';
 import { reportCompactIconActionActiveStyle, reportCompactIconActionStyle, reportStyles } from '../designSystem';
 import { cn } from './cn';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'pill' | 'pill-primary' | 'pill-secondary' | 'icon' | 'icon-active' | 'icon-muted';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'pill' | 'pill-primary' | 'pill-secondary' | 'icon' | 'icon-active' | 'icon-muted' | 'icon-plain' | 'icon-plain-active';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -26,6 +26,8 @@ const variantClassName: Record<ButtonVariant, string> = {
   icon: reportStyles.iconButton,
   'icon-active': reportStyles.iconButtonActive,
   'icon-muted': reportStyles.iconButtonMuted,
+  'icon-plain': reportStyles.iconButtonPlain,
+  'icon-plain-active': reportStyles.iconButtonPlainActive,
 };
 
 const sizeClassName: Record<ButtonSize, string> = {
@@ -70,9 +72,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className
         )}
         style={
-          variant === 'icon' || variant === 'icon-active' || variant === 'icon-muted'
+          variant === 'icon' || variant === 'icon-active' || variant === 'icon-muted' || variant === 'icon-plain' || variant === 'icon-plain-active'
             ? {
-                ...(variant === 'icon-active' ? reportCompactIconActionActiveStyle : reportCompactIconActionStyle),
+                ...(variant === 'icon-active' || variant === 'icon-plain-active'
+                  ? reportCompactIconActionActiveStyle
+                  : reportCompactIconActionStyle),
                 ...style
               }
             : style

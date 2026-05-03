@@ -80,6 +80,7 @@ export const messages = {
     },
     timeline: {
       laneHeader: 'Version / Project',
+      laneMenuAria: 'Open actions for {versionName}',
       startAiAria: 'Start AI analysis for {versionName}',
       showDetailAria: 'Show detailed report for {versionName}',
       ticketTitle: 'Issue #{id}{suffix}',
@@ -295,6 +296,7 @@ export const messages = {
     },
     timeline: {
       laneHeader: 'バージョン / プロジェクト',
+      laneMenuAria: '{versionName} の操作を開く',
       startAiAria: '{versionName} のAI分析を開始',
       showDetailAria: '{versionName} の詳細レポートを表示',
       ticketTitle: 'チケット #{id}{suffix}',
