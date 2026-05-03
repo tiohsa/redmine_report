@@ -1,6 +1,6 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { t } from '../../i18n';
 import { updateTaskDates } from '../../services/scheduleReportApi';
 import { AiResponsePanel, type EditableSections } from '../AiResponsePanel';
@@ -9,6 +9,9 @@ import { HeaderMonth, HeaderYear, TimelineLane, TimelineStep } from './timeline'
 import { calculateStaggeredLanes } from './timelineAxis';
 import { TaskDetailsDialog } from './TaskDetailsDialog';
 import type { AiResponseView } from '../../types/weeklyReport';
+import { Button } from '../ui/Button';
+import { Icon } from '../ui/Icon';
+import { cn } from '../ui/cn';
 import {
   drawStrokeText,
   prepareHiDPICanvas,
@@ -126,6 +129,170 @@ const InlineReportSlot = ({ response, isLoading, errorMessage, onSave, onDirtyCh
     </div>
   </section>
 );
+
+type LaneActionMenuProps = {
+  lane: TimelineLane;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  menuRef?: RefObject<HTMLDivElement>;
+  onOpenAi?: (payload: { versionId: number; versionName: string; projectId: number; projectName: string }) => void;
+  onOpenReport?: (payload: { laneKey: string; versionId: number; versionName: string; projectId: number; projectName: string; projectIdentifier: string }) => void;
+};
+
+const LaneActionMenu = ({
+  lane,
+  isOpen,
+  onToggle,
+  onClose,
+  menuRef,
+  onOpenAi,
+  onOpenReport
+}: LaneActionMenuProps) => {
+  if (!lane.versionId || (!onOpenAi && !onOpenReport)) {
+    return null;
+  }
+
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({
+    visibility: 'hidden'
+  });
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setMenuStyle({
+        visibility: 'hidden'
+      });
+      return;
+    }
+
+    const updatePlacement = () => {
+      if (!buttonRef.current || !panelRef.current) return;
+
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      const panelRect = panelRef.current.getBoundingClientRect();
+      const viewportPadding = 8;
+      const viewportGap = 8;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      const clampedWidth = Math.min(panelRect.width, Math.max(viewportWidth - viewportPadding * 2, 0));
+      const clampedHeight = panelRect.height;
+
+      let left = buttonRect.right - clampedWidth;
+      if (left < viewportPadding) {
+        left = viewportPadding;
+      }
+      if (left + clampedWidth > viewportWidth - viewportPadding) {
+        left = Math.max(viewportPadding, viewportWidth - clampedWidth - viewportPadding);
+      }
+
+      let top = buttonRect.bottom + viewportGap;
+      if (top + clampedHeight > viewportHeight - viewportPadding) {
+        top = Math.max(viewportPadding, buttonRect.top - clampedHeight - viewportGap);
+      }
+      if (top + clampedHeight > viewportHeight - viewportPadding) {
+        top = Math.max(viewportPadding, viewportHeight - clampedHeight - viewportPadding);
+      }
+
+      setMenuStyle({
+        position: 'fixed',
+        left,
+        top,
+        width: clampedWidth,
+        visibility: 'visible'
+      });
+    };
+
+    updatePlacement();
+    window.addEventListener('resize', updatePlacement);
+    window.addEventListener('scroll', updatePlacement, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePlacement);
+      window.removeEventListener('scroll', updatePlacement, true);
+    };
+  }, [isOpen, lane.laneKey, lane.versionName, onOpenAi, onOpenReport]);
+
+  return (
+    <div
+      ref={menuRef}
+      className="relative shrink-0"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <Button
+        type="button"
+        ref={buttonRef}
+        variant={isOpen ? 'icon-plain-active' : 'icon-plain'}
+        aria-label={t('timeline.laneMenuAria', { versionName: lane.versionName })}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className="shrink-0"
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle();
+        }}
+      >
+        <Icon name="kebab-horizontal" className="h-3.5 w-3.5" />
+      </Button>
+      {isOpen && (
+        <div
+          ref={panelRef}
+          role="menu"
+          style={menuStyle}
+          className={cn(
+            reportStyles.dropdownPanel,
+            'z-50 overflow-hidden p-2 animate-in fade-in slide-in-from-top-2 duration-200 max-w-[calc(100vw-16px)]'
+          )}
+        >
+          {onOpenAi ? (
+            <button
+              type="button"
+              role="menuitem"
+              className={cn(reportStyles.dropdownRow, 'w-full border-0 bg-transparent px-3 py-2 text-left')}
+              onClick={() => {
+                onClose();
+                onOpenAi({
+                  versionId: lane.versionId as number,
+                  versionName: lane.versionName,
+                  projectId: lane.projectId,
+                  projectName: lane.projectName
+                });
+              }}
+            >
+              <Icon name="sparkles" className="h-3.5 w-3.5 text-[var(--color-primary-600)]" />
+              <span className="min-w-0 flex-1 truncate">{t('timeline.startAiAria', { versionName: lane.versionName })}</span>
+            </button>
+          ) : null}
+          {onOpenAi && onOpenReport ? <div className={reportStyles.dropdownDivider} /> : null}
+          {onOpenReport ? (
+            <button
+              type="button"
+              role="menuitem"
+              className={cn(reportStyles.dropdownRow, 'w-full border-0 bg-transparent px-3 py-2 text-left')}
+              onClick={() => {
+                onClose();
+                onOpenReport({
+                  laneKey: lane.laneKey,
+                  versionId: lane.versionId as number,
+                  versionName: lane.versionName,
+                  projectId: lane.projectId,
+                  projectName: lane.projectName,
+                  projectIdentifier: lane.projectIdentifier
+                });
+              }}
+            >
+              <Icon name="file-text" className="h-3.5 w-3.5 text-[var(--color-primary-600)]" />
+              <span className="min-w-0 flex-1 truncate">{t('timeline.showDetailAria', { versionName: lane.versionName })}</span>
+            </button>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const formatShortDate = (isoDate: string) => format(parseISO(isoDate), 'M/d');
 
@@ -260,14 +427,17 @@ export function TimelineChart({
     versionName: string;
   } | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  const [openLaneMenuKey, setOpenLaneMenuKey] = useState<string | null>(null);
   const [timelineEditError, setTimelineEditError] = useState<string | null>(null);
+  const openLaneMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleStepSelect = (stepId?: string) => {
     setSelectedStepId(stepId || null);
   };
 
-  const handleBackgroundClick = (event: React.MouseEvent) => {
+  const handleBackgroundClick = () => {
     setSelectedStepId(null);
+    setOpenLaneMenuKey(null);
     if (activeReportLaneKey) {
       onClearSelection?.();
     }
@@ -284,6 +454,31 @@ export function TimelineChart({
     });
   };
 
+  useEffect(() => {
+    if (!openLaneMenuKey) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (openLaneMenuRef.current && target instanceof Node && openLaneMenuRef.current.contains(target)) {
+        return;
+      }
+      setOpenLaneMenuKey(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenLaneMenuKey(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openLaneMenuKey]);
+
   return (
     <>
       <div className={reportStyles.timelineShell} onClick={handleBackgroundClick}>
@@ -293,7 +488,6 @@ export function TimelineChart({
           </div>
           {layoutData.map((project, projectIndex) => {
             const laneBackground = getLaneBackgroundStyle(projectIndex, project.laneKey === activeReportLaneKey);
-            const isActiveReportLane = project.laneKey === activeReportLaneKey;
 
             return (
               <div
@@ -302,116 +496,50 @@ export function TimelineChart({
                 className={`${reportStyles.timelineLaneLabel} ${laneBackground.labelClassName}`}
                 style={{ height: project.height, minHeight: 60 }}
               >
-                <div
-                  className={`${reportStyles.timelineLaneAction} ${project.versionId && !isActiveReportLane ? 'cursor-pointer hover:bg-[var(--color-brand-tint)]' : ''}`}
-                  style={{ height: project.contentHeight }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (project.versionId && !isActiveReportLane) {
-                      onVersionReportClick?.({
-                        laneKey: project.laneKey,
-                        versionId: project.versionId as number,
-                        versionName: project.versionName,
-                        projectId: project.projectId,
-                        projectName: project.projectName,
-                        projectIdentifier: project.projectIdentifier
-                      });
-                    }
-                  }}
-                >
-                  {project.versionId ? (
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`/versions/${project.versionId}`}
-                        className="text-[14px] font-display font-medium text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] hover:underline"
-                        title={project.versionName}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {project.versionName}
-                      </a>
-                      <button
-                        type="button"
-                        aria-label={t('timeline.startAiAria', { versionName: project.versionName })}
-                        className={`group ${reportStyles.timelineActionPill}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onVersionAiClick?.({
-                            versionId: project.versionId as number,
-                            versionName: project.versionName,
-                            projectId: project.projectId,
-                            projectName: project.projectName
-                          });
-                        }}
-                      >
-                        <svg
-                          className="w-4 h-4 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
+                <div className={`${reportStyles.timelineLaneAction} relative`} style={{ height: project.contentHeight }}>
+                  <div className="flex w-full items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      {project.versionId ? (
+                        <a
+                          href={`/versions/${project.versionId}`}
+                          className="text-[14px] font-display font-medium text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] hover:underline"
+                          title={project.versionName}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <defs>
-                            <linearGradient id={`ai-grad-${project.versionId}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor="#6366f1" />
-                              <stop offset="100%" stopColor="#a855f7" />
-                            </linearGradient>
-                          </defs>
-                          <path
-                            d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z"
-                            fill={`url(#ai-grad-${project.versionId})`}
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t('timeline.showDetailAria', { versionName: project.versionName })}
-                        className={`group ${reportStyles.timelineActionPill}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onVersionReportClick?.({
-                            laneKey: project.laneKey,
-                            versionId: project.versionId as number,
-                            versionName: project.versionName,
-                            projectId: project.projectId,
-                            projectName: project.projectName,
-                            projectIdentifier: project.projectIdentifier
-                          });
-                        }}
-                      >
-                        <svg
-                          className="w-4 h-4 relative z-10 transition-transform duration-300 group-hover:scale-110"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
+                          {project.versionName}
+                        </a>
+                      ) : (
+                        <div className="text-[14px] font-display font-medium text-[#222222]" title={project.versionName}>
+                          {project.versionName}
+                        </div>
+                      )}
+                      {project.projectIdentifier ? (
+                        <a
+                          href={`/projects/${project.projectIdentifier}`}
+                          className="mt-1 block text-[12px] font-sans text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] hover:underline"
+                          title={project.projectName}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <path
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            stroke="#3b82f6"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
+                          {project.projectName}
+                        </a>
+                      ) : (
+                        <div className="mt-1 text-[12px] font-sans text-[#45515e]" title={project.projectName}>
+                          {project.projectName}
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="text-[14px] font-display font-medium text-[#222222]" title={project.versionName}>
-                      {project.versionName}
-                    </div>
-                  )}
-                  {project.projectIdentifier ? (
-                    <a
-                      href={`/projects/${project.projectIdentifier}`}
-                      className="text-[12px] text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] hover:underline mt-1 font-sans"
-                      title={project.projectName}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {project.projectName}
-                    </a>
-                  ) : (
-                    <div className="text-[12px] text-[#45515e] mt-1 font-sans" title={project.projectName}>
-                      {project.projectName}
-                    </div>
-                  )}
+                    <LaneActionMenu
+                      lane={project}
+                      isOpen={openLaneMenuKey === project.laneKey}
+                      menuRef={openLaneMenuKey === project.laneKey ? openLaneMenuRef : undefined}
+                      onToggle={() => {
+                        setOpenLaneMenuKey((current) => (current === project.laneKey ? null : project.laneKey));
+                      }}
+                      onClose={() => setOpenLaneMenuKey(null)}
+                      onOpenAi={onVersionAiClick}
+                      onOpenReport={onVersionReportClick}
+                    />
+                  </div>
                 </div>
                 {project.reportHeight > 0 && <div aria-hidden="true" style={{ height: project.reportHeight }} />}
               </div>

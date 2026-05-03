@@ -83,6 +83,8 @@ export const reportStyles = {
   buttonMd: 'report-button-md',
   buttonLg: 'report-button-lg',
   buttonLoading: 'report-button-loading',
+  iconButtonPlain: 'report-icon-button-plain',
+  iconButtonPlainActive: 'report-icon-button-plain-active',
   dialogShell: 'report-dialog-shell',
   dialogBackdrop: 'report-dialog-backdrop',
   dialogPanel: 'report-dialog-panel',

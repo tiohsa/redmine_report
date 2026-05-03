@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createRef, type ComponentProps } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TimelineChart } from '../projectStatusReport/TimelineChart';
 import type { TimelineLane } from '../projectStatusReport/timeline';
 
@@ -66,6 +66,13 @@ const renderTimelineChart = (
 };
 
 describe('TimelineChart', () => {
+  beforeEach(() => {
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn()
+    });
+  });
+
   it('renders the canvas layer and keeps lane labels styled', () => {
     renderTimelineChart();
 
@@ -85,12 +92,16 @@ describe('TimelineChart', () => {
     expect(screen.queryByTestId('timeline-lane-active-bg-1')).toBeNull();
   });
 
-  it('calls the detail report callback once when clicking the detail button', () => {
+  it('calls the detail report callback once from the lane actions menu', () => {
     const onVersionReportClick = vi.fn();
     renderTimelineChart({ onVersionReportClick });
 
     const lane = screen.getByTestId('timeline-lane-label-1');
-    fireEvent.click(within(lane).getByRole('button', { name: 'timeline.showDetailAria' }));
+    expect(within(lane).queryByRole('menu')).toBeNull();
+    expect(within(lane).queryByRole('button', { name: 'timeline.showDetailAria' })).toBeNull();
+
+    fireEvent.click(within(lane).getByRole('button', { name: 'timeline.laneMenuAria' }));
+    fireEvent.click(within(lane).getByRole('menuitem', { name: 'timeline.showDetailAria' }));
 
     expect(onVersionReportClick).toHaveBeenCalledTimes(1);
     expect(onVersionReportClick).toHaveBeenCalledWith(expect.objectContaining({
@@ -103,13 +114,15 @@ describe('TimelineChart', () => {
     }));
   });
 
-  it('calls the ai button callback once without triggering the detail report callback', () => {
+  it('calls the ai callback once from the lane actions menu without triggering the detail report callback', () => {
     const onVersionAiClick = vi.fn();
     const onVersionReportClick = vi.fn();
     renderTimelineChart({ onVersionAiClick, onVersionReportClick });
 
     const lane = screen.getByTestId('timeline-lane-label-1');
-    fireEvent.click(within(lane).getByRole('button', { name: 'timeline.startAiAria' }));
+    expect(within(lane).queryByRole('button', { name: 'timeline.startAiAria' })).toBeNull();
+    fireEvent.click(within(lane).getByRole('button', { name: 'timeline.laneMenuAria' }));
+    fireEvent.click(within(lane).getByRole('menuitem', { name: 'timeline.startAiAria' }));
 
     expect(onVersionAiClick).toHaveBeenCalledTimes(1);
     expect(onVersionReportClick).not.toHaveBeenCalled();

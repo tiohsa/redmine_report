@@ -240,9 +240,20 @@
     @apply relative shrink-0 p-0 bg-white text-[#8e8e93] hover:bg-[#f8f9fa];
   }
 
+  .report-icon-button-plain,
+  .report-icon-button-plain-active {
+    @apply relative shrink-0 p-0 border-0 bg-transparent text-[#8e8e93] hover:bg-[#f8f9fa];
+  }
+
+  .report-icon-button-plain-active {
+    @apply bg-[#e8f0fe] text-[#1a73e8] hover:bg-[#e8f0fe];
+  }
+
   .report-icon-button svg,
   .report-icon-button-active svg,
   .report-icon-button-muted svg,
+  .report-icon-button-plain svg,
+  .report-icon-button-plain-active svg,
   .report-menu-toggle-icon svg {
     width: 16px;
     height: 16px;
