@@ -31,4 +31,7 @@ Thumbs.db
 .vscode/
 .idea/
 .codex/
-.venv
+.venv/
+.playwright-mcp/
+graphify-out/
+

@@ -340,10 +340,6 @@ export function ReportDetailPanel({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="report-detail-badges">
-            <span className="report-detail-badge">{t('reportDetail.inlineEdit')}</span>
-            <span className="report-detail-badge">{t('reportDetail.dynamicRows')}</span>
-          </div>
           {dirty && (
             <span className="text-[13px] font-sans font-medium text-[var(--color-warning-text)]" data-testid="unsaved-indicator">
               {t('reportDetail.unsavedChanges')}

@@ -121,8 +121,6 @@ export const messages = {
       savedMarkdownPreview: 'Saved note preview',
       weeklyEditTitle: 'Weekly Report Editor',
       weeklyEditSubtitle: 'Add or remove arbitrary rows, and press Save to persist.',
-      inlineEdit: 'Inline Edit',
-      dynamicRows: 'Dynamic Rows',
       unsavedChanges: 'Unsaved changes',
       cardFact: 'Key Achievements This Week',
       cardFactBadge: 'Fact',
