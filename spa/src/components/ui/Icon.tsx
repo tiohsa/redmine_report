@@ -23,7 +23,11 @@ export type IconName =
   | 'tag'
   | 'text'
   | 'today'
-  | 'warning';
+  | 'warning'
+  | 'bookmark'
+  | 'bar-chart'
+  | 'pencil'
+  | 'link';
 
 type IconProps = SVGProps<SVGSVGElement> & {
   name: IconName;
@@ -86,6 +90,10 @@ const pathByName: Record<IconName, JSX.Element> = {
     </>
   ),
   warning: <path fillRule="evenodd" clipRule="evenodd" d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18Zm-1-11a1 1 0 1 1 2 0v4a1 1 0 1 1-2 0v-4Zm1 9a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z" />,
+  bookmark: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />,
+  'bar-chart': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M18 20V10M12 20V4M6 20v-6" />,
+  pencil: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />,
+  link: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />,
 };
 
 export const Icon = ({ name, className, ...props }: IconProps) => (

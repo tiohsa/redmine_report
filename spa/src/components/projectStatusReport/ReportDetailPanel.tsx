@@ -9,6 +9,7 @@ import {
 } from '../../services/reportDetailApi';
 import { reportStyles } from '../designSystem';
 import { Button } from '../ui/Button';
+import { Icon } from '../ui/Icon';
 import { BindReportDetailIssueDialog } from './BindReportDetailIssueDialog';
 
 type ReportDetailPanelProps = {
@@ -68,6 +69,9 @@ const DEFAULT_ROWS: RowsState = {
   risks: ['該当なし'],
   decisions: ['該当なし']
 };
+
+const compactDetailActionClassName = 'box-border !h-8 !min-h-8 !rounded-[6px] !px-3 !py-0 text-[12px]';
+const compactDetailLinkClassName = 'inline-flex h-8 min-h-8 items-center rounded-[6px] border border-[#e5e7eb] px-3 text-[12px] font-semibold leading-none';
 
 const rowsEqual = (a: RowsState, b: RowsState) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -331,13 +335,23 @@ export function ReportDetailPanel({
     }
   };
 
+  const scopeLabel = activePreset.targets
+    .map((target) => `${target.projectName} / ${target.versionName}`)
+    .join(' , ');
+
   return (
     <section className={`${reportStyles.surfaceElevated} mt-4 flex min-h-0 flex-col overflow-hidden`} data-testid="report-detail-panel">
       {/* Header */}
       <div className="report-detail-header">
         <div>
           <div className="report-detail-header-title">
+            {t('reportDetail.title', { name: activePreset.name })}
           </div>
+          {scopeLabel ? (
+            <div className="mt-1 text-[12px] font-medium text-[#45515e]">
+              {scopeLabel}
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {dirty && (
@@ -362,29 +376,57 @@ export function ReportDetailPanel({
               href={`/issues/${activePreset.detailReportIssueId}`}
               target="_blank"
               rel="noreferrer"
-              className="rounded-[8px] border border-[#e5e7eb] px-3 py-1.5 text-[12px] font-semibold text-[#17437d]"
+              className={`${compactDetailLinkClassName} text-[#17437d] hover:bg-[#fbfdff]`}
             >
               {t('reportDetail.issueLabel', { id: activePreset.detailReportIssueId })}
             </a>
           ) : (
-            <span className="rounded-[8px] border border-[#e5e7eb] px-3 py-1.5 text-[12px] font-semibold text-[#45515e]">
+            <span className={`${compactDetailLinkClassName} text-[#45515e] bg-white`}>
               {t('reportDetail.unbound')}
             </span>
           )}
-          <Button variant="pill-secondary" size="sm" className="h-8 px-3 text-[12px]" onClick={() => setBindDialogOpen(true)}>
+          <Button
+            type="button"
+            variant="pill-secondary"
+            size="sm"
+            className={compactDetailActionClassName}
+            leadingIcon={<Icon name="link" className="h-3.5 w-3.5" />}
+            onClick={() => setBindDialogOpen(true)}
+          >
             {t('reportDetail.bindIssue')}
           </Button>
           {isEditMode ? (
-            <Button variant="secondary" onClick={handleToggleMode} data-testid="toggle-view-mode-btn">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className={`${compactDetailActionClassName} cursor-pointer`}
+              style={{ height: '32px' }}
+              onClick={handleToggleMode}
+              data-testid="toggle-view-mode-btn"
+            >
               {t('reportDetail.viewMode')}
             </Button>
           ) : (
-            <Button variant="primary" onClick={handleToggleMode} data-testid="toggle-edit-mode-btn">
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              className={`${compactDetailActionClassName} cursor-pointer !shadow-none`}
+              onClick={handleToggleMode}
+              leadingIcon={<Icon name="pencil" className="h-4 w-4" />}
+              data-testid="toggle-edit-mode-btn"
+            >
               {t('reportDetail.editMode')}
             </Button>
           )}
           {isEditMode && (
             <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              className={`${compactDetailActionClassName} !px-4 cursor-pointer`}
+              style={{ height: '32px' }}
               onClick={handleSave}
               disabled={!isBound || !dirty || saving}
               loading={saving}

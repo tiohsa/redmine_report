@@ -37,6 +37,8 @@ const formatSavedAt = (savedAt?: string | null) => {
   return format(date, 'yyyy-MM-dd HH:mm');
 };
 
+const compactDetailActionClassName = 'box-border !h-8 !min-h-8 !rounded-[6px] !px-3 !py-0 text-[12px]';
+
 export function DetailReportCard({
   rootProjectIdentifier,
   target,
@@ -172,7 +174,7 @@ export function DetailReportCard({
             type="button"
             variant="pill-secondary"
             size="sm"
-            className="h-8 px-3 text-[12px]"
+            className={compactDetailActionClassName}
             onClick={() => onOpenWeeklyDialog(target)}
           >
             <Icon name="sparkles" className="h-3.5 w-3.5" />

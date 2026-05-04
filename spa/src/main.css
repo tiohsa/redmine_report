@@ -216,11 +216,11 @@
   }
 
   .report-pill-primary {
-    @apply px-5 py-2 font-medium bg-[#181e25] text-white hover:bg-black disabled:opacity-50 disabled:pointer-events-none;
+    @apply px-5 py-2 font-medium bg-[var(--color-brand-3)] text-white hover:bg-[#002d6b] disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .report-pill-secondary {
-    @apply px-5 py-2 font-medium bg-[#f0f0f0] text-[#222222] hover:bg-[#e5e7eb] disabled:opacity-50 disabled:pointer-events-none;
+    @apply px-5 py-2 font-medium bg-white border border-[var(--color-border-default)] text-[#222222] hover:bg-[#f8fafc] disabled:opacity-50 disabled:pointer-events-none;
   }
 
   .report-pill-nav {
@@ -734,11 +734,11 @@
   }
 
   .report-button-primary {
-    @apply rounded-[8px] bg-[#181e25] px-5 py-2 text-[14px] text-white shadow-subtle hover:bg-black;
+    @apply rounded-full bg-[var(--color-brand-3)] px-6 py-2 text-[14px] text-white shadow-subtle hover:bg-[#002d6b];
   }
 
   .report-button-secondary {
-    @apply rounded-[8px] bg-[#f0f0f0] px-5 py-2 text-[14px] text-[#222222] hover:bg-[#e5e7eb];
+    @apply rounded-full bg-white border border-[var(--color-border-default)] px-6 py-2 text-[14px] text-[#222222] hover:bg-[#f8fafc];
   }
 
   .report-button-ghost {
@@ -1161,7 +1161,7 @@
   }
 
   .report-detail-row {
-    @apply flex items-start gap-2 rounded-[10px] px-2 py-1.5 transition-colors;
+    @apply flex h-8 items-center gap-2 rounded-[10px] px-2 py-0 transition-colors;
   }
 
   .report-detail-row:hover {
@@ -1173,7 +1173,7 @@
   }
 
   .report-detail-row-input {
-    @apply flex-1 min-w-0 resize-none border-0 bg-transparent px-0 py-0 text-[13px] font-sans leading-6 text-[#222222] outline-none;
+    @apply flex-1 min-w-0 h-8 rounded-[6px] border border-[var(--color-border-default)] bg-white px-3 py-0 text-[13px] font-sans leading-none text-[#222222] outline-none transition-colors focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
   }
 
   .report-detail-row-text {
@@ -1185,7 +1185,7 @@
   }
 
   .report-detail-row-delete {
-    @apply flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[14px] text-[#c0c4cc] transition-colors;
+    @apply flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[6px] border border-transparent bg-white text-[14px] text-[#c0c4cc] transition-colors;
     appearance: none;
   }
 
@@ -1194,7 +1194,7 @@
   }
 
   .report-detail-add-row {
-    @apply mt-1 inline-flex cursor-pointer items-center gap-1 rounded-[8px] border border-dashed border-[var(--color-border-default)] bg-transparent px-3 py-1 text-[12px] font-sans font-medium text-[#8e8e93] transition-colors;
+    @apply mt-1 inline-flex h-8 cursor-pointer items-center gap-1 rounded-[6px] border border-dashed border-[var(--color-border-default)] bg-transparent px-3 text-[12px] font-sans font-medium text-[#8e8e93] transition-colors;
     appearance: none;
   }
 

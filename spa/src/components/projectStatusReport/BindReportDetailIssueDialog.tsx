@@ -29,6 +29,7 @@ export function BindReportDetailIssueDialog({
   onBind,
   onClose
 }: BindReportDetailIssueDialogProps) {
+  const compactDialogButtonClassName = 'box-border !h-8 !min-h-8 !rounded-[6px] !px-3 !py-0 text-[12px]';
   const [issueId, setIssueId] = useState(activePreset.detailReportIssueId ? String(activePreset.detailReportIssueId) : '');
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,12 +84,12 @@ export function BindReportDetailIssueDialog({
       <div className={reportStyles.dialogOverlay} role="dialog" aria-modal="true" aria-label={t('reportDetail.bindIssue')}>
         <div className={`${reportStyles.dialogPanel} ${reportStyles.dialogPanelSm} animate-in fade-in zoom-in duration-300`}>
           <div className={reportStyles.dialogBody}>
-            <h2 className="report-section-title">{t('reportDetail.bindIssue')}</h2>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button variant="secondary" onClick={() => setCreateOpen(true)}>
-                {t('reportDetail.createIssue')}
-              </Button>
-            </div>
+          <h2 className="report-section-title">{t('reportDetail.bindIssue')}</h2>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button variant="secondary" className={compactDialogButtonClassName} onClick={() => setCreateOpen(true)}>
+              {t('reportDetail.createIssue')}
+            </Button>
+          </div>
 
             <label className="mt-6 block text-[13px] font-medium text-[#45515e]">
               {t('reportDetail.selectExistingIssue')}
@@ -104,8 +105,8 @@ export function BindReportDetailIssueDialog({
             {error ? <p className={`mt-3 ${reportStyles.alertError}`} role="alert">{error}</p> : null}
 
             <div className="mt-8 flex items-center justify-end gap-3">
-              <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-              <Button onClick={validateAndBind} disabled={isValidating}>
+              <Button variant="secondary" className={compactDialogButtonClassName} onClick={onClose}>{t('common.cancel')}</Button>
+              <Button className={compactDialogButtonClassName} onClick={validateAndBind} disabled={isValidating}>
                 {isValidating ? t('weeklyDialog.validating') : t('reportDetail.validateAndBind')}
               </Button>
             </div>
@@ -129,4 +130,3 @@ export function BindReportDetailIssueDialog({
     </>
   );
 }
-
