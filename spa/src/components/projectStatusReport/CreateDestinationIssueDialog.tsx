@@ -29,6 +29,7 @@ export function CreateDestinationIssueDialog({
   onCreated,
   onClose,
 }: CreateDestinationIssueDialogProps) {
+  const compactDialogButtonClassName = 'box-border !h-8 !min-h-8 !rounded-[6px] !px-3 !py-0 text-[12px]';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [iframeReady, setIframeReady] = useState(false);
   const [iframeError, setIframeError] = useState<string | null>(null);
@@ -224,14 +225,14 @@ export function CreateDestinationIssueDialog({
           >
             <Icon name="open-in-new" />
           </a>
-          <Button variant="secondary" className="min-w-[88px]" style={{ height: '28px', minWidth: '88px' }} onClick={onClose}>
+          <Button variant="secondary" className={`${compactDialogButtonClassName} min-w-[88px]`} style={{ minWidth: '88px' }} onClick={onClose}>
             {t('common.cancel')}
           </Button>
           <Button
             disabled={isSubmitting || !iframeReady}
             onClick={handleSave}
-            className="min-w-[88px]"
-            style={{ height: '28px', minWidth: '88px' }}
+            className={`${compactDialogButtonClassName} min-w-[88px]`}
+            style={{ minWidth: '88px' }}
           >
             {isSubmitting ? t('common.saving') : t('common.save')}
           </Button>

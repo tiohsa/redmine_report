@@ -145,6 +145,7 @@ export const ProjectStatusReportToolbar = ({
 }: ProjectStatusReportToolbarProps) => {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const compactActionClassName = 'box-border !h-8 !min-h-8 !rounded-[6px] !px-3 !py-0 text-[12px]';
   const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-1.5 w-[280px] max-h-[320px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
   const legendDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[220px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
   const sizeDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[180px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
@@ -399,7 +400,8 @@ export const ProjectStatusReportToolbar = ({
             onClick={() => onDetailReportVisibleChange(!detailReportVisible)}
             variant={detailReportVisible ? 'pill-primary' : 'pill-secondary'}
             size="sm"
-            className="h-8 px-3 text-[12px]"
+            className={compactActionClassName}
+            leadingIcon={<Icon name="bar-chart" className="h-3.5 w-3.5" />}
             disabled={!activeReportPreset}
           >
             {t('reportDetail.toggle')}

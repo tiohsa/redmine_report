@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import { ReportDetailPanel } from '../ReportDetailPanel';
 import type { ReportPreset } from '../../../services/reportPresetStorage';
 import type { ReportDetailResponse } from '../../../services/reportDetailApi';

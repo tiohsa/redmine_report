@@ -17,6 +17,7 @@ export function SaveReportPresetDialog({
   onSave,
   onClose
 }: SaveReportPresetDialogProps) {
+  const compactDialogButtonClassName = 'box-border !h-8 !min-h-8 !rounded-[6px] !px-3 !py-0 text-[12px]';
   const [name, setName] = useState('');
   const trimmedName = name.trim();
   const duplicateName = useMemo(
@@ -68,12 +69,11 @@ export function SaveReportPresetDialog({
           {error ? <p className={`mt-3 ${reportStyles.alertError}`} role="alert">{error}</p> : null}
 
           <div className="mt-8 flex items-center justify-end gap-3">
-            <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-            <Button onClick={() => onSave(trimmedName)} disabled={Boolean(error)}>{t('common.save')}</Button>
+            <Button variant="secondary" className={compactDialogButtonClassName} onClick={onClose}>{t('common.cancel')}</Button>
+            <Button className={compactDialogButtonClassName} onClick={() => onSave(trimmedName)} disabled={Boolean(error)}>{t('common.save')}</Button>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

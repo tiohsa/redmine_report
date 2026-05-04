@@ -59,9 +59,11 @@ describe('CreateDestinationIssueDialog', () => {
     expect(closeButton.getAttribute('style')).toContain('width: 32px');
     expect(closeButton.getAttribute('style')).toContain('height: 32px');
     expect(closeButton.getAttribute('style')).toContain('border-radius: 6px');
-    expect(cancelButton.getAttribute('style')).toContain('height: 28px');
+    expect(cancelButton.className).toContain('!h-8');
+    expect(cancelButton.className).toContain('!rounded-[6px]');
     expect(cancelButton.getAttribute('style')).toContain('min-width: 88px');
-    expect(saveButton.getAttribute('style')).toContain('height: 28px');
+    expect(saveButton.className).toContain('!h-8');
+    expect(saveButton.className).toContain('!rounded-[6px]');
     expect(saveButton.getAttribute('style')).toContain('min-width: 88px');
   });
 });
