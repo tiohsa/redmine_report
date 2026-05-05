@@ -471,7 +471,7 @@
   }
 
   .report-textarea {
-    @apply w-full resize-y rounded-[16px] border border-gray-200 bg-white px-4 py-3 text-[16px] font-sans leading-[1.50] text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
+    @apply w-full resize-y overflow-auto rounded-[16px] border border-gray-200 bg-white px-4 py-3 text-[16px] font-sans leading-[1.50] text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
   }
 
   .report-textarea-mono {
