@@ -8,6 +8,14 @@ module RedmineReport
     # Always creates a new revision instead of overwriting existing comments.
     class ReportDetailUpdateService
       WEEKLY_HEADER_PATTERN = /\[Weekly\]\[(?<week>[^\]]+)\]\s+project_id=(?<project_id>\d+)\s+version_id=(?<version_id>\d+)(?:\s+revision=(?<revision>\d+))?/
+      SECTION_HEADINGS = {
+        highlights_this_week: '今週の主要実績',
+        next_week_actions: '来週の予定・アクション',
+        risks: '課題・リスク',
+        decisions: '決定事項'
+      }.freeze
+
+      SaveContext = Struct.new(:issue_id, :project_id, :version_id, :week, :revision, :generated_at, keyword_init: true)
 
       def initialize(user:)
         @user = user
@@ -17,45 +25,19 @@ module RedmineReport
         return error_result('INVALID_INPUT', 'destination_issue_id is required') if destination_issue_id.blank?
         return error_result('INVALID_INPUT', 'targets must be a non-empty array') if !targets.is_a?(Array) || targets.empty?
 
-        issue_id = Integer(destination_issue_id)
-        issue = Issue.find_by(id: issue_id)
-        return error_result('NOT_FOUND', 'Destination issue was not found') unless issue
-        return error_result('FORBIDDEN', 'Destination issue is not visible') unless issue.visible?(@user)
-        return error_result('FORBIDDEN', 'Destination issue is not editable') unless can_add_notes?(issue)
+        issue = find_destination_issue(destination_issue_id)
+        return issue if issue.is_a?(Hash)
 
-        # Use first target for header
-        primary_target = targets.first
-        project_id = (primary_target[:project_id] || primary_target['project_id']).to_i
-        version_id = (primary_target[:version_id] || primary_target['version_id']).to_i
-
-        week = Time.current.strftime('%G-W%V')
-        revision = next_revision(issue, project_id, version_id, week)
-        generated_at = Time.current.iso8601
-
-        note = compose_note(
-          week: week,
-          project_id: project_id,
-          version_id: version_id,
-          revision: revision,
-          generated_at: generated_at,
-          highlights_this_week: normalize_rows(highlights_this_week),
-          next_week_actions: normalize_rows(next_week_actions),
-          risks: normalize_rows(risks),
-          decisions: normalize_rows(decisions)
+        context = build_save_context(issue: issue, targets: targets)
+        sections = normalize_sections(
+          highlights_this_week: highlights_this_week,
+          next_week_actions: next_week_actions,
+          risks: risks,
+          decisions: decisions
         )
 
-        issue.init_journal(@user, note)
-        unless issue.save
-          Rails.logger.error("[schedule_report] report_detail save failed: #{issue.errors.full_messages.join(', ')}")
-          return error_result('SAVE_FAILED', "Failed to save journal: #{issue.errors.full_messages.join(', ')}")
-        end
-
-        {
-          saved: true,
-          revision: revision,
-          saved_at: generated_at,
-          destination_issue_id: issue_id
-        }
+        note = compose_note(context: context, sections: sections)
+        persist_note(issue: issue, note: note, context: context)
       rescue ArgumentError, TypeError
         error_result('INVALID_INPUT', 'destination_issue_id must be an integer')
       rescue ActiveRecord::RecordInvalid => e
@@ -65,22 +47,63 @@ module RedmineReport
 
       private
 
-      def compose_note(week:, project_id:, version_id:, revision:, generated_at:, highlights_this_week:, next_week_actions:, risks:, decisions:)
-        lines = []
-        lines << "[Weekly][#{week}] project_id=#{project_id} version_id=#{version_id} revision=#{revision} generated_at=#{generated_at}"
-        lines << ""
-        lines << "## 今週の主要実績"
-        lines.concat(highlights_this_week.map { |row| "- #{row}" })
-        lines << ""
-        lines << "## 来週の予定・アクション"
-        lines.concat(next_week_actions.map { |row| "- #{row}" })
-        lines << ""
-        lines << "## 課題・リスク"
-        lines.concat(risks.map { |row| "- #{row}" })
-        lines << ""
-        lines << "## 決定事項"
-        lines.concat(decisions.map { |row| "- #{row}" })
-        lines.join("\n")
+      def find_destination_issue(destination_issue_id)
+        issue = Issue.find_by(id: Integer(destination_issue_id))
+        return error_result('NOT_FOUND', 'Destination issue was not found') unless issue
+        return error_result('FORBIDDEN', 'Destination issue is not visible') unless issue.visible?(@user)
+        return error_result('FORBIDDEN', 'Destination issue is not editable') unless can_add_notes?(issue)
+
+        issue
+      end
+
+      def build_save_context(issue:, targets:)
+        primary_target = targets.first
+        project_id = (primary_target[:project_id] || primary_target['project_id']).to_i
+        version_id = (primary_target[:version_id] || primary_target['version_id']).to_i
+
+        week = Time.current.strftime('%G-W%V')
+        SaveContext.new(
+          issue_id: issue.id,
+          project_id: project_id,
+          version_id: version_id,
+          week: week,
+          revision: next_revision(issue, project_id, version_id, week),
+          generated_at: Time.current.iso8601
+        )
+      end
+
+      def normalize_sections(sections)
+        sections.transform_values { |rows| normalize_rows(rows) }
+      end
+
+      def persist_note(issue:, note:, context:)
+        issue.init_journal(@user, note)
+        unless issue.save
+          Rails.logger.error("[schedule_report] report_detail save failed: #{issue.errors.full_messages.join(', ')}")
+          return error_result('SAVE_FAILED', "Failed to save journal: #{issue.errors.full_messages.join(', ')}")
+        end
+
+        {
+          saved: true,
+          revision: context.revision,
+          saved_at: context.generated_at,
+          destination_issue_id: context.issue_id
+        }
+      end
+
+      def compose_note(context:, sections:)
+        lines = [
+          "[Weekly][#{context.week}] project_id=#{context.project_id} version_id=#{context.version_id} revision=#{context.revision} generated_at=#{context.generated_at}",
+          ''
+        ]
+
+        SECTION_HEADINGS.each do |key, heading|
+          lines << "## #{heading}"
+          lines.concat(sections.fetch(key).map { |row| "- #{row}" })
+          lines << ''
+        end
+
+        lines.join("\n").rstrip
       end
 
       def normalize_rows(rows)
