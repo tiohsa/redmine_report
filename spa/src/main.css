@@ -1095,7 +1095,7 @@
 
   /* Report Detail Panel — Three-Card Editor */
   .report-detail-header {
-    @apply flex flex-wrap items-start justify-between gap-4 px-6 py-5;
+    @apply flex flex-wrap items-center justify-end gap-2 px-6 py-3;
   }
 
   .report-detail-header-title {
