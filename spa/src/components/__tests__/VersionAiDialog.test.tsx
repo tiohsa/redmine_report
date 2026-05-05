@@ -1,20 +1,26 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { VersionAiDialog } from '../projectStatusReport/VersionAiDialog';
 
 const generateWeeklyReportMock = vi.fn();
 const prepareWeeklyPromptMock = vi.fn();
-const validateWeeklyDestinationMock = vi.fn();
-const saveWeeklyReportMock = vi.fn();
+const addReportDetailAiCommentMock = vi.fn();
 
 vi.mock('../../services/scheduleReportApi', async () => {
   const actual = await vi.importActual<typeof import('../../services/scheduleReportApi')>('../../services/scheduleReportApi');
   return {
     ...actual,
     prepareWeeklyPrompt: (...args: unknown[]) => prepareWeeklyPromptMock(...args),
-    generateWeeklyReport: (...args: unknown[]) => generateWeeklyReportMock(...args),
-    validateWeeklyDestination: (...args: unknown[]) => validateWeeklyDestinationMock(...args),
-    saveWeeklyReport: (...args: unknown[]) => saveWeeklyReportMock(...args)
+    generateWeeklyReport: (...args: unknown[]) => generateWeeklyReportMock(...args)
+  };
+});
+
+vi.mock('../../services/reportDetailApi', async () => {
+  const actual = await vi.importActual<typeof import('../../services/reportDetailApi')>('../../services/reportDetailApi');
+  return {
+    ...actual,
+    addReportDetailAiComment: (...args: unknown[]) => addReportDetailAiCommentMock(...args)
   };
 });
 
@@ -22,8 +28,7 @@ describe('VersionAiDialog', () => {
   beforeEach(() => {
     generateWeeklyReportMock.mockReset();
     prepareWeeklyPromptMock.mockReset();
-    validateWeeklyDestinationMock.mockReset();
-    saveWeeklyReportMock.mockReset();
+    addReportDetailAiCommentMock.mockReset();
     window.localStorage.clear();
   });
 
@@ -48,6 +53,8 @@ describe('VersionAiDialog', () => {
         projectId={1}
         versionId={2}
         versionName="v1.0"
+        destinationIssueId={123}
+        destinationIssueStatus="VALID"
         onClose={() => undefined}
       />
     );
@@ -62,9 +69,7 @@ describe('VersionAiDialog', () => {
     });
   });
 
-  it('validates and saves destination mapping', async () => {
-    validateWeeklyDestinationMock.mockResolvedValue({ valid: true, reason_code: 'OK', reason_message: 'ok' });
-
+  it('shows the related issue summary and disables save when unbound', async () => {
     render(
       <VersionAiDialog
         open
@@ -72,48 +77,17 @@ describe('VersionAiDialog', () => {
         projectId={1}
         versionId={2}
         versionName="v1.0"
+        destinationIssueId={null}
+        destinationIssueStatus="UNBOUND"
         onClose={() => undefined}
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText(/Issue ID|チケットID/), { target: { value: '123' } });
-    fireEvent.click(screen.getByRole('button', { name: '宛先を確認' }));
-
-    await waitFor(() => {
-      expect(validateWeeklyDestinationMock).toHaveBeenCalledTimes(1);
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: '設定を保存' }));
-    expect(window.localStorage.getItem('redmine_ai_weekly.destinationIssueId.1.2')).toBe('123');
+    expect(screen.getByText('AIレポートを生成する前に、詳細レポートエリアから関連チケットを設定してください。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '関連チケットにコメントを追加' })).toBeDisabled();
   });
 
-  it('auto validates destination when mapping already exists', async () => {
-    validateWeeklyDestinationMock.mockResolvedValue({ valid: true, reason_code: 'OK', reason_message: 'ok' });
-    window.localStorage.setItem('redmine_ai_weekly.destinationIssueId.1.2', '123');
-
-    render(
-      <VersionAiDialog
-        open
-        projectIdentifier="ecookbook"
-        projectId={1}
-        versionId={2}
-        versionName="v1.0"
-        onClose={() => undefined}
-      />
-    );
-
-    await waitFor(() => {
-      expect(validateWeeklyDestinationMock).toHaveBeenCalledTimes(1);
-      expect(validateWeeklyDestinationMock).toHaveBeenCalledWith('ecookbook', expect.objectContaining({
-        project_id: 1,
-        version_id: 2,
-        destination_issue_id: 123
-      }));
-    });
-  });
-
-  it('saves edited markdown from preview textarea', async () => {
-    validateWeeklyDestinationMock.mockResolvedValue({ valid: true, reason_code: 'OK', reason_message: 'ok' });
+  it('adds an AI comment to the bound detail report issue', async () => {
     prepareWeeklyPromptMock.mockResolvedValue({
       header_preview: { project_id: 1, version_id: 2, week: '2026-W07', generated_at: '2026-02-15T10:00:00+09:00' },
       kpi: { completed: 1, wip: 2, overdue: 0, high_priority_open: 1 },
@@ -126,13 +100,14 @@ describe('VersionAiDialog', () => {
       markdown: 'generated markdown',
       tickets: []
     });
-    saveWeeklyReportMock.mockResolvedValue({
+    addReportDetailAiCommentMock.mockResolvedValue({
       saved: true,
       revision: 3,
-      mode: 'NOTE_ONLY',
-      part: null,
-      saved_at: '2026-02-15T10:00:00+09:00'
+      saved_at: '2026-02-15T10:00:00+09:00',
+      destination_issue_id: 123
     });
+
+    const onSaved = vi.fn();
 
     render(
       <VersionAiDialog
@@ -141,13 +116,12 @@ describe('VersionAiDialog', () => {
         projectId={1}
         versionId={2}
         versionName="v1.0"
+        destinationIssueId={123}
+        destinationIssueStatus="VALID"
         onClose={() => undefined}
+        onSaved={onSaved}
       />
     );
-
-    fireEvent.change(screen.getByPlaceholderText(/Issue ID|チケットID/), { target: { value: '123' } });
-    fireEvent.click(screen.getByRole('button', { name: '宛先を確認' }));
-    await waitFor(() => expect(validateWeeklyDestinationMock).toHaveBeenCalledTimes(1));
 
     fireEvent.click(screen.getByRole('button', { name: 'プロンプト作成' }));
     await waitFor(() => expect(prepareWeeklyPromptMock).toHaveBeenCalledTimes(1));
@@ -155,24 +129,27 @@ describe('VersionAiDialog', () => {
     await waitFor(() => expect(generateWeeklyReportMock).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByLabelText('生成プレビュー本文'), { target: { value: 'manual edited markdown' } });
-    fireEvent.click(screen.getByRole('button', { name: 'レポートを保存' }));
+    fireEvent.click(screen.getByRole('button', { name: '関連チケットにコメントを追加' }));
 
     await waitFor(() => {
-      expect(saveWeeklyReportMock).toHaveBeenCalledTimes(1);
-      expect(saveWeeklyReportMock.mock.calls[0][1]).toMatchObject({
-        markdown: 'manual edited markdown'
+      expect(addReportDetailAiCommentMock).toHaveBeenCalledTimes(1);
+      expect(addReportDetailAiCommentMock.mock.calls[0][1]).toMatchObject({
+        destination_issue_id: 123,
+        project_id: 1,
+        version_id: 2,
+        markdown: 'manual edited markdown',
+        week: '2026-W07'
       });
     });
+    expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
   it('saves manual markdown without LLM submission', async () => {
-    validateWeeklyDestinationMock.mockResolvedValue({ valid: true, reason_code: 'OK', reason_message: 'ok' });
-    saveWeeklyReportMock.mockResolvedValue({
+    addReportDetailAiCommentMock.mockResolvedValue({
       saved: true,
       revision: 1,
-      mode: 'NOTE_ONLY',
-      part: null,
-      saved_at: '2026-02-15T10:00:00+09:00'
+      saved_at: '2026-02-15T10:00:00+09:00',
+      destination_issue_id: 123
     });
 
     render(
@@ -182,19 +159,18 @@ describe('VersionAiDialog', () => {
         projectId={1}
         versionId={2}
         versionName="v1.0"
+        destinationIssueId={123}
+        destinationIssueStatus="VALID"
         onClose={() => undefined}
       />
     );
 
-    fireEvent.change(screen.getByPlaceholderText(/Issue ID|チケットID/), { target: { value: '123' } });
-    fireEvent.click(screen.getByRole('button', { name: '宛先を確認' }));
-    await waitFor(() => expect(validateWeeklyDestinationMock).toHaveBeenCalledTimes(1));
     fireEvent.change(screen.getByLabelText('生成プレビュー本文'), { target: { value: 'manual only markdown' } });
-    fireEvent.click(screen.getByRole('button', { name: 'レポートを保存' }));
+    fireEvent.click(screen.getByRole('button', { name: '関連チケットにコメントを追加' }));
 
     await waitFor(() => {
-      expect(saveWeeklyReportMock).toHaveBeenCalledTimes(1);
-      expect(saveWeeklyReportMock.mock.calls[0][1]).toEqual(expect.objectContaining({
+      expect(addReportDetailAiCommentMock).toHaveBeenCalledTimes(1);
+      expect(addReportDetailAiCommentMock.mock.calls[0][1]).toEqual(expect.objectContaining({
         markdown: 'manual only markdown',
         week: expect.stringMatching(/^\d{4}-W\d{2}$/)
       }));
