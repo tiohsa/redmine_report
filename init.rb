@@ -38,6 +38,7 @@ Redmine::Plugin.register :redmine_report do
                  weekly_ai_response
                  report_detail
                  update_report_detail
+                 report_detail_ai_comment
                  bundle_js
                  bundle_css
                ]

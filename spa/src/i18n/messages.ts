@@ -117,6 +117,7 @@ export const messages = {
       issueIdRequired: 'Enter a valid issue ID.',
       validationFailed: 'Failed to validate the issue.',
       saveRequiresIssue: 'Bind a valid Redmine issue before saving this detail report.',
+      aiReportRequiresIssue: 'Set a related detail report issue before generating an AI report.',
       editor: 'Detail report editor',
       savedMarkdownPreview: 'Saved note preview',
       weeklyEditTitle: 'Weekly Report Editor',
@@ -133,6 +134,7 @@ export const messages = {
       fetchingDetail: 'Fetching report detail...',
       fetchDetailFailed: 'Failed to fetch report detail',
       saveDetailFailed: 'Failed to save report detail',
+      saveAiCommentFailed: 'Failed to add AI comment: {status}',
       savedDetail: 'Saved',
       editMode: 'Edit Mode',
       viewMode: 'View Mode'
@@ -249,7 +251,12 @@ export const messages = {
       weekCalculationFailed: 'Failed to calculate week info. Please check the start date.',
       reportSaved: 'Report saved (revision: {revision})',
       saveReport: 'Save Report',
-      saving: 'Saving...'
+      saving: 'Saving...',
+      relatedDetailReportIssue: 'Related detail report issue: #{id}',
+      aiCommentWillBeAdded: 'AI output will be added as a comment to this issue.',
+      relatedIssueRequired: 'Configure the related detail report issue from the detail report area before generating an AI report.',
+      addAiComment: 'Add comment to related ticket',
+      aiCommentSaved: 'AI comment added (revision: {revision})'
     },
     api: {
       fetchFailed: 'Request failed',
@@ -411,6 +418,7 @@ export const messages = {
       issueIdRequired: '有効なチケットIDを入力してください。',
       validationFailed: 'チケットの検証に失敗しました。',
       saveRequiresIssue: '詳細レポートを保存するには有効なRedmineチケットを関連付けてください。',
+      aiReportRequiresIssue: 'AIレポートを生成する前に、関連する詳細レポートチケットを設定してください。',
       editor: '詳細レポートエディタ',
       savedMarkdownPreview: '保存ノートのプレビュー',
       weeklyEditTitle: '週次レポート編集',
@@ -545,7 +553,12 @@ export const messages = {
       weekCalculationFailed: '週情報を計算できませんでした。開始日を確認してください。',
       reportSaved: 'レポートを保存しました (revision: {revision})',
       saveReport: 'レポートを保存',
-      saving: '保存中...'
+      saving: '保存中...',
+      relatedDetailReportIssue: '関連する詳細レポートチケット: #{id}',
+      aiCommentWillBeAdded: 'AIの出力をこのチケットへコメントとして追加します。',
+      relatedIssueRequired: 'AIレポートを生成する前に、詳細レポートエリアから関連チケットを設定してください。',
+      addAiComment: '関連チケットにコメントを追加',
+      aiCommentSaved: 'AIコメントを追加しました (revision: {revision})'
     },
     api: {
       fetchFailed: 'リクエストに失敗しました',
@@ -557,6 +570,7 @@ export const messages = {
       generateWeeklyReport: '週次レポートの生成に失敗しました: {status}',
       prepareWeeklyPrompt: '週次プロンプトの準備に失敗しました: {status}',
       saveWeeklyReport: '週次レポートの保存に失敗しました: {status}',
+      saveAiCommentFailed: 'AIコメントの追加に失敗しました: {status}',
       fetchWeeklyAiResponses: '週次AIレスポンスの取得に失敗しました: {status}',
       updateWeeklyAiResponse: '週次AIレスポンスの更新に失敗しました: {status}'
     },

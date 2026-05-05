@@ -49,6 +49,9 @@ get '/projects/:project_id/schedule_report/report_detail',
 patch '/projects/:project_id/schedule_report/report_detail',
       to: 'schedule_reports#update_report_detail',
       as: 'project_schedule_report_update_report_detail'
+post '/projects/:project_id/schedule_report/report_detail/ai_comment',
+     to: 'schedule_reports#report_detail_ai_comment',
+     as: 'project_schedule_report_report_detail_ai_comment'
 get '/projects/:project_id/schedule_report/bundle/main.js',
     to: 'schedule_reports#bundle_js',
     as: 'project_schedule_report_bundle_js',

@@ -32,6 +32,26 @@ export type ReportDetailUpdateResponse = {
   message?: string;
 };
 
+export type ReportDetailAiCommentPayload = {
+  destination_issue_id: number;
+  project_id: number;
+  version_id: number;
+  week_from: string;
+  week_to: string;
+  week: string;
+  markdown: string;
+  generated_at: string;
+};
+
+export type ReportDetailAiCommentResponse = {
+  saved: boolean;
+  revision?: number;
+  saved_at?: string;
+  destination_issue_id?: number;
+  error_code?: string;
+  message?: string;
+};
+
 export const fetchReportDetail = async (
   projectIdentifier: string,
   params: {
@@ -58,6 +78,22 @@ export const updateReportDetail = async (
     'PATCH',
     payload,
     weeklyError((status) => t('reportDetail.saveDetailFailed', { status, defaultValue: `Failed to save report detail (${status})` }))
+  );
+
+export const addReportDetailAiComment = async (
+  projectIdentifier: string,
+  payload: ReportDetailAiCommentPayload
+): Promise<ReportDetailAiCommentResponse> =>
+  requestJsonWithBody<ReportDetailAiCommentResponse>(
+    `/projects/${projectIdentifier}/schedule_report/report_detail/ai_comment`,
+    'POST',
+    payload,
+    weeklyError((status) =>
+      t('reportDetail.saveAiCommentFailed', {
+        status,
+        defaultValue: `Failed to add AI comment (${status})`
+      })
+    )
   );
 
 export const buildTargetsFromPreset = (

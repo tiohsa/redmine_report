@@ -50,18 +50,23 @@ export const ProjectStatusReport = ({
     const [reportPresets, setReportPresets] = useState<ReportPreset[]>([]);
     const [activeReportPresetId, setActiveReportPresetId] = useState<string | null>(null);
     const [isSavePresetDialogOpen, setIsSavePresetDialogOpen] = useState(false);
+    const [detailReportRefreshToken, setDetailReportRefreshToken] = useState(0);
     const [weeklyDialog, setWeeklyDialog] = useState<{
         open: boolean;
         projectId: number;
         projectName: string;
         versionId: number;
         versionName: string;
+        destinationIssueId: number | null;
+        destinationIssueStatus?: ReportPreset['detailReportIssueStatus'];
     }>({
         open: false,
         projectId: 0,
         projectName: '',
         versionId: 0,
-        versionName: ''
+        versionName: '',
+        destinationIssueId: null,
+        destinationIssueStatus: 'UNBOUND'
     });
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -368,8 +373,14 @@ export const ProjectStatusReport = ({
             projectId: target.projectId,
             projectName: target.projectName,
             versionId: target.versionId,
-            versionName: target.versionName
+            versionName: target.versionName,
+            destinationIssueId: activeReportPreset?.detailReportIssueId ?? null,
+            destinationIssueStatus: activeReportPreset?.detailReportIssueStatus ?? 'UNBOUND'
         });
+    }, [activeReportPreset]);
+
+    const handleWeeklyDialogSaved = useCallback(() => {
+        setDetailReportRefreshToken((current) => current + 1);
     }, []);
 
     const toggleProject = (identifier: string) => {
@@ -492,13 +503,14 @@ export const ProjectStatusReport = ({
 
                     {detailReportVisible && activeReportPreset ? (
                         <ReportDetailPanel
-                            rootProjectIdentifier={reportPresetRootKey}
-                            rootProjectId={rootProjectId}
-                            activePreset={activeReportPreset}
-                            onPresetChange={persistPresetChange}
-                            onDirtyStateChange={setDetailReportDirty}
-                            onOpenAiDialog={openWeeklyDialogForTarget}
-                        />
+                        rootProjectIdentifier={reportPresetRootKey}
+                        rootProjectId={rootProjectId}
+                        activePreset={activeReportPreset}
+                        refreshToken={detailReportRefreshToken}
+                        onPresetChange={persistPresetChange}
+                        onDirtyStateChange={setDetailReportDirty}
+                        onOpenAiDialog={openWeeklyDialogForTarget}
+                    />
                     ) : null}
                 </div>
                 <VersionAiDialog
@@ -507,7 +519,10 @@ export const ProjectStatusReport = ({
                     projectId={weeklyDialog.projectId}
                     versionId={weeklyDialog.versionId}
                     versionName={weeklyDialog.versionName}
+                    destinationIssueId={weeklyDialog.destinationIssueId}
+                    destinationIssueStatus={weeklyDialog.destinationIssueStatus}
                     onClose={() => setWeeklyDialog((prev) => ({ ...prev, open: false }))}
+                    onSaved={handleWeeklyDialogSaved}
                 />
                 {isSavePresetDialogOpen ? (
                     <SaveReportPresetDialog

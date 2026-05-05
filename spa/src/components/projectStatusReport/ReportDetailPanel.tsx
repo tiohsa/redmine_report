@@ -16,6 +16,7 @@ type ReportDetailPanelProps = {
   rootProjectIdentifier: string;
   rootProjectId: number;
   activePreset: ReportPreset;
+  refreshToken?: number;
   onPresetChange: (preset: ReportPreset) => void;
   onDirtyStateChange?: (dirty: boolean) => void;
   onOpenAiDialog?: (target: ReportPreset['targets'][number]) => void;
@@ -151,6 +152,7 @@ export function ReportDetailPanel({
   rootProjectIdentifier,
   rootProjectId,
   activePreset,
+  refreshToken = 0,
   onPresetChange,
   onDirtyStateChange,
   onOpenAiDialog
@@ -169,6 +171,12 @@ export function ReportDetailPanel({
     activePreset.detailReportIssueId && activePreset.detailReportIssueStatus === 'VALID'
   );
   const aiTarget = activePreset.targets[0] ?? null;
+  const canOpenAiDialog = Boolean(
+    aiTarget &&
+    activePreset.detailReportIssueId &&
+    activePreset.detailReportIssueStatus === 'VALID' &&
+    onOpenAiDialog
+  );
 
   const dirty = useMemo(() => !rowsEqual(rows, baselineRows), [rows, baselineRows]);
 
@@ -233,7 +241,7 @@ export function ReportDetailPanel({
 
   useEffect(() => {
     void loadDetail();
-  }, [loadDetail]);
+  }, [loadDetail, refreshToken]);
 
   const handleSave = async () => {
     if (!isBound || !activePreset.detailReportIssueId || saving || !dirty) return;
@@ -375,17 +383,25 @@ export function ReportDetailPanel({
             {t('reportDetail.bindIssue')}
           </Button>
           {aiTarget ? (
-            <Button
-              type="button"
-              variant="pill-secondary"
-              size="sm"
-              className={compactDetailActionClassName}
-              leadingIcon={<Icon name="sparkles" className="h-3.5 w-3.5" />}
-              onClick={() => onOpenAiDialog?.(aiTarget)}
-              aria-label={t('detailReport.openAiReport')}
-            >
-              {t('detailReport.openAiReport')}
-            </Button>
+            <div className="flex flex-col gap-1">
+              <Button
+                type="button"
+                variant="pill-secondary"
+                size="sm"
+                className={compactDetailActionClassName}
+                leadingIcon={<Icon name="sparkles" className="h-3.5 w-3.5" />}
+                onClick={() => onOpenAiDialog?.(aiTarget)}
+                aria-label={t('detailReport.openAiReport')}
+                disabled={!canOpenAiDialog}
+              >
+                {t('detailReport.openAiReport')}
+              </Button>
+              {!canOpenAiDialog ? (
+                <span className="max-w-[18rem] text-[11px] font-medium leading-snug text-[var(--color-warning-text)]">
+                  {t('reportDetail.aiReportRequiresIssue')}
+                </span>
+              ) : null}
+            </div>
           ) : null}
           {isEditMode ? (
             <Button

@@ -4,7 +4,7 @@ Redmine plugin (`redmine_report`) that provides schedule visualization and LLM-p
 Architecture: Redmine plugin (Ruby/Rails backend) + React SPA (TypeScript frontend built with Vite).
 
 - Ruby 3.4.8 / Redmine 6.0
-- React 18 / TypeScript / Vite / TailwindCSS v4 / Zustand
+- React 18 / TypeScript / Vite / Vanilla CSS / Zustand
 - LLM integration: OpenAI, Gemini, Azure OpenAI (configurable via `.env.local`)
 
 ## Dev environment setup
@@ -132,8 +132,7 @@ Test categories:
 
 ### TypeScript / React
 
-- TailwindCSS v4 for styling (with `@tailwindcss/vite` plugin)
-- Use `clsx` + `tailwind-merge` for conditional class merging
+- Vanilla CSS for styling (leverage CSS variables and global/component styles)
 - Zustand for state management
 - TypeScript strict mode enabled
 - Component tests with `@testing-library/react`

@@ -471,7 +471,7 @@
   }
 
   .report-textarea {
-    @apply w-full resize-y rounded-[16px] border border-gray-200 bg-white px-4 py-3 text-[16px] font-sans leading-[1.50] text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
+    @apply w-full resize-y overflow-auto rounded-[16px] border border-gray-200 bg-white px-4 py-3 text-[16px] font-sans leading-[1.50] text-[#222222] outline-none transition-all focus:border-[var(--color-primary-500)] focus:ring-2 focus:ring-[var(--color-primary-200)];
   }
 
   .report-textarea-mono {
@@ -819,6 +819,18 @@
     height: 32px;
     border-radius: 6px;
     border-color: #e0e0e0;
+  }
+
+  .version-ai-dialog-button {
+    @apply h-8 min-h-8 rounded-[16px] px-5 py-0 text-[13px] leading-none;
+  }
+
+  .version-ai-dialog-icon-button {
+    @apply h-8 w-8 min-h-8 rounded-[16px];
+  }
+
+  .version-ai-dialog-input {
+    @apply h-8 min-h-8 rounded-[16px] px-3 py-0 text-[14px] leading-none;
   }
 
   .report-field-label {

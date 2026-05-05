@@ -282,8 +282,26 @@ class ScheduleReportsController < ApplicationController
     else
       render json: result, status: :unprocessable_entity
     end
-  rescue StandardError => e
+    rescue StandardError => e
     Rails.logger.error("[schedule_report] update_report_detail failed: #{e.class}: #{e.message}")
+    render json: { error: e.message }, status: :internal_server_error
+  end
+
+  def report_detail_ai_comment
+    payload = report_detail_ai_comment_payload
+    service = RedmineReport::ScheduleReport::ReportDetailAiCommentService.new(
+      project: @project,
+      user: User.current
+    )
+    result = service.call(**payload)
+
+    if result[:saved]
+      render json: result
+    else
+      render json: result, status: :unprocessable_entity
+    end
+  rescue StandardError => e
+    Rails.logger.error("[schedule_report] report_detail_ai_comment failed: #{e.class}: #{e.message}")
     render json: { error: e.message }, status: :internal_server_error
   end
 
@@ -510,6 +528,20 @@ class ScheduleReportsController < ApplicationController
       next_week_actions: Array(merged[:next_week_actions]),
       risks: Array(merged[:risks]),
       decisions: Array(merged[:decisions])
+    }
+  end
+
+  def report_detail_ai_comment_payload
+    merged = params.to_unsafe_h.merge(request_payload).symbolize_keys
+    {
+      destination_issue_id: merged[:destination_issue_id],
+      project_id: merged[:project_id],
+      version_id: merged[:version_id],
+      week_from: merged[:week_from],
+      week_to: merged[:week_to],
+      week: merged[:week],
+      markdown: merged[:markdown],
+      generated_at: merged[:generated_at]
     }
   end
 end

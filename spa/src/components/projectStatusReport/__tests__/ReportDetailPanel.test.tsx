@@ -110,6 +110,26 @@ describe('ReportDetailPanel', () => {
     }));
   });
 
+  it('disables the AI button until a related issue is bound', async () => {
+    render(
+      <ReportDetailPanel
+        rootProjectIdentifier="root"
+        rootProjectId={1}
+        activePreset={createPreset({
+          detailReportIssueId: null,
+          detailReportIssueStatus: 'UNBOUND'
+        })}
+        onPresetChange={vi.fn()}
+        onOpenAiDialog={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'AIレポートを開く' })).toBeDisabled();
+    });
+    expect(screen.getByText('AIレポートを生成する前に、関連する詳細レポートチケットを設定してください。')).toBeInTheDocument();
+  });
+
   it('fetches and renders rows from API', async () => {
     render(
       <ReportDetailPanel
