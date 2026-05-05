@@ -604,14 +604,18 @@
   }
 
   .report-menu-toggle-button {
-    @apply inline-flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 font-semibold text-[#222222] transition-colors hover:text-[var(--color-primary-600)];
+    @apply inline-flex h-8 min-h-8 flex-shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border border-[var(--color-border-default)] bg-white px-4 font-sans text-[13px] font-medium text-[#45515e] shadow-[0_4px_6px_rgba(0,0,0,0.04)] transition-all duration-200 hover:border-gray-300 hover:bg-[#fbfdff] hover:text-[#222222] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-200)];
+  }
+
+  .report-menu-toggle-button-active {
+    @apply border-[var(--color-primary-200)] bg-[var(--color-brand-tint)] text-[var(--color-primary-700)];
   }
 
   .report-menu-toggle-icon {
     @apply relative inline-flex shrink-0 items-center justify-center border bg-white text-[#333333] transition-all duration-300;
     width: 32px;
     height: 32px;
-    border-radius: 6px;
+    border-radius: 9999px;
     border-color: #e0e0e0;
   }
 

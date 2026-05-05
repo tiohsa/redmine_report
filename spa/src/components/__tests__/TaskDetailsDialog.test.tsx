@@ -3055,9 +3055,11 @@ describe('TaskDetailsDialog', () => {
     expect(closeButton.getAttribute('style')).toContain('width: 32px');
     expect(closeButton.getAttribute('style')).toContain('height: 32px');
     expect(closeButton.getAttribute('style')).toContain('border-radius: 6px');
-    expect(cancelButton.getAttribute('style')).toContain('height: 28px');
+    expect(cancelButton.className).toContain('rounded-full');
+    expect(cancelButton.getAttribute('style')).toContain('height: 32px');
     expect(cancelButton.getAttribute('style')).toContain('min-width: 88px');
-    expect(saveButton.getAttribute('style')).toContain('height: 28px');
+    expect(saveButton.className).toContain('rounded-full');
+    expect(saveButton.getAttribute('style')).toContain('height: 32px');
     expect(saveButton.getAttribute('style')).toContain('min-width: 88px');
   });
 
@@ -3101,9 +3103,11 @@ describe('TaskDetailsDialog', () => {
     expect(closeButton.getAttribute('style')).toContain('width: 32px');
     expect(closeButton.getAttribute('style')).toContain('height: 32px');
     expect(closeButton.getAttribute('style')).toContain('border-radius: 6px');
-    expect(cancelButton.getAttribute('style')).toContain('height: 28px');
+    expect(cancelButton.className).toContain('rounded-full');
+    expect(cancelButton.getAttribute('style')).toContain('height: 32px');
     expect(cancelButton.getAttribute('style')).toContain('min-width: 88px');
-    expect(saveButton.getAttribute('style')).toContain('height: 28px');
+    expect(saveButton.className).toContain('rounded-full');
+    expect(saveButton.getAttribute('style')).toContain('height: 32px');
     expect(saveButton.getAttribute('style')).toContain('min-width: 88px');
   });
 
