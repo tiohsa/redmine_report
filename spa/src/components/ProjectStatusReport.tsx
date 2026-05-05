@@ -11,6 +11,7 @@ import { t } from '../i18n';
 import { reportPresetStorage, sanitizeReportPresetTargets, type ReportPreset } from '../services/reportPresetStorage';
 import { buildReportPresetTargets, filterBarsByReportPreset } from './projectStatusReport/reportPresetTargets';
 import { SaveReportPresetDialog } from './projectStatusReport/SaveReportPresetDialog';
+import type { ReportPresetTarget } from '../services/reportPresetStorage';
 
 interface ProjectStatusReportProps {
     bars?: CategoryBar[];
@@ -361,6 +362,16 @@ export const ProjectStatusReport = ({
         }
     }, [detailReportDirty]);
 
+    const openWeeklyDialogForTarget = useCallback((target: ReportPresetTarget) => {
+        setWeeklyDialog({
+            open: true,
+            projectId: target.projectId,
+            projectName: target.projectName,
+            versionId: target.versionId,
+            versionName: target.versionName
+        });
+    }, []);
+
     const toggleProject = (identifier: string) => {
         if (selectedProjectIdentifiers.includes(identifier)) {
             setSelectedProjectIdentifiers(selectedProjectIdentifiers.filter(pid => pid !== identifier));
@@ -486,6 +497,7 @@ export const ProjectStatusReport = ({
                             activePreset={activeReportPreset}
                             onPresetChange={persistPresetChange}
                             onDirtyStateChange={setDetailReportDirty}
+                            onOpenAiDialog={openWeeklyDialogForTarget}
                         />
                     ) : null}
                 </div>

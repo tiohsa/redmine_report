@@ -81,6 +81,35 @@ describe('ReportDetailPanel', () => {
     });
   });
 
+  it('opens the AI dialog from the detail header', async () => {
+    const onOpenAiDialog = vi.fn();
+
+    render(
+      <ReportDetailPanel
+        rootProjectIdentifier="root"
+        rootProjectId={1}
+        activePreset={createPreset()}
+        onPresetChange={vi.fn()}
+        onOpenAiDialog={onOpenAiDialog}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'AIレポートを開く' })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'AIレポートを開く' }));
+
+    expect(onOpenAiDialog).toHaveBeenCalledTimes(1);
+    expect(onOpenAiDialog).toHaveBeenCalledWith(expect.objectContaining({
+      projectId: 1,
+      projectIdentifier: 'proj-a',
+      projectName: 'Project A',
+      versionId: 10,
+      versionName: 'v1.0'
+    }));
+  });
+
   it('fetches and renders rows from API', async () => {
     render(
       <ReportDetailPanel

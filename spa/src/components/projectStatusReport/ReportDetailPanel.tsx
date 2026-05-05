@@ -18,6 +18,7 @@ type ReportDetailPanelProps = {
   activePreset: ReportPreset;
   onPresetChange: (preset: ReportPreset) => void;
   onDirtyStateChange?: (dirty: boolean) => void;
+  onOpenAiDialog?: (target: ReportPreset['targets'][number]) => void;
 };
 
 type CardSection = {
@@ -151,7 +152,8 @@ export function ReportDetailPanel({
   rootProjectId,
   activePreset,
   onPresetChange,
-  onDirtyStateChange
+  onDirtyStateChange,
+  onOpenAiDialog
 }: ReportDetailPanelProps) {
   const [rows, setRows] = useState<RowsState>(DEFAULT_ROWS);
   const [baselineRows, setBaselineRows] = useState<RowsState>(DEFAULT_ROWS);
@@ -166,6 +168,7 @@ export function ReportDetailPanel({
   const isBound = Boolean(
     activePreset.detailReportIssueId && activePreset.detailReportIssueStatus === 'VALID'
   );
+  const aiTarget = activePreset.targets[0] ?? null;
 
   const dirty = useMemo(() => !rowsEqual(rows, baselineRows), [rows, baselineRows]);
 
@@ -371,6 +374,19 @@ export function ReportDetailPanel({
           >
             {t('reportDetail.bindIssue')}
           </Button>
+          {aiTarget ? (
+            <Button
+              type="button"
+              variant="pill-secondary"
+              size="sm"
+              className={compactDetailActionClassName}
+              leadingIcon={<Icon name="sparkles" className="h-3.5 w-3.5" />}
+              onClick={() => onOpenAiDialog?.(aiTarget)}
+              aria-label={t('detailReport.openAiReport')}
+            >
+              {t('detailReport.openAiReport')}
+            </Button>
+          ) : null}
           {isEditMode ? (
             <Button
               type="button"
