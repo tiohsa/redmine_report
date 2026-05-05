@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { t } from '../../../i18n';
 import {
   drawChevron,
@@ -129,166 +129,181 @@ export function ProcessFlowCanvas({
   showTitles
 }: ProcessFlowCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawFrameRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     if (!axis || !canvasRef.current) {
       return;
     }
 
-    const context = prepareHiDPICanvas(canvasRef.current, axis.timelineWidth, chartHeight);
-    if (!context) {
-      return;
+    if (drawFrameRef.current !== null) {
+      cancelAnimationFrame(drawFrameRef.current);
     }
 
-    context.fillStyle = '#f8fafc';
-    context.fillRect(0, 0, axis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
-    context.fillRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, axis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
-    context.strokeStyle = '#e2e8f0';
-    context.lineWidth = 1;
-    context.strokeRect(0, 0, axis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
-    context.strokeRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, axis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
+    drawFrameRef.current = window.requestAnimationFrame(() => {
+      const context = prepareHiDPICanvas(canvasRef.current, axis.timelineWidth, chartHeight);
+      if (!context) {
+        return;
+      }
 
-    axis.headerYears.forEach((year) => {
-      context.strokeRect(year.x, 0, year.width, PROCESS_FLOW_YEAR_ROW_HEIGHT);
-      drawStrokeText(context, {
-        text: year.year,
-        x: year.x + year.width / 2,
-        y: PROCESS_FLOW_YEAR_ROW_HEIGHT / 2,
-        fill: '#334155',
-        stroke: '#f8fafc',
-        strokeWidth: 0,
-        font: '700 11px sans-serif'
-      });
-    });
-
-    axis.headerMonths.forEach((month) => {
-      context.strokeRect(month.x, PROCESS_FLOW_YEAR_ROW_HEIGHT, month.width, PROCESS_FLOW_MONTH_ROW_HEIGHT);
-      drawStrokeText(context, {
-        text: month.label,
-        x: month.x + month.width / 2,
-        y: PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT / 2,
-        fill: '#334155',
-        stroke: '#f8fafc',
-        strokeWidth: 0,
-        font: '700 11px sans-serif'
-      });
-    });
-
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, PROCESS_FLOW_HEADER_HEIGHT, axis.timelineWidth, laneHeight);
-    axis.headerMonths.forEach((month) => {
-      context.save();
+      context.fillStyle = '#f8fafc';
+      context.fillRect(0, 0, axis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
+      context.fillRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, axis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
       context.strokeStyle = '#e2e8f0';
-      context.setLineDash([4, 3]);
-      context.beginPath();
-      context.moveTo(month.x, PROCESS_FLOW_HEADER_HEIGHT);
-      context.lineTo(month.x, PROCESS_FLOW_HEADER_HEIGHT + laneHeight);
-      context.stroke();
-      context.restore();
-    });
-    context.beginPath();
-    context.moveTo(0, PROCESS_FLOW_HEADER_HEIGHT + laneHeight);
-    context.lineTo(axis.timelineWidth, PROCESS_FLOW_HEADER_HEIGHT + laneHeight);
-    context.strokeStyle = '#e2e8f0';
-    context.stroke();
+      context.lineWidth = 1;
+      context.strokeRect(0, 0, axis.timelineWidth, PROCESS_FLOW_YEAR_ROW_HEIGHT);
+      context.strokeRect(0, PROCESS_FLOW_YEAR_ROW_HEIGHT, axis.timelineWidth, PROCESS_FLOW_MONTH_ROW_HEIGHT);
 
-    renderSteps.forEach((step) => {
-      const style = processStatusStyles[step.status];
-      const fill = getProgressFillColor(step.progress);
-      const stepY = getProcessStepY(step.laneIndex, baseTopPadding, scaleMetrics);
-      const rangeStartLabelX = step.shapeX + PROCESS_FLOW_DATE_LABEL_INSET;
-      const rangeEndLabelX = step.shapeX + step.visualWidth - PROCESS_FLOW_DATE_LABEL_INSET;
-
-      if (step.shapeKind === 'due-only') {
-        drawDiamond(context, {
-          centerX: step.textX,
-          y: stepY,
-          width: step.visualWidth,
-          height: scaleMetrics.barHeight,
-          fill,
-          trackFill: getProgressTrackColor(),
-          stroke: style.stroke,
-          progress: step.progress
-        });
-      } else if (step.shapeKind === 'start-only') {
-        drawTriangle(context, {
-          x: step.shapeX,
-          y: stepY,
-          width: step.visualWidth,
-          height: scaleMetrics.barHeight,
-          fill,
-          trackFill: getProgressTrackColor(),
-          stroke: style.stroke,
-          progress: step.progress
-        });
-      } else {
-        drawExecutiveBar(context, {
-          x: step.x,
-          y: stepY,
-          width: Math.max(step.width, 1),
-          height: scaleMetrics.barHeight,
-          fill,
-          progress: step.progress,
-          label: showTitles ? step.title : undefined,
-          chartScale: 1
-        });
-      }
-
-      if (selectedIssueId === step.id) {
-        drawSelectedProcessOutline(context, {
-          shapeKind: step.shapeKind,
-          stepY,
-          x: step.x,
-          width: step.width,
-          hasLeftNotch: step.hasLeftNotch,
-          shapeX: step.shapeX,
-          visualWidth: step.visualWidth,
-          textX: step.textX,
-          barHeight: scaleMetrics.barHeight,
-          pointDepth: scaleMetrics.pointDepth
-        });
-      }
-
-      if (step.shapeKind !== 'range') {
+      axis.headerYears.forEach((year) => {
+        context.strokeRect(year.x, 0, year.width, PROCESS_FLOW_YEAR_ROW_HEIGHT);
         drawStrokeText(context, {
-          text: extractProcessFlowMonthDayLabel(step.anchorDate),
-          x: step.textX,
-          y: stepY - 6,
-          fill: style.dateText,
-          stroke: '#ffffff',
-          strokeWidth: 2,
-          font: '700 10px sans-serif'
+          text: year.year,
+          x: year.x + year.width / 2,
+          y: PROCESS_FLOW_YEAR_ROW_HEIGHT / 2,
+          fill: '#334155',
+          stroke: '#f8fafc',
+          strokeWidth: 0,
+          font: '700 11px sans-serif'
         });
-      } else {
-        if (step.startDate) {
-          drawStrokeText(context, {
-            text: extractProcessFlowMonthDayLabel(step.startDate),
-            x: rangeStartLabelX,
-            y: stepY - 6,
-            fill: style.dateText,
-            stroke: '#ffffff',
-            strokeWidth: 2,
-            font: '700 10px sans-serif',
-            textAlign: 'start'
-          });
-        }
-        if (step.dueDate) {
-          drawStrokeText(context, {
-            text: extractProcessFlowMonthDayLabel(step.dueDate),
-            x: rangeEndLabelX,
-            y: stepY - 6,
-            fill: style.dateText,
-            stroke: '#ffffff',
-            strokeWidth: 2,
-            font: '700 10px sans-serif',
-            textAlign: 'end'
-          });
-        }
-      }
+      });
 
-      // Labels and progress are now handled by drawExecutiveBar
+      axis.headerMonths.forEach((month) => {
+        context.strokeRect(month.x, PROCESS_FLOW_YEAR_ROW_HEIGHT, month.width, PROCESS_FLOW_MONTH_ROW_HEIGHT);
+        drawStrokeText(context, {
+          text: month.label,
+          x: month.x + month.width / 2,
+          y: PROCESS_FLOW_YEAR_ROW_HEIGHT + PROCESS_FLOW_MONTH_ROW_HEIGHT / 2,
+          fill: '#334155',
+          stroke: '#f8fafc',
+          strokeWidth: 0,
+          font: '700 11px sans-serif'
+        });
+      });
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, PROCESS_FLOW_HEADER_HEIGHT, axis.timelineWidth, laneHeight);
+      axis.headerMonths.forEach((month) => {
+        context.save();
+        context.strokeStyle = '#e2e8f0';
+        context.setLineDash([4, 3]);
+        context.beginPath();
+        context.moveTo(month.x, PROCESS_FLOW_HEADER_HEIGHT);
+        context.lineTo(month.x, PROCESS_FLOW_HEADER_HEIGHT + laneHeight);
+        context.stroke();
+        context.restore();
+      });
+      context.beginPath();
+      context.moveTo(0, PROCESS_FLOW_HEADER_HEIGHT + laneHeight);
+      context.lineTo(axis.timelineWidth, PROCESS_FLOW_HEADER_HEIGHT + laneHeight);
+      context.strokeStyle = '#e2e8f0';
+      context.stroke();
+
+      renderSteps.forEach((step) => {
+        const style = processStatusStyles[step.status];
+        const fill = getProgressFillColor(step.progress);
+        const stepY = getProcessStepY(step.laneIndex, baseTopPadding, scaleMetrics);
+        const rangeStartLabelX = step.shapeX + PROCESS_FLOW_DATE_LABEL_INSET;
+        const rangeEndLabelX = step.shapeX + step.visualWidth - PROCESS_FLOW_DATE_LABEL_INSET;
+
+        if (step.shapeKind === 'due-only') {
+          drawDiamond(context, {
+            centerX: step.textX,
+            y: stepY,
+            width: step.visualWidth,
+            height: scaleMetrics.barHeight,
+            fill,
+            trackFill: getProgressTrackColor(),
+            stroke: style.stroke,
+            progress: step.progress
+          });
+        } else if (step.shapeKind === 'start-only') {
+          drawTriangle(context, {
+            x: step.shapeX,
+            y: stepY,
+            width: step.visualWidth,
+            height: scaleMetrics.barHeight,
+            fill,
+            trackFill: getProgressTrackColor(),
+            stroke: style.stroke,
+            progress: step.progress
+          });
+        } else {
+          drawExecutiveBar(context, {
+            x: step.x,
+            y: stepY,
+            width: Math.max(step.width, 1),
+            height: scaleMetrics.barHeight,
+            fill,
+            progress: step.progress,
+            label: showTitles ? step.title : undefined,
+            chartScale: 1,
+            availableWidth: axis.timelineWidth,
+            rightPadding: 12
+          });
+        }
+
+        if (selectedIssueId === step.id) {
+          drawSelectedProcessOutline(context, {
+            shapeKind: step.shapeKind,
+            stepY,
+            x: step.x,
+            width: step.width,
+            hasLeftNotch: step.hasLeftNotch,
+            shapeX: step.shapeX,
+            visualWidth: step.visualWidth,
+            textX: step.textX,
+            barHeight: scaleMetrics.barHeight,
+            pointDepth: scaleMetrics.pointDepth
+          });
+        }
+
+        if (step.shapeKind !== 'range') {
+          drawStrokeText(context, {
+            text: extractProcessFlowMonthDayLabel(step.anchorDate),
+            x: step.textX,
+            y: stepY - 6,
+            fill: style.dateText,
+            stroke: '#ffffff',
+            strokeWidth: 2,
+            font: '700 10px sans-serif'
+          });
+        } else {
+          if (step.startDate) {
+            drawStrokeText(context, {
+              text: extractProcessFlowMonthDayLabel(step.startDate),
+              x: rangeStartLabelX,
+              y: stepY - 6,
+              fill: style.dateText,
+              stroke: '#ffffff',
+              strokeWidth: 2,
+              font: '700 10px sans-serif',
+              textAlign: 'start'
+            });
+          }
+          if (step.dueDate) {
+            drawStrokeText(context, {
+              text: extractProcessFlowMonthDayLabel(step.dueDate),
+              x: rangeEndLabelX,
+              y: stepY - 6,
+              fill: style.dateText,
+              stroke: '#ffffff',
+              strokeWidth: 2,
+              font: '700 10px sans-serif',
+              textAlign: 'end'
+            });
+          }
+        }
+
+        // Labels and progress are now handled by drawExecutiveBar
+      });
     });
   }, [axis, baseTopPadding, chartHeight, laneHeight, renderSteps, scaleMetrics, selectedIssueId, showTitles]);
+
+  useEffect(() => () => {
+    if (drawFrameRef.current !== null) {
+      cancelAnimationFrame(drawFrameRef.current);
+    }
+  }, []);
 
   return (
     <div className="overflow-x-auto" data-testid="task-details-process-flow" ref={containerRef}>

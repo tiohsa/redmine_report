@@ -10,13 +10,11 @@ module RedmineReport
 
       def call
         ServiceResult.success(
-          trackers: serialize_trackers,
-          statuses: serialize_statuses,
-          priorities: serialize_priorities,
-          members: serialize_members
+          trackers: safe_serialize { serialize_trackers },
+          statuses: safe_serialize { serialize_statuses },
+          priorities: safe_serialize { serialize_priorities },
+          members: safe_serialize { serialize_members }
         )
-      rescue StandardError => e
-        ServiceResult.error(code: 'UPSTREAM_FAILURE', message: e.message, status: :service_unavailable)
       end
 
       private
@@ -37,10 +35,16 @@ module RedmineReport
 
       def serialize_members
         members = project.members
-                          .includes(user: [])
+                          .includes(:user)
                           .select { |m| m.user.present? && m.user.active? }
                           .map { |m| { id: m.user.id, name: m.user.name } }
         [{ id: nil, name: '' }] + members
+      end
+
+      def safe_serialize
+        yield
+      rescue StandardError
+        []
       end
     end
   end

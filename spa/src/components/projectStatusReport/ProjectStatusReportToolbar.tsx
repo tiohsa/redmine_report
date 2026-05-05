@@ -398,9 +398,18 @@ export const ProjectStatusReportToolbar = ({
           <Button
             type="button"
             onClick={() => onDetailReportVisibleChange(!detailReportVisible)}
-            variant={detailReportVisible ? 'pill-primary' : 'pill-secondary'}
+            variant="pill-secondary"
             size="sm"
             className={compactActionClassName}
+            style={
+              detailReportVisible
+                ? {
+                    backgroundColor: '#e8f0fe',
+                    borderColor: '#e0e0e0',
+                    color: '#1a73e8'
+                  }
+                : undefined
+            }
             leadingIcon={<Icon name="bar-chart" className="h-3.5 w-3.5" />}
             disabled={!activeReportPreset}
           >

@@ -76,6 +76,8 @@ const RESIZE_HANDLE_PX = 10;
 const MIN_CENTER_CLICK_PX = 14;
 const MIN_HANDLE_ACTIVE_PX = 4;
 const DATE_LABEL_INSET_PX = 8;
+const TOOLTIP_EDGE_PADDING_PX = 12;
+const TIMELINE_RIGHT_PADDING_PX = 84;
 const SELECTED_BAR_STROKE = '#1456f0';
 const SELECTED_BAR_DASH = [4, 2];
 const CHEVRON_RIGHT_HEAD_RATIO = 0.62;
@@ -393,6 +395,7 @@ function TimelineChartSurface({
   showTitles?: boolean;
 }) {
   const chartHeight = Math.ceil(headerHeight + totalTimelineHeight);
+  const chartRenderWidth = timelineWidth + TIMELINE_RIGHT_PADDING_PX;
   const scaledBarHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
   const scaledBarSpacingY = Math.round(17 * chartScale);
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
@@ -564,7 +567,6 @@ function TimelineChartSurface({
           : step.issueId
             ? 'pointer'
             : 'default';
-
         return {
           step,
           barX,
@@ -616,23 +618,24 @@ function TimelineChartSurface({
     selectedStepId,
     savingIssueId,
     scaledBarHeight,
-    scaledBarSpacingY
+    scaledBarSpacingY,
+    timelineWidth
   ]);
 
   useLayoutEffect(() => {
     if (!canvasRef.current) return;
-    const context = prepareHiDPICanvas(canvasRef.current, timelineWidth, chartHeight);
+    const context = prepareHiDPICanvas(canvasRef.current, chartRenderWidth, chartHeight);
     if (!context) return;
 
-    context.clearRect(0, 0, timelineWidth, chartHeight);
+    context.clearRect(0, 0, chartRenderWidth, chartHeight);
 
     context.fillStyle = TIMELINE_HEADER_FILL;
-    context.fillRect(0, 0, timelineWidth, yearRowHeight);
-    context.fillRect(0, yearRowHeight, timelineWidth, monthRowHeight);
+    context.fillRect(0, 0, chartRenderWidth, yearRowHeight);
+    context.fillRect(0, yearRowHeight, chartRenderWidth, monthRowHeight);
     context.strokeStyle = TIMELINE_BORDER;
     context.lineWidth = 1;
-    context.strokeRect(0, 0, timelineWidth, yearRowHeight);
-    context.strokeRect(0, yearRowHeight, timelineWidth, monthRowHeight);
+    context.strokeRect(0, 0, chartRenderWidth, yearRowHeight);
+    context.strokeRect(0, yearRowHeight, chartRenderWidth, monthRowHeight);
 
     headerYears.forEach((year) => {
       context.strokeStyle = TIMELINE_BORDER;
@@ -683,13 +686,13 @@ function TimelineChartSurface({
 
     renderedProjects.forEach(({ laneBackground, project, stepItems, yOffset }) => {
       context.fillStyle = laneBackground.baseFill;
-      context.fillRect(0, yOffset, timelineWidth, project.height);
+      context.fillRect(0, yOffset, chartRenderWidth, project.height);
 
       context.strokeStyle = TIMELINE_BORDER;
       context.lineWidth = 1;
       context.beginPath();
       context.moveTo(0, yOffset + project.height);
-      context.lineTo(timelineWidth, yOffset + project.height);
+      context.lineTo(chartRenderWidth, yOffset + project.height);
       context.stroke();
 
       headerMonths.forEach((month) => {
@@ -716,7 +719,9 @@ function TimelineChartSurface({
             fill: item.fill,
             progress: item.step.progress,
             label: showTitles ? item.step.name : undefined,
-            chartScale
+            chartScale,
+            availableWidth: chartRenderWidth,
+            rightPadding: TOOLTIP_EDGE_PADDING_PX
           });
 
           if (item.renderData.startLabel && (showAllDates || hoveredStepId === item.step.id || item.isActiveDragThis) && item.renderData.startLabel !== item.renderData.endLabel) {
@@ -800,6 +805,7 @@ function TimelineChartSurface({
     showAllDates,
     showTodayLine,
     chartHeight,
+    chartRenderWidth,
     timelineWidth,
     todayX
   ]);
@@ -809,18 +815,18 @@ function TimelineChartSurface({
   }
 
   return (
-    <div className="relative" style={{ minHeight: chartHeight, minWidth: `${timelineWidth}px`, width: timelineWidth }}>
+    <div className="relative" style={{ minHeight: chartHeight, minWidth: `${chartRenderWidth}px`, width: chartRenderWidth }}>
       <canvas
         ref={canvasRef}
         data-testid="timeline-chart-canvas"
         className="absolute inset-0 block"
-        style={{ width: `${timelineWidth}px`, height: `${chartHeight}px`, pointerEvents: 'none' }}
+        style={{ width: `${chartRenderWidth}px`, height: `${chartHeight}px`, pointerEvents: 'none' }}
         aria-hidden="true"
       />
       <svg
-        viewBox={`0 0 ${timelineWidth} ${chartHeight}`}
+        viewBox={`0 0 ${chartRenderWidth} ${chartHeight}`}
         className="relative block w-full"
-        style={{ minHeight: chartHeight, minWidth: `${timelineWidth}px`, opacity: 0 }}
+        style={{ minHeight: chartHeight, minWidth: `${chartRenderWidth}px`, opacity: 0 }}
       >
       {layoutData.map((project) => {
         const yOffset = headerHeight + project.yOffset;
@@ -924,6 +930,7 @@ function TimelineChartSurface({
                   zIndex: isActiveDragThis ? 10 : isSavingThis || hasPendingPreview ? 9 : isInProgress ? 1 : 0,
                   element: (
                     <g
+                      data-testid={`timeline-step-${step.id}`}
                       key={step.id}
                       transform={`translate(0, ${verticalOffset})`}
                       onMouseEnter={() => setHoveredStepId(step.id)}
@@ -984,7 +991,7 @@ function TimelineChartSurface({
               .map((item) => item.element)}
           </g>
         );
-      })}
+      })} 
 
       </svg>
     </div>
