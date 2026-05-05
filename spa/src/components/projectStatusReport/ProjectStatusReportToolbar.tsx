@@ -6,7 +6,6 @@ import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { SelectionList, SelectionRow, CheckboxRow } from '../ui/SelectionList';
 import { FieldLabel } from '../ui/FieldLabel';
-import type { StatusStyle } from './constants';
 import { cn } from '../ui/cn';
 import type { ReportPreset } from '../../services/reportPresetStorage';
 import { ReportPresetSelector } from './ReportPresetSelector';
@@ -37,19 +36,15 @@ type ProjectStatusReportToolbarProps = {
   isProcessMode: boolean;
   isLoadingChildren: boolean;
   onProcessModeChange: (value: boolean) => void;
-  statuses: StatusStyle[];
   isProjectOpen: boolean;
   onProjectOpenChange: (value: boolean) => void;
   isVersionOpen: boolean;
   onVersionOpenChange: (value: boolean) => void;
   isSizeOpen: boolean;
   onSizeOpenChange: (value: boolean) => void;
-  isLegendOpen: boolean;
-  onLegendOpenChange: (value: boolean) => void;
   projectDropdownRef: DropdownRef;
   versionDropdownRef: DropdownRef;
   sizeDropdownRef: DropdownRef;
-  legendDropdownRef: DropdownRef;
   isDateRangeDialogOpen: boolean;
   isCustomDateRangeActive: boolean;
   onOpenDateRangeDialog: () => void;
@@ -107,19 +102,15 @@ export const ProjectStatusReportToolbar = ({
   isProcessMode,
   isLoadingChildren,
   onProcessModeChange,
-  statuses,
   isProjectOpen,
   onProjectOpenChange,
   isVersionOpen,
   onVersionOpenChange,
   isSizeOpen,
   onSizeOpenChange,
-  isLegendOpen,
-  onLegendOpenChange,
   projectDropdownRef,
   versionDropdownRef,
   sizeDropdownRef,
-  legendDropdownRef,
   isDateRangeDialogOpen,
   isCustomDateRangeActive,
   onOpenDateRangeDialog,
@@ -147,7 +138,6 @@ export const ProjectStatusReportToolbar = ({
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const compactActionClassName = 'box-border !h-8 !min-h-8 !rounded-[6px] !px-3 !py-0 text-[12px]';
   const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-1.5 w-[280px] max-h-[320px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
-  const legendDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[220px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
   const sizeDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[180px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
   const filterDropdownTitleStyle = reportStyles.dropdownTitle;
   const filterDropdownRowStyle = reportStyles.dropdownRow;
@@ -415,44 +405,6 @@ export const ProjectStatusReportToolbar = ({
           >
             {t('reportDetail.toggle')}
           </Button>
-
-          <div className={reportStyles.toolbarDivider}></div>
-
-          <div className="relative" {...dropdownRefProps(legendDropdownRef)}>
-            <Button
-              onClick={() => onLegendOpenChange(!isLegendOpen)}
-              onMouseEnter={() => onLegendOpenChange(true)}
-              variant={isLegendOpen ? 'icon-active' : 'icon'}
-              className={reportStyles.toolbarIconButton}
-              title="Status Legend"
-            >
-              <Icon name="info" className="h-4 w-4" />
-              {isLegendOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
-            </Button>
-            {isLegendOpen && (
-              <div className={legendDropdownPanelStyle}>
-                <div className={filterDropdownTitleStyle}>Status Legend</div>
-                <SelectionList className="py-1">
-                  {statuses.map((status) => (
-                    <SelectionRow
-                      key={status.label}
-                      leading={
-                        <div
-                          className="h-2.5 w-2.5 rounded-full border shadow-sm"
-                          style={{
-                            backgroundColor: status.fill,
-                            borderColor: status.stroke,
-                          }}
-                        />
-                      }
-                    >
-                      <span className="text-[13px] font-medium">{status.label}</span>
-                    </SelectionRow>
-                  ))}
-                </SelectionList>
-              </div>
-            )}
-          </div>
 
           <div className={reportStyles.toolbarDivider}></div>
 

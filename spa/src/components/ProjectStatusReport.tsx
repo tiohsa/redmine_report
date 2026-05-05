@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { fetchChildIssues, CategoryBar, ProjectInfo } from '../services/scheduleReportApi';
-import { buildStatusStyles } from './projectStatusReport/constants';
 import { buildTimelineViewModel } from './projectStatusReport/timeline';
 import { TimelineChart } from './projectStatusReport/TimelineChart';
 import { ProjectStatusReportToolbar } from './projectStatusReport/ProjectStatusReportToolbar';
@@ -69,8 +68,6 @@ export const ProjectStatusReport = ({
     const [isLoadingChildren, setIsLoadingChildren] = useState(false);
     const [processModeError, setProcessModeError] = useState<string | null>(null);
     const processModeRequestSeqRef = useRef(0);
-    const statuses = useMemo(() => Object.values(buildStatusStyles()), []);
-
     const { rootProjectIdentifier, selectedProjectIdentifiers, setSelectedProjectIdentifiers } = useUiStore();
     const [isDateRangeDialogOpen, setIsDateRangeDialogOpen] = useState(false);
     const [displayStartDateIso, setDisplayStartDateIso] = useState<string | undefined>(undefined);
@@ -97,12 +94,9 @@ export const ProjectStatusReport = ({
         setIsVersionOpen,
         isSizeOpen,
         setIsSizeOpen,
-        isLegendOpen,
-        setIsLegendOpen,
         projectDropdownRef,
         versionDropdownRef,
-        sizeDropdownRef,
-        legendDropdownRef
+        sizeDropdownRef
     } = useProjectStatusReportControls();
     const reportPresetRootKey = rootProjectIdentifier || projectIdentifier;
 
@@ -429,19 +423,15 @@ export const ProjectStatusReport = ({
                         isProcessMode={isProcessMode}
                         isLoadingChildren={isLoadingChildren}
                         onProcessModeChange={setIsProcessMode}
-                        statuses={statuses}
                         isProjectOpen={isProjectOpen}
                         onProjectOpenChange={setIsProjectOpen}
                         isVersionOpen={isVersionOpen}
                         onVersionOpenChange={setIsVersionOpen}
                         isSizeOpen={isSizeOpen}
                         onSizeOpenChange={setIsSizeOpen}
-                        isLegendOpen={isLegendOpen}
-                        onLegendOpenChange={setIsLegendOpen}
                         projectDropdownRef={projectDropdownRef}
                         versionDropdownRef={versionDropdownRef}
                         sizeDropdownRef={sizeDropdownRef}
-                        legendDropdownRef={legendDropdownRef}
                         isDateRangeDialogOpen={isDateRangeDialogOpen}
                         isCustomDateRangeActive={isCustomDateRangeActive}
                         onOpenDateRangeDialog={openDateRangeDialog}
