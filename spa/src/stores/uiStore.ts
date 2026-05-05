@@ -30,8 +30,6 @@ type UIStore = {
   setIsVersionOpen: (value: boolean) => void;
   isSizeOpen: boolean;
   setIsSizeOpen: (value: boolean) => void;
-  isLegendOpen: boolean;
-  setIsLegendOpen: (value: boolean) => void;
   isDensityMenuOpen: boolean;
   setIsDensityMenuOpen: (value: boolean) => void;
 };
@@ -97,10 +95,6 @@ export const useUiStore = create<UIStore>((set, get) => ({
   setIsVersionOpen: (value) => set({ isVersionOpen: value }),
   isSizeOpen: false,
   setIsSizeOpen: (value) => set({ isSizeOpen: value }),
-  isLegendOpen: false,
-  setIsLegendOpen: (value) => set({ isLegendOpen: value }),
   isDensityMenuOpen: false,
   setIsDensityMenuOpen: (value) => set({ isDensityMenuOpen: value }),
-  isDetailLegendOpen: false,
-  setIsDetailLegendOpen: (value) => set({ isDetailLegendOpen: value }),
 }));

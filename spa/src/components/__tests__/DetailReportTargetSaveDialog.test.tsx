@@ -47,6 +47,9 @@ describe('DetailReportTargetSaveDialog', () => {
       />
     );
 
+    expect(screen.queryByText('eCookbook / v1')).toBeNull();
+    expect(screen.queryByText('eCookbook / v2')).toBeNull();
+
     fireEvent.change(screen.getByPlaceholderText(/Issue ID|チケットID/), { target: { value: '321' } });
     fireEvent.click(screen.getByRole('button', { name: /Validate Destination|宛先を確認/ }));
 

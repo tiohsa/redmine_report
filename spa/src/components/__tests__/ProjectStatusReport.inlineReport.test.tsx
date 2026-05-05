@@ -122,8 +122,8 @@ describe('ProjectStatusReport report presets', () => {
     fireEvent.click(screen.getByRole('button', { name: 'reportDetail.toggle' }));
 
     expect(screen.getByTestId('report-detail-panel')).toBeTruthy();
-    expect(screen.getByText('reportDetail.title: May report')).toBeTruthy();
-    expect(screen.getByText('eCookbook / v1')).toBeTruthy();
+    expect(screen.queryByText('reportDetail.title: May report')).toBeNull();
+    expect(screen.queryByText('eCookbook / v1')).toBeNull();
   });
 
   it('selecting a preset filters the timeline bars to preset targets', async () => {

@@ -5,7 +5,6 @@ import {
   applyEmbeddedLinkTargetBlank,
   applyEmbeddedIssueDialogStyles,
   bindIframeEscapeHandler,
-  COMPACT_ACTION_BUTTON_HEIGHT,
   COMPACT_ACTION_BUTTON_MIN_WIDTH,
   DEFAULT_DIALOG_WIDTH_PX,
   extractIssueIdFromLocationCandidates,
@@ -28,8 +27,11 @@ import {
   type InheritedSubIssueFields,
   syncEmbeddedIssueHeaderState
 } from './shared';
-import { reportCompactIconActionStyle, reportCompactMenuToggleActiveStyle, reportStyles } from '../../designSystem';
+import { reportCompactIconActionStyle, reportStyles } from '../../designSystem';
 import { cn } from '../../ui/cn';
+
+const EMBEDDED_DIALOG_ACTION_BUTTON_HEIGHT = 32;
+const EMBEDDED_DIALOG_ACTION_BUTTON_CLASS_NAME = 'rounded-full';
 
 type SubIssueCreationDialogProps = {
   projectIdentifier: string;
@@ -310,20 +312,21 @@ export function SubIssueCreationDialog({
       <div ref={sectionRef} className="border-t border-[rgba(0,0,0,0.06)] bg-white flex-shrink-0" style={{ padding: '8px 12px 0 12px' }}>
         <button
           type="button"
-          className={cn('report-menu-toggle-button', bulkOpen && 'text-[#1a73e8]')}
+          aria-pressed={bulkOpen}
+          className={cn('report-menu-toggle-button', 'border-0', bulkOpen && 'report-menu-toggle-button-active')}
+          style={{ border: 'none', boxShadow: 'none', gap: '2px' }}
           onClick={() => setBulkOpen(!bulkOpen)}
         >
           <span
-            className={cn(reportStyles.menuToggleIcon, bulkOpen && reportStyles.menuToggleIconActive)}
+            className={cn(reportStyles.menuToggleIcon, 'border-0')}
             style={{
               transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-              ...(bulkOpen ? reportCompactMenuToggleActiveStyle : {})
+              color: bulkOpen ? '#1a73e8' : '#333333'
             }}
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="m9 18 6-6-6-6" />
             </svg>
-            {bulkOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </span>
           <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
         </button>
@@ -331,8 +334,35 @@ export function SubIssueCreationDialog({
       </div>
 
       <div ref={footerRef} data-testid="sub-issue-dialog-footer" className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-[rgba(0,0,0,0.06)]" style={{ padding: '2px 12px 4px 12px' }}>
-        <button type="button" className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, borderColor: '#cbd5e1', color: '#334155' }} onClick={onClose}>{t('common.cancel')}</button>
-        <button type="button" className="rounded-[6px] text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, backgroundColor: '#1b69e3', color: '#fff' }} disabled={isSubmitting || !iframeReady} onClick={handleSave}>{isSubmitting ? t('common.saving') : t('common.save')}</button>
+        <button
+          type="button"
+          className={`${EMBEDDED_DIALOG_ACTION_BUTTON_CLASS_NAME} border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased`}
+          style={{
+            fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+            height: `${EMBEDDED_DIALOG_ACTION_BUTTON_HEIGHT}px`,
+            minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+            borderColor: '#cbd5e1',
+            color: '#334155'
+          }}
+          onClick={onClose}
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          className={`${EMBEDDED_DIALOG_ACTION_BUTTON_CLASS_NAME} text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased`}
+          style={{
+            fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+            height: `${EMBEDDED_DIALOG_ACTION_BUTTON_HEIGHT}px`,
+            minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+            backgroundColor: '#1b69e3',
+            color: '#fff'
+          }}
+          disabled={isSubmitting || !iframeReady}
+          onClick={handleSave}
+        >
+          {isSubmitting ? t('common.saving') : t('common.save')}
+        </button>
       </div>
     </CompactDialogFrame>
   );
@@ -579,28 +609,56 @@ export function IssueEditDialog({ projectIdentifier, issueId, issueUrl, onSaved,
       <div ref={sectionRef} className="border-t border-[rgba(0,0,0,0.06)] bg-white flex-shrink-0" style={{ padding: '8px 12px 0 12px' }}>
         <button
           type="button"
-          className={cn('report-menu-toggle-button', bulkOpen && 'text-[#1a73e8]')}
+          aria-pressed={bulkOpen}
+          className={cn('report-menu-toggle-button', 'border-0', bulkOpen && 'report-menu-toggle-button-active')}
+          style={{ border: 'none', boxShadow: 'none', gap: '4px' }}
           onClick={() => setBulkOpen(!bulkOpen)}
         >
           <span
-            className={cn(reportStyles.menuToggleIcon, bulkOpen && reportStyles.menuToggleIconActive)}
+            className={cn(reportStyles.menuToggleIcon, 'border-0')}
             style={{
               transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-              ...(bulkOpen ? reportCompactMenuToggleActiveStyle : {})
+              color: bulkOpen ? '#1a73e8' : '#333333'
             }}
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="m9 18 6-6-6-6" />
             </svg>
-            {bulkOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </span>
           <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
         </button>
         {bulkOpen ? <div className="mt-3"><textarea className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y" placeholder={t('subIssueDialog.bulkPlaceholder')} value={bulkText} onChange={(e) => setBulkText(e.target.value)} /></div> : null}
       </div>
       <div ref={footerRef} data-testid="edit-issue-dialog-footer" className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-[rgba(0,0,0,0.06)]" style={{ padding: '2px 12px 4px 12px' }}>
-        <button type="button" className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, borderColor: '#cbd5e1', color: '#334155' }} onClick={onClose}>{t('common.cancel')}</button>
-        <button type="button" className="rounded-[6px] text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, backgroundColor: '#1b69e3', color: '#fff' }} disabled={isSubmitting || !iframeReady} onClick={handleSave}>{isSubmitting ? t('common.saving') : t('common.save')}</button>
+        <button
+          type="button"
+          className={`${EMBEDDED_DIALOG_ACTION_BUTTON_CLASS_NAME} border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased`}
+          style={{
+            fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+            height: `${EMBEDDED_DIALOG_ACTION_BUTTON_HEIGHT}px`,
+            minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+            borderColor: '#cbd5e1',
+            color: '#334155'
+          }}
+          onClick={onClose}
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          className={`${EMBEDDED_DIALOG_ACTION_BUTTON_CLASS_NAME} text-[13px] font-bold text-white disabled:opacity-50 transition-colors cursor-pointer flex items-center justify-center antialiased`}
+          style={{
+            fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+            height: `${EMBEDDED_DIALOG_ACTION_BUTTON_HEIGHT}px`,
+            minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+            backgroundColor: '#1b69e3',
+            color: '#fff'
+          }}
+          disabled={isSubmitting || !iframeReady}
+          onClick={handleSave}
+        >
+          {isSubmitting ? t('common.saving') : t('common.save')}
+        </button>
       </div>
     </CompactDialogFrame>
   );
@@ -774,28 +832,57 @@ export function IssueViewDialog({ projectIdentifier, issueId, issueUrl, inherite
       <div ref={sectionRef} className="border-t border-[rgba(0,0,0,0.06)] bg-white flex-shrink-0" style={{ padding: '8px 12px 0 12px' }}>
         <button
           type="button"
-          className={cn('report-menu-toggle-button', bulkOpen && 'text-[#1a73e8]')}
+          aria-pressed={bulkOpen}
+          className={cn('report-menu-toggle-button', 'border-0', bulkOpen && 'report-menu-toggle-button-active')}
+          style={{ border: 'none', boxShadow: 'none', gap: '4px' }}
           onClick={() => setBulkOpen(!bulkOpen)}
         >
           <span
-            className={cn(reportStyles.menuToggleIcon, bulkOpen && reportStyles.menuToggleIconActive)}
+            className={cn(reportStyles.menuToggleIcon, 'border-0')}
             style={{
               transform: bulkOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-              ...(bulkOpen ? reportCompactMenuToggleActiveStyle : {})
+              color: bulkOpen ? '#1a73e8' : '#333333'
             }}
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="m9 18 6-6-6-6" />
             </svg>
-            {bulkOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </span>
           <span className="text-[13px]">{t('subIssueDialog.bulkSectionTitle')}</span>
         </button>
         {bulkOpen ? <div className="mt-3"><textarea className="w-full h-24 p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-[13px] bg-white text-slate-800 resize-y" placeholder={t('subIssueDialog.bulkPlaceholder')} value={bulkText} onChange={(e) => setBulkText(e.target.value)} /></div> : null}
       </div>
       <div ref={footerRef} data-testid="view-issue-dialog-footer" className="bg-white flex justify-start gap-[6px] flex-shrink-0 items-center border-t border-[rgba(0,0,0,0.06)]" style={{ padding: '8px 12px 12px 12px' }}>
-        <button type="button" className="rounded-[6px] border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, borderColor: '#cbd5e1', color: '#334155' }} onClick={onClose}>{t('common.close')}</button>
-        <button type="button" className="rounded-[6px] border text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased" style={{ fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY, height: `${COMPACT_ACTION_BUTTON_HEIGHT}px`, minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`, borderColor: '#2563eb', backgroundColor: '#1b69e3', color: '#fff' }} disabled={isSubmitting || !iframeReady} onClick={handleSave}>{isSubmitting ? t('common.saving') : t('common.save')}</button>
+        <button
+          type="button"
+          className={`${EMBEDDED_DIALOG_ACTION_BUTTON_CLASS_NAME} border bg-white text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased`}
+          style={{
+            fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+            height: `${EMBEDDED_DIALOG_ACTION_BUTTON_HEIGHT}px`,
+            minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+            borderColor: '#cbd5e1',
+            color: '#334155'
+          }}
+          onClick={onClose}
+        >
+          {t('common.close')}
+        </button>
+        <button
+          type="button"
+          className={`${EMBEDDED_DIALOG_ACTION_BUTTON_CLASS_NAME} border text-[13px] transition-colors cursor-pointer flex items-center justify-center antialiased`}
+          style={{
+            fontFamily: EMBEDDED_DIALOG_BUTTON_FONT_FAMILY,
+            height: `${EMBEDDED_DIALOG_ACTION_BUTTON_HEIGHT}px`,
+            minWidth: `${COMPACT_ACTION_BUTTON_MIN_WIDTH}px`,
+            borderColor: '#2563eb',
+            backgroundColor: '#1b69e3',
+            color: '#fff'
+          }}
+          disabled={isSubmitting || !iframeReady}
+          onClick={handleSave}
+        >
+          {isSubmitting ? t('common.saving') : t('common.save')}
+        </button>
       </div>
     </CompactDialogFrame>
   );

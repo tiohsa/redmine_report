@@ -9,6 +9,8 @@ export type ExecutiveBarOptions = {
   progress?: number;
   label?: string;
   chartScale: number;
+  availableWidth?: number;
+  rightPadding?: number;
 };
 
 export type ExecutiveMilestoneOptions = {
@@ -34,7 +36,18 @@ export type ExecutiveHeaderOptions = {
  * Draw the executive task bar with rounded corners and right-aligned progress %.
  */
 export const drawExecutiveBar = (ctx: CanvasRenderingContext2D, options: ExecutiveBarOptions) => {
-  const { x, y, width, height, fill, progress = 0, label, chartScale } = options;
+  const {
+    x,
+    y,
+    width,
+    height,
+    fill,
+    progress = 0,
+    label,
+    chartScale,
+    availableWidth,
+    rightPadding = 12 * chartScale
+  } = options;
   const radius = height / 2; // Full pill radius
 
   ctx.save();
@@ -83,9 +96,18 @@ export const drawExecutiveBar = (ctx: CanvasRenderingContext2D, options: Executi
   if (clampedProgress >= 0) {
     const progressText = `${Math.round(clampedProgress)}%`;
     const progressFont = `700 ${Math.max(12, Math.round(13 * chartScale))}px "DM Sans", sans-serif`;
+    ctx.save();
+    ctx.font = progressFont;
+    const textWidth = ctx.measureText(progressText).width;
+    ctx.restore();
+    const preferredX = x + width + 8 * chartScale;
+    const maxX = typeof availableWidth === 'number'
+      ? Math.max(x + 4 * chartScale, availableWidth - rightPadding - textWidth)
+      : preferredX;
+    const progressTextX = Math.min(preferredX, maxX);
     drawStrokeText(ctx, {
       text: progressText,
-      x: x + width + 8 * chartScale,
+      x: progressTextX,
       y: y + height / 2,
       fill: fill, // Use the same blue as the bar
       stroke: '#ffffff',

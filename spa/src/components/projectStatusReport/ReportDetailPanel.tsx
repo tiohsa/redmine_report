@@ -23,7 +23,6 @@ type ReportDetailPanelProps = {
 type CardSection = {
   key: string;
   title: string;
-  badge: string;
   subtitle: string;
   accentColor: string;
   numberColor: string;
@@ -33,7 +32,6 @@ const CARD_SECTIONS: CardSection[] = [
   {
     key: 'fact',
     title: 'reportDetail.cardFact',
-    badge: 'reportDetail.cardFactBadge',
     subtitle: 'reportDetail.cardFactSubtitle',
     accentColor: 'bg-[var(--color-brand-6)]',
     numberColor: 'bg-[var(--color-brand-6)]'
@@ -41,7 +39,6 @@ const CARD_SECTIONS: CardSection[] = [
   {
     key: 'next',
     title: 'reportDetail.cardNext',
-    badge: 'reportDetail.cardNextBadge',
     subtitle: 'reportDetail.cardNextSubtitle',
     accentColor: 'bg-[var(--color-brand-00)]',
     numberColor: 'bg-[var(--color-brand-00)]'
@@ -49,7 +46,6 @@ const CARD_SECTIONS: CardSection[] = [
   {
     key: 'decision',
     title: 'reportDetail.cardDecision',
-    badge: 'reportDetail.cardDecisionBadge',
     subtitle: 'reportDetail.cardDecisionSubtitle',
     accentColor: 'bg-[var(--color-brand-02)]',
     numberColor: 'bg-[var(--color-brand-02)]'
@@ -104,7 +100,6 @@ function EditableCard({
           <div className="report-detail-card-title">{t(section.title)}</div>
           <div className="report-detail-card-subtitle">{t(section.subtitle)}</div>
         </div>
-        <span className="report-detail-card-badge">{t(section.badge)}</span>
       </div>
       <div className="report-detail-card-body">
         {rows.map((row, index) => (
@@ -146,11 +141,6 @@ function EditableCard({
             {t('reportDetail.addRow')}
           </button>
         )}
-      </div>
-      <div className="report-detail-card-footer">
-        <span className="text-[11px] font-sans text-[#8e8e93]">
-          {t('reportDetail.rowCount', { count: rows.length })}
-        </span>
       </div>
     </div>
   );
@@ -335,25 +325,11 @@ export function ReportDetailPanel({
     }
   };
 
-  const scopeLabel = activePreset.targets
-    .map((target) => `${target.projectName} / ${target.versionName}`)
-    .join(' , ');
-
   return (
     <section className={`${reportStyles.surfaceElevated} mt-4 flex min-h-0 flex-col overflow-hidden`} data-testid="report-detail-panel">
       {/* Header */}
       <div className="report-detail-header">
-        <div>
-          <div className="report-detail-header-title">
-            {t('reportDetail.title', { name: activePreset.name })}
-          </div>
-          {scopeLabel ? (
-            <div className="mt-1 text-[12px] font-medium text-[#45515e]">
-              {scopeLabel}
-            </div>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {dirty && (
             <span className="text-[13px] font-sans font-medium text-[var(--color-warning-text)]" data-testid="unsaved-indicator">
               {t('reportDetail.unsavedChanges')}
@@ -404,6 +380,7 @@ export function ReportDetailPanel({
               style={{ height: '32px' }}
               onClick={handleToggleMode}
               data-testid="toggle-view-mode-btn"
+              leadingIcon={<Icon name="file-text" className="h-4 w-4" />}
             >
               {t('reportDetail.viewMode')}
             </Button>
@@ -440,18 +417,18 @@ export function ReportDetailPanel({
 
       {/* Content */}
       {!isBound && (
-        <div className={`${reportStyles.emptyState} mx-6 mt-4`} data-testid="report-detail-unbound">
+        <div className={`${reportStyles.emptyState} mx-6 mt-3`} data-testid="report-detail-unbound">
           <p className="text-[14px] font-medium text-[#45515e]">{t('reportDetail.saveRequiresIssue')}</p>
         </div>
       )}
 
       {loading ? (
-        <div className={`${reportStyles.loadingState} mx-6 my-4`}>
+        <div className={`${reportStyles.loadingState} mx-6 my-3`}>
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-100 border-t-[var(--color-brand-6)] mb-3" />
           <p className="text-[13px] text-[#45515e] font-sans">{t('reportDetail.fetchingDetail')}</p>
         </div>
       ) : (
-        <div className="report-detail-cards mt-4">
+        <div className="report-detail-cards mt-3">
           {/* Card 1: Highlights */}
           <EditableCard
             section={CARD_SECTIONS[0]}

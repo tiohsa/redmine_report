@@ -110,7 +110,7 @@ class ScheduleReportsController < ApplicationController
         user: User.current
       ),
       service_call: ->(service) { service.call },
-      success_payload: ->(result) { result.slice(:trackers, :statuses, :priorities, :members) },
+      success_payload: ->(result) { result.to_h.slice(:trackers, :statuses, :priorities, :members) },
       action_name: __method__
     )
   end

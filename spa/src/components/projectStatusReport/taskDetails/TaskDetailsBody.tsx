@@ -118,7 +118,7 @@ export function TaskDetailsBody({
           <div
             className="border-b border-[#e5e7eb] bg-white relative z-10 shrink-0 overflow-hidden"
             data-testid="task-details-top-pane"
-            style={{ height: `${topPaneHeight}px` }}
+            style={{ height: `${topPaneHeight}px`, scrollbarGutter: 'stable' }}
           >
             <div className="h-full overflow-auto" onClick={() => selectIssue(null)}>
               <ProcessFlowCanvas

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import { describe, expect, it, vi } from 'vitest';
 import { ProjectStatusReportToolbar } from '../projectStatusReport/ProjectStatusReportToolbar';
 
@@ -29,19 +30,15 @@ const makePropsBase = () => ({
   isProcessMode: false,
   isLoadingChildren: false,
   onProcessModeChange: vi.fn(),
-  statuses: [],
   isProjectOpen: false,
   onProjectOpenChange: vi.fn(),
   isVersionOpen: true,
   onVersionOpenChange: vi.fn(),
   isSizeOpen: false,
   onSizeOpenChange: vi.fn(),
-  isLegendOpen: false,
-  onLegendOpenChange: vi.fn(),
   projectDropdownRef: { current: null },
   versionDropdownRef: { current: null },
   sizeDropdownRef: { current: null },
-  legendDropdownRef: { current: null },
   isDateRangeDialogOpen: false,
   isCustomDateRangeActive: false,
   onOpenDateRangeDialog: vi.fn(),
@@ -273,6 +270,9 @@ describe('ProjectStatusReportToolbar version drag', () => {
     });
     render(<ProjectStatusReportToolbar {...props} />);
 
+    const detailButton = screen.getByRole('button', { name: /詳細レポート|reportDetail\.toggle/ });
+    expect(detailButton).not.toHaveStyle({ backgroundColor: 'rgb(232, 240, 254)' });
+
     fireEvent.change(screen.getByRole('combobox', { name: /レポートプリセット|reportPreset\.selector/ }), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Report preset add current view' }));
     fireEvent.click(screen.getByRole('button', { name: /対象を更新|reportPreset\.updateTargets/ }));
@@ -282,5 +282,37 @@ describe('ProjectStatusReportToolbar version drag', () => {
     expect(props.onSaveCurrentView).toHaveBeenCalledTimes(1);
     expect(props.onUpdatePresetTargets).toHaveBeenCalledTimes(1);
     expect(props.onDetailReportVisibleChange).toHaveBeenCalledWith(true);
+  });
+
+  it('highlights the detail report toggle when visible', () => {
+    const props = makeProps({
+      detailReportVisible: true,
+      reportPresets: [
+        {
+          id: 'preset-1',
+          name: 'May report',
+          targets: [{ projectId: 1, projectIdentifier: 'ecookbook', projectName: 'eCookbook', versionId: 101, versionName: 'v1' }],
+          createdAt: '2026-03-01T00:00:00.000Z',
+          updatedAt: '2026-03-01T00:00:00.000Z'
+        }
+      ],
+      activeReportPresetId: 'preset-1',
+      activeReportPreset: {
+        id: 'preset-1',
+        name: 'May report',
+        targets: [{ projectId: 1, projectIdentifier: 'ecookbook', projectName: 'eCookbook', versionId: 101, versionName: 'v1' }],
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z'
+      }
+    });
+
+    render(<ProjectStatusReportToolbar {...props} />);
+
+    const detailButton = screen.getByRole('button', { name: /詳細レポート|reportDetail\.toggle/ });
+    expect(detailButton).toHaveStyle({
+      backgroundColor: 'rgb(232, 240, 254)',
+      borderColor: 'rgb(224, 224, 224)',
+      color: 'rgb(26, 115, 232)'
+    });
   });
 });

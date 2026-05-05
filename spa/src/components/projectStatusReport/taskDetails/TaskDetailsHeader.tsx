@@ -43,17 +43,10 @@ export function TaskDetailsHeader({
   const {
     isDensityMenuOpen,
     setIsDensityMenuOpen,
-    isDetailLegendOpen,
-    setIsDetailLegendOpen
   } = useUiStore();
 
   const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-2 w-48 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-50`;
   const filterDropdownTitleStyle = reportStyles.dropdownTitle;
-
-  const legendStatuses = [
-    { label: t('timeline.legendWip'), fill: '#60a5fa', stroke: '#2563eb' },
-    { label: t('timeline.legendDone'), fill: '#34d399', stroke: '#059669' }
-  ];
 
   return (
     <div className="px-3 py-0.5 flex items-center justify-between gap-2.5 bg-white relative z-40 border-b border-[rgba(0,0,0,0.06)] flex-shrink-0 min-h-10 box-border">
@@ -120,46 +113,6 @@ export function TaskDetailsHeader({
                     <span>
                       {t(`timeline.density${d.charAt(0).toUpperCase() + d.slice(1)}`, { defaultValue: d.charAt(0).toUpperCase() + d.slice(1) })}
                     </span>
-                  </SelectionRow>
-                ))}
-              </SelectionList>
-            </div>
-          )}
-        </div>
-
-        <div className="relative">
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsDetailLegendOpen(!isDetailLegendOpen); }}
-            title="Status Legend"
-            className={cn(
-              isDetailLegendOpen ? REDMINE_DIALOG_ICON_ACTION_ACTIVE_CLASS : REDMINE_DIALOG_ICON_ACTION_CLASS,
-              'ml-1'
-            )}
-            style={isDetailLegendOpen ? reportCompactIconActionActiveStyle : reportCompactIconActionStyle}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-            </svg>
-            {isDetailLegendOpen ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
-          </button>
-          {isDetailLegendOpen && (
-            <div className={cn(filterDropdownPanelStyle, 'w-48')} onMouseDown={(e) => e.stopPropagation()}>
-              <div className={filterDropdownTitleStyle}>Status Legend</div>
-              <SelectionList className="py-1">
-                {legendStatuses.map((status) => (
-                  <SelectionRow
-                    key={status.label}
-                    leading={
-                      <div
-                        className="h-2.5 w-2.5 rounded-full border shadow-sm"
-                        style={{
-                          backgroundColor: status.fill,
-                          borderColor: status.stroke,
-                        }}
-                      />
-                    }
-                  >
-                    <span className="text-[13px] font-medium">{status.label}</span>
                   </SelectionRow>
                 ))}
               </SelectionList>

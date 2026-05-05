@@ -53,13 +53,11 @@ export const useProjectStatusReportControls = () => {
     isProjectOpen, setIsProjectOpen,
     isVersionOpen, setIsVersionOpen,
     isSizeOpen, setIsSizeOpen,
-    isLegendOpen, setIsLegendOpen
   } = useUiStore();
 
   const projectDropdownRef = useRef<HTMLDivElement>(null);
   const versionDropdownRef = useRef<HTMLDivElement>(null);
   const sizeDropdownRef = useRef<HTMLDivElement>(null);
-  const legendDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -78,16 +76,13 @@ export const useProjectStatusReportControls = () => {
       if (sizeDropdownRef.current && !sizeDropdownRef.current.contains(target)) {
         setIsSizeOpen(false);
       }
-      if (legendDropdownRef.current && !legendDropdownRef.current.contains(target)) {
-        setIsLegendOpen(false);
-      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [setIsProjectOpen, setIsVersionOpen, setIsSizeOpen, setIsLegendOpen]);
+  }, [setIsProjectOpen, setIsVersionOpen, setIsSizeOpen]);
 
   useEffect(() => {
     writeStoredScheduleViewSetting(CHART_SCALE_STORAGE_KEY, String(chartScale));
@@ -126,12 +121,9 @@ export const useProjectStatusReportControls = () => {
     setIsVersionOpen,
     isSizeOpen,
     setIsSizeOpen,
-    isLegendOpen,
-    setIsLegendOpen,
     projectDropdownRef,
     versionDropdownRef,
     sizeDropdownRef,
-    legendDropdownRef,
   };
 };
 

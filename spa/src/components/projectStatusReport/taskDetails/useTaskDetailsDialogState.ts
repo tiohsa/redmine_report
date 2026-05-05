@@ -33,7 +33,6 @@ export function useTaskDetailsDialogState() {
   
   const {
     setIsDensityMenuOpen,
-    setIsDetailLegendOpen
   } = useUiStore();
 
   const selectIssue = useCallback((issue: TaskDetailIssue | TreeNodeType | null) => {
@@ -49,8 +48,7 @@ export function useTaskDetailsDialogState() {
     setViewIssueContext(null);
     setSelectedIssue(null);
     setIsDensityMenuOpen(false);
-    setIsDetailLegendOpen(false);
-  }, [setIsDensityMenuOpen, setIsDetailLegendOpen]);
+  }, [setIsDensityMenuOpen]);
 
   const handleDensityChange = useCallback((next: TableDensity) => {
     setDensity(next);

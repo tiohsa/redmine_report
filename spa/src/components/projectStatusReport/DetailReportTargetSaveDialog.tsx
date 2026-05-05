@@ -154,22 +154,6 @@ export function DetailReportTargetSaveDialog({
           ) : null}
           {error ? <div className={reportStyles.alertError} role="alert">{error}</div> : null}
 
-          <div className="max-h-[220px] overflow-y-auto rounded-[8px] border border-[var(--color-border-light)] bg-white">
-            {targets.length === 0 ? (
-              <div className={reportStyles.selectionListEmpty}>{t('detailReport.noVisibleTargets')}</div>
-            ) : (
-              targets.map((target) => (
-                <div
-                  key={`${target.projectIdentifier}:${target.versionId}`}
-                  className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-2.5 last:border-b-0"
-                >
-                  <span className="min-w-0 truncate text-[13px] font-medium text-[#222222]">
-                    {target.projectName} / {target.versionName}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
         </div>
 
         <div className={reportStyles.dialogFooter}>
