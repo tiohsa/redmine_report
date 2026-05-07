@@ -13,6 +13,7 @@ import {
   truncateCanvasText
 } from './canvasTimelineRenderer';
 import { drawExecutiveBar } from './executiveTimelineRenderer';
+import { UI_DATA_FONT_FAMILY, UI_SANS_FONT_FAMILY } from './fonts';
 import { reportStyles } from '../designSystem';
 
 type TimelineChartProps = {
@@ -647,7 +648,7 @@ function TimelineChartSurface({
         fill: TIMELINE_TEXT_SECONDARY,
         stroke: TIMELINE_HEADER_FILL,
         strokeWidth: 0,
-        font: '600 12px "DM Sans", sans-serif'
+        font: `600 12px ${UI_SANS_FONT_FAMILY}`
       });
     });
 
@@ -661,7 +662,7 @@ function TimelineChartSurface({
         fill: TIMELINE_TEXT_SECONDARY,
         stroke: TIMELINE_HEADER_FILL,
         strokeWidth: 0,
-        font: '600 12px "DM Sans", sans-serif'
+        font: `600 12px ${UI_SANS_FONT_FAMILY}`
       });
     });
 
@@ -680,7 +681,7 @@ function TimelineChartSurface({
         fill: '#ffffff',
         stroke: TODAY_COLOR,
         strokeWidth: 0,
-        font: '700 10px "Roboto", sans-serif'
+        font: `700 10px ${UI_DATA_FONT_FAMILY}`
       });
     }
 
@@ -732,7 +733,7 @@ function TimelineChartSurface({
               fill: item.step.status.dateText || '#475569',
               stroke: '#ffffff',
               strokeWidth: 2,
-              font: '700 10px "Roboto", sans-serif',
+              font: `700 10px ${UI_DATA_FONT_FAMILY}`,
               textAlign: 'start'
             });
           }
@@ -745,7 +746,7 @@ function TimelineChartSurface({
               fill: item.step.status.dateText || '#475569',
               stroke: '#ffffff',
               strokeWidth: 2,
-              font: '700 10px "Roboto", sans-serif',
+              font: `700 10px ${UI_DATA_FONT_FAMILY}`,
               textAlign: item.renderData.startLabel === item.renderData.endLabel ? 'center' : 'end'
             });
           }

@@ -16,8 +16,6 @@ import {
 import { reportCompactIconActionStyle, reportStyles } from '../designSystem';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
-
-const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = "'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif";
 type CreateDestinationIssueDialogProps = {
   projectIdentifier: string;
   onCreated?: (createdIssueId?: number) => void;

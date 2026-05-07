@@ -10,6 +10,7 @@ import {
 } from '../canvasTimelineRenderer';
 import { drawExecutiveBar } from '../executiveTimelineRenderer';
 import { getProgressFillColor, getProgressTrackColor } from '../constants';
+import { UI_SANS_FONT_FAMILY } from '../fonts';
 import { type TimelineAxis } from '../timelineAxis';
 import {
   buildProcessChevronPathData,
@@ -163,7 +164,7 @@ export function ProcessFlowCanvas({
           fill: '#334155',
           stroke: '#f8fafc',
           strokeWidth: 0,
-          font: '700 11px sans-serif'
+          font: `700 11px ${UI_SANS_FONT_FAMILY}`
         });
       });
 
@@ -176,7 +177,7 @@ export function ProcessFlowCanvas({
           fill: '#334155',
           stroke: '#f8fafc',
           strokeWidth: 0,
-          font: '700 11px sans-serif'
+          font: `700 11px ${UI_SANS_FONT_FAMILY}`
         });
       });
 
@@ -265,7 +266,7 @@ export function ProcessFlowCanvas({
             fill: style.dateText,
             stroke: '#ffffff',
             strokeWidth: 2,
-            font: '700 10px sans-serif'
+            font: `700 10px ${UI_SANS_FONT_FAMILY}`
           });
         } else {
           if (step.startDate) {
@@ -276,7 +277,7 @@ export function ProcessFlowCanvas({
               fill: style.dateText,
               stroke: '#ffffff',
               strokeWidth: 2,
-              font: '700 10px sans-serif',
+              font: `700 10px ${UI_SANS_FONT_FAMILY}`,
               textAlign: 'start'
             });
           }
@@ -288,7 +289,7 @@ export function ProcessFlowCanvas({
               fill: style.dateText,
               stroke: '#ffffff',
               strokeWidth: 2,
-              font: '700 10px sans-serif',
+              font: `700 10px ${UI_SANS_FONT_FAMILY}`,
               textAlign: 'end'
             });
           }

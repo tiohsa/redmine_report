@@ -1,3 +1,4 @@
+import { UI_SANS_FONT_FAMILY } from './fonts';
 import { type StrokeTextOptions, drawStrokeText, truncateCanvasText } from './canvasTimelineRenderer';
 
 export type ExecutiveBarOptions = {
@@ -77,7 +78,7 @@ export const drawExecutiveBar = (ctx: CanvasRenderingContext2D, options: Executi
 
   // Draw Label (Below the bar)
   if (label) {
-    const labelFont = `700 ${Math.max(10, Math.round(11 * chartScale))}px "DM Sans", sans-serif`;
+    const labelFont = `700 ${Math.max(10, Math.round(11 * chartScale))}px ${UI_SANS_FONT_FAMILY}`;
     const displayTitle = truncateCanvasText(ctx, label, Math.max(width, 200), labelFont);
     drawStrokeText(ctx, {
       text: displayTitle,
@@ -95,7 +96,7 @@ export const drawExecutiveBar = (ctx: CanvasRenderingContext2D, options: Executi
   // Draw Progress % Text (Outside to the right, blue)
   if (clampedProgress >= 0) {
     const progressText = `${Math.round(clampedProgress)}%`;
-    const progressFont = `700 ${Math.max(12, Math.round(13 * chartScale))}px "DM Sans", sans-serif`;
+    const progressFont = `700 ${Math.max(12, Math.round(13 * chartScale))}px ${UI_SANS_FONT_FAMILY}`;
     ctx.save();
     ctx.font = progressFont;
     const textWidth = ctx.measureText(progressText).width;
@@ -145,7 +146,7 @@ export const drawExecutiveMilestone = (ctx: CanvasRenderingContext2D, options: E
     ctx.translate(centerX + halfSize + 4 * chartScale, centerY - halfSize - 4 * chartScale);
     ctx.rotate(-Math.PI / 4);
     
-    const labelFont = `700 ${Math.max(10, Math.round(11 * chartScale))}px "DM Sans", sans-serif`;
+    const labelFont = `700 ${Math.max(10, Math.round(11 * chartScale))}px ${UI_SANS_FONT_FAMILY}`;
     drawStrokeText(ctx, {
       text: label,
       x: 0,
@@ -178,7 +179,7 @@ export const drawExecutiveHeader = (ctx: CanvasRenderingContext2D, options: Exec
     y: y + height / 2,
     fill: textColor,
     strokeWidth: 0,
-    font: '600 12px "DM Sans", sans-serif'
+    font: `600 12px ${UI_SANS_FONT_FAMILY}`
   });
   
   ctx.restore();

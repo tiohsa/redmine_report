@@ -10,6 +10,7 @@ import {
   truncateCanvasText
 } from '../canvasTimelineRenderer';
 import { getProgressFillColor, getProgressTrackColor } from '../constants';
+import { UI_SANS_FONT_FAMILY } from '../fonts';
 
 export type ProcessFlowStep = {
   id: number;
@@ -414,7 +415,7 @@ export const drawProcessFlowCanvas = ({
       fill: '#334155',
       stroke: '#f8fafc',
       strokeWidth: 0,
-      font: '700 11px sans-serif'
+      font: `700 11px ${UI_SANS_FONT_FAMILY}`
     });
   });
 
@@ -427,7 +428,7 @@ export const drawProcessFlowCanvas = ({
       fill: '#334155',
       stroke: '#f8fafc',
       strokeWidth: 0,
-      font: '700 11px sans-serif'
+      font: `700 11px ${UI_SANS_FONT_FAMILY}`
     });
   });
 
@@ -516,7 +517,7 @@ export const drawProcessFlowCanvas = ({
         fill: style.dateText,
         stroke: '#ffffff',
         strokeWidth: 2,
-        font: '700 10px sans-serif'
+        font: `700 10px ${UI_SANS_FONT_FAMILY}`
       });
     } else {
       if (step.startDate) {
@@ -527,7 +528,7 @@ export const drawProcessFlowCanvas = ({
           fill: style.dateText,
           stroke: '#ffffff',
           strokeWidth: 2,
-          font: '700 10px sans-serif',
+          font: `700 10px ${UI_SANS_FONT_FAMILY}`,
           textAlign: 'start'
         });
       }
@@ -539,13 +540,13 @@ export const drawProcessFlowCanvas = ({
           fill: style.dateText,
           stroke: '#ffffff',
           strokeWidth: 2,
-          font: '700 10px sans-serif',
+          font: `700 10px ${UI_SANS_FONT_FAMILY}`,
           textAlign: 'end'
         });
       }
     }
 
-    const labelFont = '700 11px sans-serif';
+    const labelFont = `700 11px ${UI_SANS_FONT_FAMILY}`;
     const displayTitle = truncateCanvasText(context, step.title, step.visualWidth - 12, labelFont);
     if (!displayTitle) return;
 
