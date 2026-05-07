@@ -582,7 +582,7 @@
   }
 
   .report-timeline-shell {
-    @apply flex overflow-hidden bg-white;
+    @apply flex min-w-0 overflow-hidden bg-white;
   }
 
   .report-timeline-lane-label {
@@ -623,7 +623,7 @@
   }
 
   .report-timeline-canvas-scroller {
-    @apply relative flex-1 overflow-x-auto bg-white;
+    @apply relative flex-1 min-w-0 overflow-hidden bg-white;
   }
 
   .report-inline-code {

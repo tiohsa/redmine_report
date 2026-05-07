@@ -68,6 +68,19 @@ describe('TimelineChart', () => {
     expect(screen.queryByTestId('timeline-lane-active-bg-1')).toBeNull();
   });
 
+  it('fits the chart surface to the available timeline width', () => {
+    const { container } = renderTimelineChart();
+
+    const canvas = screen.getByTestId('timeline-chart-canvas');
+    const surface = canvas.parentElement;
+    const svg = container.querySelector('svg');
+
+    expect(surface?.getAttribute('style')).toContain('width: 480px');
+    expect(surface?.getAttribute('style')).toContain('min-width: 480px');
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 480 287');
+    expect(svg?.getAttribute('style')).toContain('min-width: 480px');
+  });
+
   it('does not render lane action menus after the refactor', () => {
     renderTimelineChart();
 

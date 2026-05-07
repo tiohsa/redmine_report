@@ -78,7 +78,6 @@ const MIN_CENTER_CLICK_PX = 14;
 const MIN_HANDLE_ACTIVE_PX = 4;
 const DATE_LABEL_INSET_PX = 8;
 const TOOLTIP_EDGE_PADDING_PX = 12;
-const TIMELINE_RIGHT_PADDING_PX = 84;
 const SELECTED_BAR_STROKE = '#1456f0';
 const SELECTED_BAR_DASH = [4, 2];
 const CHEVRON_RIGHT_HEAD_RATIO = 0.62;
@@ -396,7 +395,6 @@ function TimelineChartSurface({
   showTitles?: boolean;
 }) {
   const chartHeight = Math.ceil(headerHeight + totalTimelineHeight);
-  const chartRenderWidth = timelineWidth + TIMELINE_RIGHT_PADDING_PX;
   const scaledBarHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
   const scaledBarSpacingY = Math.round(17 * chartScale);
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
@@ -501,6 +499,7 @@ function TimelineChartSurface({
   }, [layoutData, onStepSelect, selectedStepId]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chartRenderWidth = timelineWidth;
 
   const renderedProjects = useMemo(() => {
     return layoutData.map((project) => {
@@ -874,8 +873,11 @@ function TimelineChartSurface({
                 const hitWidth = Math.max(renderData.width, 1);
                 const rightBaseX = barX + Math.max(barWidth - pointDepth, DATE_LABEL_INSET_PX);
                 const taskCenterX = barX + barWidth / 2;
-                const startLabelX = barX + DATE_LABEL_INSET_PX;
-                const endLabelX = renderData.startLabel === renderData.endLabel ? taskCenterX : rightBaseX - DATE_LABEL_INSET_PX;
+                const labelRightEdge = Math.max(DATE_LABEL_INSET_PX, chartRenderWidth - DATE_LABEL_INSET_PX);
+                const startLabelX = Math.min(barX + DATE_LABEL_INSET_PX, labelRightEdge);
+                const endLabelX = renderData.startLabel === renderData.endLabel
+                  ? Math.min(taskCenterX, labelRightEdge)
+                  : Math.min(rightBaseX - DATE_LABEL_INSET_PX, labelRightEdge);
                 const hasPendingPreview = pendingPreview?.stepId === step.id;
                 const isSelected = selectedStepId === step.id;
                 const canEdit = Boolean(
