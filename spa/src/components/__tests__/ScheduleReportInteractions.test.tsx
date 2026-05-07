@@ -153,7 +153,7 @@ describe('Schedule report interactions', () => {
     render(<ScheduleReportPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('schedule-report-scroll').className).toContain('report-shell-scroll');
+      expect(screen.queryByTestId('schedule-report-scroll')).toBeNull();
       expect(screen.queryByRole('alert')).toBeNull();
       expect(useTaskStore.getState().errorMessage).toBeNull();
       expect(useTaskStore.getState().rows).toHaveLength(0);

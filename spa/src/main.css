@@ -117,11 +117,7 @@
 
   .schedule-report-page,
   .report-page-shell {
-    @apply flex flex-col h-screen overflow-hidden text-[#222222] font-sans bg-white;
-  }
-
-  .report-shell-scroll {
-    @apply flex-1 min-h-0 overflow-auto;
+    @apply flex min-h-screen w-full flex-col text-[#222222] font-sans bg-white;
   }
 
   .report-surface {
@@ -550,7 +546,7 @@
   }
 
   .report-toolbar {
-    @apply flex flex-wrap items-center justify-between gap-4 bg-white px-6 py-1;
+    @apply sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border-light)] bg-white px-6 py-1;
   }
 
   .report-toolbar-group {

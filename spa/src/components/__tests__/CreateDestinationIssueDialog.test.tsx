@@ -20,7 +20,7 @@ describe('CreateDestinationIssueDialog', () => {
     expect(footerActions?.className).not.toContain('justify-end');
   });
 
-  it('prefills AI comment subject and description in the embedded issue form URL', () => {
+  it('prefills the detailed report subject and description in the embedded issue form URL', () => {
     render(
       <CreateDestinationIssueDialog
         projectIdentifier="ecookbook"
@@ -32,8 +32,8 @@ describe('CreateDestinationIssueDialog', () => {
     const url = new URL(iframe.src, window.location.origin);
 
     expect(url.pathname).toBe('/projects/ecookbook/issues/new');
-    expect(url.searchParams.get('issue[subject]')).toBe('生成AIコメント');
-    expect(url.searchParams.get('issue[description]')).toBe('生成AIのレスポンス保存用のチケットです。');
+    expect(url.searchParams.get('issue[subject]')).toBe('詳細レポートのチケット');
+    expect(url.searchParams.get('issue[description]')).toBe('詳細レポートの保存用のチケットです。');
   });
 
   it('uses compact canvas-gantt dialog chrome for header and footer buttons', () => {
