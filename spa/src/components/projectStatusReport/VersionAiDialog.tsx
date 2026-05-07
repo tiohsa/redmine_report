@@ -16,6 +16,9 @@ type Props = {
   versionName: string;
   destinationIssueId: number | null;
   destinationIssueStatus?: 'UNBOUND' | 'VALID' | 'INVALID' | 'FORBIDDEN' | 'NOT_FOUND' | 'PROJECT_MISMATCH';
+  initialStartDate: string;
+  initialEndDate: string;
+  onDisplayDateRangeChange?: (startDate: string, endDate: string) => void;
   onClose: () => void;
   onSaved?: () => void;
 };
@@ -60,10 +63,18 @@ export const VersionAiDialog = ({
   versionName,
   destinationIssueId,
   destinationIssueStatus,
+  initialStartDate,
+  initialEndDate,
+  onDisplayDateRangeChange,
   onClose,
   onSaved
 }: Props) => {
-  const initialWeek = useMemo(() => defaultWeek(), []);
+  const initialWeek = useMemo(() => {
+    if (initialStartDate && initialEndDate) {
+      return { from: initialStartDate, to: initialEndDate };
+    }
+    return defaultWeek();
+  }, [initialEndDate, initialStartDate]);
   const [weekFrom, setWeekFrom] = useState(initialWeek.from);
   const [weekTo, setWeekTo] = useState(initialWeek.to);
   const [prepared, setPrepared] = useState<WeeklyPrepareResponse | null>(null);
@@ -92,7 +103,9 @@ export const VersionAiDialog = ({
   useEffect(() => {
     if (!open) return;
 
-    const week = defaultWeek();
+    const week = initialStartDate && initialEndDate
+      ? { from: initialStartDate, to: initialEndDate }
+      : defaultWeek();
     setWeekFrom(week.from);
     setWeekTo(week.to);
     setPrepared(null);
@@ -104,7 +117,17 @@ export const VersionAiDialog = ({
     setLoadingSave(false);
     setMessage(null);
     setError(null);
-  }, [open]);
+  }, [initialEndDate, initialStartDate, open]);
+
+  const handleWeekFromChange = (value: string) => {
+    setWeekFrom(value);
+    onDisplayDateRangeChange?.(value, weekTo);
+  };
+
+  const handleWeekToChange = (value: string) => {
+    setWeekTo(value);
+    onDisplayDateRangeChange?.(weekFrom, value);
+  };
 
   if (!open) return null;
 
@@ -231,7 +254,7 @@ export const VersionAiDialog = ({
                   type="date"
                   className={`${reportStyles.input} version-ai-dialog-input`}
                   value={weekFrom}
-                  onChange={(e) => setWeekFrom(e.target.value)}
+                  onChange={(e) => handleWeekFromChange(e.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
@@ -240,7 +263,7 @@ export const VersionAiDialog = ({
                   type="date"
                   className={`${reportStyles.input} version-ai-dialog-input`}
                   value={weekTo}
-                  onChange={(e) => setWeekTo(e.target.value)}
+                  onChange={(e) => handleWeekToChange(e.target.value)}
                 />
               </div>
             </div>

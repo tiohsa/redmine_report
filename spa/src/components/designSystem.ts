@@ -1,6 +1,5 @@
 export const reportStyles = {
   pageShell: 'report-page-shell',
-  shellScroll: 'report-shell-scroll',
   dialogOverlay: 'report-dialog-overlay',
   surface: 'report-surface',
   surfaceElevated: 'report-surface-elevated',

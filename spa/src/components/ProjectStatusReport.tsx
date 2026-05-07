@@ -211,6 +211,8 @@ export const ProjectStatusReport = ({
             }),
         [barsForTimeline, selectedVersions, orderedVersions, projectMap, containerWidth, displayStartDateIso, displayEndDateIso, isProcessMode, childTicketsMap]
     );
+    const displayRangeStartDateIso = displayStartDateIso || axisStartDateIso;
+    const displayRangeEndDateIso = displayEndDateIso || axisEndDateIso;
 
     const allVersions = useMemo(() => {
         const versions = new Set<string>();
@@ -379,6 +381,11 @@ export const ProjectStatusReport = ({
         });
     }, [activeReportPreset]);
 
+    const handleWeeklyDialogDateRangeChange = useCallback((startDate: string, endDate: string) => {
+        setDisplayStartDateIso(startDate);
+        setDisplayEndDateIso(endDate);
+    }, []);
+
     const handleWeeklyDialogSaved = useCallback(() => {
         setDetailReportRefreshToken((current) => current + 1);
     }, []);
@@ -521,6 +528,9 @@ export const ProjectStatusReport = ({
                     versionName={weeklyDialog.versionName}
                     destinationIssueId={weeklyDialog.destinationIssueId}
                     destinationIssueStatus={weeklyDialog.destinationIssueStatus}
+                    initialStartDate={displayRangeStartDateIso}
+                    initialEndDate={displayRangeEndDateIso}
+                    onDisplayDateRangeChange={handleWeeklyDialogDateRangeChange}
                     onClose={() => setWeeklyDialog((prev) => ({ ...prev, open: false }))}
                     onSaved={handleWeeklyDialogSaved}
                 />

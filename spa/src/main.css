@@ -1,11 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=Poppins:wght@400;500;600&family=Roboto:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=Poppins:wght@400;500;600&family=Roboto:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "DM Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Outfit", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-poppins: "Poppins", sans-serif;
-  --font-data: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "DM Sans", "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Outfit", "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-poppins: "Poppins", "Noto Sans JP", sans-serif;
+  --font-data: "Roboto", "Noto Sans JP", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   --color-brand-6: #1456f0;
   --color-brand-00: #3daeff;
@@ -55,7 +55,9 @@
 
   #schedule-report-root,
   .schedule-report-page,
-  .report-page-shell {
+  .report-page-shell,
+  #redmine-report-inline-date-picker-portal {
+    font-family: var(--font-sans);
     color: #222222;
     background:
       radial-gradient(circle at top, rgba(59, 130, 246, 0.07), transparent 36%),
@@ -115,11 +117,7 @@
 
   .schedule-report-page,
   .report-page-shell {
-    @apply flex flex-col h-screen overflow-hidden text-[#222222] font-sans bg-white;
-  }
-
-  .report-shell-scroll {
-    @apply flex-1 min-h-0 overflow-auto;
+    @apply flex min-h-screen w-full flex-col text-[#222222] font-sans bg-white;
   }
 
   .report-surface {
@@ -548,7 +546,7 @@
   }
 
   .report-toolbar {
-    @apply flex flex-wrap items-center justify-between gap-4 bg-white px-6 py-1;
+    @apply sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border-light)] bg-white px-6 py-1;
   }
 
   .report-toolbar-group {
@@ -584,7 +582,7 @@
   }
 
   .report-timeline-shell {
-    @apply flex overflow-hidden bg-white;
+    @apply flex min-w-0 overflow-hidden bg-white;
   }
 
   .report-timeline-lane-label {
@@ -625,7 +623,7 @@
   }
 
   .report-timeline-canvas-scroller {
-    @apply relative flex-1 overflow-x-auto bg-white;
+    @apply relative flex-1 min-w-0 overflow-hidden bg-white;
   }
 
   .report-inline-code {

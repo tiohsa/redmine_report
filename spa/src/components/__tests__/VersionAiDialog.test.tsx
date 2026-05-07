@@ -55,6 +55,8 @@ describe('VersionAiDialog', () => {
         versionName="v1.0"
         destinationIssueId={123}
         destinationIssueStatus="VALID"
+        initialStartDate="2026-03-01"
+        initialEndDate="2026-03-07"
         onClose={() => undefined}
       />
     );
@@ -79,6 +81,8 @@ describe('VersionAiDialog', () => {
         versionName="v1.0"
         destinationIssueId={null}
         destinationIssueStatus="UNBOUND"
+        initialStartDate="2026-03-01"
+        initialEndDate="2026-03-07"
         onClose={() => undefined}
       />
     );
@@ -118,6 +122,8 @@ describe('VersionAiDialog', () => {
         versionName="v1.0"
         destinationIssueId={123}
         destinationIssueStatus="VALID"
+        initialStartDate="2026-03-01"
+        initialEndDate="2026-03-07"
         onClose={() => undefined}
         onSaved={onSaved}
       />
@@ -161,6 +167,8 @@ describe('VersionAiDialog', () => {
         versionName="v1.0"
         destinationIssueId={123}
         destinationIssueStatus="VALID"
+        initialStartDate="2026-03-01"
+        initialEndDate="2026-03-07"
         onClose={() => undefined}
       />
     );
@@ -175,5 +183,32 @@ describe('VersionAiDialog', () => {
         week: expect.stringMatching(/^\d{4}-W\d{2}$/)
       }));
     });
+  });
+
+  it('uses the report display period and keeps it in sync while editing dates', () => {
+    const onDisplayDateRangeChange = vi.fn();
+
+    render(
+      <VersionAiDialog
+        open
+        projectIdentifier="ecookbook"
+        projectId={1}
+        versionId={2}
+        versionName="v1.0"
+        destinationIssueId={123}
+        destinationIssueStatus="VALID"
+        initialStartDate="2026-03-01"
+        initialEndDate="2026-03-07"
+        onDisplayDateRangeChange={onDisplayDateRangeChange}
+        onClose={() => undefined}
+      />
+    );
+
+    expect((screen.getByDisplayValue('2026-03-01') as HTMLInputElement).value).toBe('2026-03-01');
+    expect((screen.getByDisplayValue('2026-03-07') as HTMLInputElement).value).toBe('2026-03-07');
+
+    fireEvent.change(screen.getByDisplayValue('2026-03-01'), { target: { value: '2026-03-02' } });
+
+    expect(onDisplayDateRangeChange).toHaveBeenLastCalledWith('2026-03-02', '2026-03-07');
   });
 });
