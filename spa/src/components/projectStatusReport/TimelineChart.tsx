@@ -62,12 +62,12 @@ type StepRenderData = {
   width: number;
 };
 
-const BASE_LANE_HEIGHT = 79;
-const BASE_POINT_DEPTH = 22;
-const BASE_BAR_HEIGHT = 36;
+const BASE_LANE_HEIGHT = 32;
+const BASE_POINT_DEPTH = 20;
+const BASE_BAR_HEIGHT = 20;
 const PROCESS_PROGRESS_LABEL_OFFSET_Y = 18;
-const yearRowHeight = 25;
-const monthRowHeight = 25;
+const yearRowHeight = 32;
+const monthRowHeight = 32;
 const headerHeight = yearRowHeight + monthRowHeight;
 const TODAY_LABEL_WIDTH = 40;
 const TODAY_LABEL_HEIGHT = 16;
@@ -180,7 +180,7 @@ export function TimelineChart({
 }: TimelineChartProps) {
   const laneHeight = Math.round(BASE_LANE_HEIGHT * chartScale);
   const barHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
-  const barSpacingY = Math.round(17 * chartScale);
+  const barSpacingY = Math.round(12 * chartScale);
 
   const layoutData = useMemo<Array<TimelineLane & {
     contentHeight: number;
@@ -239,7 +239,7 @@ export function TimelineChart({
     <>
       <div className={reportStyles.timelineShell} onClick={handleBackgroundClick}>
         <div className="flex min-w-max flex-none flex-col border-r border-[var(--color-border-light)] bg-white">
-          <div className="flex items-center border-b border-[var(--color-border-light)] bg-[#fbfdff] px-6 text-[12px] font-sans font-semibold uppercase tracking-[0.12em] text-[#45515e]" style={{ height: headerHeight }}>
+          <div className="box-border flex items-center border-b border-[var(--color-border-light)] bg-[#fbfdff] px-6 text-[12px] font-sans font-semibold uppercase tracking-[0.12em] text-[#45515e]" style={{ height: headerHeight }}>
             {t('timeline.laneHeader')}
           </div>
           {layoutData.map((project, projectIndex) => {
@@ -250,7 +250,7 @@ export function TimelineChart({
                 key={project.laneKey}
                 data-testid={`timeline-lane-label-${projectIndex}`}
                 className={`${reportStyles.timelineLaneLabel} ${laneBackground.labelClassName}`}
-                style={{ height: project.height, minHeight: 60 }}
+                style={{ height: project.height }}
               >
                 <div className={`${reportStyles.timelineLaneAction} relative`} style={{ height: project.contentHeight }}>
                   <div className="flex w-full items-start">
@@ -382,7 +382,7 @@ function TimelineChartSurface({
 }) {
   const chartHeight = Math.ceil(headerHeight + totalTimelineHeight);
   const scaledBarHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
-  const scaledBarSpacingY = Math.round(17 * chartScale);
+  const scaledBarSpacingY = Math.round(12 * chartScale);
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null);
   const [dragSession, setDragSession] = useState<DragSession | null>(null);
   const [savingIssueId, setSavingIssueId] = useState<number | null>(null);
@@ -824,7 +824,7 @@ function TimelineChartSurface({
                 const isFirst = stepIndex === 0;
                 const pointDepth = Math.round(BASE_POINT_DEPTH * chartScale);
                 const barHeight = Math.round(BASE_BAR_HEIGHT * chartScale);
-                const barSpacingY = Math.round(17 * chartScale);
+                const barSpacingY = Math.round(12 * chartScale);
                 const totalBarsHeight = (project.maxLane + 1) * barHeight + project.maxLane * barSpacingY;
                 const baseTopPadding = (project.contentHeight - totalBarsHeight) / 2;
                 const verticalOffset = baseTopPadding + step.laneIndex * (barHeight + barSpacingY);
