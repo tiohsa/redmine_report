@@ -8,9 +8,16 @@ import {
   type TaskDetailIssue,
   type TaskIssueEditOptions,
   type TaskMasters,
-  type TaskUpdatePayload,
-  WeeklyApiError
+  type TaskUpdatePayload
 } from '../../../services/scheduleReportApi';
+import {
+  getTaskUpdateErrorMessage,
+  indexTaskDetailsById,
+  mergeUpdatedTaskDetail,
+  normalizeTaskDetailsResponse,
+  replaceTaskDetail,
+  restoreTaskDetailFromBaseline
+} from './taskDetailsDataUtils';
 
 type ReloadOptions = {
   expectedIssueId?: number;
@@ -82,11 +89,13 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
     setLoading(true);
     try {
       let latestRows: TaskDetailIssue[] = [];
+      let latestEditOptionsByIssueId: Record<number, TaskIssueEditOptions> = {};
       const maxAttempts = options.expectedIssueId ? 3 : 1;
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         const response = await fetchTaskDetails(projectIdentifier, targetIssueId);
-        latestRows = Array.isArray(response) ? response : response.issues;
-        setEditOptionsByIssueId(Array.isArray(response) ? {} : response.issue_edit_options || {});
+        const normalized = normalizeTaskDetailsResponse(response);
+        latestRows = normalized.issues;
+        latestEditOptionsByIssueId = normalized.editOptionsByIssueId;
         const found = !options.expectedIssueId || latestRows.some((row) => row.issue_id === options.expectedIssueId);
         if (found) break;
         if (attempt < maxAttempts - 1) {
@@ -94,11 +103,9 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
         }
       }
 
+      setEditOptionsByIssueId(latestEditOptionsByIssueId);
       setIssues(latestRows);
-      baselineByIdRef.current = latestRows.reduce<Record<number, TaskDetailIssue>>((acc, row) => {
-        acc[row.issue_id] = row;
-        return acc;
-      }, {});
+      baselineByIdRef.current = indexTaskDetailsById(latestRows);
       return latestRows;
     } catch (error: unknown) {
       showFeedback('error', error instanceof Error ? error.message : t('timeline.detailsLoadFailed'));
@@ -121,18 +128,14 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
         start_date: row.start_date,
         due_date: row.due_date
       });
-      updated.parent_id = row.parent_id;
-      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
-      baselineByIdRef.current = { ...baselineByIdRef.current, [updated.issue_id]: updated };
+      const nextUpdated = mergeUpdatedTaskDetail(updated, row.parent_id);
+      setIssues((prev) => replaceTaskDetail(prev, nextUpdated));
+      baselineByIdRef.current = { ...baselineByIdRef.current, [nextUpdated.issue_id]: nextUpdated };
       hasAnyChangesRef.current = true;
     } catch (error: unknown) {
-      const message =
-        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
+      const message = getTaskUpdateErrorMessage(error, t('api.updateTaskDates', { status: 500 }));
       showFeedback('error', message);
-      const baseline = baselineByIdRef.current[row.issue_id];
-      if (baseline) {
-        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
-      }
+      setIssues((prev) => restoreTaskDetailFromBaseline(prev, baselineByIdRef.current, row.issue_id));
     } finally {
       setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
     }
@@ -154,19 +157,15 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
         start_date: startDate,
         due_date: dueDate
       });
-      updated.parent_id = row.parent_id;
-      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
-      baselineByIdRef.current = { ...baselineByIdRef.current, [updated.issue_id]: updated };
+      const nextUpdated = mergeUpdatedTaskDetail(updated, row.parent_id);
+      setIssues((prev) => replaceTaskDetail(prev, nextUpdated));
+      baselineByIdRef.current = { ...baselineByIdRef.current, [nextUpdated.issue_id]: nextUpdated };
       hasAnyChangesRef.current = true;
-      return updated;
+      return nextUpdated;
     } catch (error: unknown) {
-      const message =
-        error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : t('api.updateTaskDates', { status: 500 });
+      const message = getTaskUpdateErrorMessage(error, t('api.updateTaskDates', { status: 500 }));
       showFeedback('error', message);
-      const baseline = baselineByIdRef.current[row.issue_id];
-      if (baseline) {
-        setIssues((prev) => prev.map((item) => (item.issue_id === row.issue_id ? { ...item, ...baseline } : item)));
-      }
+      setIssues((prev) => restoreTaskDetailFromBaseline(prev, baselineByIdRef.current, row.issue_id));
       return null;
     } finally {
       setSavingIssueIds((prev) => ({ ...prev, [row.issue_id]: false }));
@@ -208,7 +207,7 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
     const payload: Record<string, unknown> = { [field]: value };
     try {
       const updated = await updateTaskFields(projectIdentifier, issueId, payload as TaskUpdatePayload);
-      setIssues((prev) => prev.map((item) => (item.issue_id === updated.issue_id ? { ...item, ...updated } : item)));
+      setIssues((prev) => replaceTaskDetail(prev, updated));
       baselineByIdRef.current = {
         ...baselineByIdRef.current,
         [updated.issue_id]: { ...baselineByIdRef.current[updated.issue_id], ...updated }
@@ -220,13 +219,10 @@ export function useTaskDetailsData(projectIdentifier: string, open: boolean) {
       }
       return updated;
     } catch (error: unknown) {
-      const message = error instanceof WeeklyApiError ? error.message : error instanceof Error ? error.message : 'Update failed';
+      const message = getTaskUpdateErrorMessage(error, 'Update failed');
       showFeedback('error', message);
 
-      const baseline = baselineByIdRef.current[issueId];
-      if (baseline) {
-        setIssues((prev) => prev.map((item) => (item.issue_id === issueId ? { ...item, ...baseline } : item)));
-      }
+      setIssues((prev) => restoreTaskDetailFromBaseline(prev, baselineByIdRef.current, issueId));
 
       throw error;
     }
