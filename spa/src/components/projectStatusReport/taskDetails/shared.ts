@@ -42,14 +42,14 @@ export const DENSITY_CONFIG = {
   standard: {
     rowHeight: 'min-h-[52px]',
     headerHeight: 'h-11',
-    subjectSize: 'text-[14px]',
-    badgeSize: 'text-[11px]',
+    subjectSize: 'text-[13px]',
+    badgeSize: 'text-[10px]',
     iconSize: 'w-4 h-4',
-    idSize: 'text-xs',
+    idSize: 'text-[10px]',
     cellPadding: 'px-6',
-    progressTextSize: 'text-[12px]',
+    progressTextSize: 'text-[11px]',
     progressGap: 'gap-3',
-    dateSize: 'text-[11px]'
+    dateSize: 'text-[10px]'
   },
   relaxed: {
     rowHeight: 'min-h-[64px]',
