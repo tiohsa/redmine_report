@@ -10,6 +10,7 @@ import { InlineDateRangeEditor, type InlineDateRangeValue } from '../InlineDateR
 import { getProgressFillColor } from '../constants';
 import {
   DENSITY_CONFIG,
+  TREE_LEVEL_INDENT_PX,
   type TableDensity,
   type TreeNodeType
 } from './shared';
@@ -99,6 +100,17 @@ const ColumnResizer = ({ onResize }: { onResize: (deltaX: number) => void }) => 
     />
   );
 };
+
+const TREE_ICON_CENTER_X_PX = 12;
+const TREE_GUIDE_STROKE = '#94a3b8';
+const TREE_GUIDE_STROKE_WIDTH = 0.75;
+const TREE_GUIDE_START_Y_BY_DENSITY: Record<TableDensity, number> = {
+  compact: 25,
+  standard: 29,
+  relaxed: 38
+};
+
+const getTreeGuideX = (level: number) => TREE_ICON_CENTER_X_PX + level * TREE_LEVEL_INDENT_PX + (level > 0 ? 14 : 0);
 
 const IssueTreeNode = ({
   node,
@@ -265,36 +277,63 @@ const IssueTreeNode = ({
         className={`flex items-center ${DENSITY_CONFIG[density].rowHeight} transition-all duration-200 relative group ${DENSITY_CONFIG[density].cellPadding} border-b border-gray-100 font-sans text-[var(--color-text-04)] ${isSelected ? 'bg-[rgba(20,86,240,0.04)] shadow-[inset_0_0_0_1px_rgba(20,86,240,0.1)]' : 'bg-white hover:bg-slate-50'}`}
         onClick={() => onSelectIssue(node)}
       >
-        <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
-          {activeLines.map((isActive, level) => (
-            <svg key={level} width="20" height="100%" className="flex-shrink-0 overflow-visible">
-              {isActive ? <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1" /> : null}
-            </svg>
-          ))}
-          {depth > 0 ? (
-            <svg width="20" height="100%" className="flex-shrink-0 overflow-visible">
-              <line x1="10" y1="0" x2="10" y2={isLast ? '50%' : '100%'} stroke="#cbd5e1" strokeWidth="1" />
-              <line x1="10" y1="50%" x2="20" y2="50%" stroke="#cbd5e1" strokeWidth="1" />
-            </svg>
-          ) : null}
-        </div>
-
-        {node.children.length > 0 ? (
-          <div className="absolute pointer-events-none" style={{ left: `${16 + depth * 20}px`, top: '50%', bottom: 0, width: '20px' }}>
-            {!collapsed ? (
-              <svg width="20" height="100%" className="overflow-visible">
-                <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1" />
-              </svg>
-            ) : null}
-          </div>
-        ) : null}
-
         <div
-          className="shrink-0 flex items-center border-r border-slate-200/80 self-stretch overflow-hidden"
-          style={{ paddingLeft: `${depth * 20}px`, width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}
+          className="relative shrink-0 flex items-center border-r border-slate-200/80 self-stretch overflow-hidden"
+          style={{ paddingLeft: `${depth * TREE_LEVEL_INDENT_PX + (depth > 0 ? 14 : 0)}px`, width: `${columnWidths.task}px`, minWidth: `${columnWidths.task}px` }}
           data-testid={`task-title-cell-${node.issue_id}`}
         >
-          <div className="w-5 mr-0.5 flex-shrink-0 flex items-center justify-center">
+          <svg className="absolute inset-0 pointer-events-none" width="100%" height="100%" data-testid={`task-tree-guides-${node.issue_id}`}>
+            {activeLines.map((isActive, level) => isActive ? (
+              <line
+                key={`guide-${node.issue_id}-${level}`}
+                x1={getTreeGuideX(level)}
+                y1="0"
+                x2={getTreeGuideX(level)}
+                y2="100%"
+                stroke={TREE_GUIDE_STROKE}
+                strokeWidth={TREE_GUIDE_STROKE_WIDTH}
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            ) : null)}
+            {depth > 0 ? (
+              <>
+                <line
+                  x1={getTreeGuideX(depth - 1)}
+                  y1="0"
+                  x2={getTreeGuideX(depth - 1)}
+                  y2={isLast ? "50%" : "100%"}
+                  stroke={TREE_GUIDE_STROKE}
+                  strokeWidth={TREE_GUIDE_STROKE_WIDTH}
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <line
+                  x1={getTreeGuideX(depth - 1)}
+                  y1="50%"
+                  x2={getTreeGuideX(depth)}
+                  y2="50%"
+                  stroke={TREE_GUIDE_STROKE}
+                  strokeWidth={TREE_GUIDE_STROKE_WIDTH}
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </>
+            ) : null}
+            {node.children.length > 0 && !collapsed ? (
+              <line
+                x1={getTreeGuideX(depth)}
+                y1={TREE_GUIDE_START_Y_BY_DENSITY[density]}
+                x2={getTreeGuideX(depth)}
+                y2="100%"
+                stroke={TREE_GUIDE_STROKE}
+                strokeWidth={TREE_GUIDE_STROKE_WIDTH}
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            ) : null}
+          </svg>
+            <div className="w-6 mr-1 flex-shrink-0 flex items-center justify-center">
             {node.children.length > 0 ? (
               <button
                 type="button"

@@ -13,6 +13,7 @@ export type InheritedSubIssueFields = Pick<
 
 export const TABLE_DENSITY_STORAGE_KEY = 'redmine_report_task_details_density';
 export const COLUMN_WIDTH_STORAGE_KEY = 'redmine_report_task_details_column_widths';
+export const TREE_LEVEL_INDENT_PX = 14;
 
 export const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   task: 300,
