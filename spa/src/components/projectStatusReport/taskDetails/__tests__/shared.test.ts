@@ -26,12 +26,12 @@ describe('task details density config', () => {
     });
 
     expect(DENSITY_CONFIG.standard).toMatchObject({
-      rowHeight: 'min-h-[40px]',
+      rowHeight: 'min-h-[36px]',
       subjectSize: 'text-[13px]',
       badgeSize: 'text-[10px]',
       progressTextSize: 'text-[11px]',
       dateSize: 'text-[10px]',
-      cellPadding: 'px-3',
+      cellPadding: 'px-2.5',
       progressGap: 'gap-2',
       headerHeight: 'h-11',
       iconSize: 'w-4 h-4',

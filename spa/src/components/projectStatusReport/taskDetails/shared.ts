@@ -49,12 +49,12 @@ export const DENSITY_CONFIG = {
     statusMinWidth: 'min-w-[46px]'
   },
   standard: {
-    rowHeight: 'min-h-[40px]',
+    rowHeight: 'min-h-[36px]',
     headerHeight: 'h-11',
     subjectSize: 'text-[13px]',
     badgeSize: 'text-[10px]',
     iconSize: 'w-4 h-4',
-    cellPadding: 'px-3',
+    cellPadding: 'px-2.5',
     progressTextSize: 'text-[11px]',
     progressGap: 'gap-2',
     dateSize: 'text-[10px]',
