@@ -45,7 +45,7 @@ export function TaskDetailsHeader({
     setIsDensityMenuOpen,
   } = useUiStore();
 
-  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-2 w-48 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-50`;
+  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-2 w-48 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-50 px-3 pt-2`;
   const filterDropdownTitleStyle = reportStyles.dropdownTitle;
 
   return (
@@ -102,7 +102,7 @@ export function TaskDetailsHeader({
           {isDensityMenuOpen && (
             <div className={filterDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
               <div className={filterDropdownTitleStyle}>{t('timeline.tableDensity', { defaultValue: 'Table Density' })}</div>
-              <SelectionList className="py-1">
+              <SelectionList className="py-1.5">
                 {(['compact', 'standard', 'relaxed'] as TableDensity[]).map((d) => (
                   <SelectionRow
                     key={d}

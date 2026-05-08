@@ -137,8 +137,8 @@ export const ProjectStatusReportToolbar = ({
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const compactActionClassName = 'box-border !h-8 !min-h-8 !rounded-[6px] !px-3 !py-0 text-[12px]';
-  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-1.5 w-[280px] max-h-[320px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
-  const sizeDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[180px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300`;
+  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full left-0 mt-1.5 w-[280px] max-h-[320px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 px-3 pt-2`;
+  const sizeDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-1.5 w-[180px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 px-3 pt-2`;
   const filterDropdownTitleStyle = reportStyles.dropdownTitle;
   const filterDropdownRowStyle = reportStyles.dropdownRow;
   const filterDropdownDividerStyle = reportStyles.dropdownDivider;
@@ -421,7 +421,7 @@ export const ProjectStatusReportToolbar = ({
             {isSizeOpen && (
               <div className={sizeDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
                 <div className={filterDropdownTitleStyle}>{t('filter.size')}</div>
-                <SelectionList className="py-1">
+                <SelectionList className="py-1.5">
                   {sizeOptions.map((option) => (
                     <SelectionRow
                       key={option.label}

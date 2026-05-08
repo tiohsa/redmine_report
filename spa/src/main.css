@@ -270,7 +270,7 @@
   }
 
   .report-version-drag-row {
-    @apply flex items-center gap-2 rounded-[8px] px-2 py-1 text-[13px] text-[#45515e] transition-all;
+    @apply flex items-center gap-3 rounded-[10px] px-3 py-1.5 text-[13px] text-[#45515e] transition-all;
   }
 
   .report-version-drag-row:hover {
@@ -278,7 +278,7 @@
   }
 
   .report-version-drag-row-active {
-    @apply bg-[var(--color-brand-tint)] text-[#222222];
+    @apply bg-white text-[#45515e];
   }
 
   .report-version-drag-row-dragging {
@@ -330,11 +330,11 @@
   }
 
   .report-dropdown-title {
-    @apply mb-2 px-0 pt-0 pb-0 text-[13px] font-sans font-semibold tracking-normal normal-case text-[#333333];
+    @apply mb-2 px-3 pt-0 pb-0 text-[13px] font-sans font-semibold tracking-normal normal-case text-[#333333];
   }
 
   .report-dropdown-row {
-    @apply flex items-center gap-3 rounded-[6px] px-2 py-0.5 text-[13px] text-[#45515e] transition-colors hover:bg-[#f8f9fa] cursor-pointer;
+    @apply flex items-center gap-3 rounded-[10px] px-3 py-1.5 text-[13px] text-[#45515e] transition-colors hover:bg-[#f8f9fa] cursor-pointer;
   }
 
   .report-dropdown-divider {
@@ -358,11 +358,11 @@
   }
 
   .report-selection-panel {
-    @apply py-1;
+    @apply py-1.5;
   }
 
   .report-selection-row {
-    @apply flex cursor-pointer items-center gap-2.5 rounded-[6px] px-2 py-0.5 text-[13px] font-sans text-[#45515e] transition-colors hover:bg-[#f8f9fa] focus:outline-none;
+    @apply flex cursor-pointer items-center gap-3 rounded-[10px] px-3 py-1.5 text-[13px] font-sans text-[#45515e] transition-colors hover:bg-[#f8f9fa] focus:outline-none;
   }
 
   .report-selection-row-active {
@@ -844,15 +844,15 @@
   }
 
   .report-selection-list {
-    @apply space-y-0.5;
+    @apply space-y-1 px-1.5;
   }
 
   .report-selection-list-item {
-    @apply flex w-full items-start gap-3 rounded-[16px] border border-gray-100 bg-white px-4 py-2 text-left transition-all duration-200 hover:border-gray-200 hover:bg-[#fbfdff];
+    @apply flex w-full items-start gap-3 rounded-[16px] border border-gray-100 bg-white px-4 py-3 text-left transition-all duration-200 hover:border-gray-200 hover:bg-[#fbfdff];
   }
 
   .report-selection-list-item-selected {
-    @apply border-[var(--color-primary-200)] bg-[rgba(191,219,254,0.35)] shadow-subtle;
+    @apply border-gray-100 bg-white shadow-none;
   }
 
   .report-selection-list-item-disabled {
