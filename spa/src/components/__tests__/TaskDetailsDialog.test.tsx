@@ -629,6 +629,40 @@ describe('TaskDetailsDialog', () => {
     expect(await screen.findByTestId('start-date-input-11')).toBeTruthy();
   });
 
+  it('closes the table density menu when clicking outside of it', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTitle('Table Density'));
+    expect(screen.getByText('Table Density')).toBeTruthy();
+
+    fireEvent.pointerDown(document.body);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Table Density')).toBeNull();
+    });
+  });
+
 
   it('keeps the clicked child row active while selecting its parent process bar', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
