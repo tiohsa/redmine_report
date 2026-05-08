@@ -159,7 +159,7 @@ export const messages = {
       confirmDiscard: 'You have unsaved changes. Discard them and close?'
     },
     timeline: {
-      laneHeader: 'Version / Project',
+      laneHeader: 'Version',
       laneMenuAria: 'Open actions for {versionName}',
       startAiAria: 'Start AI analysis for {versionName}',
       showDetailAria: 'Show detailed report for {versionName}',
@@ -461,7 +461,7 @@ export const messages = {
       confirmDiscard: '未保存の変更があります。破棄して閉じますか？'
     },
     timeline: {
-      laneHeader: 'バージョン / プロジェクト',
+      laneHeader: 'バージョン',
       laneMenuAria: '{versionName} の操作を開く',
       startAiAria: '{versionName} のAI分析を開始',
       showDetailAria: '{versionName} の詳細レポートを表示',

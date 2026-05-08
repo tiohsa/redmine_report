@@ -253,8 +253,8 @@ export function TimelineChart({
                 style={{ height: project.height, minHeight: 60 }}
               >
                 <div className={`${reportStyles.timelineLaneAction} relative`} style={{ height: project.contentHeight }}>
-                  <div className="flex w-full items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
+                  <div className="flex w-full items-start">
+                    <div className="min-w-0">
                       {project.versionId ? (
                         <a
                           href={`/versions/${project.versionId}`}
@@ -267,20 +267,6 @@ export function TimelineChart({
                       ) : (
                         <div className="text-[14px] font-display font-medium text-[#222222]" title={project.versionName}>
                           {project.versionName}
-                        </div>
-                      )}
-                      {project.projectIdentifier ? (
-                        <a
-                          href={`/projects/${project.projectIdentifier}`}
-                          className="mt-1 block text-[12px] font-sans text-[var(--color-brand-6)] hover:text-[var(--color-primary-700)] hover:underline"
-                          title={project.projectName}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {project.projectName}
-                        </a>
-                      ) : (
-                        <div className="mt-1 text-[12px] font-sans text-[#45515e]" title={project.projectName}>
-                          {project.projectName}
                         </div>
                       )}
                     </div>

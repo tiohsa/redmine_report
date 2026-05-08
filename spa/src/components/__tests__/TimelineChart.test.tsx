@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { messages } from '../../i18n/messages';
 import { TimelineChart } from '../projectStatusReport/TimelineChart';
 import type { TimelineLane } from '../projectStatusReport/timeline';
 
@@ -60,12 +61,26 @@ describe('TimelineChart', () => {
   it('renders the canvas layer and keeps lane labels styled', () => {
     renderTimelineChart();
 
+    expect(screen.getByText('timeline.laneHeader')).toBeTruthy();
     expect(screen.getByTestId('timeline-chart-canvas')).toBeTruthy();
     expect(screen.getByTestId('timeline-lane-label-0').className).toContain('bg-white');
     expect(screen.getByTestId('timeline-lane-label-1').className).toContain('bg-white');
     expect(screen.getByTestId('timeline-lane-label-2').className).toContain('bg-white');
     expect(screen.queryByTestId('timeline-lane-bg-0')).toBeNull();
     expect(screen.queryByTestId('timeline-lane-active-bg-1')).toBeNull();
+  });
+
+  it('does not render the project name in lane labels', () => {
+    renderTimelineChart();
+
+    const lane = screen.getByTestId('timeline-lane-label-0');
+
+    expect(within(lane).queryByText('Alpha')).toBeNull();
+  });
+
+  it('uses the version-only lane header text', () => {
+    expect(messages.en.timeline.laneHeader).toBe('Version');
+    expect(messages.ja.timeline.laneHeader).toBe('バージョン');
   });
 
   it('fits the chart surface to the available timeline width', () => {
