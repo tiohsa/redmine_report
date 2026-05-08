@@ -13,6 +13,7 @@ export type InheritedSubIssueFields = Pick<
 
 export const TABLE_DENSITY_STORAGE_KEY = 'redmine_report_task_details_density';
 export const COLUMN_WIDTH_STORAGE_KEY = 'redmine_report_task_details_column_widths';
+export const TREE_LEVEL_INDENT_PX = 14;
 
 export const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
   task: 300,
@@ -28,40 +29,67 @@ export const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
 
 export const DENSITY_CONFIG = {
   compact: {
-    rowHeight: 'min-h-[38px]',
-    headerHeight: 'h-9',
-    subjectSize: 'text-[12px]',
-    badgeSize: 'text-[10px]',
-    iconSize: 'w-3.5 h-3.5',
-    idSize: 'text-[10px]',
-    cellPadding: 'px-6',
-    progressTextSize: 'text-[10px]',
-    progressGap: 'gap-2',
-    dateSize: 'text-[10px]'
+    rowHeight: 'min-h-[30px]',
+    headerHeight: 'h-8',
+    subjectSize: 'text-[11px]',
+    badgeSize: 'text-[9px]',
+    iconSize: 'w-3 h-3',
+    cellPadding: 'px-2',
+    progressTextSize: 'text-[9px]',
+    progressGap: 'gap-1.5',
+    dateSize: 'text-[9px]',
+    controlButtonSize: '!h-[20px] !w-[20px]',
+    controlInputHeight: 'h-6',
+    controlSelectHeight: 'h-6',
+    controlPaddingX: 'px-1',
+    badgePaddingX: 'px-2',
+    badgePaddingY: 'py-0.5',
+    progressInputWidth: 'w-[56px]',
+    progressInputHeight: 'h-6',
+    avatarSize: 'w-[20px] h-[20px]',
+    statusMinWidth: 'min-w-[46px]'
   },
   standard: {
-    rowHeight: 'min-h-[52px]',
+    rowHeight: 'min-h-[36px]',
     headerHeight: 'h-11',
-    subjectSize: 'text-[14px]',
-    badgeSize: 'text-[11px]',
+    subjectSize: 'text-[13px]',
+    badgeSize: 'text-[10px]',
     iconSize: 'w-4 h-4',
-    idSize: 'text-xs',
-    cellPadding: 'px-6',
-    progressTextSize: 'text-[12px]',
-    progressGap: 'gap-3',
-    dateSize: 'text-[11px]'
+    cellPadding: 'px-2.5',
+    progressTextSize: 'text-[11px]',
+    progressGap: 'gap-2',
+    dateSize: 'text-[10px]',
+    controlButtonSize: '!h-[22px] !w-[22px]',
+    controlInputHeight: 'h-7',
+    controlSelectHeight: 'h-7',
+    controlPaddingX: 'px-1.5',
+    badgePaddingX: 'px-2.5',
+    badgePaddingY: 'py-0.5',
+    progressInputWidth: 'w-[64px]',
+    progressInputHeight: 'h-7',
+    avatarSize: 'w-[22px] h-[22px]',
+    statusMinWidth: 'min-w-[50px]'
   },
   relaxed: {
-    rowHeight: 'min-h-[64px]',
+    rowHeight: 'min-h-[52px]',
     headerHeight: 'h-14',
     subjectSize: 'text-[16px]',
     badgeSize: 'text-[12px]',
     iconSize: 'w-4.5 h-4.5',
-    idSize: 'text-sm',
-    cellPadding: 'px-6',
+    cellPadding: 'px-4',
     progressTextSize: 'text-[13px]',
-    progressGap: 'gap-4',
-    dateSize: 'text-[12px]'
+    progressGap: 'gap-2',
+    dateSize: 'text-[12px]',
+    controlButtonSize: '!h-[24px] !w-[24px]',
+    controlInputHeight: 'h-8',
+    controlSelectHeight: 'h-8',
+    controlPaddingX: 'px-2',
+    badgePaddingX: 'px-3',
+    badgePaddingY: 'py-1',
+    progressInputWidth: 'w-[72px]',
+    progressInputHeight: 'h-8',
+    avatarSize: 'w-[26px] h-[26px]',
+    statusMinWidth: 'min-w-[56px]'
   }
 } as const satisfies Record<TableDensity, {
   rowHeight: string;
@@ -69,11 +97,20 @@ export const DENSITY_CONFIG = {
   subjectSize: string;
   badgeSize: string;
   iconSize: string;
-  idSize: string;
   cellPadding: string;
   progressTextSize: string;
   progressGap: string;
   dateSize: string;
+  controlButtonSize: string;
+  controlInputHeight: string;
+  controlSelectHeight: string;
+  controlPaddingX: string;
+  badgePaddingX: string;
+  badgePaddingY: string;
+  progressInputWidth: string;
+  progressInputHeight: string;
+  avatarSize: string;
+  statusMinWidth: string;
 }>;
 
 export const EMBEDDED_DIALOG_BUTTON_FONT_FAMILY = 'var(--font-sans)';

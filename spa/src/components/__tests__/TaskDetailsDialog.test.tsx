@@ -629,6 +629,40 @@ describe('TaskDetailsDialog', () => {
     expect(await screen.findByTestId('start-date-input-11')).toBeTruthy();
   });
 
+  it('closes the table density menu when clicking outside of it', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByTitle('Table Density'));
+    expect(screen.getByText('Table Density')).toBeTruthy();
+
+    fireEvent.pointerDown(document.body);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Table Density')).toBeNull();
+    });
+  });
+
 
   it('keeps the clicked child row active while selecting its parent process bar', async () => {
     fetchTaskDetailsMock.mockResolvedValue([
@@ -680,6 +714,85 @@ describe('TaskDetailsDialog', () => {
     expect(screen.getByTestId('task-row-12').getAttribute('data-selected')).toBe('true');
     expect(screen.getByTestId('task-row-11').getAttribute('data-selected')).toBe('false');
     expect(screen.getByTestId('task-details-process-step-hit-11').getAttribute('data-selected')).toBe('true');
+  });
+
+  it('uses a tighter but still legible indent for nested issues in the ticket list', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Child issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByTestId('task-title-cell-10').getAttribute('style')).toContain('padding-left: 0px');
+    expect(screen.getByTestId('task-title-cell-11').getAttribute('style')).toContain('padding-left: 28px');
+  });
+
+  it('renders parent-child connector lines for nested issues', async () => {
+    fetchTaskDetailsMock.mockResolvedValue([
+      {
+        issue_id: 10,
+        parent_id: null,
+        subject: 'Root issue',
+        start_date: '2026-02-01',
+        due_date: '2026-02-10',
+        done_ratio: 65,
+        issue_url: '/issues/10'
+      },
+      {
+        issue_id: 11,
+        parent_id: 10,
+        subject: 'Child issue',
+        start_date: '2026-02-03',
+        due_date: '2026-02-08',
+        done_ratio: 40,
+        issue_url: '/issues/11'
+      }
+    ]);
+
+    render(
+      <TaskDetailsDialog
+        open
+        projectIdentifier="ecookbook"
+        issueId={10}
+        onClose={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(fetchTaskDetailsMock).toHaveBeenCalledTimes(1));
+
+    const rootGuides = screen.getByTestId('task-tree-guides-10');
+    const childGuides = screen.getByTestId('task-tree-guides-11');
+
+    expect(rootGuides.querySelectorAll('line')).toHaveLength(0);
+    expect(childGuides.querySelectorAll('line')).toHaveLength(2);
+    expect(childGuides.querySelector('line[x1="8"][x2="8"]')).toBeTruthy();
+    expect(childGuides.querySelector('line[x1="8"][x2="22"]')).toBeTruthy();
   });
 
   it('applies parent process selection when the child subject text is clicked', async () => {

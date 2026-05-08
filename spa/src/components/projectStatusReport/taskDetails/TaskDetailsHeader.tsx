@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { t } from '../../../i18n';
 import { type TableDensity } from './shared';
 import { SelectionList, SelectionRow, CheckboxRow } from '../../ui/SelectionList';
@@ -44,8 +44,25 @@ export function TaskDetailsHeader({
     isDensityMenuOpen,
     setIsDensityMenuOpen,
   } = useUiStore();
+  const densityMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-2 w-48 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-50`;
+  useEffect(() => {
+    if (!isDensityMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (densityMenuRef.current?.contains(target)) return;
+      setIsDensityMenuOpen(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isDensityMenuOpen, setIsDensityMenuOpen]);
+
+  const filterDropdownPanelStyle = `${reportStyles.dropdownPanel} top-full right-0 mt-2 w-48 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-50 px-3 pt-2`;
   const filterDropdownTitleStyle = reportStyles.dropdownTitle;
 
   return (
@@ -84,7 +101,7 @@ export function TaskDetailsHeader({
             <span className="truncate">{title}</span>
           </h3>
         </div>
-        <div className="relative">
+        <div ref={densityMenuRef} className="relative">
           <button
             onClick={(e) => { e.stopPropagation(); setIsDensityMenuOpen(!isDensityMenuOpen); }}
             title={t('timeline.tableDensity', { defaultValue: 'Table Density' })}
@@ -102,7 +119,7 @@ export function TaskDetailsHeader({
           {isDensityMenuOpen && (
             <div className={filterDropdownPanelStyle} onMouseDown={(e) => e.stopPropagation()}>
               <div className={filterDropdownTitleStyle}>{t('timeline.tableDensity', { defaultValue: 'Table Density' })}</div>
-              <SelectionList className="py-1">
+              <SelectionList className="py-1.5">
                 {(['compact', 'standard', 'relaxed'] as TableDensity[]).map((d) => (
                   <SelectionRow
                     key={d}
