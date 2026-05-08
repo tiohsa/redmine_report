@@ -1,5 +1,5 @@
 import { UI_SANS_FONT_FAMILY } from './fonts';
-import { type StrokeTextOptions, drawStrokeText, truncateCanvasText } from './canvasTimelineRenderer';
+import { drawStrokeText, truncateCanvasText } from './canvasTimelineRenderer';
 
 export type ExecutiveBarOptions = {
   x: number;
@@ -34,7 +34,7 @@ export type ExecutiveHeaderOptions = {
 };
 
 /**
- * Draw the executive task bar with rounded corners and right-aligned progress %.
+ * Draw the executive task bar with rounded corners.
  */
 export const drawExecutiveBar = (ctx: CanvasRenderingContext2D, options: ExecutiveBarOptions) => {
   const {
@@ -45,9 +45,7 @@ export const drawExecutiveBar = (ctx: CanvasRenderingContext2D, options: Executi
     fill,
     progress = 0,
     label,
-    chartScale,
-    availableWidth,
-    rightPadding = 12 * chartScale
+    chartScale
   } = options;
   const radius = height / 2; // Full pill radius
 
@@ -68,8 +66,8 @@ export const drawExecutiveBar = (ctx: CanvasRenderingContext2D, options: Executi
     ctx.beginPath();
     ctx.roundRect(x, y, width, height, radius);
     ctx.clip();
-    
-    // Fill a rectangle up to progressWidth. 
+
+    // Fill a rectangle up to progressWidth.
     // The left side will be rounded by the clip, the right side will be a straight line.
     ctx.fillStyle = fill;
     ctx.fillRect(x, y, progressWidth, height);
@@ -90,31 +88,6 @@ export const drawExecutiveBar = (ctx: CanvasRenderingContext2D, options: Executi
       font: labelFont,
       textAlign: 'left',
       textBaseline: 'top'
-    });
-  }
-
-  // Draw Progress % Text (Outside to the right, blue)
-  if (clampedProgress >= 0) {
-    const progressText = `${Math.round(clampedProgress)}%`;
-    const progressFont = `700 ${Math.max(12, Math.round(13 * chartScale))}px ${UI_SANS_FONT_FAMILY}`;
-    ctx.save();
-    ctx.font = progressFont;
-    const textWidth = ctx.measureText(progressText).width;
-    ctx.restore();
-    const preferredX = x + width + 8 * chartScale;
-    const maxX = typeof availableWidth === 'number'
-      ? Math.max(x + 4 * chartScale, availableWidth - rightPadding - textWidth)
-      : preferredX;
-    const progressTextX = Math.min(preferredX, maxX);
-    drawStrokeText(ctx, {
-      text: progressText,
-      x: progressTextX,
-      y: y + height / 2,
-      fill: fill, // Use the same blue as the bar
-      stroke: '#ffffff',
-      strokeWidth: 3,
-      font: progressFont,
-      textAlign: 'left'
     });
   }
 

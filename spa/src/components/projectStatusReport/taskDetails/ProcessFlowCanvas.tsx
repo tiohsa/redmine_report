@@ -295,7 +295,7 @@ export function ProcessFlowCanvas({
           }
         }
 
-        // Labels and progress are now handled by drawExecutiveBar
+        // Bar fill and labels are now handled by drawExecutiveBar
       });
     });
   }, [axis, baseTopPadding, chartHeight, laneHeight, renderSteps, scaleMetrics, selectedIssueId, showTitles]);
