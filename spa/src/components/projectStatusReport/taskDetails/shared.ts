@@ -33,7 +33,6 @@ export const DENSITY_CONFIG = {
     subjectSize: 'text-[11px]',
     badgeSize: 'text-[9px]',
     iconSize: 'w-3 h-3',
-    idSize: 'text-[9px]',
     cellPadding: 'px-2',
     progressTextSize: 'text-[9px]',
     progressGap: 'gap-1.5',
@@ -55,7 +54,6 @@ export const DENSITY_CONFIG = {
     subjectSize: 'text-[13px]',
     badgeSize: 'text-[10px]',
     iconSize: 'w-4 h-4',
-    idSize: 'text-[10px]',
     cellPadding: 'px-3',
     progressTextSize: 'text-[11px]',
     progressGap: 'gap-2',
@@ -77,7 +75,6 @@ export const DENSITY_CONFIG = {
     subjectSize: 'text-[16px]',
     badgeSize: 'text-[12px]',
     iconSize: 'w-4.5 h-4.5',
-    idSize: 'text-sm',
     cellPadding: 'px-4',
     progressTextSize: 'text-[13px]',
     progressGap: 'gap-2',
@@ -99,7 +96,6 @@ export const DENSITY_CONFIG = {
   subjectSize: string;
   badgeSize: string;
   iconSize: string;
-  idSize: string;
   cellPadding: string;
   progressTextSize: string;
   progressGap: string;

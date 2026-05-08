@@ -268,13 +268,13 @@ const IssueTreeNode = ({
         <div className="absolute left-4 top-0 bottom-0 flex pointer-events-none" style={{ width: `${depth * 20}px` }}>
           {activeLines.map((isActive, level) => (
             <svg key={level} width="20" height="100%" className="flex-shrink-0 overflow-visible">
-              {isActive ? <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1.5" /> : null}
+              {isActive ? <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1" /> : null}
             </svg>
           ))}
           {depth > 0 ? (
             <svg width="20" height="100%" className="flex-shrink-0 overflow-visible">
-              <line x1="10" y1="0" x2="10" y2={isLast ? '50%' : '100%'} stroke="#cbd5e1" strokeWidth="1.5" />
-              <line x1="10" y1="50%" x2="20" y2="50%" stroke="#cbd5e1" strokeWidth="1.5" />
+              <line x1="10" y1="0" x2="10" y2={isLast ? '50%' : '100%'} stroke="#cbd5e1" strokeWidth="1" />
+              <line x1="10" y1="50%" x2="20" y2="50%" stroke="#cbd5e1" strokeWidth="1" />
             </svg>
           ) : null}
         </div>
@@ -283,7 +283,7 @@ const IssueTreeNode = ({
           <div className="absolute pointer-events-none" style={{ left: `${16 + depth * 20}px`, top: '50%', bottom: 0, width: '20px' }}>
             {!collapsed ? (
               <svg width="20" height="100%" className="overflow-visible">
-                <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1.5" />
+                <line x1="10" y1="0" x2="10" y2="100%" stroke="#cbd5e1" strokeWidth="1" />
               </svg>
             ) : null}
           </div>
@@ -313,14 +313,11 @@ const IssueTreeNode = ({
             ) : null}
           </div>
           <div className="flex items-center min-w-0 z-10 flex-1">
-            <span className={`flex-shrink-0 text-slate-400 ${DENSITY_CONFIG[density].idSize} font-semibold mr-1`}>
-              #{node.issue_id}
-            </span>
             {isEditing('subject') ? (
-            <input
-              ref={inputRef}
-              type="text"
-              className={`flex-1 ${DENSITY_CONFIG[density].subjectSize} ${DENSITY_CONFIG[density].controlInputHeight} ${DENSITY_CONFIG[density].controlPaddingX} border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-800 min-w-0 shadow-sm`}
+              <input
+                ref={inputRef}
+                type="text"
+                className={`flex-1 ${DENSITY_CONFIG[density].subjectSize} ${DENSITY_CONFIG[density].controlInputHeight} ${DENSITY_CONFIG[density].controlPaddingX} border border-blue-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white text-slate-800 min-w-0 shadow-sm`}
                 value={editingCell!.value}
                 onChange={(e) => setEditingCell({ field: 'subject', value: e.target.value })}
                 onBlur={() => {
