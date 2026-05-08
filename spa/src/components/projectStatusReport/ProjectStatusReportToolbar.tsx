@@ -478,7 +478,7 @@ export const ProjectStatusReportToolbar = ({
             title={t('filter.dateDisplay')}
             aria-pressed={showAllDates}
           >
-            <Icon name="calendar" className="h-4 w-4" />
+            <Icon name="calendar-display" className="h-4 w-4" />
             {showAllDates ? <span className={reportStyles.stateDot} aria-hidden="true" /> : null}
           </Button>
 

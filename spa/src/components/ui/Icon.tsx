@@ -3,6 +3,7 @@ import { cn } from './cn';
 
 export type IconName =
   | 'calendar'
+  | 'calendar-display'
   | 'check'
   | 'check-circle'
   | 'chevron-down'
@@ -35,6 +36,24 @@ type IconProps = SVGProps<SVGSVGElement> & {
 
 const pathByName: Record<IconName, JSX.Element> = {
   calendar: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 2v3m8-3v3M4 10h16M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />,
+  'calendar-display': (
+    <>
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="1.8" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 2v4M8 2v4M3 10h18" />
+      <circle cx="6" cy="13.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="13.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="14" cy="13.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="13.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="6" cy="17" r="1" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="17" r="1" fill="currentColor" stroke="none" />
+      <circle cx="14" cy="17" r="1" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="17" r="1" fill="currentColor" stroke="none" />
+      <circle cx="6" cy="20.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="20.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="14" cy="20.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="20.5" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
   check: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M5 13l4 4L19 7" />,
   'check-circle': <path fillRule="evenodd" clipRule="evenodd" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm3.707-10.293a1 1 0 1 0-1.414-1.414L11 12.586l-1.293-1.293a1 1 0 0 0-1.414 1.414l2 2a1 1 0 0 0 1.414 0l4-4Z" />,
   'chevron-down': <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 9l-7 7-7-7" />,
