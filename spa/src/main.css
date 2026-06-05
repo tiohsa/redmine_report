@@ -987,7 +987,7 @@
   }
 
   .report-inline-date-shell {
-    @apply relative flex h-8 min-w-0 items-stretch bg-transparent;
+    @apply relative flex h-8 min-w-0 items-center bg-transparent;
   }
 
   .report-inline-date-shell-active {
@@ -995,22 +995,29 @@
   }
 
   .report-inline-date-display {
-    @apply box-border inline-flex h-full w-full min-w-0 cursor-pointer items-center truncate border-0 bg-transparent px-0 py-0 text-left text-[11px] font-data tabular-nums leading-[1] text-[#222222] outline-none select-none transition-colors duration-200 hover:text-[var(--color-primary-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-200)] focus-visible:ring-offset-1;
+    @apply box-border flex h-full w-full min-w-0 cursor-pointer items-center truncate border-0 bg-transparent px-0 py-0 text-left text-[11px] font-data tabular-nums leading-none text-[#222222] outline-none select-none transition-colors duration-200 hover:text-[var(--color-primary-600)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary-200)] focus-visible:ring-offset-1;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
   }
 
   .report-inline-date-picker-wrapper {
-    @apply absolute inset-0 h-full w-full;
+    @apply absolute inset-0 block h-full w-full;
   }
 
-  .report-inline-date-picker-wrapper .react-datepicker-wrapper {
-    @apply w-full;
+  .report-inline-date-picker-wrapper.react-datepicker-wrapper {
+    @apply h-full w-full;
+  }
+
+  .report-inline-date-picker-wrapper .react-datepicker__input-container {
+    @apply block h-full w-full;
   }
 
   .report-inline-date-input {
     @apply absolute inset-0 z-10 h-full w-full cursor-pointer border-0 bg-transparent p-0 text-transparent caret-transparent opacity-0 outline-none;
+    margin: 0;
+    line-height: 1;
+    appearance: none;
   }
 
   .report-inline-date-input-active {
