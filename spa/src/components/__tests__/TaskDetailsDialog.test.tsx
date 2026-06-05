@@ -281,6 +281,14 @@ describe('TaskDetailsDialog', () => {
 
     expect(screen.getByTestId('start-date-display-11').textContent).toBe('2026/02/03');
     expect(screen.getByTestId('due-date-display-11').textContent).toBe('2026/02/08');
+
+    // Check active DOM structures to ensure consistency
+    const input = screen.getByTestId('start-date-input-11');
+    expect(input).toHaveClass('report-inline-date-input-active');
+
+    const wrapper = input.closest('.report-inline-date-picker-wrapper');
+    expect(wrapper).toBeTruthy();
+    expect(wrapper).toHaveClass('report-inline-date-picker-wrapper-active');
   });
 
   it('supports Today action in the inline date picker', async () => {

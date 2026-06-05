@@ -238,7 +238,7 @@ export const InlineDateRangeEditor = ({
         className="shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch overflow-hidden group/cell"
         style={{ width: `${startColumnWidth}px`, minWidth: `${startColumnWidth}px` }}
       >
-        <div className="relative w-full h-8">
+        <div className="relative flex h-8 w-full items-center">
           <InlineDateField
             field="start_date"
             issueId={issueId}
@@ -256,7 +256,7 @@ export const InlineDateRangeEditor = ({
         className="shrink-0 flex items-center px-2 justify-start border-r border-slate-200/80 self-stretch overflow-hidden group/cell"
         style={{ width: `${dueColumnWidth}px`, minWidth: `${dueColumnWidth}px` }}
       >
-        <div className="relative w-full h-8 flex items-center">
+        <div className="relative flex h-8 w-full items-center">
           <InlineDateField
             field="due_date"
             issueId={issueId}
